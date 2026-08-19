@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUILD_VARIABLES,
+  REQUIRED_BUILD_VARIABLES,
   buildOfficialConfig,
   missingBuildVariables,
   stripJsonComments,
@@ -42,11 +42,19 @@ describe("missingBuildVariables", () => {
   // A build variable left blank in the dashboard arrives as "", and an empty database id
   // fails in exactly the confusing way a missing one does.
   it("treats an empty string as missing", () => {
-    expect(missingBuildVariables({ ...FILLED_ENV, CF_ROUTE: "   " })).toEqual(["CF_ROUTE"]);
+    expect(missingBuildVariables({ ...FILLED_ENV, CF_D1_ID: "   " })).toEqual(["CF_D1_ID"]);
   });
 
-  it("reports all nine when the environment is empty", () => {
-    expect(missingBuildVariables({})).toEqual([...BUILD_VARIABLES]);
+  it("reports every required one when the environment is empty", () => {
+    expect(missingBuildVariables({})).toEqual([...REQUIRED_BUILD_VARIABLES]);
+  });
+
+  // A deployment with no custom domain and no mail vendor is a supported one, not a broken
+  // one — it answers on <name>.workers.dev and writes login codes to the log. Requiring these
+  // two would make the smallest working deployment impossible.
+  it("does not ask for the route or the sender", () => {
+    const { CF_ROUTE: _r, CF_MAIL_FROM: _m, ...rest } = FILLED_ENV;
+    expect(missingBuildVariables(rest)).toEqual([]);
   });
 });
 
@@ -79,6 +87,33 @@ describe("buildOfficialConfig", () => {
     expect(config.main).toBe("worker/index.ts");
     expect(config.assets).toEqual({ directory: "./dist", run_worker_first: ["/api/*"] });
     expect(config.d1_databases[0]?.migrations_dir).toBe("./migrations");
+  });
+
+  it("leaves routes out entirely when there is no custom domain", () => {
+    const { CF_ROUTE: _r, ...rest } = FILLED_ENV;
+    const config = buildOfficialConfig(SELF_HOST_CONFIG, rest);
+
+    // Not `[]` — an empty array is a different request from saying nothing, and the Worker
+    // has to fall through to its workers.dev hostname.
+    expect(config.routes).toBeUndefined();
+    expect("routes" in config).toBe(false);
+  });
+
+  it("leaves MAIL_FROM out when no sender is configured", () => {
+    const { CF_MAIL_FROM: _m, ...rest } = FILLED_ENV;
+    const config = buildOfficialConfig(SELF_HOST_CONFIG, rest);
+
+    // worker/email.ts reads "unset" as "write the code to the log", and an empty string is
+    // not unset — it would be a sender address of "".
+    expect(config.vars).toEqual({
+      RP_ID: "app.tidemarks.io",
+      ORIGIN: "https://app.tidemarks.io",
+    });
+  });
+
+  it("treats a blank optional variable as absent", () => {
+    const config = buildOfficialConfig(SELF_HOST_CONFIG, { ...FILLED_ENV, CF_ROUTE: "  " });
+    expect("routes" in config).toBe(false);
   });
 
   it("does not mutate the config it was given", () => {

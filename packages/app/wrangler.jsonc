@@ -1,28 +1,36 @@
 {
-  // **This file is the self-hosting default. The official deployment does not use it.**
+  // **Nobody's deployment reads this file as it stands, and nobody should edit it to make one.**
   //
-  // It deliberately carries no account-specific values: no database id, no namespace id, no
-  // route, no vars. Fill them in for your own deployment and `git pull` will never conflict
-  // here, because upstream has no reason to touch those lines.
+  // It is the shape of the configuration, shared by everybody, holding only what is true of
+  // every deployment. What differs between one deployment and the next — database id, bucket
+  // name, hostname, sender address — is absent on purpose, and stays absent: `scripts/deploy.ts`
+  // merges those in at build time from Workers Builds' build variables, in whichever Cloudflare
+  // account is doing the building. That is the same for the official deployment and for
+  // somebody self-hosting; see docs/deployment.md.
   //
-  // The official tidemarks.io deployment generates its own configuration at build time from
-  // Workers Builds' build variables — see `scripts/deploy.ts` and `docs/deployment.md`.
+  // So this file has two readers: `npm run dev` and `wrangler dev`, which need no account of
+  // anybody's, and the generator, which reads it as its starting point.
   //
-  // Three things worth knowing before trying to avoid the generator (all checked against
-  // wrangler 4.124, not inferred from the docs):
+  // **Editing it to hold your own ids is the one thing not to do.** Not because it would fail
+  // — it would work — but because upstream keeps changing these lines, so every `git pull`
+  // would conflict here, on a fork of a public repository. Build variables cost nothing and
+  // that cost is permanent.
+  //
+  // Three things checked against wrangler 4.124 rather than inferred from the docs, which
+  // together are why the generator exists at all:
   //
   //  - This file is valid as it stands. Wrangler raises nothing about the missing ids, the
-  //    missing `routes` or the missing `vars` — it gets as far as bundling, so a parse error
-  //    here is a real error and not the blanks.
+  //    missing `routes` or the missing `vars` — it gets as far as bundling, so an error here
+  //    is a real error and not the blanks.
   //  - Wrangler does not interpolate `${VAR}` in a configuration file.
   //  - `wrangler deploy` has no flag that overrides a D1 `database_id`, an R2 `bucket_name`
   //    or a KV `id`, so a command line cannot stand in for them either.
   //
-  // Leaving an id out entirely is also not a way round it. Wrangler will provision the
-  // resource and write the id back — which works from a laptop and does not work from a build
-  // environment, because that environment cannot commit to the repository. The id is then
-  // lost, and every later deploy tries to create the resource again and fails with "already
-  // exists" (code 10014). This project has been there; see docs/deployment.md.
+  // Leaving an id out and letting wrangler provision the resource is not a way round it
+  // either. Wrangler writes the id back into the config, which works from a laptop and does
+  // not work from a build environment, because that environment cannot commit to the
+  // repository. The id is lost, and every later deploy tries to create the resource again and
+  // fails with "already exists" (code 10014). This project has been there.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tidemarks",
   "main": "worker/index.ts",
@@ -43,21 +51,21 @@
     "run_worker_first": ["/api/*", "/auth/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*"]
   },
 
-  // No `routes`. Without one the Worker is served from `<name>.workers.dev`, which is what
-  // makes a fresh deployment usable before anybody has bought a domain. Add a `routes` entry
-  // with `"custom_domain": true` once you have a hostname whose zone is on your account.
+  // No `routes`, and none to add here. A custom domain comes from the CF_ROUTE build
+  // variable, and leaving that unset is a supported deployment rather than an incomplete one:
+  // the Worker is then served from `<name>.workers.dev`, which is what makes a fresh
+  // deployment usable before anybody has bought a hostname.
 
   "d1_databases": [
     {
       "binding": "DB",
+      // `database_name` and `database_id` both arrive from build variables (CF_D1_NAME,
+      // CF_D1_ID). The name here is only what `wrangler dev --local` calls its local copy.
       "database_name": "tidemarks",
-      // "database_id": "…" — from `npx wrangler d1 create tidemarks`. Required; read the note
-      // at the top of this file before leaving it out.
-      //
-      // `migrations_dir` is stated rather than left to the default so a reader can find where
-      // the schema lives. `npm run deploy` applies these before uploading the Worker, which is
-      // the order that matters: a Worker reading a column the database has not got yet fails
-      // on the first request, not at deploy time.
+      // Stated rather than left to the default so a reader can find where the schema lives.
+      // `npm run deploy` applies these before uploading the Worker, which is the order that
+      // matters: a Worker reading a column the database has not got yet fails on the first
+      // request, not at deploy time.
       "migrations_dir": "./migrations"
     }
   ],
@@ -73,28 +81,28 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV"
-      // "id": "…" — from `npx wrangler kv namespace create OAUTH_KV`. This is the binding the
-      // 10014 story at the top of this file is about.
+      // The id comes from the CF_KV_ID build variable. This is the binding the 10014 story at
+      // the top of this file is about.
     }
   ]
 
-  // No `vars`, and that is not an oversight. Three values belong here and none of them has a
-  // default that is right for anybody else:
+  // No `vars`, and that is not an oversight. Three values belong here, all from build
+  // variables, and none of them has a default that is right for anybody else:
   //
-  //   RP_ID      the hostname passkeys are scoped to. **Permanently locked once the first
-  //              passkey is registered** — changing it invalidates every passkey.
-  //   ORIGIN     "https://" + that hostname.
-  //   MAIL_FROM  sender of the magic-code mail, on a domain Resend has verified. **Not
-  //              necessarily the hostname above** — Resend only knows about the domain you
-  //              verified with it, and refuses every message from any other.
+  //   RP_ID      the hostname passkeys are scoped to (CF_RP_ID). **Permanently locked once the
+  //              first passkey is registered** — changing it invalidates every passkey.
+  //   ORIGIN     "https://" + that hostname (CF_ORIGIN).
+  //   MAIL_FROM  sender of the magic-code mail, on a domain Resend has verified
+  //              (CF_MAIL_FROM). **Not necessarily the hostname above** — Resend only knows
+  //              about the domain you verified with it, and refuses every message from any
+  //              other. Optional: unset, and without RESEND_API_KEY, the login code is written
+  //              to the log (`npx wrangler tail`) rather than mailed, which is the whole
+  //              zero-vendor path. See worker/email.ts.
   //
-  // A plausible-looking placeholder is worse than nothing here: two of the three fail
-  // silently. A deployment with somebody else's RP_ID deploys fine and cannot be logged into,
-  // and one with an unverified MAIL_FROM deploys fine and mails nothing.
-  //
-  // Leaving MAIL_FROM unset is a supported configuration, not a broken one: without
-  // RESEND_API_KEY the login code is written to the log (`npx wrangler tail`) instead of
-  // mailed, which is the whole zero-vendor self-hosting path. See worker/email.ts.
+  // A plausible-looking placeholder would be worse than nothing here, which is the other
+  // reason they are not in this file: two of the three fail silently. A deployment carrying
+  // somebody else's RP_ID deploys fine and cannot be logged into, and one with an unverified
+  // MAIL_FROM deploys fine and mails nothing.
   //
   // Whether RP_ID should fall back to the request's host is an open question — issue #9.
   //
@@ -104,7 +112,11 @@
   // deploy on purpose, so that opening signup leaves a commit behind, while adding one friend
   // to the allowlist is a `wrangler d1 execute` and needs nothing.
 
-  // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY.
+  // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY. Secrets, unlike the
+  // values above, are attached to the Worker and read at runtime — build variables are not
+  // visible to a running Worker, which is exactly right for values whose job is to write this
+  // file.
+  //
   // COOKIE_SECRET is required — the Worker deploys without it and then nobody can log in.
   // RESEND_API_KEY unset means magic codes go to the log instead of the mail, as above.
 }

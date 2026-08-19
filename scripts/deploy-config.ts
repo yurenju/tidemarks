@@ -8,26 +8,43 @@
 // every `git pull` would conflict. The official values live in Workers Builds' build variables
 // instead and are merged in here at build time.
 
-export const BUILD_VARIABLES = [
+export const REQUIRED_BUILD_VARIABLES = [
   "CF_WORKER_NAME",
   "CF_D1_NAME",
   "CF_D1_ID",
   "CF_R2_BUCKET",
   "CF_KV_ID",
-  "CF_ROUTE",
   "CF_RP_ID",
   "CF_ORIGIN",
-  "CF_MAIL_FROM",
 ] as const;
 
-export type BuildVariable = (typeof BUILD_VARIABLES)[number];
+// **Two things a working deployment can do without**, so requiring them would make the smallest
+// one impossible rather than safer:
+//
+//   CF_ROUTE      no custom domain. Without it the Worker answers on <name>.workers.dev, which
+//                 is what lets somebody deploy before owning a hostname.
+//   CF_MAIL_FROM  no mail vendor. Without it (and without RESEND_API_KEY) login codes go to the
+//                 Worker's log, which is a supported way to run this — see worker/email.ts.
+export const OPTIONAL_BUILD_VARIABLES = ["CF_ROUTE", "CF_MAIL_FROM"] as const;
 
-/** The nine variables, all present — which is the only state anything downstream accepts. */
-export type BuildEnv = Record<BuildVariable, string>;
+export const BUILD_VARIABLES = [...REQUIRED_BUILD_VARIABLES, ...OPTIONAL_BUILD_VARIABLES];
 
-/** Every build variable that is absent or blank, in the order they are declared above. */
-export function missingBuildVariables(env: Record<string, string | undefined>): BuildVariable[] {
-  return BUILD_VARIABLES.filter((name) => (env[name] ?? "").trim() === "");
+export type RequiredBuildVariable = (typeof REQUIRED_BUILD_VARIABLES)[number];
+export type OptionalBuildVariable = (typeof OPTIONAL_BUILD_VARIABLES)[number];
+
+export type BuildEnv = Record<RequiredBuildVariable, string> &
+  Partial<Record<OptionalBuildVariable, string>>;
+
+/** Every *required* build variable that is absent or blank, in the order declared above. */
+export function missingBuildVariables(
+  env: Record<string, string | undefined>,
+): RequiredBuildVariable[] {
+  return REQUIRED_BUILD_VARIABLES.filter((name) => (env[name] ?? "").trim() === "");
+}
+
+function present(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed === "" ? undefined : trimmed;
 }
 
 interface Binding {
@@ -47,8 +64,8 @@ export interface OfficialConfig extends WranglerConfig {
   d1_databases: Binding[];
   r2_buckets: Binding[];
   kv_namespaces: Binding[];
-  routes: { pattern: string; custom_domain: true }[];
-  vars: { RP_ID: string; ORIGIN: string; MAIL_FROM: string };
+  routes?: { pattern: string; custom_domain: true }[];
+  vars: { RP_ID: string; ORIGIN: string; MAIL_FROM?: string };
 }
 
 // Exactly one of each, because the merge below writes into `[0]`. A second D1 binding would
@@ -75,6 +92,9 @@ export function buildOfficialConfig(base: WranglerConfig, env: BuildEnv): Offici
   const r2 = only(base.r2_buckets, "r2_buckets");
   const kv = only(base.kv_namespaces, "kv_namespaces");
 
+  const route = present(env.CF_ROUTE);
+  const mailFrom = present(env.CF_MAIL_FROM);
+
   // **No "do not edit" marker in here.** JSON has no comments, and the obvious substitute — a
   // top-level "//" key — makes wrangler warn "Unexpected fields found in top-level field" on
   // every single build. A warning nobody can act on, printed forever, is how a build log stops
@@ -85,14 +105,16 @@ export function buildOfficialConfig(base: WranglerConfig, env: BuildEnv): Offici
     d1_databases: [{ ...d1, database_name: env.CF_D1_NAME, database_id: env.CF_D1_ID }],
     r2_buckets: [{ ...r2, bucket_name: env.CF_R2_BUCKET }],
     kv_namespaces: [{ ...kv, id: env.CF_KV_ID }],
-    routes: [{ pattern: env.CF_ROUTE, custom_domain: true }],
+    // Omitted rather than emitted empty when there is no custom domain: `"routes": []` is not
+    // the same request as no routes at all.
+    ...(route ? { routes: [{ pattern: route, custom_domain: true }] } : {}),
     vars: {
       RP_ID: env.CF_RP_ID,
       ORIGIN: env.CF_ORIGIN,
       // The domain here is whichever one is verified with Resend, which has nothing to do
       // with the hostname above. Resend refuses every message from an unverified domain, and
       // then nobody can log in — a failure that never shows up at deploy time.
-      MAIL_FROM: env.CF_MAIL_FROM,
+      ...(mailFrom ? { MAIL_FROM: mailFrom } : {}),
     },
   };
 }

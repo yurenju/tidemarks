@@ -1,8 +1,13 @@
-// The official deployment. Cloudflare's build form points at `npm run deploy:ci` (production)
-// and `npm run versions:upload` (every other branch), and both land here.
+// Deployment. Cloudflare's build form points at `npm run deploy` (production) and
+// `npm run versions:upload` (every other branch), and both land here.
 //
 //     node scripts/deploy.ts production   generate config → apply migrations → deploy
 //     node scripts/deploy.ts preview      generate config → upload a version
+//
+// **This is the only way anything is deployed, official or self-hosted.** There is no deploy
+// from a laptop: the account-specific values live in Workers Builds' build variables, so the
+// build environment is the only place that has them. Somebody self-hosting sets the same
+// variables in their own dashboard and runs the same command — see docs/deployment.md.
 //
 // **Why a script and not a chain of npm scripts.** Two rules here are invisible in a shell
 // one-liner and expensive to get wrong, so they need somewhere to be written down:
@@ -21,7 +26,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  BUILD_VARIABLES,
+  OPTIONAL_BUILD_VARIABLES,
+  REQUIRED_BUILD_VARIABLES,
   buildOfficialConfig,
   missingBuildVariables,
   stripJsonComments,
@@ -58,16 +64,22 @@ function readBuildVariables(): BuildEnv {
   if (missing.length > 0) {
     fail(
       `Missing build variables: ${missing.join(", ")}\n\n` +
-        `  All ${BUILD_VARIABLES.length} are set in the Cloudflare dashboard, under the\n` +
-        `  Worker's Settings → Builds → Variables and Secrets.\n` +
-        `  Expected: ${BUILD_VARIABLES.join(", ")}\n\n` +
+        `  These are set in the Cloudflare dashboard, under the Worker's\n` +
+        `  Settings → Builds → Variables and Secrets.\n\n` +
+        `  Required: ${REQUIRED_BUILD_VARIABLES.join(", ")}\n` +
+        `  Optional: ${OPTIONAL_BUILD_VARIABLES.join(", ")}\n` +
+        `    (no CF_ROUTE serves the Worker from <name>.workers.dev; no CF_MAIL_FROM writes\n` +
+        `     login codes to the log instead of mailing them)\n\n` +
         `  Stopping rather than falling back to packages/app/wrangler.jsonc, which carries no\n` +
-        `  ids: see "The official deployment" in docs/deployment.md for why that fallback\n` +
-        `  would be worse than this failure.`,
+        `  ids: see "How a deployment is configured" in docs/deployment.md.`,
     );
   }
   // Every name is present and non-blank, which is what the check above establishes.
-  return Object.fromEntries(BUILD_VARIABLES.map((name) => [name, process.env[name]!])) as BuildEnv;
+  return Object.fromEntries(
+    [...REQUIRED_BUILD_VARIABLES, ...OPTIONAL_BUILD_VARIABLES]
+      .map((name) => [name, process.env[name]])
+      .filter(([, value]) => value !== undefined),
+  ) as BuildEnv;
 }
 
 function generateConfig(): OfficialConfig {
@@ -83,7 +95,8 @@ function generateConfig(): OfficialConfig {
   const config = buildOfficialConfig(base, readBuildVariables());
   writeFileSync(resolve(APP_DIR, GENERATED_CONFIG), `${JSON.stringify(config, null, 2)}\n`);
 
-  console.log(`Generated ${GENERATED_CONFIG} for worker "${config.name}" on ${config.vars.ORIGIN}`);
+  const where = config.routes ? config.routes[0]!.pattern : `${config.name}.workers.dev`;
+  console.log(`Generated ${GENERATED_CONFIG} for worker "${config.name}" on ${where}`);
   return config;
 }
 
@@ -125,6 +138,6 @@ if (mode === "production") {
   wrangler("deploy", "--config", GENERATED_CONFIG);
 } else {
   // No migrations here — see the header. The generated config still carries the production
-  // route, which is harmless: `versions upload` does not apply routes.
+  // route when there is one, which is harmless: `versions upload` does not apply routes.
   wrangler("versions", "upload", "--config", GENERATED_CONFIG);
 }

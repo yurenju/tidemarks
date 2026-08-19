@@ -33,14 +33,12 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 
 根目錄的 script 一律轉給 package（`npm run build` = 先 `build:frond` 再 `npm run build -w app`）。
 **這是刻意的**：Cloudflare Workers Builds 的設定在 dashboard 裡，寫的是根目錄的 npm script
-（`npm run build`、`npm run deploy:ci`、preview 分支的 `npm run versions:upload`），所以 package
+（`npm run build`、`npm run deploy`、preview 分支的 `npm run versions:upload`），所以 package
 佈局怎麼變都不用回頭改它。**dashboard 裡不要出現直接叫工具的指令**，那種指令會在根目錄找
 `wrangler.jsonc`，而它在 `packages/app/`。見 [deployment.md](docs/deployment.md)。
 
-**`deploy:ci` 與 `versions:upload` 是這條規則唯一的例外**：它們跑的是 `scripts/deploy.ts`，那支
-script 本來就住在根目錄（它要讀 `packages/app/wrangler.jsonc` 再產生官方那台的設定），轉一手
-換不到東西。`npm run deploy`（自架、從筆電部署那條）照樣走 `-w app`，而且**刻意不經過產生器**
-——自架的人沒有那些 build variables。
+**`deploy` 與 `versions:upload` 是這條規則的例外**：它們跑的是 `scripts/deploy.ts`，那支 script
+本來就住在根目錄（它要讀 `packages/app/wrangler.jsonc` 再產生實際要用的設定），轉一手換不到東西。
 
 ## 現在是開發階段
 
@@ -53,10 +51,11 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 「資料可以丟」不等於「schema 靠手動送上去」。**動到 D1 的 schema 就在 `packages/app/migrations/`
 加一支**，開發階段那支裡面允許 `DROP`。改既有的 migration 檔沒有用——資料庫已經記得它跑過了。
 
-跑 migration 的是 `npm run deploy:ci`（`scripts/deploy.ts production`：產生設定 → `migrations
-apply --remote` → `wrangler deploy`），自動部署走它；從筆電手動部署走 `npm run deploy`，同樣是
-先 migration 再 deploy，只是讀 repo 那份設定。preview 分支的 `versions:upload` **不跑
-migration**。順序與理由見 [deployment.md](docs/deployment.md)。
+跑 migration 的是 `npm run deploy`（`scripts/deploy.ts production`：產生設定 → `migrations apply
+--remote` → `wrangler deploy`）。**部署只有這一條路，沒有從筆電部署這回事**——每個部署的專屬值
+（資源 id、網域、寄件位址）都在 Workers Builds 的 build variables 裡，只有 build 環境拿得到，
+官方與自架都一樣。preview 分支的 `versions:upload` **不跑 migration**。理由見
+[deployment.md](docs/deployment.md)。
 
 ## 這個 repo 是公開的，而且沒有私有的另一半
 
