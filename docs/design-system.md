@@ -1,6 +1,6 @@
 # Design system
 
-判準與值。**為什麼**長這樣在 [ADR-0022](adr/0022-the-interface-is-a-print-shop.md)，
+怎麼分，加上值。**為什麼**長這樣在 [ADR-0022](adr/0022-the-interface-is-a-print-shop.md)，
 **值本身**的正本在 [`packages/app/src/index.css`](../packages/app/src/index.css) 的 `:root`
 （這份文件會過期，那個檔案不會）。詞的定義在 [CONTEXT.md](../CONTEXT.md)。
 
@@ -113,7 +113,7 @@ segmented 的選中格跟它的控制項一起算一個綠，因為那塊綠說�
 字級的時候書會跟著長，而介面只有寫成 rem 才會跟著長。寫 px 的結果是書變大、介面顯得更小。
 
 手機那一欄不是「小螢幕所以放大」，是**襯線漢字的量法**：漢字沒有 x-height、字身塞滿，宋體的橫筆
-在 DPR 3 上靠灰階抗鋸齒會發灰。判準是字面方框，不是幾 px。切換條件是 `pointer: coarse`（主要指標
+在 DPR 3 上靠灰階抗鋸齒會發灰。看的是字面方框，不是幾 px。切換條件是 `pointer: coarse`（主要指標
 是不是手指），不是寬度，理由見 [ADR-0023](adr/0023-width-places-things-pointer-sizes-them.md)。
 
 | token | fine | coarse | 用在 |

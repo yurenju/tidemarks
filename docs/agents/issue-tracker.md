@@ -62,6 +62,42 @@ spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個
 `gh issue view <n>`。若拿到的是檔案路徑，那是 spec（`docs/specs/`）或 wayfinding 的 child
 （`.scratch/`），直接讀檔。
 
+## Issue 之間的相依性
+
+GitHub 的 issue 有**原生的相依性**（blocked by／blocking），設好之後 issue 畫面上會直接顯示「被什麼
+擋著」，也擋得住不小心提早開工。`gh` 沒有專門的子指令，走 REST API。
+
+⚠️ **API 吃的是 issue 的 numeric id，不是畫面上那個編號。** 這是唯一容易做錯的地方——把編號當
+`issue_id` 送進去會綁到完全不相干的另一張票（那個 id 是全 GitHub 唯一的，別的 repo 也算），而且**不會
+報錯**。
+
+```sh
+# 先換算：#4 的 numeric id
+gh api repos/<owner>/<repo>/issues/4 -q .id
+
+# 設「#11 被 #4 擋著」
+gh api --method POST repos/<owner>/<repo>/issues/11/dependencies/blocked_by \
+  -F issue_id=<#4 的 numeric id>
+
+# 解除（路徑上也是 numeric id）
+gh api --method DELETE repos/<owner>/<repo>/issues/11/dependencies/blocked_by/<#4 的 numeric id>
+```
+
+查的時候**兩個方向都查一次**，那是最便宜的驗證：
+
+```sh
+gh api repos/<owner>/<repo>/issues/11/dependencies/blocked_by -q '[.[].number]'   # → [4, 8]
+gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]'   # → [2, 3, 11]
+```
+
+**設了相依性，還是要在 issue 內文寫一節〈相依性〉講為什麼。** API 記的是「A 擋著 B」這個事實，讀的人
+需要的是理由——是因為檔案會撞、因為順序不能反悔、還是只是比較好做。少了理由，情況變了就沒有人知道
+那條線還算不算數。這批 issue 就發生過：方向改掉之後，內文那節還停在舊世界，而事實那一半看起來完全
+正常。
+
+**sub-issue 是另一個功能**（`/issues/<n>/sub_issues`），用在「一張大票拆成幾張小票」的層級關係上，
+跟這裡的先後關係不是同一件事。目前沒有在用。
+
 ## Wayfinding 操作
 
 由 `/wayfinder` 使用，**這一套完全在 `.scratch/` 裡跑**，沒有搬到 GitHub。理由：wayfinding 的
@@ -75,7 +111,7 @@ child 是「一個待回答的問題」而不是「一件待做的工作」，�
 
 - **Map**：`.scratch/<effort>/map.md` — 內容為 Notes / Decisions-so-far / Fog。
 - **Child ticket**：`.scratch/<effort>/issues/NN-<slug>.md`，從 `01` 開始編號，問題寫在內文。`Type:` line 記錄 ticket 類型（`research`/`prototype`/`grilling`/`task`）；`Status:` line 記錄 `claimed`/`resolved`。
-- **Blocking**：頂端附近的 `Blocked by: NN, NN` line。當它列出的每個檔案都是 `resolved` 時，這張 ticket 才解除 block。
+- **Blocking**：頂端附近的 `Blocked by: NN, NN` line。當它列出的每個檔案都是 `resolved` 時，這張 ticket 才解除 block。（GitHub issue 那邊有原生的相依性可以用，見上面那節；wayfinding 這一套刻意留在檔案裡，因為它整組都不進 GitHub。）
 - **Frontier**：掃描 `.scratch/<effort>/issues/`，找出 open、未被 block、且未被 claim 的檔案；編號最小者優先。
 - **Claim**：動工前先設 `Status: claimed` 並存檔。
 - **Resolve**：在 `## Answer` heading 底下附上答案，設 `Status: resolved`，再把一則 context pointer（摘要 + 連結）附加到 `map.md` 的 Decisions-so-far。

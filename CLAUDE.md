@@ -33,9 +33,12 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 
 根目錄的 script 一律轉給 package（`npm run build` = 先 `build:frond` 再 `npm run build -w app`）。
 **這是刻意的**：Cloudflare Workers Builds 的設定在 dashboard 裡，寫的是根目錄的 npm script
-（`npm run build`、`npm run deploy:ci`、preview 分支的 `npm run versions:upload`），所以 package
+（`npm run build`、`npm run deploy`、preview 分支的 `npm run versions:upload`），所以 package
 佈局怎麼變都不用回頭改它。**dashboard 裡不要出現直接叫工具的指令**，那種指令會在根目錄找
 `wrangler.jsonc`，而它在 `packages/app/`。見 [deployment.md](docs/deployment.md)。
+
+**`deploy` 與 `versions:upload` 是這條規則的例外**：它們跑的是 `scripts/deploy.ts`，那支 script
+本來就住在根目錄（它要讀 `packages/app/wrangler.jsonc` 再產生實際要用的設定），轉一手換不到東西。
 
 ## 現在是開發階段
 
@@ -48,30 +51,26 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 「資料可以丟」不等於「schema 靠手動送上去」。**動到 D1 的 schema 就在 `packages/app/migrations/`
 加一支**，開發階段那支裡面允許 `DROP`。改既有的 migration 檔沒有用——資料庫已經記得它跑過了。
 
-跑 migration 的是 `npm run deploy:ci`（`migrations apply --remote` 再 `wrangler deploy`），
-自動部署與手動部署都走它。順序與理由見 [deployment.md](docs/deployment.md)。
+跑 migration 的是 `npm run deploy`（`scripts/deploy.ts production`：產生設定 → `migrations apply
+--remote` → `wrangler deploy`）。**部署只有這一條路，沒有從筆電部署這回事**——每個部署的專屬值
+（資源 id、網域、寄件位址）都在 Workers Builds 的 build variables 裡，只有 build 環境拿得到，
+官方與自架都一樣。preview 分支的 `versions:upload` **不跑 migration**。理由見
+[deployment.md](docs/deployment.md)。
 
-## 檔案的當前內容要當成公開的
+## 這個 repo 是公開的，而且沒有私有的另一半
 
-Folis 打算開源，但**開源的動作是另開一個 public repo、單一 initial commit**，不是把這個 repo
-轉 public（理由見
-[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md)，開源那天的執行清單在
-[#89](https://github.com/yurenju/spine/issues/89)）。
+repo 已經是 public，**檔案、`git log`、commit message、issue 與 PR 內文，全部都在外面看得到**。
+沒有一個「之後才會公開」的時間點，也沒有一份留在私有處的版本——寫下去就是公開的。
 
-所以界線很具體：
+（[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md) 當初規劃的是「另開一個
+public repo、單一 initial commit」，實際走的是直接公開現在這一個。那筆帳要補一份 ADR，在
+[#7](https://github.com/yurenju/tidemarks/issues/7)。）
 
-| | |
-| --- | --- |
-| 檔案在開源那天的內容 | **會出去**，照公開的標準寫 |
-| `git log`、commit message、issue 與 PR 內文 | 留在這個 private repo，不會跟著走 |
+所以標準只有一條：**每一種敘述都照給陌生人讀的標準寫**，不分檔案、commit 還是 issue。
 
-這也是為什麼**寫壞了改掉就真的沒了**，不必為了歷史自我審查。
-
-怎麼分：**這段話被不認識你的人讀到，會不會反過來咬你？** 風險評估、賠償上限的推算、「這樣就
-告不成」那一類的分析，一概不寫進**檔案**——那些放在 repo 外的私有目錄。
-
-同一個決定往往兩種理由都成立，**留在檔案裡的那一份挑對讀者有意義的那個**：「不去重」的理由寫
-「你的書就是你的那一份」，不寫判例。這不是粉飾——兩個都是真的，而寫給讀者看的那個本來就比較好。
+同一個決定往往有好幾種理由都成立，**寫下來的挑對讀者有意義的那個**：「不去重」的理由寫
+「你的書就是你的那一份」，而不是從商業或法律角度推出來的那一版。這不是粉飾——兩個都是真的，
+而寫給讀者看的那個本來就比較好。
 
 ## frond 的邊界
 
@@ -85,7 +84,7 @@ Folis 而做的，**但 UI 一項都不在它裡面**。
 
 ⚠️ **這條線現在只剩這段文字在守。** 以前擋著違規的是成本：要動 frond 就得開另一個 repo 的 PR、
 等 merge、等手動發版。那道摩擦沒有了（[ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
-現在改 frond 跟改 app 一樣近，所以判準要自己站得住。它一句話講得完：
+現在改 frond 跟改 app 一樣近，所以怎麼分要自己講得清楚。它一句話講得完：
 
 > **拿不到只有 frond 知道的事實，就讓 frond 補上那個事實；只是繁瑣，就留在 Folis。**
 
@@ -120,7 +119,7 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 另一邊**——只更新一邊會留下一份看起來還算數、其實已經過期的說明，那比沒有更糟。（這條只管根目錄
 那一對。`packages/frond/README.md` 只有英文一份，它的讀者是打開那個目錄的人。）
 
-程式碼檔裡**每一種散文**都算：檔頭註解、行內註解、識別字、錯誤訊息、`console`
+程式碼檔裡**每一種敘述**都算：檔頭註解、行內註解、識別字、錯誤訊息、`console`
 輸出、`describe` / `test` 的名稱、以及 config 檔裡的註解。commit message 也用英文
 （既有歷史不動——重寫歷史的代價遠大於語言一致性的收益）。
 
@@ -157,7 +156,8 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 ### Issue tracker
 
 Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 markdown 存放於 `docs/specs/<feature>/`，
-會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。見 `docs/agents/issue-tracker.md`。
+會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。issue 之間的先後用 GitHub 原生的
+相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見 `docs/agents/issue-tracker.md`。
 
 ### Domain docs
 
@@ -167,10 +167,15 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 
 ### 測試分層
 
-`npm test` 有三個 vitest project：**node** 蓋 app 的純邏輯，**worker** 把 worker 真的跑在 workerd
-裡帶真的 D1／R2／KV，**frond** 蓋渲染層的解析半邊。`npm run test:container` 在容器裡跑三家瀏覽器：
-先 frond 的（量字符幾何，`--network=none`），再 app 的（真的開一本真的書）。動到 reader 就跑
-`test:container`。
+`npm test` 有四個 vitest project：**node** 蓋 app 的純邏輯，**worker** 把 worker 真的跑在 workerd
+裡帶真的 D1／R2／KV，**frond** 蓋渲染層的解析半邊，**scripts** 蓋 `scripts/` 底下的純函式。
+`npm run test:container` 在容器裡跑三家瀏覽器：先 frond 的（量字符幾何，`--network=none`），
+再 app 的（真的開一本真的書）。動到 reader 就跑 `test:container`。
+
+**scripts 那層只收純函式**，也就是 `scripts/deploy.ts` 那種部署腳本裡「不碰檔案、不叫外部指令」的
+半邊（現在是 `deploy-config.ts`）。它買的東西跟 worker 那層同一類：這些程式碼跑在 Cloudflare 的
+build 環境裡，錯了不會紅燈，會變成一次「部署成功、但指到錯的資料庫」。I／O 那一半不測——把它跟
+判斷分開，就是為了讓判斷測得到。
 
 frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅，先看 frond 的失敗才知道是哪一層。
 

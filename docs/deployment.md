@@ -1,9 +1,9 @@
 # Deploying Folis to Cloudflare
 
-Folis is a monorepo (ADR-0018) and the deployable half is `packages/app`. Every
-command below is run from the **root**, which is where the npm scripts that
-delegate into that package live; the only paths that change if you go looking
-are `wrangler.jsonc` and `migrations/`, both of which sit in `packages/app/`.
+Folis is a monorepo (ADR-0018) and the deployable half is `packages/app`, which
+is where `wrangler.jsonc` and `migrations/` live. Any npm script named below is
+run from the **root**; the `wrangler` commands here are one-off provisioning and
+run from wherever you like.
 
 Folis runs as a single Cloudflare Worker that serves the PWA (static assets),
 the auth endpoints (`/auth/*`), and the sync API (`/api/*`). Storage is
@@ -14,80 +14,120 @@ An account is an email address with two ways in: a passkey, and a six-digit code
 mailed to that address. Mail needs a provider, or it goes to the log — see
 step 4.
 
-Everything lives under one hostname. Pick it carefully: the WebAuthn **RP ID is
-permanently locked to that hostname** once the first passkey is registered.
-Changing it later invalidates every passkey. A dedicated subdomain
-(e.g. `folis.example.com`) is recommended over an apex domain so passkeys are
-scoped to this app only.
+Everything lives under one hostname, and it is the one decision here that cannot
+be taken back later — see *Deciding the hostname first* below.
 
 ## Prerequisites
 
 - A Cloudflare account
-- Your domain's zone active on that Cloudflare account (needed for the custom domain)
-- Node.js and `npm install` done at the root of the repo (one lockfile covers every package)
 - `npx wrangler login` (or an API token) for the one-time provisioning steps
+- A hostname whose zone is on that account — **optional**, see step 5
+- Node.js and `npm install` at the root of the repo, if you want to run it
+  locally as well (one lockfile covers every package)
 
-## 1. Configure `packages/app/wrangler.jsonc`
+## How a deployment is configured
 
-Edit these fields for your deployment:
+**Nothing account-specific is in this repository, and you should not put yours
+there either.** `packages/app/wrangler.jsonc` holds only what is true of every
+deployment; the database id, the bucket name, the hostname and the sender
+address are supplied as **Workers Builds build variables**, in whichever
+Cloudflare account is doing the building. At build time
+`scripts/deploy.ts` merges them into that file and writes
+`packages/app/wrangler.generated.json`, which is what wrangler is actually given.
 
-| Field | Value |
-|---|---|
-| `routes[0].pattern` | your hostname, e.g. `folis.example.com` |
-| `vars.RP_ID` | same hostname, e.g. `folis.example.com` |
-| `vars.ORIGIN` | `https://` + the same hostname |
-| `vars.MAIL_FROM` | the sender of magic-code mail, on a domain Resend has verified — **not necessarily the hostname above**. See step 4 |
-| `d1_databases[0].database_id` | filled in step 2 |
+This is the same for the official deployment and for yours. There is no
+separate path, and **no deploying from a laptop**: the build environment is the
+only place that holds the values, which is the point — a deploy is a thing that
+happened on a branch, not a thing somebody did on a Tuesday.
 
-`vars.OPEN_SIGNUP` is deliberately absent. Without it, only addresses listed in the
-`signup_allowlist` table can create an account; adding `"OPEN_SIGNUP": "true"` lets
-anyone. See step 5.
+Editing `wrangler.jsonc` to hold your own ids would work, and is still the wrong
+move: upstream keeps changing those lines, so on a fork of a public repository
+every `git pull` would conflict there. Build variables cost one dashboard form,
+once.
 
-## 2. Create the storage resources (one-time)
+The variables:
+
+| Variable | | Value |
+|---|---|---|
+| `CF_WORKER_NAME` | required | the Worker's name, e.g. `tidemarks` |
+| `CF_D1_NAME` | required | D1 database name (step 2) |
+| `CF_D1_ID` | required | D1 `database_id` (step 2) |
+| `CF_R2_BUCKET` | required | R2 bucket name (step 2) |
+| `CF_KV_ID` | required | KV namespace id (step 2) |
+| `CF_RP_ID` | required | the hostname passkeys are scoped to. **Permanently locked once the first passkey is registered** — changing it invalidates every passkey |
+| `CF_ORIGIN` | required | `https://` + that hostname |
+| `CF_ROUTE` | optional | a custom domain. Leave it unset and the Worker answers on `<CF_WORKER_NAME>.<your-subdomain>.workers.dev` |
+| `CF_MAIL_FROM` | optional | sender of magic-code mail, on a domain Resend has verified. Leave it unset for the zero-vendor path — see step 4 |
+
+**A missing required variable stops the build**, on purpose. It deliberately
+does not fall back to `wrangler.jsonc`, which carries no ids: wrangler would
+provision a *second* set of resources, and because a build environment cannot
+commit the ids back to the repository they would be lost — every later deploy
+then tries to create them again and fails with "already exists" (code 10014).
+This project has been there.
+
+Build variables are readable during the build and **not** at runtime, which
+suits them: they exist to write a configuration file, not to be read by the
+Worker. The two values the Worker does read at runtime, `COOKIE_SECRET` and
+`RESEND_API_KEY`, are secrets on the Worker instead — step 3.
+
+### Deciding the hostname first
+
+`CF_RP_ID` has to be set before the first deploy, and cannot be changed
+afterwards without invalidating every passkey. So decide now, not later:
+
+- **With a custom domain**: a dedicated subdomain (`folis.example.com`) rather
+  than an apex, so passkeys are scoped to this app only. Its zone must be on
+  your Cloudflare account. Set `CF_ROUTE` and `CF_RP_ID` to it.
+- **Without one**: your Worker's address is
+  `<CF_WORKER_NAME>.<your-subdomain>.workers.dev`, and your subdomain is shown
+  in the dashboard under Workers & Pages → Overview before you deploy anything.
+  Set `CF_RP_ID` to that whole hostname, leave `CF_ROUTE` unset.
+
+## 1. Create the storage resources (one-time)
 
 ```sh
-# D1 database — copy the returned database_id into wrangler.jsonc
-npx wrangler d1 create folis
+# D1 database — note the returned database_id, it becomes CF_D1_ID
+npx wrangler d1 create tidemarks
 
 # R2 bucket (never public; the Worker streams objects after an auth check)
-npx wrangler r2 bucket create folis
+npx wrangler r2 bucket create tidemarks
 
-# KV namespace for the MCP server's OAuth grants — copy the returned id into wrangler.jsonc
+# KV namespace for the MCP server's OAuth grants — note the returned id, it becomes CF_KV_ID
 npx wrangler kv namespace create OAUTH_KV
-
-# create the tables
-npm run db:migrate     # = wrangler d1 migrations apply folis --remote
 ```
 
-The KV namespace belongs on this list even though wrangler offers to provision it
-for you. Leaving its binding without an `id` makes wrangler create the namespace
-on the first deploy and write the id back into `wrangler.jsonc` — which works from
-a laptop and does not work from Workers Builds, because the build environment
-cannot commit to the repo. The id is then lost and every later deploy tries to
-create the namespace again, failing with "already exists" (code 10014). The full
-account is in the comment above that binding.
+The names are yours to choose; they go into `CF_D1_NAME` and `CF_R2_BUCKET`.
 
-`db:migrate` runs everything in `packages/app/migrations/` that this database
-has not seen,
-and records what it applied in a `d1_migrations` table. It is safe to re-run —
-that is the point of the record — and `npm run deploy` runs it for you before
-uploading the Worker. Adding a column means adding a file there; editing an
-existing migration means editing something the database already believes it has
-run.
+**No tables are created here.** Migrations are applied by the deploy (step 6),
+which is the order that matters: `wrangler d1 migrations apply` runs everything
+in `packages/app/migrations/` that this database has not seen and records what it
+applied in a `d1_migrations` table, so it is safe to re-run — that is the point of
+the record. Adding a column means adding a file there; editing an existing
+migration means editing something the database already believes it has run.
+
+The KV namespace belongs on this list even though wrangler offers to provision
+it for you, for the 10014 reason above.
+
+## 2. Create the Worker
+
+In the dashboard, Workers & Pages → Create → Worker, named whatever you put in
+`CF_WORKER_NAME`. It will serve a placeholder until step 6 replaces it.
+
+This exists before the code does because **secrets attach to a Worker**, and the
+next step needs somewhere to attach them.
 
 ## 3. Set secrets (one-time)
 
 ```sh
 # nobody needs to know this one, so generate it rather than choosing it
-openssl rand -hex 32 | npx wrangler secret put COOKIE_SECRET
+openssl rand -hex 32 | npx wrangler secret put COOKIE_SECRET --name <CF_WORKER_NAME>
 ```
 
-Secrets attach to the Worker, so the Worker must exist first: either run the
-first deploy (step 6) before this, or pass `--name folis` and let wrangler
-create a draft.
-
 - `COOKIE_SECRET`: any long random string. Rotating it only invalidates
-  in-flight login ceremonies, not sessions.
+  in-flight login ceremonies, not sessions. **It is required**, and it is the
+  one that fails quietly: a Worker without it deploys successfully and then
+  nobody can log in. Do not leave it until later.
 - `RESEND_API_KEY`: optional, and covered in step 4.
 
 ## 4. Sending magic codes
@@ -108,21 +148,21 @@ For a Folis other people log into, that is not good enough, and the vendor is
    for (SPF, DKIM, and the return-path CNAME). Cloudflare-hosted zones can do
    this from the same dashboard.
 2. Wait for the domain to verify. Until it does, Resend refuses every message
-   and **nobody can log in**.
-3. Set `vars.MAIL_FROM` (step 1) to an address **on the domain you just
-   verified**. This is the step that gets skipped, because the value shipped in
-   the repo looks plausible and is wrong for everybody else's deployment. The
-   sending domain has nothing to do with the hostname Folis is served from —
-   they are two independent choices, and Resend only knows about the one you
-   verified with it. Send from a domain it has not verified and every request
-   for a code fails with 403, which reads to the reader as「寄不出登入碼」.
+   and **nobody can log in**. Start this early; it is the step that waits.
+3. Set `CF_MAIL_FROM` to an address **on the domain you just verified**. This is
+   the step that gets skipped, because nothing complains until a reader tries to
+   log in. The sending domain has nothing to do with the hostname Folis is
+   served from — they are two independent choices, and Resend only knows about
+   the one you verified with it. Send from a domain it has not verified and
+   every request for a code fails with 403, which reads to the reader
+   as「寄不出登入碼」.
 4. Set the key:
 
    ```sh
-   npx wrangler secret put RESEND_API_KEY
+   npx wrangler secret put RESEND_API_KEY --name <CF_WORKER_NAME>
    ```
 
-Setting the key with no `MAIL_FROM` is refused loudly rather than falling back
+Setting the key with no `CF_MAIL_FROM` is refused loudly rather than falling back
 to the log — a deployment that believes it is sending mail must not quietly
 print magic codes where its logs can be read.
 
@@ -136,53 +176,20 @@ their session can get in. Sessions last 90 days, which is the whole of the
 cushion; there is no second provider (see
 [ADR-0015](adr/0015-an-account-is-only-as-strong-as-its-inbox.md)).
 
-## 5. Who may create an account
+## 5. Attach the custom domain (optional)
 
-While `vars.OPEN_SIGNUP` is absent, an address can only create an account if it
-is in the `signup_allowlist` table. Existing accounts are unaffected: the gate
-stands at account creation, so removing a row does not lock anybody out of data
-that is already theirs.
+Skip this entirely to stay on `*.workers.dev`.
 
-```sh
-npx wrangler d1 execute folis --remote \
-  --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('reader@example.com', unixepoch() * 1000)"
-```
+Otherwise, set `CF_ROUTE` to the hostname — the deploy provisions the DNS record
+and the certificate, as long as that zone is on your account.
 
-Opening signup to everyone is a change to `wrangler.jsonc` and a deploy, on
-purpose — for Folis itself that edit *is* the launch line
-([ADR-0004](adr/0004-development-phase-and-launch-line.md)), and it should leave
-a commit behind. Adding one person should not need a deploy, which is why the
-list is in the database and the switch is not.
+## 6. Connect the build, and deploy
 
-## 6. First deploy
-
-```sh
-npm run deploy          # = build, then apply migrations, then wrangler deploy
-```
-
-`wrangler deploy` also provisions the custom domain from `routes[0].pattern`
-(DNS record + certificate) as long as the zone is on your account.
-
-Then put your own address in `signup_allowlist` (step 5), open the site, ask for
-a magic code, and read it from `npx wrangler tail` if you have not set up Resend.
-Once you are in, add a passkey from the account panel — it is the fast door, and
-the mailed code stays as the one that always works.
-
-If you are upgrading a Folis that predates migration `0003`, that migration
-parks each existing user's own id in their new `email` column, because a real
-address does not belong in a file that goes public. Nobody can log in to such an
-account until you put the address in:
-
-```sh
-npx wrangler d1 execute folis --remote \
-  --command "UPDATE users SET email = 'you@example.com' WHERE id = '<the id it is holding>'"
-```
-
-## 7. Continuous deploys (Workers Builds)
-
-Day-to-day deploys should come from CI, not a laptop. Folis uses
+This is where the code actually ships. Folis uses
 [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/):
-Cloudflare watches the GitHub repo and builds/deploys on push.
+Cloudflare watches the GitHub repo and builds/deploys on push. **It is the only
+way anything here is deployed** — there is no laptop path, because the build
+variables live in this dashboard and nowhere else.
 
 Setup is a dashboard flow (Cloudflare dashboard → Workers & Pages → your
 worker → Settings → Builds → Connect). The Builds API exists, but creating a
@@ -195,19 +202,21 @@ dashboard is the way. It's a one-time step:
    haven't already).
 2. Build configuration:
    - Build command: `npm run build`
-   - Deploy command: `npm run deploy:ci`
+   - Deploy command: `npm run deploy`
    - Root directory: `/`
 
-   **Every command in this form has to be an npm script at the root, never a
-   tool invoked directly.** The root's `package.json` forwards them into
-   `packages/app` (building the renderer first), so moving a package between
-   directories does not require somebody to remember to edit a form in a
+4. Fill in the build variables listed in *How a deployment is configured*, then
+   trigger the first build. It applies the migrations and deploys.
+
+   **Every command in the form above has to be an npm script at the root, never
+   a tool invoked directly.** The root's `package.json` knows where each package
+   lives, so moving one does not require somebody to remember to edit a form in a
    dashboard. A command that names `wrangler` instead resolves against the
    repository root, where there is no `wrangler.jsonc` — and it announces that
    only as a failed deploy after the merge. That is exactly how the preview
    command below broke when the app moved into `packages/`.
 3. Recommended triggers (mirrors the default dashboard setup):
-   - `main` branch → build + `npm run deploy:ci` (production)
+   - `main` branch → build + `npm run deploy` (production)
    - all other branches → build + `npm run versions:upload` (preview versions,
      no production traffic). **Not `npx wrangler versions upload`**, for the
      reason above.
@@ -221,26 +230,25 @@ environment does not need them.
 ### Migrations run from the deploy command, and only on `main`
 
 `wrangler deploy` does not apply migrations, so something else has to.
-`deploy:ci` is `wrangler d1 migrations apply folis --remote && wrangler deploy`.
-Leave the migration out and a push that adds a column deploys a Worker reading a
-column the database has not got — which fails on the first request, not at
-deploy time.
+`deploy` is `node scripts/deploy.ts production`, which generates the
+configuration, applies migrations and then deploys. Leave the migration out and a push that adds a column deploys a
+Worker reading a column the database has not got — which fails on the first
+request, not at deploy time.
 
-**It is an npm script, not a command typed into the dashboard**, so the two
-commands and their order live in this repo where they can be read and reviewed.
-The dashboard holds `npm run deploy:ci` and never needs editing again.
+**It is an npm script, not a command typed into the dashboard**, so the steps and
+their order live in this repo where they can be read and reviewed. The dashboard
+holds `npm run deploy` and never needs editing again.
 [Cloudflare's configuration docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 give `npm run deploy` as an example deploy command; whether the dashboard
-accepts a chained `a && b` is not documented, which is a second reason not to
-put one there.
+accepts a chained `a && b` is not documented, which is a second reason not to put
+one there.
 
 **Only the production trigger runs migrations.** A branch build must not: it
 would apply that branch's migration to the production database before anyone
 merged it, and there is no undo. Preview versions share production's D1 and are
 therefore one migration behind until their branch lands — which is the right way
-round.
-
-`npm run deploy` is the same thing with a build in front, for a laptop.
+round. `scripts/deploy.ts` is one file covering both modes so that this rule is
+an `if` somebody can read, rather than a line the other script happens to lack.
 
 ### What the build token has to be able to do
 
@@ -252,7 +260,7 @@ Workers Builds mints its own API token, and a deploy here needs it to cover:
 | upload the Worker and its assets | Workers Scripts Edit |
 | create `OAUTH_KV` on the first deploy | Workers KV Storage Edit |
 | bind the R2 bucket | Workers R2 Storage Edit |
-| keep `routes[0]`'s custom domain and its certificate | Workers Routes Edit, SSL and Certificates Edit (zone) |
+| keep the custom domain and its certificate | Workers Routes Edit, SSL and Certificates Edit (zone) |
 
 **A token minted by Workers Builds already carries all of these** — checked
 against a real one in August 2026, which also held a long tail of scopes for
@@ -290,6 +298,24 @@ covers mechanics and says nothing about deployment order, and the GitHub Actions
 example deploys a Worker without touching a database. This section is a decision,
 not a recipe being followed.
 
+## 7. Who may create an account
+
+While `OPEN_SIGNUP` is absent, an address can only create an account if it is in
+the `signup_allowlist` table. Existing accounts are unaffected: the gate stands
+at account creation, so removing a row does not lock anybody out of data that is
+already theirs.
+
+```sh
+npx wrangler d1 execute <CF_D1_NAME> --remote \
+  --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('reader@example.com', unixepoch() * 1000)"
+```
+
+Opening signup to everyone means adding `"OPEN_SIGNUP": "true"` to `vars` in
+`wrangler.jsonc` and deploying, on purpose — for Folis itself that edit *is* the
+launch line ([ADR-0004](adr/0004-development-phase-and-launch-line.md)), and it
+should leave a commit behind. Adding one person should not need a deploy, which
+is why the list is in the database and the switch is not.
+
 ## Local development
 
 Two processes: the Vite dev server (frontend) and `wrangler dev` (API).
@@ -311,7 +337,9 @@ npm run dev             # terminal 2: app on :5001
 ```
 
 `RP_ID=localhost` lets you register/use real passkeys against
-`http://localhost:5001` (browsers treat localhost as a secure context).
+`http://localhost:5001` (browsers treat localhost as a secure context). This is
+also why `wrangler.jsonc` having no `vars` costs local development nothing:
+`.dev.vars` is where those belong here, and it is gitignored.
 Local D1/R2 state lives under `.wrangler/` (gitignored).
 
 No `RESEND_API_KEY` here, so magic codes are printed by `wrangler dev` in the
@@ -319,7 +347,7 @@ terminal it is running in. Put your address in the local `signup_allowlist`
 first, or the code is never issued:
 
 ```sh
-npx wrangler d1 execute folis --local \
+npx wrangler d1 execute DB --local \
   --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('you@example.com', 0)"
 ```
 

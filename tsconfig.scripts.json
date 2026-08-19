@@ -1,0 +1,18 @@
+{
+  // `scripts/` runs on Node, directly: `node scripts/deploy.ts`, no build step. Node 22.18 and
+  // later strip types on the fly, and `erasableSyntaxOnly` in the base configuration already
+  // holds this repository to the subset that allows — so the only thing missing was somebody
+  // type-checking these files, which is what this project is for.
+  //
+  // It matters more here than the line count suggests: this code runs in Cloudflare's build
+  // environment, where a typo in a field name deploys against the wrong resource instead of
+  // failing.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"]
+  },
+  "include": ["scripts"]
+}
