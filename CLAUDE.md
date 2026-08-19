@@ -156,7 +156,8 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 ### Issue tracker
 
 Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 markdown 存放於 `docs/specs/<feature>/`，
-會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。見 `docs/agents/issue-tracker.md`。
+會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。issue 之間的先後用 GitHub 原生的
+相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見 `docs/agents/issue-tracker.md`。
 
 ### Domain docs
 
