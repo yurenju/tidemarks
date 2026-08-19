@@ -122,9 +122,17 @@ describe("asking for a magic code while signup is closed", () => {
     // Set on `env` itself, one property at a time and put back by hand: `env` is a proxy, so a
     // spread of it copies nothing and "restoring" from that snapshot leaves the key set for
     // every test after this one.
+    //
+    // `MAIL_FROM` is set here too. It used to arrive from `wrangler.jsonc`, which no longer
+    // ships one: that file is the self-hosting default now and a sender address is exactly the
+    // kind of value that has no right default (see the note in it). Without this the request
+    // fails earlier, on "RESEND_API_KEY is set but MAIL_FROM is not", and never reaches the
+    // 403 this test is about.
     const running = testEnv();
     const key = running.RESEND_API_KEY;
+    const from = running.MAIL_FROM;
     running.RESEND_API_KEY = "key-test";
+    running.MAIL_FROM = "Tidemarks <login@example.test>";
     // Resend is answered here rather than over the network. Without this the test reaches the
     // real api.resend.com, which passed for the wrong reason and would fail in a runner with
     // no way out.
@@ -133,7 +141,7 @@ describe("asking for a magic code while signup is closed", () => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       if (!url.startsWith("https://api.resend.com/")) return realFetch(input, init);
       return Promise.resolve(
-        new Response('{"message":"The folis.ink domain is not verified"}', { status: 403 }),
+        new Response('{"message":"The example.test domain is not verified"}', { status: 403 }),
       );
     });
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -152,6 +160,7 @@ describe("asking for a magic code while signup is closed", () => {
       logged.mockRestore();
       calls.mockRestore();
       running.RESEND_API_KEY = key;
+      running.MAIL_FROM = from;
     }
   });
 

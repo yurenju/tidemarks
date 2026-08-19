@@ -82,7 +82,7 @@ nav-inside-section.epub             toc <nav> 包在 <section> 裡而不是直�
 
 #### 修剪掉了什麼
 
-修剪由 `scripts/trim-public-books.ts`（`npm run trim:books`）執行。**原始下載檔不進 repo**——第二層的書是下載物而不是產生物，repo 留的是修剪後的結果加那支腳本，腳本因此是「修剪方式」的機器可讀版本，這一節是它的散文版本，兩邊要一起改。腳本裡每一處移除都寫死了預期的元素個數，上游改版導致數目對不上時腳本會停，而不是安靜地產出一本半數指標懸空的書。
+修剪由 `scripts/trim-public-books.ts`（`npm run trim:books`）執行。**原始下載檔不進 repo**——第二層的書是下載物而不是產生物，repo 留的是修剪後的結果加那支腳本，腳本因此是「修剪方式」的機器可讀版本，這一節是它的文字版本，兩邊要一起改。腳本裡每一處移除都寫死了預期的元素個數，上游改版導致數目對不上時腳本會停，而不是安靜地產出一本半數指標懸空的書。
 
 **Kusamakura：拿掉朗讀，正文十三章全留。** 18 MB 的 media overlay 旁白（兩個 MP3）加兩份 SMIL，連同封裝文件裡的 manifest 項目、兩章的 `media-overlay` 屬性、以及 refine 到那些 id 的 metadata（`media:duration`、`media:narrator`、每段音檔的 rights 與 license）。frond 不從 media overlay 渲染任何東西，所以這一刀不損失任何涵蓋面；**它同時拿掉了這本書唯一有負擔的素材**——出版物本體是 CC0，但那兩個 MP3 單獨標的是 CC-BY-NC-SA 3.0，而 NC 條款不該出現在一個 MIT repo 裡。
 

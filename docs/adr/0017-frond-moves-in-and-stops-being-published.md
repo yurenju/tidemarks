@@ -23,12 +23,12 @@ repo 買的「別人讀得到、別人裝得到」現在沒有買家。
 沒有人在用的東西，而 [ADR-0009](0009-open-source-buys-an-exit-not-contributions.md) 已經判過同類
 的帳：丟掉 commit 歷史的代價比想像中小。同一把尺量 frond 兩週半的歷史，結論一樣。
 
-## 邊界不再靠 repo 撐著，要靠判準
+## 邊界不再靠 repo 撐著，要靠寫下來的規則
 
 「**frond 吐事實，spine 做政策**」這條線不因為搬進同一個 repo 就消失，但**擋著違規的東西換了**。
-原本是成本（開 PR、等 merge、等發版），現在只剩寫下來的判準加 review。
+原本是成本（開 PR、等 merge、等發版），現在只剩寫下來的那條規則加 review。
 
-所以那條判準要更用力地留著，而且它一句話就講得完：**拿不到只有 frond 知道的事實，就讓 frond 補上
+所以那條規則要更用力地留著，而且它一句話就講得完：**拿不到只有 frond 知道的事實，就讓 frond 補上
 那個事實；只是繁瑣，就留在 spine。** 繁瑣不是搬家的理由。
 
 `packages/frond` 保留自己的 `package.json`、測試與 CONTEXT.md，spine 一律從公開入口 import，不從

@@ -22,7 +22,7 @@ docs/      frond 的 ADR 與量測紀錄
 ## 邊界：拿不到的事實才補，繁瑣不算
 
 **frond 吐事實，app 做政策**（ADR-0002）。以前擋著違規的是「要改 frond 就得開另一個 repo 的 PR、
-等 merge、等發版」那道摩擦，現在那道摩擦沒有了，所以判準要自己站得住：
+等 merge、等發版」那道摩擦，現在那道摩擦沒有了，所以怎麼分要自己講得清楚：
 
 > **app 拿不到只有 frond 知道的事實 → frond 補上那個事實，決定權留在 app。
 > 只是繁瑣 → 留在 app。**
@@ -92,7 +92,7 @@ FROND_BOOKS=/path/to/books npm run scan:books -w @yurenju/frond -- tests/browser
 整批幾何數字會漂，而漂動的原因與程式碼無關。改完跑一次 `npx vitest run --project frond` 就看得出來。
 
 CJK 在這裡常常**不是可以翻譯的文字而是資料**（fixture 的日文散文、`lang` 屬性、註解裡為了說明字形而
-引用的 `骨`）。判準與例外見根目錄 `CLAUDE.md` 的〈程式碼用英文，文件用中文〉。
+引用的 `骨`）。怎麼分與例外見根目錄 `CLAUDE.md` 的〈程式碼用英文，文件用中文〉。
 
 ## 這個 package 的 ADR 自己編號
 

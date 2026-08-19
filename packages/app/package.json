@@ -11,10 +11,8 @@
     "sweep": "playwright test --config=playwright.sweep.config.ts",
     "preview": "vite preview",
     "worker:dev": "wrangler dev",
-    "deploy:ci": "npm run db:migrate && wrangler deploy",
-    "versions:upload": "wrangler versions upload",
-    "db:migrate": "wrangler d1 migrations apply folis --remote",
-    "db:migrate:local": "wrangler d1 migrations apply folis --local"
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
     "@base-ui/react": "~1.7.0",

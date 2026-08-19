@@ -1,6 +1,27 @@
 {
+  // **This file is the self-hosting default. The official deployment does not use it.**
+  //
+  // It deliberately carries no account-specific values: no database id, no namespace id, no
+  // route, no vars. Fill them in for your own deployment and `git pull` will never conflict
+  // here, because upstream has no reason to touch those lines.
+  //
+  // The official tidemarks.io deployment generates its own configuration at build time from
+  // Workers Builds' build variables — see `scripts/deploy.ts` and `docs/deployment.md`.
+  //
+  // Two things worth knowing before trying to avoid the generator (both checked against
+  // wrangler 4.124, not inferred from the docs):
+  //
+  //  - Wrangler does not interpolate `${VAR}` in a configuration file.
+  //  - `wrangler deploy` has no flag that overrides a D1 `database_id`, an R2 `bucket_name`
+  //    or a KV `id`, so a command line cannot stand in for them either.
+  //
+  // Leaving an id out entirely is also not a way round it. Wrangler will provision the
+  // resource and write the id back — which works from a laptop and does not work from a build
+  // environment, because that environment cannot commit to the repository. The id is then
+  // lost, and every later deploy tries to create the resource again and fails with "already
+  // exists" (code 10014). This project has been there; see docs/deployment.md.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "folis",
+  "name": "tidemarks",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-01",
   // Stated rather than left at wrangler's 8787: the Vite dev server proxies /api and /auth to
@@ -18,14 +39,20 @@
     // with the React app, and the failure reads as "this MCP server speaks HTML".
     "run_worker_first": ["/api/*", "/auth/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*"]
   },
-  "routes": [{ "pattern": "app.folis.ink", "custom_domain": true }],
+
+  // No `routes`. Without one the Worker is served from `<name>.workers.dev`, which is what
+  // makes a fresh deployment usable before anybody has bought a domain. Add a `routes` entry
+  // with `"custom_domain": true` once you have a hostname whose zone is on your account.
+
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "folis",
-      "database_id": "0fd75d7f-b01d-4165-b98c-0d2070116dc1",
-      // Stated rather than left to the default so a reader of this file can find where the
-      // schema lives. `npm run deploy` applies these before uploading the Worker, which is
+      "database_name": "tidemarks",
+      // "database_id": "…" — from `npx wrangler d1 create tidemarks`. Required; read the note
+      // at the top of this file before leaving it out.
+      //
+      // `migrations_dir` is stated rather than left to the default so a reader can find where
+      // the schema lives. `npm run deploy` applies these before uploading the Worker, which is
       // the order that matters: a Worker reading a column the database has not got yet fails
       // on the first request, not at deploy time.
       "migrations_dir": "./migrations"
@@ -34,41 +61,47 @@
   "r2_buckets": [
     {
       "binding": "BUCKET",
-      "bucket_name": "folis"
+      "bucket_name": "tidemarks"
     }
   ],
   // OAuth grants, authorization codes and access tokens for the MCP server. KV rather than D1
   // because workers-oauth-provider owns the storage and only speaks KV; nothing in here is a
   // reader's data, and every entry expires on its own.
-  //
-  // The `id` is pinned rather than left for wrangler to provision. Auto-provisioning was the
-  // original plan — a missing id makes wrangler create the namespace on first deploy and
-  // write the id back here — but the deploy runs in Cloudflare's build environment, which
-  // cannot commit to the repo. So the namespace got created and the write-back was lost, and
-  // every deploy after that tried to create it again and hit "already exists" (code 10014).
-  // Stating the id, like the D1 id above, is what actually lets a repeatable deploy bind to
-  // the namespace that already exists.
   "kv_namespaces": [
     {
-      "binding": "OAUTH_KV",
-      "id": "cd05cb3a68b54bb4b4bcd9fb698c44b0"
+      "binding": "OAUTH_KV"
+      // "id": "…" — from `npx wrangler kv namespace create OAUTH_KV`. This is the binding the
+      // 10014 story at the top of this file is about.
     }
-  ],
-  "vars": {
-    "RP_ID": "app.folis.ink",
-    "ORIGIN": "https://app.folis.ink",
-    // Sender of the magic-code mail. **Its domain is whichever one is verified with Resend**,
-    // which has nothing to do with the hostname Folis is served from — Resend refuses every
-    // message from an unverified domain, and then nobody can log in.
-    "MAIL_FROM": "Folis <login@folis.ink>"
+  ]
 
-    // "OPEN_SIGNUP": "true" — absent, and absent means only addresses in the `signup_allowlist`
-    // table can create an account. Adding this line is the launch line itself (ADR-0004): the
-    // moment data starts belonging to people who did not agree it could be thrown away. It is a
-    // deploy on purpose, so that opening signup leaves a commit behind, while adding one friend
-    // to the allowlist is a `wrangler d1 execute` and needs nothing.
-  }
+  // No `vars`, and that is not an oversight. Three values belong here and none of them has a
+  // default that is right for anybody else:
+  //
+  //   RP_ID      the hostname passkeys are scoped to. **Permanently locked once the first
+  //              passkey is registered** — changing it invalidates every passkey.
+  //   ORIGIN     "https://" + that hostname.
+  //   MAIL_FROM  sender of the magic-code mail, on a domain Resend has verified. **Not
+  //              necessarily the hostname above** — Resend only knows about the domain you
+  //              verified with it, and refuses every message from any other.
+  //
+  // A plausible-looking placeholder is worse than nothing here: two of the three fail
+  // silently. A deployment with somebody else's RP_ID deploys fine and cannot be logged into,
+  // and one with an unverified MAIL_FROM deploys fine and mails nothing.
+  //
+  // Leaving MAIL_FROM unset is a supported configuration, not a broken one: without
+  // RESEND_API_KEY the login code is written to the log (`npx wrangler tail`) instead of
+  // mailed, which is the whole zero-vendor self-hosting path. See worker/email.ts.
+  //
+  // Whether RP_ID should fall back to the request's host is an open question — issue #9.
+  //
+  // "OPEN_SIGNUP": "true" — absent, and absent means only addresses in the `signup_allowlist`
+  // table can create an account. Adding this line is the launch line itself (ADR-0004): the
+  // moment data starts belonging to people who did not agree it could be thrown away. It is a
+  // deploy on purpose, so that opening signup leaves a commit behind, while adding one friend
+  // to the allowlist is a `wrangler d1 execute` and needs nothing.
+
   // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY.
-  // RESEND_API_KEY unset means magic codes are written to the log instead of mailed — that is
-  // the zero-vendor path for a self-hosted Folis, not an outage. See worker/email.ts.
+  // COOKIE_SECRET is required — the Worker deploys without it and then nobody can log in.
+  // RESEND_API_KEY unset means magic codes go to the log instead of the mail, as above.
 }

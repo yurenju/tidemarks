@@ -18,6 +18,7 @@ export default defineConfig({
       "./packages/app/vitest.node.config.ts",
       "./packages/app/vitest.worker.config.ts",
       "./packages/frond/vitest.config.ts",
+      "./vitest.scripts.config.ts",
     ],
   },
 });

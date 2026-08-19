@@ -30,6 +30,10 @@ dist-ssr
 .wrangler
 .dev.vars
 
+# The official deployment's configuration, written by scripts/deploy.ts from Workers Builds'
+# build variables on every build. Build output, and it holds the official account's ids.
+packages/app/wrangler.generated.json
+
 # Playwright output
 playwright-report/
 test-results/
@@ -43,5 +47,5 @@ test-results/
 .playwright-cli/
 
 # Commercially published books: kept here for verification, never committed
-# (a private repo does not change the licence)
+# (this repository is public, so committing one would be publishing it)
 tests/books/commercial/

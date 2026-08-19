@@ -29,15 +29,28 @@ scoped to this app only.
 
 ## 1. Configure `packages/app/wrangler.jsonc`
 
-Edit these fields for your deployment:
+**That file ships with none of these values filled in**, and that is deliberate:
+it is the self-hosting default, and this repository is public. An id belonging to
+somebody else's account would make the file useless to you and would put your
+edits on the same lines upstream keeps changing, so every `git pull` would
+conflict. See *The official deployment* at the end of this document for where
+the official instance's own values live instead.
+
+So there is nothing to overwrite here — only blanks to fill:
 
 | Field | Value |
 |---|---|
-| `routes[0].pattern` | your hostname, e.g. `folis.example.com` |
-| `vars.RP_ID` | same hostname, e.g. `folis.example.com` |
+| `d1_databases[0].database_id` | from step 2 |
+| `kv_namespaces[0].id` | from step 2 |
+| `vars.RP_ID` | your hostname, e.g. `folis.example.com`. **Permanently locked once the first passkey is registered** — changing it invalidates every passkey |
 | `vars.ORIGIN` | `https://` + the same hostname |
-| `vars.MAIL_FROM` | the sender of magic-code mail, on a domain Resend has verified — **not necessarily the hostname above**. See step 4 |
-| `d1_databases[0].database_id` | filled in step 2 |
+| `vars.MAIL_FROM` | the sender of magic-code mail, on a domain Resend has verified — **not necessarily the hostname above**. See step 4. Leave it out to keep the zero-vendor path |
+| `routes` | absent, and fine to leave absent — see step 6 |
+
+The `vars` block does not exist in the file at all; add one. A placeholder would
+be worse than a blank, because two of those three fail silently: a deployment
+carrying somebody else's `RP_ID` deploys cleanly and cannot be logged into, and
+one with an unverified `MAIL_FROM` deploys cleanly and mails nothing.
 
 `vars.OPEN_SIGNUP` is deliberately absent. Without it, only addresses listed in the
 `signup_allowlist` table can create an account; adding `"OPEN_SIGNUP": "true"` lets
@@ -47,16 +60,16 @@ anyone. See step 5.
 
 ```sh
 # D1 database — copy the returned database_id into wrangler.jsonc
-npx wrangler d1 create folis
+npx wrangler d1 create tidemarks   # any name; this is wrangler.jsonc's default
 
 # R2 bucket (never public; the Worker streams objects after an auth check)
-npx wrangler r2 bucket create folis
+npx wrangler r2 bucket create tidemarks
 
 # KV namespace for the MCP server's OAuth grants — copy the returned id into wrangler.jsonc
 npx wrangler kv namespace create OAUTH_KV
 
 # create the tables
-npm run db:migrate     # = wrangler d1 migrations apply folis --remote
+npm run db:migrate     # = wrangler d1 migrations apply DB --remote
 ```
 
 The KV namespace belongs on this list even though wrangler offers to provision it
@@ -66,6 +79,10 @@ a laptop and does not work from Workers Builds, because the build environment
 cannot commit to the repo. The id is then lost and every later deploy tries to
 create the namespace again, failing with "already exists" (code 10014). The full
 account is in the comment above that binding.
+
+`DB` there is the binding name rather than the database's name — `d1 migrations
+apply` accepts either, and a binding means renaming your database does not mean
+editing a script.
 
 `db:migrate` runs everything in `packages/app/migrations/` that this database
 has not seen,
@@ -83,11 +100,13 @@ openssl rand -hex 32 | npx wrangler secret put COOKIE_SECRET
 ```
 
 Secrets attach to the Worker, so the Worker must exist first: either run the
-first deploy (step 6) before this, or pass `--name folis` and let wrangler
-create a draft.
+first deploy (step 6) before this, or pass `--name <your worker>` and let
+wrangler create a draft.
 
 - `COOKIE_SECRET`: any long random string. Rotating it only invalidates
-  in-flight login ceremonies, not sessions.
+  in-flight login ceremonies, not sessions. **It is required**: a Worker without
+  it deploys successfully and then nobody can log in, so this is not a step to
+  come back to later.
 - `RESEND_API_KEY`: optional, and covered in step 4.
 
 ## 4. Sending magic codes
@@ -110,8 +129,8 @@ For a Folis other people log into, that is not good enough, and the vendor is
 2. Wait for the domain to verify. Until it does, Resend refuses every message
    and **nobody can log in**.
 3. Set `vars.MAIL_FROM` (step 1) to an address **on the domain you just
-   verified**. This is the step that gets skipped, because the value shipped in
-   the repo looks plausible and is wrong for everybody else's deployment. The
+   verified**. This is the step that gets skipped, because nothing complains
+   until a reader tries to log in. The
    sending domain has nothing to do with the hostname Folis is served from —
    they are two independent choices, and Resend only knows about the one you
    verified with it. Send from a domain it has not verified and every request
@@ -144,7 +163,7 @@ stands at account creation, so removing a row does not lock anybody out of data
 that is already theirs.
 
 ```sh
-npx wrangler d1 execute folis --remote \
+npx wrangler d1 execute DB --remote \
   --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('reader@example.com', unixepoch() * 1000)"
 ```
 
@@ -160,8 +179,15 @@ list is in the database and the switch is not.
 npm run deploy          # = build, then apply migrations, then wrangler deploy
 ```
 
-`wrangler deploy` also provisions the custom domain from `routes[0].pattern`
-(DNS record + certificate) as long as the zone is on your account.
+**Without a `routes` entry the Worker is served from
+`<name>.workers.dev`**, which is the point: a fresh deployment works before you
+have bought a domain. If you do add one — `{"pattern": "…", "custom_domain":
+true}` — `wrangler deploy` provisions the DNS record and certificate for you, as
+long as that zone is on your account.
+
+⚠️ Decide this before the first passkey, not after. `vars.RP_ID` has to match
+whichever hostname you settle on, and it cannot be changed later without
+invalidating every passkey already registered.
 
 Then put your own address in `signup_allowlist` (step 5), open the site, ask for
 a magic code, and read it from `npx wrangler tail` if you have not set up Resend.
@@ -174,7 +200,7 @@ address does not belong in a file that goes public. Nobody can log in to such an
 account until you put the address in:
 
 ```sh
-npx wrangler d1 execute folis --remote \
+npx wrangler d1 execute DB --remote \
   --command "UPDATE users SET email = 'you@example.com' WHERE id = '<the id it is holding>'"
 ```
 
@@ -221,24 +247,25 @@ environment does not need them.
 ### Migrations run from the deploy command, and only on `main`
 
 `wrangler deploy` does not apply migrations, so something else has to.
-`deploy:ci` is `wrangler d1 migrations apply folis --remote && wrangler deploy`.
-Leave the migration out and a push that adds a column deploys a Worker reading a
-column the database has not got — which fails on the first request, not at
-deploy time.
+`deploy:ci` is `node scripts/deploy.ts production`, which applies migrations and
+then deploys. Leave the migration out and a push that adds a column deploys a
+Worker reading a column the database has not got — which fails on the first
+request, not at deploy time.
 
-**It is an npm script, not a command typed into the dashboard**, so the two
-commands and their order live in this repo where they can be read and reviewed.
-The dashboard holds `npm run deploy:ci` and never needs editing again.
+**It is an npm script, not a command typed into the dashboard**, so the steps and
+their order live in this repo where they can be read and reviewed. The dashboard
+holds `npm run deploy:ci` and never needs editing again.
 [Cloudflare's configuration docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 give `npm run deploy` as an example deploy command; whether the dashboard
-accepts a chained `a && b` is not documented, which is a second reason not to
-put one there.
+accepts a chained `a && b` is not documented, which is a second reason not to put
+one there.
 
 **Only the production trigger runs migrations.** A branch build must not: it
 would apply that branch's migration to the production database before anyone
 merged it, and there is no undo. Preview versions share production's D1 and are
 therefore one migration behind until their branch lands — which is the right way
-round.
+round. `scripts/deploy.ts` is one file covering both modes so that this rule is
+an `if` somebody can read, rather than a line the other script happens to lack.
 
 `npm run deploy` is the same thing with a build in front, for a laptop.
 
@@ -252,7 +279,7 @@ Workers Builds mints its own API token, and a deploy here needs it to cover:
 | upload the Worker and its assets | Workers Scripts Edit |
 | create `OAUTH_KV` on the first deploy | Workers KV Storage Edit |
 | bind the R2 bucket | Workers R2 Storage Edit |
-| keep `routes[0]`'s custom domain and its certificate | Workers Routes Edit, SSL and Certificates Edit (zone) |
+| keep the custom domain and its certificate | Workers Routes Edit, SSL and Certificates Edit (zone) |
 
 **A token minted by Workers Builds already carries all of these** — checked
 against a real one in August 2026, which also held a long tail of scopes for
@@ -319,9 +346,57 @@ terminal it is running in. Put your address in the local `signup_allowlist`
 first, or the code is never issued:
 
 ```sh
-npx wrangler d1 execute folis --local \
+npx wrangler d1 execute DB --local \
   --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('you@example.com', 0)"
 ```
+
+## The official deployment
+
+Everything above describes deploying your own. The tidemarks.io deployment runs
+the same code from the same repository, and differs in exactly one way: **its
+account-specific values are not in the repository at all.**
+
+They are Workers Builds *build variables*, and `scripts/deploy.ts` merges them
+into `packages/app/wrangler.jsonc` at build time, writing
+`packages/app/wrangler.generated.json` and pointing both wrangler commands at it
+with `--config`. Nine variables, all required:
+
+```
+CF_WORKER_NAME  CF_D1_NAME  CF_D1_ID  CF_R2_BUCKET  CF_KV_ID
+CF_ROUTE  CF_RP_ID  CF_ORIGIN  CF_MAIL_FROM
+```
+
+**The generator reads the repo's config rather than writing one from scratch**,
+so that a change to something shared — a new path in `assets.run_worker_first`,
+say — reaches production without anybody remembering that a second file exists.
+It only overwrites the fields listed above.
+
+**A missing variable stops the build.** It deliberately does not fall back to
+`wrangler.jsonc`: that file carries no ids, so wrangler would provision a
+*second* set of resources and every later deploy would fail with "already
+exists" (code 10014) — the failure described in step 2, arrived at from the
+other direction.
+
+Build variables are readable during the build and not at runtime, which suits
+them: they exist to write a configuration file, not to be read by the Worker.
+The two values the Worker does read at runtime, `COOKIE_SECRET` and
+`RESEND_API_KEY`, are still `wrangler secret` (step 3) and have nothing to do
+with this.
+
+Three things about this were checked against wrangler 4.124 rather than inferred,
+and are the reason the generator exists at all:
+
+- Wrangler does not interpolate `${VAR}` inside a configuration file.
+- `wrangler deploy` has no flag that overrides a D1 `database_id`, an R2
+  `bucket_name` or a KV `id`.
+- `d1 migrations apply` is **not** one of the commands that pick up
+  `.wrangler/deploy/config.json`, so it has to be passed `--config` explicitly.
+  Without it, migrations are applied to whatever database `wrangler.jsonc`
+  names — and it does not fail.
+
+Paths inside a wrangler config resolve relative to the config file, which is why
+the generated one is written next to the original in `packages/app/` rather than
+somewhere tidier. It is gitignored.
 
 ## Operational notes
 

@@ -51,27 +51,20 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 跑 migration 的是 `npm run deploy:ci`（`migrations apply --remote` 再 `wrangler deploy`），
 自動部署與手動部署都走它。順序與理由見 [deployment.md](docs/deployment.md)。
 
-## 檔案的當前內容要當成公開的
+## 這個 repo 是公開的，而且沒有私有的另一半
 
-Folis 打算開源，但**開源的動作是另開一個 public repo、單一 initial commit**，不是把這個 repo
-轉 public（理由見
-[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md)，開源那天的執行清單在
-[#89](https://github.com/yurenju/spine/issues/89)）。
+repo 已經是 public，**檔案、`git log`、commit message、issue 與 PR 內文，全部都在外面看得到**。
+沒有一個「之後才會公開」的時間點，也沒有一份留在私有處的版本——寫下去就是公開的。
 
-所以界線很具體：
+（[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md) 當初規劃的是「另開一個
+public repo、單一 initial commit」，實際走的是直接公開現在這一個。那筆帳要補一份 ADR，在
+[#7](https://github.com/yurenju/tidemarks/issues/7)。）
 
-| | |
-| --- | --- |
-| 檔案在開源那天的內容 | **會出去**，照公開的標準寫 |
-| `git log`、commit message、issue 與 PR 內文 | 留在這個 private repo，不會跟著走 |
+所以標準只有一條：**每一種敘述都照給陌生人讀的標準寫**，不分檔案、commit 還是 issue。
 
-這也是為什麼**寫壞了改掉就真的沒了**，不必為了歷史自我審查。
-
-怎麼分：**這段話被不認識你的人讀到，會不會反過來咬你？** 風險評估、賠償上限的推算、「這樣就
-告不成」那一類的分析，一概不寫進**檔案**——那些放在 repo 外的私有目錄。
-
-同一個決定往往兩種理由都成立，**留在檔案裡的那一份挑對讀者有意義的那個**：「不去重」的理由寫
-「你的書就是你的那一份」，不寫判例。這不是粉飾——兩個都是真的，而寫給讀者看的那個本來就比較好。
+同一個決定往往有好幾種理由都成立，**寫下來的挑對讀者有意義的那個**：「不去重」的理由寫
+「你的書就是你的那一份」，而不是從商業或法律角度推出來的那一版。這不是粉飾——兩個都是真的，
+而寫給讀者看的那個本來就比較好。
 
 ## frond 的邊界
 
@@ -85,7 +78,7 @@ Folis 而做的，**但 UI 一項都不在它裡面**。
 
 ⚠️ **這條線現在只剩這段文字在守。** 以前擋著違規的是成本：要動 frond 就得開另一個 repo 的 PR、
 等 merge、等手動發版。那道摩擦沒有了（[ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
-現在改 frond 跟改 app 一樣近，所以判準要自己站得住。它一句話講得完：
+現在改 frond 跟改 app 一樣近，所以怎麼分要自己講得清楚。它一句話講得完：
 
 > **拿不到只有 frond 知道的事實，就讓 frond 補上那個事實；只是繁瑣，就留在 Folis。**
 
@@ -120,7 +113,7 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 另一邊**——只更新一邊會留下一份看起來還算數、其實已經過期的說明，那比沒有更糟。（這條只管根目錄
 那一對。`packages/frond/README.md` 只有英文一份，它的讀者是打開那個目錄的人。）
 
-程式碼檔裡**每一種散文**都算：檔頭註解、行內註解、識別字、錯誤訊息、`console`
+程式碼檔裡**每一種敘述**都算：檔頭註解、行內註解、識別字、錯誤訊息、`console`
 輸出、`describe` / `test` 的名稱、以及 config 檔裡的註解。commit message 也用英文
 （既有歷史不動——重寫歷史的代價遠大於語言一致性的收益）。
 
