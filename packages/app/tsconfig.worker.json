@@ -1,0 +1,24 @@
+{
+  // The Worker's half: workerd, which has neither a DOM nor Node's standard library.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "lib": ["ES2023"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // "node" is here for the tests only: `library.test.ts` reads a real epub off disk, which
+    // is the only way to assert what frond answers for real bytes. Worker source must not use
+    // Node APIs — workerd has none of them.
+    "types": ["@cloudflare/workers-types", "node", "@cloudflare/vitest-pool-workers/types"]
+  },
+  "include": [
+    "worker",
+    "src/lib/authorize-return.ts",
+    "src/lib/merge.ts",
+    "src/lib/shelf-order.ts",
+    "src/lib/toc.ts",
+    "src/lib/worker-paths.ts",
+    "src/lib/types.ts"
+  ]
+}

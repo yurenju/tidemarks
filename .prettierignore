@@ -1,0 +1,14 @@
+# Markdown is deliberately absent from the formatter's diet. The documents here are hand
+# wrapped Chinese prose with tables in them, and reflowing those is a change nobody asked for
+# in files where a line break is often a decision.
+*.md
+
+# Not ours to format, or not text at all.
+node_modules/
+dist/
+playwright-report/
+test-results/
+package-lock.json
+tests/books/
+packages/frond/tests/fixtures/
+packages/app/public/

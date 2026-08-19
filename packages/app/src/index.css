@@ -1,0 +1,2697 @@
+/* The Latin half of the interface's typeface, carried rather than borrowed for the same
+   reason the CJK faces are (ADR-0014): a third party's CDN is a dependency the reader cannot
+   see and cannot survive being offline. One variable file per subset covers every weight the
+   interface asks for, and `unicode-range` means a reader whose books and names never leave
+   Basic Latin never fetches the extended one. */
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* One scrollbar for the page and a permanent gutter for it. Without the gutter, opening a
+   drawer (which locks the page) takes the scrollbar away and the whole shelf jumps sideways by
+   its width — a layout shift the reader reads as the interface flinching. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Set by `App.tsx` while a drawer is up. */
+html[data-drawer="open"] {
+  overflow: hidden;
+}
+
+/* Design tokens, in three layers: primitives, then what they mean, then what a component
+   takes. Only the semantic layer is quoted below this block — a rule naming `--paper-300`
+   directly is a rule that has decided what a colour is *for* without saying so.
+   Why the interface looks like this: ADR-0022. What follows from it: docs/design-system.md.
+
+   The short of it is three materials. **Paper** is the container the reader cannot change:
+   the page, the covers, the bars, the panels. **Ink** is what the reader leaves behind: text,
+   notes, highlights, the date a book was finished — four steps of density, and hierarchy is
+   made of density alone rather than of weight or of boxes. **Moss** is what can be acted on.
+   The green places on a screen should be countable; a fifth one means something ought to
+   have been ink. */
+:root {
+  /* Primitives */
+  --paper-100: #faf7ef;
+  --paper-200: #f5f2ea;
+  /* Between the two above it, and the only reason it exists is `--surface-raised`: a lifted
+     surface has to be a step off the page without being the cover's step. */
+  --paper-250: #f0efe6;
+  --paper-300: #ece7dc;
+  --paper-400: #e4dfd2;
+  --paper-500: #ddd6c7;
+  --ink-900: #1c1a17;
+  --ink-700: #4d463e;
+  /* Two steps darker than the design's #8a8278, which measured 3.54:1 against the page and
+     would have put every caption and every read-only bar under AA. This one is 5.2:1. */
+  --ink-500: #6f675d;
+  --ink-400: #a09788;
+  --moss-600: #3f5c46;
+  --moss-700: #2c4132;
+  --moss-300: #8fae94;
+  --moss-200: #a9c3ad;
+  --clay-600: #8f2f24;
+  --clay-400: #d98b7f;
+  --night-900: #14120f;
+  --night-800: #1a1815;
+  /* The dark theme has no shadow to spend — a black offset on a near-black page is nothing —
+     so "lifted" is said with a lighter surface instead. This is that step. */
+  --night-700: #211f1a;
+  --night-600: #2a2721;
+  /* Between the cover surface and the firm line, so a hairline drawn on a cover is still a
+     line in the dark. Without it both ends of that pair are #2a2721. */
+  --night-550: #2f2c26;
+  --night-500: #35322b;
+  /* Two greys the dark theme needs and the light one does not, because in the dark the three
+     signals that say "you can press this" — colour, edge, shadow — all thin out at once.
+     `-400` is the Scrubber's rail (`--line-firm` is 1.9:1 against the page there, which is a
+     line nobody can see); `-300` is `--line-actionable`, 2.9:1, the edge on a control that
+     stands on its own. */
+  --night-400: #4a4740;
+  --night-300: #6f695d;
+  --bone-100: #e8e3d7;
+  --bone-200: #c9c2b4;
+  --bone-300: #9c948a;
+  --bone-400: #7d766c;
+
+  /* Semantics — paper */
+  --surface-page: var(--paper-100);
+  --surface-sunken: var(--paper-200);
+  --surface-cover: var(--paper-300);
+  --surface-raised: var(--paper-250);
+  --line-hair: var(--paper-400);
+  --line-firm: var(--paper-500);
+  /* The edge on something that stands on its own, kept apart from `--line-hair`'s job of
+     dividing things. In the light theme they can be the same value; in the dark they cannot,
+     which is the whole reason this name exists (ADR-0023). */
+  --line-actionable: var(--paper-500);
+  /* The line a thumb runs along. Its own name because the Scrubber is the one control whose
+     rail has to stay legible under a fill and a thumb, and in the dark `--line-firm` is 1.9:1
+     against the page — the unread half of the book would be a rail nobody can see. */
+  --line-track: var(--paper-500);
+  --backdrop: rgba(20, 18, 14, 0.28);
+
+  /* Semantics — ink. The four steps are not four text colours: `--text-faint` is the one that
+     does not carry words. It is for rules, disabled glyphs and placeholders, because at 2.7:1
+     against the page anything it spells cannot be read by everyone who has to read it. */
+  --text-primary: var(--ink-900);
+  --text-body: var(--ink-700);
+  --text-muted: var(--ink-500);
+  --text-faint: var(--ink-400);
+
+  /* Semantics — moss, and the one red */
+  --accent: var(--moss-600);
+  --accent-pressed: var(--moss-700);
+  --text-on-accent: var(--paper-100);
+  --danger: var(--clay-600);
+
+  /* The one reversal in the app, for the one thing that sits on top of the reader's own words.
+     "The opposite of the paper underneath" is the rule, so both values swap with the theme
+     rather than staying dark. */
+  --surface-inverse: var(--ink-900);
+  --text-on-inverse: var(--paper-200);
+  --line-on-inverse: var(--ink-700);
+
+  /* Shadows never blur: paper resting on paper, lit from one side. A shadow means the thing
+     can be picked up — a book, a panel, a sheet, a toast, the Scrubber's thumb. Anything glued
+     to the screen (a bar, a form, a read-only bar) casts none. */
+  /* Two layers each, and the split is the rule: the hard one at half the alpha keeps the
+     offset — paper on paper, lit from one corner — and a short blur over it takes the edge off
+     the join, the way a real sheet of paper does over the last millimetre.
+
+     **The blur may not exceed twice the offset, and may never take a spread.** Past that ratio
+     the shadow starts spreading evenly around the shape, which is a point light in air: the
+     thing ADR-0022 picked against. So the offset is what makes this a shadow and the blur is
+     only allowed to soften where it lands. */
+  --shadow-lift: 2px 3px 0 rgba(28, 26, 23, 0.05), 2px 3px 4px rgba(28, 26, 23, 0.035);
+  --shadow-panel: 6px 8px 0 rgba(28, 26, 23, 0.07), 6px 8px 12px rgba(28, 26, 23, 0.05);
+  /* The same panel shadow for the panels that do not arrive from that side: a sheet rises from
+     the bottom bar, and a drawer — the shelf's, and the reader's own once the window is wide
+     enough — comes in from the right. Each casts back the way it came. Cast the default way,
+     they would draw their shadow underneath themselves.
+
+     `-left` earns its keep twice over now. The reader's panel used to arrive from the left and
+     take the default, whose downward 8px reached past the book's own box and landed on the
+     Scrubber's bar — a lifted thing casting onto something it is beside rather than above.
+     Coming from the right it casts left, across the book, and there is nothing below it to
+     reach. */
+  --shadow-panel-up: 0 -6px 0 rgba(28, 26, 23, 0.07), 0 -6px 12px rgba(28, 26, 23, 0.05);
+  --shadow-panel-left: -6px 0 0 rgba(28, 26, 23, 0.07), -6px 0 12px rgba(28, 26, 23, 0.05);
+
+  /* Highlights are ink, not fluorescent marker: a wash of colour with a firmer line pressed
+     along its bottom edge, the way a nib leaves the paper. None of the four collides with
+     moss, so "what I marked" never reads as "what I can press". */
+  --mark-indigo: #4a6d94;
+  --mark-ochre: #a4622f;
+  --mark-moss: #5f7a4e;
+  --mark-soot: #3d4348;
+  --mark-wash: 0.22;
+  --mark-edge: 0.4;
+
+  /* Components. The Latin family leads so figures and Western titles are drawn by the face we
+     carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
+     same reasons given there — chiefly that a bare `serif` keyword lands on PingFang, a sans,
+     on Apple platforms. The pan-CJK name goes first because one family covers Traditional,
+     Simplified, Japanese and Korean interface strings, and because `lib/ui-font.ts` registers
+     our own copy under exactly that name when this device has it. */
+  --font-ui:
+    "Source Serif 4", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", "Songti TC",
+    "PMingLiU", serif;
+  /* Every step in `rem`, and that is not tidiness. The reader's own font size is a percentage
+     of their root (ADR-0006), so when they turn the browser's text up the *book* grows —
+     and the interface only grows with it if it is measured in the same unit. In px the result
+     of asking for larger text was a larger book inside a smaller-looking interface.
+
+     The `pointer: coarse` block below raises five of these. That is not "small screen so make
+     it bigger": it is how a serif Han face has to be measured. A Han glyph has no x-height and
+     fills its em box, so the gaps between strokes are tighter than a Latin face's at the same
+     size; a Song face's horizontals are hairlines, which on a DPR 3 phone are held up by
+     greyscale antialiasing and go grey as the size drops. What is being sized is the em box,
+     not a number of pixels. Why `pointer` here and `any-pointer` for hit areas: ADR-0023.
+
+     **The whole scale sits a step higher than a Latin interface's would**, and the desktop
+     numbers here are the ones the coarse block used to hold. The reason is the face rather
+     than the screen: this interface is set in a Song face because the book is, and the size a
+     Latin sans reads comfortably at is a size the same measurement leaves Han strokes merging
+     at. Chinese practice puts body text at 16–18px and treats 12px as the floor for anything
+     at all — so body starts at 16 and the smallest step, the eyebrow over a settings group,
+     lands on 12 rather than under it. 〈設定〉's 帳號 tab is where the old numbers showed
+     worst, being the one screen that is mostly prose at `--type-note` and `--type-eyebrow`. */
+  --type-display: 2rem;
+  --type-title: 1.375rem;
+  --type-lede: 1.125rem;
+  --type-body: 1rem;
+  --type-ui: 0.9375rem;
+  --type-note: 0.875rem;
+  --type-eyebrow: 0.75rem;
+  /* Tracking travels with the eyebrow: at the larger coarse size the same 0.16em reads as
+     gappy rather than as a label. */
+  --type-eyebrow-tracking: 0.16em;
+  --leading-text: 1.68;
+  --leading-title: 1.3;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 30px;
+  --space-7: 44px;
+  --radius-dot: 50%;
+  /* What the bottom bar keeps clear beneath itself, and it is a question about the *device*
+     rather than about the window — so the coarse block below is where it gets a value, and a
+     mouse never pays for it. Both hand-held platforms own the bottom edge of the screen for
+     their own gestures (switch app, go home), and **Android cannot be asked to give it back**:
+     `setSystemGestureExclusionRects` takes the left and right edges only. So the only fix is to
+     stop putting a draggable control there.
+
+     Not `env(safe-area-inset-bottom)`, deliberately. Reading that would mean
+     `viewport-fit=cover`, and cover also stops iOS insetting the *top* — the title bar would go
+     under the notch, and one bar's problem would become three. Without cover, iOS insets the
+     bottom itself and this is the visual breathing room left over; Android never had the
+     gesture strip inside the viewport to begin with, and needs exactly the same thing. One
+     constant covers both (docs/specs/reader-chrome-layers/spec.md). */
+  --chrome-bottom-safe: 0px;
+  /* The floor for anything that can be pressed, and it asks **`any-pointer`**: the question is
+     whether this machine has a coarse pointer at all, not whether that is the one being used.
+     A touch laptop has one, and a finger on that screen is the same finger as on a phone. So
+     the coarse branch below puts both of these back to 44px, and the desktop keeps the denser
+     numbers. Getting this wrong in the tight direction means a control nobody can hit, which
+     is why the safe side is chosen here and not in the type scale (ADR-0023).
+
+     `--tap-dense` is for rows of small buttons that sit inside a panel the reader is already
+     aiming at — a sheet's actions, a note's edit/delete pair. */
+  --tap-min: 32px;
+  --tap-dense: 28px;
+  /* How far a bar of the chrome travels to get off the edge it came from, and how long it takes.
+
+     **One distance for every bar, not each bar's own height.** The entries stand against the
+     title bar rather than against the edge of the screen, so a bar that travelled its own height
+     would still be on the page — and two bars given two distances slide apart, opening a strip
+     of book between them on the way in. One number, and each group moves as one piece.
+
+     Over-shooting is free: the extra is spent past the edge, where nothing is drawn. Falling
+     short is not — a bar that stops before the edge is left standing over the book in 〈讀〉 — so
+     this is generous, and `chrome-motion.spec.ts` measures that it clears both stacks in both
+     arrangements. `rem`, because the bars are built out of text and grow with it.
+
+     **8rem was not generous enough, and the way that showed is worth keeping.** The bottom bar
+     grew by `--chrome-bottom-safe` and the entries above it, which travel the same distance from
+     the same stack, stopped 6px short of the edge — visible only as a sliver of bar over the
+     book in 〈讀〉, and only on a hand-held. Two engines' worth of `hand-held.spec.ts` said so
+     before any human could have. Raised past what the current stack needs rather than to fit
+     it: the number that matters is the one still clearing when the next line is added to a bar.
+
+     The duration is the page turn's (`Reader.tsx`'s `TURN_SETTLE_MS`), and for the same reason:
+     this is not an animation anyone is meant to watch. */
+  --chrome-slide: 10rem;
+  --chrome-motion: 180ms;
+  /* The reader's panel, when it comes in from the side rather than up from the bottom. Its
+     other three edges are not numbers at all — it is rendered into the box between the bars,
+     so they are that box's (`Panel`).
+
+     **A share of the window, floored and capped**, rather than the 236px it used to be. One
+     number cannot serve both ends of the range: 236px is a fifth of a 1280px laptop and a
+     tenth of a 2560px display, so the same strip that crowds the book on the small screen
+     reads as a bookmark on the large one. The floor is where a chapter title stops wrapping to
+     three lines; the ceiling is where a list of chapters stops being a list and starts being a
+     second column of prose. Both are judgement, not measurement — if a real book's 目錄 says
+     otherwise, they are the two numbers to move. */
+  --panel-width: clamp(300px, 24vw, 420px);
+}
+
+/* The interface, measured for a finger rather than for a cursor.
+   Split deliberately from the width queries: how big a thing has to be is a fact about the
+   hand, and how the screen is laid out is a fact about the window (ADR-0023). */
+@media (any-pointer: coarse) {
+  :root {
+    --tap-min: 44px;
+    --tap-dense: 44px;
+    --chrome-bottom-safe: 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --type-lede: 1.1875rem;
+    --type-body: 1.0625rem;
+    --type-ui: 1rem;
+    --type-note: 0.9375rem;
+    --type-eyebrow: 0.8125rem;
+    --type-eyebrow-tracking: 0.14em;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-page: var(--night-800);
+  --surface-sunken: var(--night-900);
+  --surface-cover: var(--night-600);
+  --surface-raised: var(--night-700);
+  --line-hair: var(--night-550);
+  --line-firm: var(--night-500);
+  --line-actionable: var(--night-300);
+  --line-track: var(--night-400);
+  --text-primary: var(--bone-100);
+  --text-body: var(--bone-200);
+  --text-muted: var(--bone-300);
+  --text-faint: var(--bone-400);
+  --accent: var(--moss-300);
+  --accent-pressed: var(--moss-200);
+  --text-on-accent: var(--night-900);
+  --surface-inverse: var(--bone-100);
+  --text-on-inverse: var(--night-900);
+  --line-on-inverse: var(--bone-300);
+  /* Lighter than the light theme's: the same red on a near-black surface reads as brown. */
+  --danger: var(--clay-400);
+  --backdrop: rgba(0, 0, 0, 0.5);
+  /* Split the same way as the light theme's, and mostly out of consistency rather than for the
+     effect: black offset against a near-black page is barely a shadow at all, which is why
+     "lifted" is said with `--night-700` here instead. One set of rules for both themes is worth
+     more than tuning a thing nobody can see. */
+  --shadow-lift: 2px 3px 0 rgba(0, 0, 0, 0.3), 2px 3px 4px rgba(0, 0, 0, 0.22);
+  --shadow-panel: 6px 8px 0 rgba(0, 0, 0, 0.35), 6px 8px 12px rgba(0, 0, 0, 0.25);
+  --shadow-panel-up: 0 -6px 0 rgba(0, 0, 0, 0.35), 0 -6px 12px rgba(0, 0, 0, 0.25);
+  --shadow-panel-left: -6px 0 0 rgba(0, 0, 0, 0.35), -6px 0 12px rgba(0, 0, 0, 0.25);
+  /* Same shape as the light theme, lifted: a wash and a pressed edge, never a different
+     treatment. The wash carries further here because the page underneath is dark. */
+  --mark-indigo: #7aa3cf;
+  --mark-ochre: #cf8b4e;
+  --mark-moss: #8aab72;
+  --mark-soot: #9aa4ab;
+  --mark-wash: 0.3;
+  --mark-edge: 0.75;
+}
+
+body {
+  margin: 0;
+  /* Not cosmetic: iOS 26+ Safari resolves a `position: absolute` backdrop against the nearest
+     positioned ancestor, and without this one a drawer's backdrop stops short of the visual
+     viewport — a strip of live shelf along the bottom edge of a panel that is meant to be over
+     everything. */
+  position: relative;
+  font-family: var(--font-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+  /* Anything that counts up or down is read as a column, not as a word. */
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-page);
+  color: var(--text-body);
+}
+
+#root {
+  height: 100vh;
+  /* mobile browsers: exclude the collapsing address bar */
+  height: 100dvh;
+  /* A stacking context of its own, so a portalled overlay's z-index is answered here rather
+     than against whatever the page happens to have stacked. */
+  isolation: isolate;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Buttons come in three, and the plain one is the middle: a rule around a piece of paper.
+   Green is the scarce thing on this screen, so it is opted into by `.primary` and never
+   arrives by default; `.ghost` gives up the rule as well, which only reads as a button when
+   something else says it is one — a bar around it, or a single glyph in a 44px square.
+   `.danger` is its own step and not a variant of primary: it is the one place a colour is
+   used to slow the reader down rather than invite them.
+
+   `--tap-min` on every one of them, and that number is a question about the machine rather
+   than about the window: 44px wherever a coarse pointer exists at all — phones, tablets, and
+   the touch laptop whose owner is using its trackpad right now — and 32px where none does.
+
+   The rule is `--line-actionable` rather than `--line-firm`. In the light theme the two are
+   the same value; in the dark they are not, because a border at `--line-firm` there is 1.2:1
+   against the page and a button with an invisible edge is a caption. */
+button {
+  cursor: pointer;
+  border: 1px solid var(--line-actionable);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  min-height: var(--tap-min);
+  padding: 11px var(--space-5);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+  /* labels must never wrap into vertical text when flex squeezes them */
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+/* Lifted, not sunken. In the light theme the two are a hair apart and either reads as "under
+   the pointer"; in the dark, `--surface-sunken` is *darker* than the page, so a hovered button
+   used to recede. A shadow would say this better and the dark theme has none to spend, which is
+   what `--surface-raised` is for. */
+button:hover {
+  background: var(--surface-raised);
+  border-color: var(--text-muted);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* One per screen, at most: the single thing the reader most likely came to do. */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+button.primary:hover {
+  background: var(--accent-pressed);
+  border-color: var(--accent-pressed);
+}
+
+/* Only inside the reader's bars and on the ✕ that closes a panel. Anywhere else a borderless
+   control sits among bordered ones and reads as a caption rather than as something to press. */
+button.ghost {
+  border-color: transparent;
+  background: none;
+}
+
+/* A cover's step rather than a sunken one, and it took a screenshot to notice: against the page
+   `--surface-sunken` is one step away, which the general `button:hover` above can afford because
+   it also moves a border. A ghost has no border to move, so that one step was the whole of the
+   answer to "which of these four am I on" — and it was invisible. `--surface-cover` is the next
+   step out, already in the ramp, and it is the darkest a bar can go before it stops reading as
+   the same piece of paper as the bar around it. */
+button.ghost:hover {
+  background: var(--surface-cover);
+}
+
+/* The sheet this button opened is standing open. Ink to green and nothing else: a filled
+   background here would be a second surface inside a bar that is already one. */
+button.ghost.active {
+  color: var(--accent);
+}
+
+/* A field is a piece of paper with a rule around it, like a button but without the pointer.
+   The range inputs are left out of the box entirely: a slider has no interior to fill, and a
+   rule around one draws a frame around a track that is already a line. */
+select,
+input:not([type="range"]),
+textarea {
+  border: 1px solid var(--line-actionable);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  padding: 10px var(--space-3);
+}
+
+/* Explicit rather than left to the default: WebKit rounds a `<select>` and a `<textarea>` on
+   its own, so "no radius" has to be said out loud or two controls keep theirs. */
+button,
+select,
+input,
+textarea {
+  border-radius: 0;
+}
+
+/* And saying it is not enough for a `<select>`: WebKit draws a menulist as a native control
+   and ignores the border, the background and the radius alike, so on that engine alone the
+   sort control kept rounded corners and a grey fill. `appearance: none` hands the box back,
+   which means drawing the chevron ourselves — the `⌄` the icon set already allows. Two rules
+   rather than `currentColor`, which a `background-image` URL cannot see. */
+select {
+  appearance: none;
+  padding-right: var(--space-6);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236f675d' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 10px 7px;
+}
+
+:root[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239c948a' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+/* The faintest ink, and the only place it carries anything word-shaped — a placeholder is a
+   label for something that is not there yet, so it is the one text that should not read as
+   text. Everywhere else this step draws rules and disabled glyphs. */
+::placeholder {
+  color: var(--text-faint);
+  opacity: 1;
+}
+
+select,
+input {
+  min-height: var(--tap-min);
+}
+
+/* The one control the browser draws itself, and it draws it in its own blue. A slider is
+   something the reader can act on, so it is moss like everything else that is. */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* One ring for everything the keyboard can reach, and a paper-coloured halo outside it so the
+   ring survives landing on a control that is already sitting on a rule. The cover has its own
+   answer to this — its background belongs to a publisher, not to us (see `.book-cover`).
+
+   **The halo is a hole, not a colour**: it works by being whatever is already behind the
+   control, so the ring reads as a ring and not as a second shape around it. That was one value
+   while every surface in the app was `--surface-page`; ADR-0028 ended it. So the surface names
+   itself in `--halo` where it is not the page — the rule below is the only place that is true
+   so far, and it covers the four most keyboard-reachable buttons in the app. Left as the page's
+   colour there, every focused entry would wear a pale loop: the same artefact the Scrubber's
+   thumb ring changed surfaces to avoid, on the controls a keyboard actually visits. */
+:where(button, select, input, textarea, .toc-item):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
+}
+
+/* A rule down the side rather than a red panel. What went wrong is one sentence of ink like
+   any other; the colour says which sentence to read first, and does not have to shout to do
+   it. Red as a fill is a colour the reader cannot look away from, and most of these are
+   recoverable. */
+.error {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+  border-left: 3px solid var(--danger);
+  padding: 0.5rem 1rem;
+  margin: 0 2rem;
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+/* Library */
+.library {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The shelf is written for the narrowest window first and widened by the four queries at the
+   bottom of this file. Written the other way round, every phone rule is an undo of a desktop
+   one, and the undo is what gets forgotten. */
+.library-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+  background: var(--surface-page);
+}
+
+/* The wordmark, in ink. It used to be the one green thing on the shelf, which spent the
+   colour that means "you can press this" on the one word nobody can. */
+.library-header h1 {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--type-title);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.library-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* The shelf's own two verbs, over the covers they act on. */
+.shelf-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.shelf-order {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* The book the reader is in the middle of, at a size that makes choosing it unnecessary. */
+.reading-now {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5) var(--space-4) 0;
+}
+
+/* Both classes, so this width wins over `.book-cover`'s 100% wherever the two rules end up
+   sitting in the file. The cover is the one thing on this screen worth looking at, and 100% of
+   a flex row is the whole shelf.
+
+   132px on a phone, 272px on a wide desktop, and 26vw in between. Before this the large book
+   was a fixed 196px while the wall grew with the window, and at 1680 the two were 22px apart —
+   the shelf had a main character nobody could pick out.
+
+   **26vw and not the 16vw the design gives**, and the difference was found by measuring: at
+   16vw the slope is so shallow that 600 and 820 both sit on the 132px floor, where a wall cover
+   is 126px. The invariant — *the large book is at least twice the area of one on the wall* —
+   was broken at exactly the two widths nobody looks at, by the change that exists to keep it.
+   It holds from 820 up now. Below that the two are not competing anyway: the large book has a
+   row of its own, its title, and the only action on the screen. */
+.book-cover.reading-now-cover {
+  flex: 0 0 auto;
+  width: clamp(8.25rem, 26vw, 17rem);
+}
+
+.reading-now-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* The one title on the shelf that scales with the window rather than with the type scale: it
+   is a picture of the book as much as it is a label, and it has to hold its own next to a
+   cover that is now three times the size it was. */
+.reading-now-info h2 {
+  margin: 0;
+  font-size: clamp(1.3125rem, 3.4vw, 2.25rem);
+  line-height: var(--leading-title);
+}
+
+.reading-now-author {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-ui);
+}
+
+.reading-now-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* On a phone this is the only action on the screen, so it takes the width to say so — and 48px
+   rather than 44, because a target that is the whole point of the screen can afford to be the
+   most comfortable thing on it. From 600 up it goes back to being a button beside a `⋯`. */
+.reading-now-actions .primary {
+  flex: 1;
+  min-height: 48px;
+}
+
+/* Covers, at the size a cover is for. **A wider window buys more columns, not bigger covers**:
+   the track has a ceiling, and past it the space goes into another column. Growing them
+   instead is how the large book stopped being the large book.
+
+   `auto-fill` rather than a count per breakpoint, and that is a reversal — the wall used to be
+   a fixed five because "a grid that reflows puts a book in a different place on every window".
+   It does, and the price is worth paying now that the counts would otherwise be five numbers
+   to keep in step with five paddings. The order is unchanged and it is the order that makes a
+   book findable; which row it lands on was never stable across devices anyway. */
+.cover-wall {
+  display: grid;
+  /* `1fr` as the ceiling and the real ceiling — 132px — moved onto the card, which looks like
+     a detour and is not. `auto-fill` counts how many tracks fit using each track's **maximum**,
+     so `minmax(108px, 132px)` asks for as many 132px tracks as fit: at 390 that is two, and the
+     phone's three covers were impossible to reach that way. With `1fr` the count comes from the
+     108px floor and the tracks then share what is there, which is the rule this wall wants
+     stated anyway — more room buys another column, and `max-width` stops the covers growing
+     into it. */
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  /* Left-aligned rather than stretched: the leftover strip at the right edge is the honest
+     shape of a wall whose covers have a maximum size. */
+  justify-content: start;
+  gap: var(--space-5) var(--space-3);
+  padding: var(--space-3);
+}
+
+.book-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  /* Where a cover stops growing. On the card rather than on the track, for the reason given
+     over `grid-template-columns`. */
+  max-width: 132px;
+}
+
+/* The one door to 〈書的詳情〉, over the cover's top corner: it is not part of choosing a book,
+   so it does not take a row of its own under every one of them.
+
+   Selected as `button.ghost` and not by the class alone, because the ghost rule clears the
+   background and this one has to keep a chip of surface under it — the corner it sits in
+   belongs to the cover art, which is whatever colour a publisher chose. */
+button.ghost.book-more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* A square notch cut out of the cover's corner rather than a pill floating over it: the
+     cover is a printed surface, and nothing on this screen is round unless a finger pinches
+     it. The two rules are the cut, so the chip reads as taken out of the paper rather than
+     laid on top; the other two edges are the cover's own. */
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  line-height: 26px;
+  text-align: center;
+  border-left: 1px solid var(--line-firm);
+  border-bottom: 1px solid var(--line-firm);
+  background: var(--surface-page);
+}
+
+/* The one control whose face cannot be the size of its target: it has to sit in the cover's
+   corner, and a 44px chip there would take a quarter of a phone's cover. So the face stays 26px
+   and the target is `--tap-min`, reaching down and left over artwork it does not have to paint
+   on. The carve-out is the *shape* — a face smaller than what can be pressed — and the target
+   itself follows the hand like every other one (ADR-0023). */
+button.ghost.book-more::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+}
+
+/* One line per thing there is to say. Nothing is reserved for a line that is not there. */
+.book-status {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+/* The proportions of a printed book rather than of a poster. */
+.book-cover {
+  aspect-ratio: 1 / 1.42;
+  width: 100%;
+  border: 1px solid var(--line-firm);
+  /* The focus marks are drawn outside this box (below), and `overflow: hidden` would cut them
+     off. Nothing needs clipping here anyway: the image is sized to the box exactly, and the
+     fallback title clips itself. */
+  position: relative;
+  background: var(--surface-cover);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lift);
+  transition: border-color 0.15s;
+}
+
+/* Under the pointer the cover does not move. A book lifting off the shelf on hover is the
+   interface performing rather than answering, and the shadow already says it can be picked
+   up; what changes is the one thing hover has to say, which is "this one". */
+.book-cover:hover {
+  border-color: var(--accent);
+}
+
+/* Keyboard focus, drawn **outside** the cover: what colour the artwork is belongs to a
+   publisher, and a green ring lands invisibly on a dark one often enough to matter. Crop
+   marks are the printer's own way of saying "this is the piece" from off the edge of it —
+   the same stock this whole interface is cut from. The 7px offset keeps them inside the
+   grid's gap, so a focused cover never touches its neighbour.
+
+   Eight gradients on one pseudo-element rather than eight elements: the marks are decoration
+   and have no business in the accessibility tree they would otherwise be added to. */
+.book-cover:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-lift);
+}
+
+.book-cover:focus-visible::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--accent), var(--accent)) left top / 16px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left top / 2px 16px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 16px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 2px 16px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 16px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 2px 16px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 16px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 2px 16px no-repeat;
+}
+
+.book-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The title, for a book whose cover is missing. The top padding is the notch's height: the
+   ⋯ is cut out of that corner, and a title running under it would be read through a button. */
+.book-cover span {
+  padding: 0.5rem;
+  padding-top: 26px;
+  font-weight: 600;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.book-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.book-info strong {
+  font-size: var(--type-ui);
+  line-height: var(--leading-title);
+}
+
+.book-info small {
+  color: var(--text-muted);
+}
+
+/* The confirmation before a deletion — Folis's words, not the browser's (`AboutDrawer`). */
+.alert-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--line-firm);
+  background: var(--surface-page);
+  box-shadow: var(--shadow-panel);
+}
+
+.alert-title {
+  margin: 0;
+  font-size: var(--type-lede);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.danger:hover {
+  background: var(--danger);
+  color: var(--surface-page);
+}
+
+/* Reader
+   ------
+   Three states, one at a time (CONTEXT.md 〈chrome〉). 〈讀〉 is the book alone; 〈找〉 lays the two
+   bars **over** it rather than beside it. Over, because a bar that took its own room would
+   shrink the page and repaginate the book — asking where you are would move you. */
+.reader {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  /* No rubber band here. The reader is a fixed box with a book paginated inside it, so an
+     overscroll bounce moves the whole page away from a page turn that is already in progress.
+     The shelf keeps its bounce: there, a bounce is the end of a list. */
+  overscroll-behavior: none;
+}
+
+/* 〈找〉, in one box: a column the height of the reader, laid over the book. The box itself
+   catches nothing and each bar takes its pointer events back while it is up (`[data-up]`
+   below), so a press on the page between them still reaches frond and still puts the chrome
+   away. `data-up` is the whole of the state as CSS reads it; the box is here in 〈讀〉 too, with
+   the bars parked off the edges.
+
+   A grid, because that is what lets the entries change *ends* on a phone and change *rows* on a
+   desk without changing components. Three areas, one template per arrangement, same markup:
+   here the title and the entries share the top row, and the hand-held query below drops the
+   entries to a row of their own above the Scrubber.
+
+   `right` is the column a panel takes on a desk. Not `width`, so the bars stay pinned to the
+   left edge and only give up their right end — and `0` the rest of the time, so nothing about
+   〈讀〉 or a bare 〈找〉 depends on this rule at all. */
+.chrome {
+  position: absolute;
+  inset: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top nav"
+    "gap gap"
+    "bottom bottom";
+  grid-template-rows: auto 1fr auto;
+  pointer-events: none;
+  transition: right var(--chrome-motion) ease-out;
+}
+
+.chrome-top {
+  grid-area: top;
+}
+
+.chrome-nav {
+  grid-area: nav;
+}
+
+.chrome-gap {
+  grid-area: gap;
+}
+
+.chrome-bottom {
+  grid-area: bottom;
+}
+
+/* The three bars, in the state 〈讀〉 leaves them: parked past the edge they came from, hidden,
+   and catching nothing. **The layer stays in the tree the whole time** — a state that is
+   unmounted cannot leave, and the bars would blink out half-way through going away.
+
+   **One step off the page, and no shadow** (ADR-0028). These used to take `--surface-page`
+   itself — the same token as the book, not a value near it — which left a hairline carrying two
+   jobs at once: dividing the two planes, and saying which of them is on top. It can do the
+   first. 〈找〉 lays these bars *over* the book rather than beside it, so the second has to be
+   said by the surface. A shadow would say it too, and is not allowed to: a bar is glued to the
+   screen, and only what can be picked up casts (ADR-0022). The hairline stays — in the dark the
+   step is 1.08:1, and under a low backlight the line is the only half of the pair left.
+
+   `visibility` is what makes staying cost nothing: hidden, a bar is not a pointer target, not a
+   tab stop and not a line a screen reader reads out. It is transitioned rather than switched
+   because an in-between `visibility` is always `visible` — so it holds until the slide is over
+   on the way out, and gives way at once on the way in, which is exactly the order wanted.
+
+   `ease-in` is the leaving curve, since this state is the one being left for; `[data-up]` below
+   trades it for the arriving one. A transition takes the timing of the state it is going to. */
+.chrome-top,
+.chrome-nav,
+.chrome-bottom {
+  background: var(--surface-raised);
+  /* What a focus ring's halo is cut out of here — see the `:focus-visible` rule near the top. */
+  --halo: var(--surface-raised);
+  visibility: hidden;
+  transition:
+    transform var(--chrome-motion) ease-in,
+    visibility var(--chrome-motion);
+}
+
+.chrome-top,
+.chrome-nav {
+  transform: translateY(calc(-1 * var(--chrome-slide)));
+}
+
+.chrome-bottom {
+  transform: translateY(var(--chrome-slide));
+}
+
+/* 〈找〉: home, and live. The pointer is granted here rather than above so that a bar on its way
+   out cannot be pressed half-way — the tap that sent it away must not be able to catch it. */
+.chrome[data-up] .chrome-top,
+.chrome[data-up] .chrome-nav,
+.chrome[data-up] .chrome-bottom {
+  pointer-events: auto;
+  visibility: visible;
+  transform: none;
+  transition-timing-function: ease-out;
+}
+
+/* No slide for a reader who asked for less motion. The bars still arrive and still leave, they
+   just stop travelling to do it. Named through `.chrome` so they outrank the hand-held rule at
+   the end of this file, which parks the entries against the other edge. */
+@media (prefers-reduced-motion: reduce) {
+  .chrome .chrome-top,
+  .chrome .chrome-nav,
+  .chrome .chrome-bottom {
+    transform: none;
+    transition: none;
+  }
+}
+
+.chrome-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+  /* Two bars sharing one row have to agree where the line under them is, and they only do if
+     they are the same height. `stretch` is the grid default; saying it is a reminder that the
+     entries below set this row's height and the title rides it. */
+  align-self: stretch;
+}
+
+/* 目錄／筆記／排版, and the door to 〈書的詳情〉. The right end of the top row by default; on a
+   hand-held it drops to a row of its own above the Scrubber, where a thumb is.
+
+   **One row, not two.** They were stacked — a title bar half empty and an entry bar half empty,
+   92px of chrome to say four words and offer four doors. The left padding goes because the row
+   it now ends is already padded at its left; only the right end is this bar's. */
+.chrome-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-2) 0;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* The fourth door, kept at the far end so the three that raise a panel stay together. */
+.reader-about {
+  margin-left: var(--space-2);
+}
+
+/* Shorter than a general button, and deliberately: these four are in a row of their own inside
+   a bar that is already a surface, and at 44px each the bar becomes the page. On a hand-held
+   `--tap-min` wins it back (the rule below), because there the row is what a thumb aims at. */
+.chrome-nav button {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+}
+
+/* Which panel is standing open. A rule as well as the green, because up here the four entries
+   are shoulder to shoulder and a colour on one word among four does not read as "this one is
+   open" — but still no fill: the bar is already a surface, and a second surface inside it is a
+   box drawn in a box. The hand-held row undoes the rule (below), where three widely spaced
+   entries make the colour enough on its own. */
+.chrome-nav button.active {
+  border-color: var(--accent);
+}
+
+/* The book, between the two bars. It catches nothing, so a press on the page reaches frond. */
+.chrome-gap {
+  min-height: 0;
+  position: relative;
+}
+
+/* Where the reader is: the chapter in words, the rail under it.
+   -----------------------------------------------------------
+   The padding is what the row used to be given as a fixed height — 22px of track inside 34px of
+   bar — written as padding now because the bar has a second line to hold when there is a chapter
+   to name. In `rem` rather than px, so a reader who turns their root text up gets a bar that
+   grows with the words in it; off the spacing scale rather than on it, because these two are
+   what is left over around a control whose own height is not on that scale either. */
+.chrome-bottom {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.375rem 0 calc(0.375rem + var(--chrome-bottom-safe));
+  border-top: 1px solid var(--line-hair);
+}
+
+.reader-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-ui);
+}
+
+/* The chapter, **under** the rail that says the same thing as a fraction. It was up in the top
+   bar, at the other end of the screen from the axis it belongs to — and there it competed with
+   the title for one line, which on a phone meant both of them were cut ("Alice's Ad… I: Do…").
+   Down here it has the width of the screen and nothing to share it with.
+
+   Under rather than over, and that is what buys the phone its clearance: the rail is what a
+   thumb drags, so the rail is the one that has to leave the system's own gesture strip at the
+   bottom edge. Swapping the two costs nothing and lifts the rail by a whole line
+   (docs/specs/reader-chrome-layers/spec.md). It reads as well or better this way round — the
+   axis is the thing, and the chapter is a note on where it currently points.
+
+   Centred, for a reason that is not symmetry: the Scrubber mirrors for a vertical or RTL book
+   (ADR-0001), so the rail's head and tail swap ends. Text flush to one edge under a rail that
+   turns around is text arguing with the rail; centred has no side to be on. It is a running
+   head now rather than a heading, and a running head is centred in print anyway.
+
+   `ellipsis` and centring only meet in the short case — once the label fills the line there is
+   nothing left to centre. So the alignment moves with the chapter's length, which is accepted:
+   both states are legible and there is no third one. */
+.reader-chapter {
+  padding: 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--type-note);
+  text-align: center;
+  /* Its line, held whether or not there are words in it. A cover is in no chapter, and this
+     used to be absent there — which took a line off the bar and let the rail slide back down
+     towards the gesture strip, at the one moment the reader is turning off the cover and
+     reaching for it. Arithmetic on the two tokens that decide the height rather than `1lh`, so
+     the reserved line and a filled one are the same number by construction. */
+  min-height: calc(var(--type-note) * var(--leading-text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Busy, on a button.
+   ------------------
+   Two shapes, both in `--text-muted` and neither in moss: a button that is working is a button
+   that cannot be pressed, and moss is the colour that says the opposite. What was here before
+   was a green dashed line walking the button's own border — a frame inside a frame, in the one
+   colour that promised the reader something the state could not give.
+
+   Neither says how far. The percentage is inside the sheet, where a number can be read; from
+   across a page what is wanted is "still going".
+
+   The sweep, for 〈排版〉: a rule travelling under the word, because what the button is busy
+   doing is resetting type. It wraps the label rather than the button, so the line is the width
+   of the word and not of the padding. */
+.busy-underline {
+  position: relative;
+}
+
+.busy-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  height: 2px;
+  background: var(--text-muted);
+  animation: busy-wipe 1.5s ease-in-out infinite;
+}
+
+@keyframes busy-wipe {
+  0% {
+    left: 0;
+    right: 100%;
+  }
+  45% {
+    left: 0;
+    right: 0;
+  }
+  55% {
+    left: 0;
+    right: 0;
+  }
+  100% {
+    left: 100%;
+    right: 0;
+  }
+}
+
+/* And the default for every other button: a short line shuttling along the bottom edge. It is
+   indeterminate on purpose, and the day one of these jobs can report a real percentage the
+   same 3px can be given a width instead of a walk. */
+.busy-edge {
+  position: relative;
+  overflow: hidden;
+}
+
+.busy-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  height: 3px;
+  background: var(--text-muted);
+  animation: busy-shuttle 1.6s ease-in-out infinite;
+}
+
+@keyframes busy-shuttle {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(250%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* No travel for a reader who asked for less motion. The state is still shown — a still line is
+   as much of a fact as a moving one — it just stops being an animation. */
+@media (prefers-reduced-motion: reduce) {
+  .busy-underline::after {
+    animation: none;
+    left: 0;
+    right: 0;
+    opacity: 0.6;
+  }
+
+  .busy-edge::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* The panel — 目錄, 筆記, 排版.
+   ---------------------------------
+   **One shell wearing three faces**, and one instance of it: `Reader.tsx` swaps the contents
+   rather than raising a second drawer, so moving between the three closes nothing, remounts
+   nothing, and moves no column.
+
+   It arrives from the right by default and up from the bottom bar on a hand-held (the query
+   near the end of this file). Which edge is settled in CSS; the only thing JavaScript decides
+   is the direction a finger dismisses it (`Panel.tsx`).
+
+   **It covers the book, except when the window is wide enough to give it a column of its own**
+   — that is the `min-width: 1024px` block, and the reason it is a block rather than the
+   default is that pushing costs the book a repagination, which only pays when there is a book
+   left over (ADR-0026).
+
+   This is not the sidebar ADR-0020 removed. That one was permanent and beside the book; this
+   one is 〈找〉 wearing a different shape, and a press on the page puts the whole state away. */
+/* The reader's whole box, and a layer above the chrome so a column can stand beside the bars
+   rather than inside the room between them. It catches nothing itself. */
+.panel-host {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
+   page 〈排版〉 is applied to — the reader dragging 字級 was watching the one surface the panel
+   exists to change, through a scrim (ADR-0026). What is left is the press target: a press
+   outside the panel still closes it, it just no longer says so by dimming the book.
+
+   On a desk it does not even do that, **and that is true of the narrow window too, where the
+   panel covers the book**. It is tempting to give the cover arrangement the hand-held's
+   press-to-dismiss, and it would be wrong for the same reason it was always wrong here: this
+   box spans the whole reader, so a full-box target sits on the bars, and the Scrubber going
+   dead under a panel is exactly what "the panel stops short of it" was for. The hand-held can
+   afford it because there the entries and the Scrubber have stepped aside; here they are still
+   standing.
+
+   Nothing is lost by that. A press on the page already puts the panel away — not through this
+   element but through frond, which reports the tap as unclaimed and drops the chrome to 〈讀〉
+   (`Reader.tsx`). Making this catch the press would take that path away, not add one. */
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  transition: opacity 0.25s ease;
+}
+
+.panel-backdrop[data-starting-style],
+.panel-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+/* Covers the screen so the panel can be positioned against it, but catches nothing: the
+   backdrop underneath is what a press outside the panel lands on. */
+.panel-viewport {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A column down the right side, the full height of the reader — beside the bars, not under
+   them. Sunken rather than page-coloured: it is a recess in the page the book is printed on,
+   not another sheet of paper laid on top.
+
+   **The right rather than the left**, and that is not symmetry. The book gives up this column
+   while a panel is open, and a reader's eye returns to the start of a line: taking the room from
+   the far end leaves the text where the eye already is. It also gets the shadow right for free.
+   From the left the panel took the default down-and-right cast, whose 8px of *down* reached past
+   the book's own box and landed on the Scrubber's bar — a lifted thing casting onto something it
+   is beside. Coming from the right it casts left, across the book, with nothing below it to
+   reach (`--shadow-panel-left`). */
+.panel-popup {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border-left: 1px solid var(--line-hair);
+  box-shadow: var(--shadow-panel-left);
+  /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
+     drag to the left does not pull it off the edge it belongs to. */
+  transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
+  /* The chrome's own timing, not a slower one of its own. Since the room is now given up in a
+     single step (below), the slide is what fills a gap that is already empty — and the longer
+     it takes, the longer that empty recess is on screen. */
+  transition: transform var(--chrome-motion) ease-out;
+}
+
+.panel-popup[data-starting-style],
+.panel-popup[data-ending-style] {
+  transform: translateX(100%);
+}
+
+/* **The bars end where the panel begins, at every width the panel is a column at.** Not only in
+   the wide window that also gives up book: the bars are laid over the page, so shortening them
+   costs no pagination, and it is what keeps the Scrubber out from under the panel — which is
+   the whole of "the panel stops short of it" (docs/specs/ux-replan/spec.md). The hand-held is
+   the one arrangement that takes this back, because there the panel spans the full width and
+   the bars have gone. */
+.reader[data-panel] .chrome {
+  right: var(--panel-width);
+}
+
+/* The bars' right edge is the one piece of the panel's arrival that is still animated, so it is
+   the one piece a reader who asked for less motion has to be spared. The book's column is not
+   in here any more: it changes in a single step for everyone now, which is a stronger version
+   of what this query was buying it. */
+@media (prefers-reduced-motion: reduce) {
+  .chrome {
+    transition: none;
+  }
+}
+
+/* Under a finger the panel is the finger's, not the transition's. */
+.panel-popup[data-swiping] {
+  transition: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.panel-title {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--type-ui);
+}
+
+.panel-close {
+  font-size: var(--type-lede);
+  line-height: 1;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* 〈排版〉's six, in both shells: the reader's panel and 〈設定〉's 排版 tab.
+   ------------------------------------------------------------------------
+   **Label left, control right.** The two-line arrangement this replaced was fine for four rows
+   in a panel that had nothing above it worth seeing; six rows in it push the book off a
+   hand-held entirely, and the book is the preview (ADR-0026). */
+.form-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The vertical padding is what keeps the rule off the control. `min-height` alone did not: a
+   select is taller than `--tap-min` once it carries its own padding, so the row was exactly as
+   tall as the control inside it and every hairline ran along the edge of a box. Six of them
+   stacked read as one grid rather than as six settings.
+
+   **This costs the hand-held panel its no-scroll guarantee**, and that is a debt rather than a
+   trade taken: six rows at a finger's 44px are already 264px of a 410px box (ADR-0023), so the
+   room this asks for is room that was never there. The panel now scrolls 89px on a hand-held
+   and `hand-held.spec.ts` says so. The answer is not to take the padding back off — a form
+   whose rules run along the edges of its controls is the thing being fixed here, on every
+   pointer — but to give the panel the height it needs. Tracked in #160. */
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* The control drops below its label when it will not fit beside it, and only then. A segmented
+     設定 cannot shrink — its cells are words — so in the reader's column (236px at the time,
+     300px at its narrowest now) 主題's three options ran off the edge and 深色 was cut in half.
+     The extra width does not make this rule redundant: the floor still has to hold on the
+     narrowest window that gets a column at all. Wrapping is what makes one arrangement
+     serve both shells: label-beside in 〈設定〉 and on a phone's sheet, label-above in the narrow
+     column, without either being a second layout to keep in step. */
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) 0;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* The last row before the button carries no rule: a line with nothing under it is a line
+   drawn around something.
+
+   Asked by what follows it rather than by `:last-of-type`, which counts per element name — it
+   worked only while every row was a `<label>`, and the segmented rows are `<div>`s (a
+   radiogroup has no single control for a label to point at). With both kinds present it would
+   have unruled the last `<label>` in the middle of the form and left the real last row ruled. */
+.form-row:has(+ .form-actions) {
+  border-bottom: none;
+}
+
+.form-label {
+  flex: none;
+}
+
+.form-row select,
+.form-row input {
+  color: var(--text-primary);
+}
+
+/* A setting whose options all stand on the page at once: one border around the set, one hairline
+   between each pair, and the chosen one filled.
+   -------------------------------------------------------------------------------------------
+   The cells share their borders by pulling one pixel left, so the set reads as a single control
+   with divisions rather than as three buttons that happen to touch. The chosen cell is lifted a
+   layer for the same reason: its own moss edge has to win over both neighbours' hairlines, or
+   the fill would sit inside a box drawn by somebody else. */
+.segmented {
+  display: flex;
+  /* Takes the room the label leaves, and a line of its own when there is not enough of it. The
+     cells share what it gets equally, so a wrapped group reads as one full-width control rather
+     than as three words huddled at one end. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.segment {
+  flex: 1 1 auto;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  font-size: var(--type-ui);
+  color: var(--text-body);
+  white-space: nowrap;
+  border: 1px solid var(--line-actionable);
+  margin-left: -1px;
+}
+
+.segment:first-child {
+  margin-left: 0;
+}
+
+/* Answered before the fill, so the two never argue over one cell. */
+.segment:hover:not(:disabled) {
+  background: var(--surface-cover);
+  border-color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+}
+
+.segment[aria-checked="true"],
+.segment[aria-checked="true"]:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+  position: relative;
+  z-index: 2;
+}
+
+/* A chosen cell in a group nobody can press — 欄數 over a 直排 book, where frond cannot honour
+   two columns at all. It still has to say which value is standing, and it must not say it in
+   moss: green is the colour for what can be acted on (ADR-0022), and a green cell that refuses
+   the press is the one thing that rule exists to prevent. A step of paper says it instead. */
+.segment:disabled[aria-checked="true"] {
+  background: var(--surface-cover);
+  border-color: var(--line-firm);
+  color: var(--text-muted);
+}
+
+/* The slider is the one control that wants the room the labels do not use. */
+.form-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  max-width: 11rem;
+}
+
+/* The line under 字型: what this device is holding, or what a fetch is doing. Full width and
+   under the row rather than beside it, because the download bar needs somewhere to lie.
+   ------------------------------------------------------------------------------------
+   **It is the tail of 字型, not a row of its own**, so the row above gives up its rule and
+   this one closes the pair. With both rules drawn the note sat in a box between two hairlines,
+   which reads as a seventh setting — one that says something rather than doing anything. The
+   note keeps its own top padding at nothing, so it sits under the words it belongs to rather
+   than midway between two settings. */
+.form-row:has(+ .form-note) {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.form-note {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* Bordered rather than `.ghost`: the bar's ghost buttons read as buttons because a bar
+   surrounds them, but here they sit under a column of bordered selects, and a borderless
+   control in that company reads as a caption. */
+.form-actions button {
+  font-size: var(--type-note);
+  padding: 0.3rem 0.6rem;
+  min-height: var(--tap-dense);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-popup,
+  .panel-backdrop {
+    transition: none;
+  }
+
+  .panel-popup[data-starting-style],
+  .panel-popup[data-ending-style] {
+    transform: none;
+  }
+}
+
+/* The bar under the download line in the typography sheet.
+   The percentage alone is not enough on a slow connection: 16 MB over a weak signal can sit on
+   one number for a minute, and a number that does not move is indistinguishable from one that
+   has stopped. The bar answers "is this alive" — its sheen travels continuously whatever the
+   percentage does — while the width answers "how far". */
+/* A bar nobody can drag, and it has to be impossible to mistake for the one they can. The
+   Scrubber a few centimetres below it is green, is 22px of hit area, carries a thumb and end
+   caps, and answers the keyboard. This is grey, is 3px of nothing, has no thumb, no caps and
+   no pointer events at all — the two appear in the same panel, and a reader who drags this
+   one because it looked like the other lands somewhere else in their book with no way back.
+
+   **Green is the whole of that signature**, which is why this bar never gets it: moss means
+   "you can act on this", and the one thing to do with a download is wait.
+
+   It also does not take a row of its own. Pressed against the line it explains (4px), it
+   reads as part of that sentence rather than as a second thing happening. */
+.font-progress {
+  height: 3px;
+  margin: var(--space-1) 0 0.15rem;
+  background: var(--surface-sunken);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.font-progress-fill {
+  height: 100%;
+  background: var(--text-muted);
+  /* The width is set inline from the measured bytes; the transition keeps it from stepping. */
+  transition: width 0.25s ease-out;
+  position: relative;
+}
+
+/* The travelling sheen — the part that says "still running" when the width is not moving. */
+.font-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--surface-page), transparent);
+  opacity: 0.55;
+  animation: font-progress-sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes font-progress-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* No declared total, so there is no width to draw: a short segment slides the track instead.
+   Inventing a percentage here would be a bar that jumps backwards when the total arrives. */
+/* The same walk a busy button does (`busy-shuttle`), because it is the same statement: something
+   is running and nobody can say how far along. */
+.font-progress.indeterminate .font-progress-fill {
+  width: 40%;
+  transition: none;
+  animation: busy-shuttle 1.6s ease-in-out infinite;
+}
+
+.font-progress.indeterminate .font-progress-fill::after {
+  animation: none;
+}
+
+/* Motion is the whole point of the sheen, so with it off the bar falls back to what it can
+   still say honestly: the width. */
+@media (prefers-reduced-motion: reduce) {
+  .font-progress-fill::after,
+  .font-progress.indeterminate .font-progress-fill {
+    animation: none;
+  }
+
+  .font-progress.indeterminate .font-progress-fill {
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* The one-off note after a font job — applied, or could not be had. A pill low on the page,
+   clear of the header controls and the text; it fades in, sits long enough to read, and clears
+   itself. It explains the reflow, so it is deliberately not a control the reader can act on. */
+.font-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 12;
+  max-width: min(20rem, calc(100% - 2rem));
+  padding: 0.5rem 0.9rem;
+  background: var(--text-primary);
+  color: var(--surface-page);
+  font-size: var(--type-note);
+  line-height: var(--leading-text);
+  text-align: center;
+  box-shadow: var(--shadow-panel);
+  animation: font-toast-in 0.18s ease-out;
+}
+
+@keyframes font-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .font-toast {
+    animation: none;
+  }
+}
+
+/* The book's own room, and the whole of it in every state. */
+.reader-body {
+  display: flex;
+  height: 100%;
+  position: relative;
+}
+
+.toc-item {
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+}
+
+.toc-item:hover {
+  background: var(--surface-sunken);
+  border: none;
+}
+
+/* The chapter being read. The bar carries the mark rather than a background, so a hover still
+   reads as hover while it is on screen. */
+.toc-item.current {
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.viewer-wrap {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  background: var(--surface-page);
+}
+
+.viewer {
+  flex: 1;
+  min-width: 0;
+  /* the highlight layer is positioned against this box, and frond's container fills it, so
+     the two share one coordinate system — the same one frond reports rectangles in */
+  position: relative;
+}
+
+/* frond's container. It sizes its own iframe inside this box and insets it by the reader's
+   margin, so there is no padding of ours to keep in step with the book's writing mode. */
+.viewer-mount {
+  width: 100%;
+  height: 100%;
+  /* The band of margin around the book's own frame is ours, and a finger landing there turns
+     a page like any other (Reader.tsx). Without this the browser claims that finger as a pan
+     before this page hears about it — measured on a touch device, `pointerdown` arrives, one
+     `pointermove` arrives, and then `pointercancel`. frond sets the same thing inside the
+     frame; this is the other half of the same surface. */
+  touch-action: none;
+}
+
+/* The highlight layer. `pointer-events: none` is load-bearing: tapping a highlight is
+   handled from frond's pointerup (which arrives in these coordinates), so the layer must
+   not sit between the reader and the page and swallow the taps that turn it. */
+.highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A wash of ink with a firmer line pressed along its bottom edge. The line is not decoration:
+   it is what keeps a mark legible on a dark page, where a wash alone thins out to nothing, and
+   it is the shape a nib leaves when it comes off the paper.
+
+   `--mark` is set per box by `HighlightLayer`, which carries the *name* of the ink; both
+   themes' values for that name live in the token block, so a mark drawn in one theme is
+   correct in the other without being redrawn. `color-mix` rather than `opacity` because
+   opacity would fade the text underneath along with the wash. */
+.highlight-box {
+  position: absolute;
+  background: color-mix(in srgb, var(--mark) calc(var(--mark-wash) * 100%), transparent);
+  box-shadow: inset 0 -2px 0
+    color-mix(in srgb, var(--mark) calc(var(--mark-edge) * 100%), transparent);
+}
+
+.page-btn {
+  border: none;
+  background: none;
+  font-size: 2rem;
+  color: var(--text-muted);
+  width: 3rem;
+}
+
+/* The whole column lights, not the glyph. The button is 3rem wide and the full height of the
+   book, and a chevron changing shade was the only thing saying so — a target the size of a
+   character advertised by a character. The wash is the moss the arrow turns, at the strength
+   where it separates from the page without competing with the text beside it.
+
+   It does not spend the green budget (ADR-0022): this is a hover, so it exists only while the
+   pointer is inside it, and never at the same time as the other one. */
+.page-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: none;
+}
+
+/* Scrubber — draggable position axis pinned to the bottom of the reader. The
+   track is a tall, transparent hit area (easy to tap on touch); the visible rail
+   is a thin ::before centred inside it. Rail thickens and the thumb appears on
+   hover (desktop) or while dragging (touch). See lib/scrubber.ts. */
+.scrubber {
+  flex: none;
+  position: relative;
+  /* The surface and the top border belong to `.chrome-bottom` now: this axis sits inside that
+     bar rather than being a bar of its own. */
+  /* horizontal inset of the rail's coordinate space: the line, fill, thumb and
+     preview all map into [inset, width - inset] so they sit *between* the two end
+     caps. Single source of truth — the component reads this var to convert a
+     pointer x into a fraction. */
+  --scrubber-inset: 10px;
+  /* clip only the horizontal axis: the thumb and the preview bubble can reach the
+     rail ends and would otherwise poke past the viewport and spawn a page-level
+     scrollbar. `clip` (unlike `hidden`) leaves the vertical axis visible, so the
+     bubble still floats up above the bar. */
+  overflow-x: clip;
+}
+
+.scrubber-track {
+  position: relative;
+  height: 22px;
+  cursor: pointer;
+  touch-action: none; /* dragging seeks, never scrolls the page */
+  /* clip the thumb/caps at the very ends so they never poke past the track and
+     trigger a page-level horizontal scrollbar. The preview bubble is a sibling,
+     so it still floats above unclipped. */
+  overflow: hidden;
+}
+
+/* It takes focus now (`role="slider"`), so it has to show that it has it. Inset because the
+   track runs the full width of the screen and an outline drawn on its edge would be a rectangle
+   around the whole bottom of the page. */
+.scrubber-track:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.scrubber-track::before {
+  content: "";
+  position: absolute;
+  left: var(--scrubber-inset);
+  right: var(--scrubber-inset);
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--line-track);
+  transition: height 0.12s ease;
+}
+
+.scrubber:hover .scrubber-track::before,
+.scrubber.dragging .scrubber-track::before {
+  height: 6px;
+}
+
+.scrubber-fill {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--accent);
+  transition: height 0.12s ease;
+}
+
+.scrubber:hover .scrubber-fill,
+.scrubber.dragging .scrubber-fill {
+  height: 6px;
+}
+
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-dot);
+  background: var(--accent);
+  /* The lift, plus a ring of the bar around it. The ring is what makes the thumb readable in
+     the dark theme, where a black offset shadow on a near-black bar says nothing at all; in the
+     light theme it cuts the dot away from the rail it rides, which it needed anyway.
+
+     `--surface-raised` rather than `--surface-page`, and the two stopped being the same value
+     in ADR-0028: the ring is a hole punched in whatever the thumb sits on, so it has to be the
+     bar's colour. Left as the page's, it would draw a pale halo on a darker bar — the one thing
+     a ring meant to disappear must not do. */
+  box-shadow:
+    var(--shadow-lift),
+    0 0 0 2px var(--surface-raised);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.scrubber:hover .scrubber-thumb,
+.scrubber.dragging .scrubber-thumb {
+  opacity: 1;
+}
+
+/* end markers: head (book start) filled, tail (book end) hollow. A left-to-right book
+   reads left→right; a right-to-left one mirrors, so the ends swap. */
+.scrubber-cap {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-dot);
+  pointer-events: none;
+}
+
+/* caps sit exactly at the two ends of the rail's coordinate space, so the line
+   runs between them. The inset keeps them clear of the track edges. */
+.scrubber-cap-head {
+  left: var(--scrubber-inset);
+  background: var(--text-muted);
+}
+
+.scrubber-cap-tail {
+  left: calc(100% - var(--scrubber-inset));
+  border: 1px solid var(--text-muted);
+}
+
+.scrubber-rtl .scrubber-cap-head {
+  left: calc(100% - var(--scrubber-inset));
+}
+
+.scrubber-rtl .scrubber-cap-tail {
+  left: var(--scrubber-inset);
+}
+
+.scrubber.disabled {
+  opacity: 0.45;
+}
+
+.scrubber.disabled .scrubber-track {
+  cursor: default;
+}
+
+/* preview bubble floats above the thumb while dragging (Q2): chapter title + % */
+.scrubber-preview {
+  position: absolute;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  max-width: 70vw;
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-page);
+  border: 1px solid var(--line-firm);
+  box-shadow: var(--shadow-panel);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  white-space: nowrap;
+}
+
+.scrubber-chapter {
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-ui);
+  color: var(--text-primary);
+}
+
+.scrubber-pct {
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one component allowed to reverse out, and it earns it by being the only thing that sits
+   **on top of the reader's own words**. Everything else in the app is paper the book is printed
+   on; this is a tool held over the page, and the way you tell a tool from the page is that it
+   is the other colour.
+
+   The rule is "the opposite of the paper underneath", not "always dark": in the dark theme the
+   book is near-black, so the toolbar goes bone. Reversing means the shadow is the only edge it
+   needs — a rule as well would be a frame around a shape that is already cut out.
+
+   Position is still `toolbar-position.ts`'s business and nothing here touches it. */
+.highlight-toolbar {
+  /* left/top are set inline: the toolbar floats next to the text selection so it
+     never sits in the bottom strip where Android Chrome shows its native bar */
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  padding: 9px var(--space-3);
+  box-shadow: var(--shadow-panel);
+  justify-content: center;
+  max-width: calc(100vw - var(--space-5));
+}
+
+/* The two halves of the bar: four inks, then the two words. They are groups rather than six
+   loose children because the rule between them belongs to the seam, and a seam needs two sides
+   to be a seam.
+
+   **This replaced `flex-wrap`,** which was six children finding their own way onto two lines on
+   a phone — and the rule, being the `border-left` of whichever button happened to land first on
+   the second line, went with it: a vertical hairline standing at the start of a row with
+   nothing to its left, pushing 重點＋筆記 off centre. What it divided was gone and it was still
+   being drawn. Two groups and one declared breakpoint say the same thing without asking the
+   layout engine where the line fell. */
+.mark-inks,
+.mark-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mark-actions {
+  border-left: 1px solid var(--line-on-inverse);
+  padding-left: var(--space-3);
+}
+
+/* Where the six stop fitting side by side. Four targets at `--tap-min` plus two words of label
+   come to about 380px, so this is that plus the bar's own padding and a margin for a longer
+   translation — not a device, just the width the contents ask for. Below it the bar is two
+   rows and the seam turns ninety degrees with them. */
+@media (max-width: 30rem) {
+  .highlight-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mark-inks {
+    justify-content: center;
+  }
+
+  .mark-actions {
+    justify-content: center;
+    border-left: none;
+    border-top: 1px solid var(--line-on-inverse);
+    padding-left: 0;
+    padding-top: var(--space-2);
+  }
+}
+
+/* The buttons give up their own paper: inside a reversed bar a bordered control is a box drawn
+   on a box. What says they can be pressed is the bar. */
+.highlight-toolbar button:not(.swatch) {
+  border-color: transparent;
+  background: none;
+  color: inherit;
+  min-height: var(--tap-dense);
+  padding: 0 var(--space-2);
+  font-size: var(--type-body);
+}
+
+/* A wash of the bar's own ink, not moss: on a reversed bar the light theme's green is 1.9:1
+   against the black and reads as a word going out rather than lighting up. */
+.highlight-toolbar button:hover {
+  background: color-mix(in srgb, var(--text-on-inverse) 16%, transparent);
+  color: inherit;
+}
+
+/* A ring in the bar's own ink around each dot. The four marks are the colours the reader will
+   actually get, and two of them (soot, indigo) are close enough to a reversed bar to disappear
+   against it; the ring gives every dot an edge without repainting the ink. */
+.highlight-toolbar .swatch::before {
+  border-color: var(--text-on-inverse);
+}
+
+/* The wedge: it points at the passage, so it hangs off whichever edge faces it. `clip-path`
+   rather than the old border trick, because a triangle made of borders cannot take the
+   toolbar's own background as a variable.
+
+   The usual case is the toolbar below the selection, so the wedge is on top, pointing up. */
+.highlight-toolbar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 7px;
+  margin-left: -7px;
+  background: var(--surface-inverse);
+  bottom: 100%;
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+
+/* And over it goes when `toolbar-position` had to put the toolbar above the passage, which it
+   does near the bottom of the screen where Android Chrome's own bar comes up. */
+.highlight-toolbar[data-above]::after {
+  bottom: auto;
+  top: 100%;
+  clip-path: polygon(0 0, 50% 100%, 100% 0);
+}
+
+/* The one round thing on the shelf-and-reader side of the app, along with the Scrubber's
+   thumb: a finger pinches these. The box around the dot is `--tap-min`, the same box the five
+   glyph buttons get — the dot is what the reader sees, the square is what they hit. */
+.swatch {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: none;
+  background: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.swatch::before {
+  content: "";
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--radius-dot);
+  border: 1px solid var(--line-firm);
+  background: var(--mark);
+  transition: transform 0.12s ease;
+}
+
+.swatch:hover {
+  background: none;
+}
+
+.swatch:hover::before {
+  transform: scale(1.1);
+}
+
+/* The reader's own mark, carried into the list: the rule down the side is the ink they made
+   it in, so a note found here is recognisably the passage they marked in the book. */
+.annotation-item {
+  border-left: 3px solid var(--mark-indigo);
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-sunken);
+}
+
+.annotation-item blockquote {
+  margin: 0 0 0.3rem;
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+  cursor: pointer;
+}
+
+.annotation-item blockquote:hover {
+  text-decoration: underline;
+}
+
+.note-text {
+  margin: 0.2rem 0;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+}
+
+.note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.note-editor textarea {
+  font-size: var(--type-ui);
+  min-height: 4rem;
+  resize: vertical;
+  background: var(--surface-page);
+  border: 1px solid var(--line-actionable);
+  padding: 0.4rem;
+}
+
+.annotation-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.annotation-actions button {
+  font-size: var(--type-note);
+  padding: 0.15rem 0.45rem;
+  min-height: var(--tap-dense);
+}
+
+/* Drawers
+   ------- */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop);
+  transition: opacity 0.25s ease;
+}
+
+.drawer-backdrop[data-starting-style],
+.drawer-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+/* Covers the screen so the panel can be positioned against it, but catches nothing: the
+   backdrop underneath is what a press outside the panel lands on. */
+.drawer-viewport {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* In from the right, and never the full width: the shelf staying visible beside it is what
+   says the reader is still on the shelf and can step back onto it. */
+.drawer-popup {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(26rem, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-page);
+  border-left: 1px solid var(--line-hair);
+  box-shadow: var(--shadow-panel-left);
+  /* The swipe offset Base UI publishes while a finger is on the panel. */
+  transform: translateX(var(--drawer-swipe-movement-x, 0px));
+  transition: transform 0.3s ease;
+}
+
+.drawer-popup[data-starting-style],
+.drawer-popup[data-ending-style] {
+  transform: translateX(100%);
+}
+
+/* Under a finger the panel is the finger's, not the transition's. */
+.drawer-popup[data-swiping] {
+  transition: none;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.drawer-title {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--type-lede);
+}
+
+.drawer-close {
+  font-size: var(--type-lede);
+  line-height: 1;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* The content primitives below carry two names on purpose, and share one rule list rather than
+   being copied. They appear on two different surfaces — 〈書的詳情〉 is a drawer, 〈帳號〉 is a
+   pane of the 〈設定〉 floor — and each prefix is true where it is used. One declaration block
+   is what keeps them from drifting into two products' worth of styling. */
+.drawer-section,
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* The one small heading in the app, wherever a panel divides into parts — drawers and sheets
+   both. A second style for the same job is how two panels that do the same thing start
+   looking like two different products. Spaced capitals over a rule: it reads as a label
+   rather than as a sentence, which is what lets it be this quiet. */
+.drawer-section-title,
+.settings-section-title {
+  margin: 0;
+  font-size: var(--type-eyebrow);
+  font-weight: 600;
+  letter-spacing: var(--type-eyebrow-tracking);
+  color: var(--text-muted);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.drawer-section label,
+.settings-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+}
+
+.drawer-section select,
+.drawer-section input,
+.settings-section select,
+.settings-section input {
+  color: var(--text-primary);
+}
+
+.drawer-section input[type="email"],
+.drawer-section input[inputmode="numeric"],
+.settings-section input[type="email"],
+.settings-section input[inputmode="numeric"] {
+  background: var(--surface-page);
+  border: 1px solid var(--line-actionable);
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+}
+
+.drawer-section form,
+.settings-section form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.drawer-actions,
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The first thing in 〈帳號〉, and the whole point of that tab: reading is free. */
+.drawer-lede,
+.settings-lede {
+  margin: 0;
+  font-size: var(--type-lede);
+  line-height: var(--leading-text);
+}
+
+.drawer-note,
+.settings-note {
+  margin: 0;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+.drawer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: var(--type-ui);
+}
+
+.drawer-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* 〈設定〉: a floor, not a drawer
+   -----------------------------
+   It replaces the screen rather than stacking on one, which is what lets it hold tabs at all —
+   a drawer that took a tab bar would be asking the reader to navigate inside something they
+   opened to glance at (CONTEXT.md 〈三種面〉). Column layout so the footer sits on the bottom
+   edge whatever the pane above it does. */
+.settings-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--surface-page);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.settings-title {
+  font-size: var(--type-ui);
+  font-weight: 600;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* A tab is not a `.ghost`: design-system.md lists where a borderless button is allowed (bars,
+   the ✕, single-character buttons, a confirm dialog's cancel) and a tab is not among them,
+   because those all sit inside a container that has already said "this is pressable" and a tab
+   row has to say it for itself. What it says it with is the rule under the word, not a fill —
+   a filled tab is a second surface inside a surface, which ADR-0022 rules out. The rule sits on
+   the border the row draws, so it reads as that line thickening rather than as a box arriving. */
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--tap-min);
+  font: inherit;
+  color: var(--text-muted);
+}
+
+.settings-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.settings-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  max-width: 34rem;
+  width: 100%;
+}
+
+/* Which build is running, under both tabs. Faint because it is for the one moment someone is
+   reporting a problem, and invisible the rest of the time. */
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line-hair);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+}
+
+.price-lines {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem 0;
+  font-size: var(--type-ui);
+}
+
+.price-lines dt {
+  font-weight: 600;
+}
+
+.price-lines dd {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+/* Says why the reader is looking at their shelf when they asked to connect an agent. */
+.auth-pending {
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--type-ui);
+  line-height: var(--leading-text);
+}
+
+/* No slide for a reader who asked for less motion. The panel still arrives, it just arrives
+   without travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .drawer-popup,
+  .drawer-backdrop {
+    transition: none;
+  }
+
+  .drawer-popup[data-starting-style],
+  .drawer-popup[data-ending-style] {
+    transform: none;
+  }
+}
+
+/* The hand
+   --------
+   Everything above is written for the narrowest window and the finest pointer. These two ask
+   about the hand, and only about the hand: what has to be bigger because a finger is blunt,
+   and where the tools go because a thumb can only reach so far. Widths come after, and they
+   never stand in for either question (ADR-0023). */
+
+/* No hover to ask a question with, so the shapes have to answer it up front: the Scrubber wears
+   its thick rail and its thumb all the time rather than growing them under a pointer that will
+   never arrive. The inset grows with the thumb — a 22px dot centred on the rail's end would
+   hang half of itself off the track. */
+@media (any-pointer: coarse) {
+  .scrubber {
+    --scrubber-inset: 14px;
+  }
+
+  .scrubber-track::before,
+  .scrubber-fill {
+    height: 6px;
+  }
+
+  .scrubber-thumb {
+    width: 22px;
+    height: 22px;
+    opacity: 1;
+  }
+
+  /* The entries are what a thumb aims at here, so they take the full target back. */
+  .chrome-nav button {
+    min-height: var(--tap-min);
+    font-size: var(--type-ui);
+  }
+
+  /* A row in a drawer is a target as much as it is a line of text. */
+  .drawer-section label,
+  .drawer-list li {
+    min-height: 48px;
+  }
+}
+
+/* A hand-held: a coarse pointer **and** a window small enough that the top of it is a stretch.
+   Then, and only then, the entries drop to the bottom edge where the thumb already is, and the
+   panel they raise comes up from that edge rather than in from the side.
+
+   The pair of conditions is the whole point. A desktop window dragged narrow is not a phone —
+   the hand is on a mouse — and a tablet in landscape is not one either, because at 1024px the
+   bottom edge is a long way from the text. `Panel.tsx` names the same query for the one thing
+   CSS cannot decide there, which is the direction a finger dismisses the panel. */
+@media (any-pointer: coarse) and (max-width: 819px) {
+  /* One column, and the entries drop below the book so the thumb can reach them. Same markup,
+     same component; only the template changes. */
+  .chrome {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "gap"
+      "nav"
+      "bottom";
+    grid-template-rows: auto 1fr auto auto;
+  }
+
+  .chrome-nav {
+    justify-content: flex-start;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: none;
+    border-top: 1px solid var(--line-hair);
+    /* The entries belong to the bottom edge here, so that is the edge they come back from. The
+       one line of the slide that has to move with them. */
+    transform: translateY(var(--chrome-slide));
+  }
+
+  .chrome-bottom {
+    border-top: none;
+  }
+
+  .chrome-nav button.active {
+    border-color: transparent;
+  }
+
+  /* The panel spans the full width here, so there is no right end for the bars to give up and
+     nothing for a shortened bar to stay clear of. The one undo left in this query: the book's
+     column is not in here any more because the rule that takes it only exists above 1024px. */
+  .reader[data-panel] .chrome {
+    right: 0;
+  }
+
+  /* **The entries and the Scrubber step aside for a panel.** Three layers stacked on a 390px
+     screen left the book a quarter of the height and the form still scrolling (#160), and the
+     top quarter is the thing the panel is open for — 〈排版〉 applies as it is dragged and the
+     page above it is the preview. So 〈找〉's "the Scrubber is always there" is the desk's rule
+     now (docs/specs/ux-replan/spec.md): here it holds only while nothing is standing on it.
+
+     Sent back the way they came, so closing the panel brings them in from the edge they belong
+     to rather than fading them in on the spot. */
+  .reader[data-panel] .chrome-nav,
+  .reader[data-panel] .chrome-bottom {
+    transform: translateY(var(--chrome-slide));
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Up from the bottom edge and across the full width: there is no room here to give a panel a
+     column of its own, and a 300px strip on a 390px screen would leave the book in a gutter. */
+  .panel-popup {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    /* 36rem, up from 29 — and the room came from the two bars, not from the book.
+       ------------------------------------------------------------------------
+       **What the cap protects is the book**, and what it was fighting was the entries and the
+       Scrubber standing under the panel: the panel had to stop above them, so the form's last
+       two rows fell below the fold (#160) while a third of the screen went to two bars nobody
+       was using. Now they step aside, and the same 30% of book costs 7rem less.
+
+       The numbers on a 390×844 screen, as `hand-held.spec.ts` prints them: the form comes to
+       549px, under the 576 this allows, so the panel stands at its content and leaves 295px of
+       book — 35% of the reader, over the 30% that spec holds it to, and nothing below the fold.
+       **The cap is a ceiling, not the height**, which is why 844 − 576 is not the figure.
+
+       `70vh` is the half that bites on a shorter phone, where the form goes back to scrolling.
+       That is the right way round: a form that scrolls has lost a scroll, a panel with no book
+       above it has lost the thing it covers the page for (ADR-0026). */
+    max-height: min(70vh, 36rem);
+    height: auto;
+    background: var(--surface-page);
+    border-left: none;
+    border-top: 1px solid var(--line-hair);
+    box-shadow: var(--shadow-panel-up);
+    transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
+  }
+
+  /* A press on the book above the sheet puts it away. Only here: everywhere else the bars are
+     still standing and a full-box target would sit on them (see `.panel-backdrop`). */
+  .panel-backdrop {
+    pointer-events: auto;
+  }
+
+  .panel-popup[data-starting-style],
+  .panel-popup[data-ending-style] {
+    transform: translateY(100%);
+  }
+}
+
+/* The window
+   ----------
+   Where things sit, and nothing about how big a finger is. Written narrow-first, so each of
+   these adds rather than undoes. 390 is the floor rather than a breakpoint, and 1680 needs no
+   rule at all: the large book's `clamp` has already stopped growing by then, which is exactly
+   what "more space buys columns, not size" means. */
+
+/* ≥ 600 — a narrow window on a desktop, a phone in landscape, a split screen. */
+@media (min-width: 600px) {
+  .cover-wall {
+    gap: var(--space-5) var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .reading-now-actions .primary {
+    flex: 0 0 auto;
+  }
+
+  .error {
+    margin: 0 var(--space-5);
+  }
+}
+
+/* ≥ 820 — tablet width. Room to breathe, still one column. */
+@media (min-width: 820px) {
+  .library-header {
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .shelf-actions {
+    padding: var(--space-5) var(--space-6) 0;
+  }
+
+  .reading-now {
+    gap: var(--space-6);
+    padding: var(--space-6) var(--space-6) 0;
+  }
+
+  .cover-wall {
+    gap: var(--space-6) var(--space-4);
+    padding: var(--space-6);
+  }
+}
+
+/* ≥ 1024 — wide enough that the book can give up a column and still be a book.
+   ---------------------------------------------------------------------------
+   **This is where the panel stops covering the page and starts standing beside it.** ADR-0026
+   asks for that: 〈排版〉 applies as it is dragged, so the page has to stay visible, and a panel
+   over it hides the one surface it was opened to change. What the ADR does not say — because
+   until the panel took a real share of the window it never came up — is that the trade only
+   pays while there is a book left afterwards. Below this line there is not: a 900px window
+   handing over 300px leaves 600px, which is one column of text and two-thirds of a page.
+
+   So the narrow window keeps the preview by covering less of the page rather than by pushing
+   what is left into a gutter, and the reader gets back what the wide window's arrangement was
+   spending: nothing repaginates at all down here.
+
+   Written as an addition rather than as an undo — the file is narrow-first, and covering is
+   what the panel does everywhere else, hand-held sheet included. */
+@media (min-width: 1024px) {
+  /* The column the panel takes **from the book**. The bars gave up their right end at every
+     width (`.reader[data-panel] .chrome`); this is the half that costs a repagination, and it
+     is the price ADR-0026 asks for a preview the reader can actually see.
+
+     **The book's share is given up in one step**, and the panel then slides across a gap that
+     is already empty. `padding-right` used to be animated, and animating it meant animating
+     the book's box: frond repaginates on its `ResizeObserver`, so every frame of a 180ms slide
+     was another full pagination and the reader watched the text squeeze in rather than the
+     panel arrive. Now it is one reflow on open, one on close, and none at all when switching
+     between the three, because the column does not move for that (`Reader.tsx`).
+
+     The bars still slide their right edge (`.chrome`'s own `transition: right`) — nothing
+     repaginates for that, and it is what makes the panel look like it is pushing them rather
+     than landing on a bar that has already jumped out of the way.
+
+     Written on `.reader` rather than on the panel because the two things that have to move are
+     the panel's *siblings* — a popup cannot push what it is portalled beside. */
+  .reader[data-panel] .reader-body {
+    padding-right: var(--panel-width);
+  }
+}
+
+/* ≥ 1280 — two columns, and the book in progress stays put while the wall scrolls past it.
+   `:has()`, so a shelf with nothing in progress is not a 500px empty column beside a squeezed
+   wall: with no `.reading-now` inside, the grid never switches on. */
+@media (min-width: 1280px) {
+  .shelf:has(.reading-now) {
+    display: grid;
+    grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+
+  /* Sticky rather than fixed, and only at this width: the block is shorter than any window
+     this wide, so it can never cover the wall it is beside. Below 1280 the two are stacked and
+     sticking one to the top would just park it on the covers — and a phone's height is the
+     scarce thing there, not its width. */
+  .shelf:has(.reading-now) .reading-now {
+    position: sticky;
+    top: var(--space-6);
+    padding-right: 0;
+  }
+
+  .shelf:has(.reading-now) .cover-wall {
+    padding-left: 0;
+  }
+}
+
+/* The page-turn arrows, and this one stays a question about the **window** even though it looks
+   like a question about the hand. They cost two 3rem columns of the book's own width, which is
+   what a narrow window has least of; a finger that has them still turns the page by tapping the
+   band it is already over (`lib/touch.ts`), so nothing is lost by leaving them up on a wide
+   screen that happens to be touched.
+
+   Asking the pointer instead was tried and reverted: under emulation the engines report a
+   touch-only machine at any window size, so the rule took the arrows away from the desktop case
+   `tap.spec.ts` exists to pin — a branch nobody could see going wrong until the suite said so. */
+.page-btn {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .page-btn {
+    display: block;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  // Working inside this package: src/, scripts/, tests/ and the runner configs. It emits
+  // nothing; `tsconfig.build.json` is what turns src/ into the artifact spine imports.
+  //
+  // Only the environment is stated here — how strictly the code is read comes from the base.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "types": ["node"]
+
+    // **There is deliberately no `paths` here.** There used to be one, mapping
+    // `@yurenju/frond/*` onto `src/` so that frond-react could typecheck against an unbuilt
+    // tree; with the repo collapsed back to a single package (ADR-0008's revision), nothing
+    // inside it reaches frond through a bare specifier any more — every import is relative.
+    //
+    // The one place that still names the package is `tests/node/epub-book/open.test.ts`,
+    // which goes through `exports` **on purpose** and routes the specifier through a variable
+    // so tsc gives up resolving it. A mapping here would defeat that test.
+    //
+    // `tsconfig.build.json` keeps `"paths": {}` regardless — see the comment there.
+  },
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "playwright.config.ts",
+    "vitest.config.ts"
+  ]
+}

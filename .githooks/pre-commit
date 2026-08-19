@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+#
+# Formats what is about to be committed, so that no commit has to be followed by a
+# "prettier" one.
+#
+# It rewrites the staged files rather than rejecting them. Rejecting would be safer in one
+# narrow sense and worse in every other: the fix would always be the same command, and a hook
+# whose only advice is "run the command I could have run" is a speed bump rather than a check.
+#
+# **The one case worth knowing about**: if a file is only partially staged (`git add -p`),
+# formatting it touches the whole file on disk, and the `git add` below then stages the rest
+# of it too. That is the price of formatting in a hook rather than complaining about it;
+# partial staging is rare here, and CI's `format:check` is the backstop either way.
+#
+# Installed by `npm install` through the root package.json's `prepare` script, which points
+# core.hooksPath at this directory. Nothing here runs in the test image: it has no .git.
+#
+# NUL-separated throughout, and `xargs -0` rather than `xargs -d`: -d is GNU-only, and this
+# repository is developed on macOS as well.
+set -eu
+
+staged() {
+    git diff --cached --name-only --diff-filter=ACMR -z
+}
+
+[ -n "$(git diff --cached --name-only --diff-filter=ACMR)" ] || exit 0
+
+# --ignore-unknown so the list may contain fonts, epubs and anything else prettier has no
+# parser for; .prettierignore still decides the rest (markdown, the books, generated output).
+staged | xargs -0 npx prettier --write --ignore-unknown --log-level warn
+
+staged | xargs -0 git add --

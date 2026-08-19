@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>PROTOTYPE — Touch to Search lab</title>
+    <style>
+      /* PROTOTYPE — throwaway page, never ship. Plain CSS and one inline script on purpose:
+         this file has to run from anywhere (a static host, a file:// URL, an artifact page)
+         with no build step and no network. */
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Noto Sans TC",
+          sans-serif;
+        background: #14141a;
+        color: #e8e6e0;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        padding: 8px 8px 24px;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 6px;
+      }
+      p,
+      li {
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 4px 0;
+      }
+      .muted {
+        color: #9a978f;
+      }
+      .warn {
+        color: #ffb4a2;
+      }
+      .ok {
+        color: #9ee493;
+      }
+
+      #nav {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin: 8px 0;
+      }
+      #nav button {
+        flex: 0 0 auto;
+      }
+      #nav select {
+        flex: 1;
+        min-width: 0;
+      }
+      button,
+      select {
+        background: #2a2a33;
+        color: #e8e6e0;
+        border: 1px solid #4a4a55;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      button:active {
+        background: #3b3b47;
+      }
+      button.pick {
+        flex: 1;
+      }
+      button.picked {
+        background: #4d6b4a;
+        border-color: #7aa876;
+      }
+      button.picked-bad {
+        background: #6b4a4a;
+        border-color: #a87676;
+      }
+
+      #card {
+        border: 1px solid #3a3a45;
+        border-radius: 10px;
+        padding: 8px 10px;
+        margin-bottom: 8px;
+      }
+      #card h2 {
+        font-size: 14px;
+        margin: 0 0 4px;
+      }
+
+      /* The reader stand-in: an iframe filling a container, with the two page-turn bands
+         drawn over it. Same proportions as spine (outer 25% each side). */
+      #viewer {
+        position: relative;
+        height: 46vh;
+        min-height: 240px;
+        background: #fbf8f1;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      #viewer iframe,
+      #viewer .inline-book {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      /* The no-iframe variant's book, styled to match the one inside the iframe. */
+      .inline-book {
+        padding: 18px 16px;
+        overflow: auto;
+        font-family: "Noto Serif TC", serif;
+        color: #23201b;
+      }
+      .inline-book p {
+        font-size: 18px;
+        line-height: 1.9;
+        margin: 0 0 1em;
+        text-align: justify;
+        color: #23201b;
+      }
+      .inline-book .page-no {
+        font-size: 12px;
+        color: #8a8378;
+      }
+      .band {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 25%;
+        pointer-events: none; /* the tap must reach the text, except in the overlay variant */
+        background: rgba(90, 120, 200, 0.1);
+        border: 1px dashed rgba(90, 120, 200, 0.45);
+      }
+      .band.left {
+        left: 0;
+      }
+      .band.right {
+        right: 0;
+      }
+      #viewer.bands-live .band {
+        pointer-events: auto;
+        background: rgba(90, 200, 120, 0.14);
+      }
+
+      #status {
+        font-size: 12px;
+        margin: 6px 0;
+        min-height: 2.6em;
+      }
+      #status code {
+        color: #ffd79a;
+        word-break: break-all;
+      }
+
+      #tally {
+        font-size: 13px;
+        margin: 4px 0 6px;
+        font-variant-numeric: tabular-nums;
+      }
+      .q {
+        margin: 8px 0 0;
+      }
+      .q .label {
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .q .row {
+        display: flex;
+        gap: 6px;
+      }
+
+      #results td,
+      #results th {
+        font-size: 12px;
+        padding: 3px 6px;
+        border-bottom: 1px solid #33333d;
+        text-align: left;
+      }
+      #results {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+      }
+      details {
+        margin-top: 10px;
+      }
+      summary {
+        font-size: 13px;
+        padding: 6px 0;
+      }
+      #out {
+        width: 100%;
+        height: 30vh;
+        background: #0e0e13;
+        color: #cfcac0;
+        border: 1px solid #3a3a45;
+        border-radius: 8px;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Touch to Search 實驗室 <span class="muted" id="ua-short"></span></h1>
+
+    <p class="warn" id="preflight">
+      這條 bar 不是每次都跳，所以<strong>每格要點滿 10 次</strong>，看的是比例不是有沒有。
+      點的位置每次換一下、中間隔一秒，同一個位置連點會被 Chrome 自己抑制。開始前先確認 Chrome
+      設定裡的「輕觸即可搜尋」是開的，而且第 0 格真的會冒。
+    </p>
+
+    <div id="nav">
+      <button id="prev">‹</button>
+      <select id="pick"></select>
+      <button id="next">›</button>
+    </div>
+
+    <div id="card">
+      <h2 id="v-title"></h2>
+      <p id="v-gist"></p>
+      <p class="muted" id="v-meaning"></p>
+    </div>
+
+    <div id="viewer">
+      <div class="band left"></div>
+      <div class="band right"></div>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="q">
+      <div class="label">
+        ① 在藍框裡輕點——每次點不同位置，中間隔一秒。冒出搜尋 bar 就按下面那顆。
+        <strong>每格點滿 10 次。</strong>
+      </div>
+      <div id="tally">已點 0 次，冒 0 次</div>
+      <div class="row">
+        <button id="hit">剛剛那次冒了</button>
+        <button id="undo">按錯了，扣回去</button>
+      </div>
+    </div>
+
+    <div class="q">
+      <div class="label">② 在中間長按選一段字——還選得起來嗎？（這是解法的代價）</div>
+      <div class="row">
+        <button class="pick" data-q="select" data-a="yes">選得起來</button>
+        <button class="pick" data-q="select" data-a="no">選不起來</button>
+      </div>
+    </div>
+
+    <details>
+      <summary>目前結果與匯出</summary>
+      <table id="results"></table>
+      <div class="row" style="display: flex; gap: 6px; margin-top: 8px">
+        <button id="copy">複製結果</button>
+        <button id="reset-one">清空這格</button>
+        <button id="reset">全部清空</button>
+      </div>
+      <textarea id="out" readonly></textarea>
+    </details>
+
+    <script>
+      /* ------------------------------------------------------------------ the book */
+
+      // 陶淵明〈桃花源記〉— public domain, and every line is full of words Chrome would
+      // happily offer to search for.
+      const PAGES = [
+        "晉太元中，武陵人捕魚為業。緣溪行，忘路之遠近。忽逢桃花林，夾岸數百步，中無雜樹，芳草鮮美，落英繽紛。漁人甚異之。",
+        "復前行，欲窮其林。林盡水源，便得一山。山有小口，彷彿若有光。便捨船，從口入。初極狹，才通人。復行數十步，豁然開朗。",
+        "土地平曠，屋舍儼然，有良田美池桑竹之屬。阡陌交通，雞犬相聞。其中往來種作，男女衣著，悉如外人。黃髮垂髫，並怡然自樂。",
+        "見漁人，乃大驚，問所從來。具答之。便要還家，設酒殺雞作食。村中聞有此人，咸來問訊。自云先世避秦時亂，率妻子邑人來此絕境。",
+      ];
+
+      const BOOK_CSS = `
+        html, body { margin: 0; height: 100%; background: #fbf8f1; color: #23201b; }
+        body { padding: 18px 16px; font-family: "Noto Serif TC", serif; }
+        p { font-size: 18px; line-height: 1.9; margin: 0 0 1em; text-align: justify; }
+        .page-no { font-size: 12px; color: #8a8378; }
+      `;
+
+      function bookHtml(page) {
+        return (
+          '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">' +
+          "<style>" +
+          BOOK_CSS +
+          "</style></head><body>" +
+          "<p>" +
+          PAGES[page % PAGES.length] +
+          "</p>" +
+          "<p>" +
+          PAGES[(page + 1) % PAGES.length] +
+          "</p>" +
+          '<p class="page-no">— 第 ' +
+          (page + 1) +
+          " 頁 —</p>" +
+          "</body></html>"
+        );
+      }
+
+      /* ------------------------------------------------- the measures being compared */
+
+      // Each variant gets a fresh book. `install` runs once the book document exists;
+      // `press`/`release` run on a press that lands in a page-turn band. `ctx` carries the
+      // book document plus the two ways of writing the CSS, so the variants read as the one
+      // thing they differ in.
+      const VARIANTS = [
+        {
+          id: "control",
+          title: "0. 對照組：什麼都不擋",
+          gist: "iframe 裡的一般文字，沒有任何處理。",
+          meaning:
+            "這一格必須「冒出來」。沒冒出來就是這支手機／這個設定重現不了問題，後面全部不用測了。",
+        },
+        {
+          id: "no-frame",
+          title: "1. 對照組：沒有 iframe",
+          gist: "同樣的文字直接放在主文件裡（不是 iframe），一樣什麼都不擋。",
+          meaning:
+            "跟 0 一樣冒出來 → iframe 不是變因。只有其中一格冒 → 問題跟 iframe 的邊界有關，方向要整個換。",
+          noFrame: true,
+        },
+        {
+          id: "now",
+          title: "2. 現況：frond 0.4.6 的做法",
+          gist: "按下去時把 inline user-select:none 寫到書的 <html>，手指一放開就還原。",
+          meaning:
+            "預期「冒出來」——這就是修了三次還沒好的那一版。它若真的冒，代表問題在下面兩格之一。",
+          press: (ctx) => ctx.inlineNone(true),
+          release: (ctx) => ctx.inlineNone(false),
+        },
+        {
+          id: "hold",
+          title: "3. 同上，但放開後 800ms 才還原",
+          gist: "一樣是 inline user-select:none，只是撐過手指離開的那一刻。",
+          meaning:
+            "這格不冒、第 2 格冒 → 病因是「還原得太早」：Chrome 是在放開之後才決定要不要跳 bar。修法很小，frond 把還原延後即可。第一輪它是 0/1，要用次數確認。",
+          press: (ctx) => ctx.inlineNone(true),
+          release: (ctx) => ctx.later(() => ctx.inlineNone(false), 800),
+        },
+        {
+          id: "important",
+          title: "4. 改用 !important 蓋全部元素",
+          gist: "按下去時注入一張 *{user-select:none!important} 的 stylesheet，放開 800ms 後移除。",
+          meaning:
+            "這格的時間窗跟第 3 格一樣，只是寫得更凶，所以它不該比第 3 格差。第一輪它 1/1 而第 3 格 0/1 —— 那是雜訊，這輪要用次數把兩格分開。",
+          press: (ctx) => ctx.sheetNone(true),
+          release: (ctx) => ctx.later(() => ctx.sheetNone(false), 800),
+        },
+        {
+          id: "always",
+          title: "5. 整本永遠不可選",
+          gist: "一進來就掛 *{user-select:none!important}，永不還原。",
+          meaning:
+            "CSS 路線的上限。連這格都照冒 → user-select 這條路根本救不了，只剩第 6 格那種擋在文字前面的做法。代價是②一定選不起來。",
+          install: (ctx) => ctx.sheetNone(true),
+        },
+        {
+          id: "overlay",
+          title: "6. 透明層蓋住翻頁帶",
+          gist: "翻頁帶改由主文件的一層透明 div 接手，觸控根本碰不到 iframe 裡的文字。",
+          meaning:
+            "幾乎一定不冒（點到的不是文字）。代價：翻頁帶內完全不能選字、而且翻頁要改由 spine 自己處理，不能再用 frond 的 pointer 事件。這是保底方案。",
+          bands: true,
+        },
+        {
+          id: "touchend",
+          title: "7. touchend 呼叫 preventDefault()",
+          gist: "翻頁帶內的 touchend 直接 preventDefault（Chrome 文件說「事件被 preventDefault」是不觸發條件之一）。",
+          meaning:
+            "不冒的話最便宜：不動 CSS、不影響選字，但會吃掉那一下的 click（頁面上沒有連結就無所謂，書裡的註腳連結會受影響）。",
+          install: (ctx) => {
+            ctx.doc.addEventListener(
+              "touchend",
+              (e) => {
+                const t = e.changedTouches[0];
+                if (t && ctx.bandAt(t.clientX) !== null) e.preventDefault();
+              },
+              { passive: false },
+            );
+          },
+        },
+        {
+          id: "selectstart",
+          title: "8. selectstart 呼叫 preventDefault()",
+          gist: "按下翻頁帶之後，到放開 800ms 內的 selectstart 一律擋掉。",
+          meaning:
+            "比改 CSS 精準（只擋選取這件事本身）。但 Chrome 的 bar 若不是走 selectstart，這格照冒。",
+          install: (ctx) => {
+            ctx.doc.addEventListener("selectstart", (e) => {
+              if (ctx.armed) e.preventDefault();
+            });
+          },
+          press: (ctx) => (ctx.armed = true),
+          release: (ctx) => ctx.later(() => (ctx.armed = false), 800),
+        },
+        {
+          id: "widget",
+          title: "9. 段落變成可聚焦的 widget",
+          gist: '每個 <p> 加上 tabindex="-1" 與 role="button"，Chrome 文件列的另外兩個不觸發條件。',
+          meaning:
+            '第一輪沒冒，但 role="button" 會讓螢幕閱讀器把書的每一段都念成按鈕。它留在這裡是為了跟下一格對照——真要用也是用下一格那半邊。',
+          install: (ctx) => {
+            for (const p of ctx.root.querySelectorAll("p")) {
+              p.setAttribute("tabindex", "-1");
+              p.setAttribute("role", "button");
+            }
+          },
+        },
+        {
+          id: "focusable",
+          title: "10. 只加 tabindex，不動 role",
+          gist: '每個 <p> 只加 tabindex="-1"（可聚焦），語意維持是段落。',
+          meaning:
+            "第 9 格的便宜版：可聚焦是 Chrome 文件列的條件之一，而 role 才是傷無障礙的那一半。這格若跟第 9 格一樣不冒，第 9 格就沒有存在的必要。",
+          install: (ctx) => {
+            for (const p of ctx.root.querySelectorAll("p")) p.setAttribute("tabindex", "-1");
+          },
+        },
+      ];
+
+      /* ------------------------------------------------------------------- the bench */
+
+      const viewer = document.getElementById("viewer");
+      const bandEls = {
+        left: viewer.querySelector(".band.left"),
+        right: viewer.querySelector(".band.right"),
+      };
+      const statusEl = document.getElementById("status");
+      const pickEl = document.getElementById("pick");
+
+      const TAP_ZONE = 0.25; // same as spine's touch.ts
+      const MAX_TAP_MS = 500;
+      const SLOP = 10;
+
+      let current = 0;
+      let page = 0;
+      let turns = 0;
+      let ctx = null;
+      let timers = [];
+
+      function bandAt(x) {
+        const w = viewer.clientWidth;
+        if (x < w * TAP_ZONE) return "prev";
+        if (x > w * (1 - TAP_ZONE)) return "next";
+        return null;
+      }
+
+      function say(text) {
+        statusEl.innerHTML = text;
+      }
+
+      // `doc` is what the CSS measures write to (the book's document); `root` is the element
+      // holding the book's paragraphs. In the iframe they are the same document, in the
+      // no-iframe variant they are not — and a measure that queried the whole page there
+      // would rewrite this lab's own text.
+      function buildCtx(doc, root) {
+        const c = {
+          doc,
+          root,
+          armed: false,
+          bandAt,
+          later(fn, ms) {
+            timers.push(setTimeout(fn, ms));
+          },
+          inlineNone(on) {
+            const s = doc.documentElement.style;
+            if (on) {
+              s.setProperty("-webkit-user-select", "none");
+              s.setProperty("user-select", "none");
+            } else {
+              s.removeProperty("-webkit-user-select");
+              s.removeProperty("user-select");
+            }
+          },
+          sheetNone(on) {
+            const id = "lab-none";
+            const existing = doc.getElementById(id);
+            if (!on) {
+              if (existing) existing.remove();
+              return;
+            }
+            if (existing) return;
+            const style = doc.createElement("style");
+            style.id = id;
+            style.textContent =
+              "*, *::before, *::after { -webkit-user-select: none !important; user-select: none !important; }";
+            doc.documentElement.appendChild(style);
+          },
+        };
+        return c;
+      }
+
+      // One gesture, assembled from a press and a release, exactly as spine does it.
+      function wireGestures(target, variant) {
+        let start = null;
+
+        target.addEventListener(
+          "pointerdown",
+          (event) => {
+            const x = pointX(event);
+            start = { x, y: event.clientY, at: Date.now(), band: bandAt(x) };
+            if (start.band !== null && variant.press) variant.press(ctx);
+            say("按下 @ " + Math.round(x) + "px（" + (start.band ?? "中間帶") + "）");
+          },
+          { passive: true },
+        );
+
+        target.addEventListener(
+          "pointerup",
+          (event) => {
+            if (start === null) return;
+            const dx = pointX(event) - start.x;
+            const dy = event.clientY - start.y;
+            const ms = Date.now() - start.at;
+            const tap = Math.abs(dx) < SLOP && Math.abs(dy) < SLOP && ms < MAX_TAP_MS;
+            if (start.band !== null && variant.release) variant.release(ctx);
+            if (tap && start.band !== null) turn(start.band, ms);
+            else say("放開：位移 " + Math.round(dx) + "px，" + ms + "ms —— 不算輕點");
+            start = null;
+          },
+          { passive: true },
+        );
+
+        // A press the browser takes over ends in `pointercancel` and never in `pointerup`.
+        // Without this, the measure that press asked for stays on for good, and the next long
+        // press in the middle finds the text unselectable — a cost then reported against the
+        // variant, though this page caused it. frond has this handler; rounds 1 and 2 of this
+        // lab did not, which is why variants 3 and 4 came back as "選不起來".
+        target.addEventListener(
+          "pointercancel",
+          () => {
+            if (start !== null && start.band !== null && variant.release) variant.release(ctx);
+            start = null;
+          },
+          { passive: true },
+        );
+      }
+
+      // The band overlay lives in this document, the book in the iframe's — one coordinate
+      // system, so the x has to be folded back into the viewer's.
+      function pointX(event) {
+        const box = viewer.getBoundingClientRect();
+        return event.view === window ? event.clientX - box.left : event.clientX;
+      }
+
+      function turn(dir, ms) {
+        page = dir === "next" ? page + 1 : page + PAGES.length - 1;
+        turns++;
+        render();
+        countTrial();
+        say("翻頁（" + dir + "，" + ms + "ms）—— 現在看底部有沒有 bar");
+      }
+
+      function render() {
+        if (ctx === null) return;
+        const ps = ctx.root.querySelectorAll("p");
+        if (ps.length >= 3) {
+          ps[0].textContent = PAGES[page % PAGES.length];
+          ps[1].textContent = PAGES[(page + 1) % PAGES.length];
+          ps[2].textContent = "— 第 " + ((page % PAGES.length) + 1) + " 頁 —";
+        }
+      }
+
+      function load(index) {
+        current = ((index % VARIANTS.length) + VARIANTS.length) % VARIANTS.length;
+        const variant = VARIANTS[current];
+
+        for (const t of timers) clearTimeout(t);
+        timers = [];
+        turns = 0;
+
+        document.getElementById("v-title").textContent = variant.title;
+        document.getElementById("v-gist").textContent = variant.gist;
+        document.getElementById("v-meaning").textContent = variant.meaning;
+        pickEl.value = String(current);
+        viewer.classList.toggle("bands-live", variant.bands === true);
+        paintAnswers();
+
+        // A fresh book each time: no measure from the previous variant may survive into
+        // the next one.
+        for (const old of viewer.querySelectorAll("iframe, .inline-book")) old.remove();
+
+        if (variant.noFrame === true) {
+          const div = document.createElement("div");
+          div.className = "inline-book";
+          div.innerHTML = '<p></p><p></p><p class="page-no"></p>';
+          viewer.insertBefore(div, bandEls.left);
+          ctx = buildCtx(document, div);
+          start(variant, div);
+          return;
+        }
+
+        ctx = null;
+        const frame = document.createElement("iframe");
+        frame.setAttribute("title", "book");
+        frame.srcdoc = bookHtml(page);
+        frame.addEventListener("load", () => {
+          const doc = frame.contentDocument;
+          if (doc === null) return; // blocked; the check below reports it
+          ctx = buildCtx(doc, doc.body);
+          start(variant, doc);
+        });
+        viewer.insertBefore(frame, bandEls.left);
+
+        // Wherever this page is hosted, the book has to be a real iframe — that is what spine
+        // renders into, and a measure proven against a plain <div> would prove nothing. A host
+        // whose CSP blocks `srcdoc` leaves an empty box, and an empty box looks like a variant
+        // that works.
+        timers.push(
+          setTimeout(() => {
+            if (ctx === null) {
+              say(
+                '<span class="warn">⚠ 這個網站的 CSP 擋掉了 iframe，整份實驗在這裡做不得數。' +
+                  "換一個地方放這頁再測。</span>",
+              );
+            }
+          }, 1500),
+        );
+      }
+
+      function start(variant, eventTarget) {
+        if (variant.install) variant.install(ctx);
+        render();
+
+        if (variant.bands === true) {
+          wireGestures(bandEls.left, variant);
+          wireGestures(bandEls.right, variant);
+          say("這一格的翻頁帶由主文件接手，點文字本身不會翻頁。");
+        } else {
+          wireGestures(eventTarget, variant);
+          say("準備好了。在藍框裡輕點一下。");
+        }
+
+        // Whatever is selected right now, so a bar with no selection behind it can be told
+        // apart from one Chrome raised over a word it took. The iframe's document is thrown
+        // away with each variant; this page's is not, so it is wired once.
+        if (variant.noFrame !== true) {
+          ctx.doc.addEventListener("selectionchange", () => reportSelection(ctx.doc));
+        }
+      }
+
+      function reportSelection(doc) {
+        const text = String(doc.getSelection() || "").trim();
+        if (text !== "") say("選到了：<code>" + text.slice(0, 30) + "</code>");
+      }
+
+      document.addEventListener("selectionchange", () => {
+        if (VARIANTS[current].noFrame === true) reportSelection(document);
+      });
+
+      /* ------------------------------------------------------------------- recording */
+
+      const STORE = "tts-lab-results";
+      let answers = {};
+      try {
+        answers = JSON.parse(localStorage.getItem(STORE) || "{}");
+      } catch (e) {
+        answers = {};
+      }
+
+      // One tap is one trial, and the tally is what gets read afterwards.
+      //
+      // **Touch to Search does not fire on every tap**, so a single tap per variant measures
+      // the browser's mood rather than the measure under test. The first round of this lab
+      // came back with a variant beating its own strictly stronger version — two results that
+      // cannot both describe a mechanism, and that is what a sample of one buys.
+      const TARGET_TRIALS = 10;
+
+      // Also the upgrade path: the first round of this lab stored one yes/no per variant, and
+      // that answer has no count to become. The tally starts empty; the selection answer beside
+      // it carries over, because it means the same thing either way.
+      function record(id) {
+        const a = answers[id] || {};
+        if (typeof a.trials !== "number") a.trials = 0;
+        if (typeof a.hits !== "number") a.hits = 0;
+        delete a.bar;
+        answers[id] = a;
+        return a;
+      }
+
+      function save() {
+        localStorage.setItem(STORE, JSON.stringify(answers));
+        paintAnswers();
+      }
+
+      function countTrial() {
+        record(VARIANTS[current].id).trials++;
+        save();
+      }
+
+      function rate(a) {
+        if (!a || !a.trials) return null;
+        return a.hits + "/" + a.trials;
+      }
+
+      function paintAnswers() {
+        const mine = record(VARIANTS[current].id);
+        const left = TARGET_TRIALS - mine.trials;
+        document.getElementById("tally").innerHTML =
+          "已點 <strong>" +
+          mine.trials +
+          "</strong> 次，冒 <strong>" +
+          mine.hits +
+          "</strong> 次" +
+          (left > 0
+            ? '<span class="muted">（還差 ' + left + " 次）</span>"
+            : '<span class="ok">（這格夠了）</span>');
+
+        for (const btn of document.querySelectorAll("button.pick")) {
+          const chosen = mine[btn.dataset.q] === btn.dataset.a;
+          // Green for the outcome we want (selection still works), red otherwise.
+          const good = btn.dataset.a === "yes";
+          btn.classList.toggle("picked", chosen && good);
+          btn.classList.toggle("picked-bad", chosen && !good);
+        }
+        paintTable();
+      }
+
+      function paintTable() {
+        const rows = VARIANTS.map((v) => {
+          const a = record(v.id);
+          const r = rate(a);
+          const bar =
+            r === null
+              ? "—"
+              : a.hits === 0
+                ? '<span class="ok">' + r + "</span>"
+                : '<span class="warn">' + r + "</span>";
+          const sel = !a
+            ? "—"
+            : a.select === "yes"
+              ? "能選"
+              : a.select === "no"
+                ? '<span class="warn">不能選</span>'
+                : "—";
+          return "<tr><td>" + v.title + "</td><td>" + bar + "</td><td>" + sel + "</td></tr>";
+        });
+        document.getElementById("results").innerHTML =
+          "<tr><th>變體</th><th>冒／點</th><th>選字</th></tr>" + rows.join("");
+        document.getElementById("out").value = summary();
+      }
+
+      function summary() {
+        const lines = [
+          "Touch to Search lab",
+          "UA: " + navigator.userAgent,
+          "螢幕: " +
+            window.innerWidth +
+            "x" +
+            window.innerHeight +
+            " dpr" +
+            window.devicePixelRatio,
+          "",
+        ];
+        for (const v of VARIANTS) {
+          const a = record(v.id);
+          lines.push(
+            v.title +
+              " — 冒/點: " +
+              (rate(a) ?? "未測") +
+              "；選字: " +
+              (a.select === "yes" ? "能選" : a.select === "no" ? "不能選" : "未測"),
+          );
+        }
+        return lines.join("\n");
+      }
+
+      document.getElementById("hit").addEventListener("click", () => {
+        const a = record(VARIANTS[current].id);
+        a.hits++;
+        // A bar the tap raised is still a trial even if the tap counter missed it — a press
+        // that travelled a little is not counted as a turn, but Chrome still saw a tap.
+        if (a.hits > a.trials) a.trials = a.hits;
+        save();
+      });
+
+      document.getElementById("undo").addEventListener("click", () => {
+        const a = record(VARIANTS[current].id);
+        a.hits = Math.max(0, a.hits - 1);
+        save();
+      });
+
+      for (const btn of document.querySelectorAll("button.pick")) {
+        btn.addEventListener("click", () => {
+          record(VARIANTS[current].id)[btn.dataset.q] = btn.dataset.a;
+          save();
+        });
+      }
+
+      document.getElementById("copy").addEventListener("click", async () => {
+        const out = document.getElementById("out");
+        try {
+          await navigator.clipboard.writeText(out.value);
+          say("結果已複製。");
+        } catch (e) {
+          out.removeAttribute("readonly");
+          out.select();
+          say("自動複製被擋，請手動選取下面那塊文字。");
+        }
+      });
+
+      document.getElementById("reset-one").addEventListener("click", () => {
+        delete answers[VARIANTS[current].id];
+        save();
+      });
+
+      document.getElementById("reset").addEventListener("click", () => {
+        answers = {};
+        localStorage.removeItem(STORE);
+        paintAnswers();
+      });
+
+      /* ---------------------------------------------------------------------- wiring */
+
+      pickEl.innerHTML = VARIANTS.map(
+        (v, i) => '<option value="' + i + '">' + v.title + "</option>",
+      ).join("");
+      pickEl.addEventListener("change", () => load(Number(pickEl.value)));
+      document.getElementById("prev").addEventListener("click", () => load(current - 1));
+      document.getElementById("next").addEventListener("click", () => load(current + 1));
+      document.getElementById("ua-short").textContent = (navigator.userAgent.match(
+        /Chrome\/[\d.]+/,
+      ) || ["UA 不明"])[0];
+
+      load(0);
+    </script>
+  </body>
+</html>

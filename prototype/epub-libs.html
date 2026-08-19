@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PROTOTYPE — EPUB library shoot-out</title>
+    <style>
+      /* PROTOTYPE — throwaway page, never ship. Plain CSS on purpose. */
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        background: #f2f0ec;
+        color: #222;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      #mount {
+        flex: 1;
+        min-width: 0;
+        background: #fff;
+        position: relative;
+        margin: 12px;
+        border: 1px solid #ccc;
+      }
+      #mount > * {
+        width: 100%;
+        height: 100%;
+      }
+      #mount > div > * {
+        width: 100%;
+        height: 100%;
+      }
+      aside {
+        width: 340px;
+        padding: 12px;
+        overflow-y: auto;
+        font-size: 13px;
+      }
+      aside h2 {
+        font-size: 14px;
+        margin: 8px 0 4px;
+      }
+      #caps {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2px 8px;
+      }
+      #caps .dot {
+        width: 1.2em;
+        text-align: center;
+      }
+      #log {
+        background: #1b1b1e;
+        color: #b8e0b8;
+        padding: 8px;
+        border-radius: 6px;
+        max-height: 40vh;
+        overflow-y: auto;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      #bar {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        background: #1b1b1e;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 999px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        z-index: 99;
+      }
+      #bar button,
+      #bar select {
+        background: #333;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #bar .lib {
+        min-width: 9em;
+        text-align: center;
+        font-weight: 600;
+      }
+      #toc-panel {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        bottom: 60px;
+        width: 280px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        overflow-y: auto;
+        padding: 8px;
+        z-index: 98;
+        display: none;
+      }
+      #toc-panel button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        padding: 4px 6px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      #toc-panel button:hover {
+        background: #eee;
+      }
+      .warn {
+        color: #b00;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="mount"></div>
+      <aside>
+        <h2>PROTOTYPE：EPUB library 驗證</h2>
+        <div>問題：各 library 能否覆蓋直排、分頁、TOC、進度、roundtrip、highlight？</div>
+        <h2>Capability</h2>
+        <div id="caps"></div>
+        <h2>Log</h2>
+        <div id="log"></div>
+      </aside>
+    </main>
+    <div id="toc-panel"></div>
+    <div id="bar">
+      <button id="lib-prev">‹</button>
+      <span class="lib" id="lib-label"></span>
+      <button id="lib-next">›</button>
+      <select id="book">
+        <option value="vertical">直排：入境大廳</option>
+        <option value="horizontal">橫排：快思慢想</option>
+      </select>
+      <button id="btn-prev">上頁</button>
+      <button id="btn-next">下頁</button>
+      <button id="btn-toc">TOC</button>
+      <button id="btn-round">Roundtrip</button>
+      <button id="btn-hl">Highlight</button>
+    </div>
+    <script type="module" src="/prototype/epub-libs/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,581 @@
+import { describe, expect, test } from "vitest";
+import {
+  adaptColors,
+  demoteImportant,
+  inlineImports,
+  mapStylesheet,
+  normalisePageBreaks,
+  normalisePrefixedWritingMode,
+  relativiseFontSizes,
+  resolveGenericFamilies,
+  rewriteUrls,
+} from "../../../src/renderer/css.ts";
+import { colorTheme, type ColorTheme } from "../../../src/renderer/color.ts";
+
+/**
+ * Every rewrite made to a book's stylesheet.
+ *
+ * Half the tests in this group ask what was **not** touched — that the untouched parts
+ * are unchanged character for character is this layer's most important property. A
+ * rewrite is an intervention in the book (ADR-0003), and one more intervention slipping
+ * in unnoticed is exactly why that closed list exists; "one thing too many was
+ * rewritten" is mostly invisible on screen, and only a character-for-character
+ * comparison catches it.
+ */
+
+describe("locating declarations", () => {
+  test("a colon in a selector is not a declaration", () => {
+    // The most typical way a regular expression gets this wrong: the colon in `a:hover`
+    // taken as the separator between property and value.
+    const css = "a:hover { color: red }";
+    const seen: string[] = [];
+
+    mapStylesheet(css, (declaration) => {
+      seen.push(declaration.property);
+      return undefined;
+    });
+
+    expect(seen).toEqual(["color"]);
+  });
+
+  test("what an @media holds is rules, not declarations", () => {
+    const seen: string[] = [];
+
+    mapStylesheet("@media (min-width: 40em) { p { color: red } }", (declaration) => {
+      seen.push(declaration.property);
+      return undefined;
+    });
+
+    // `min-width: 40em` sits in the at-rule's prelude; it is not a declaration.
+    expect(seen).toEqual(["color"]);
+  });
+
+  test("a semicolon inside a string or a url() does not split a declaration", () => {
+    const seen: string[] = [];
+
+    mapStylesheet(
+      `p { content: "a;b"; background: url(data:image/gif;base64,AAAA) }`,
+      (declaration) => {
+        seen.push(declaration.property);
+        return undefined;
+      },
+    );
+
+    expect(seen).toEqual(["content", "background"]);
+  });
+
+  test("what is inside a comment does not count", () => {
+    const seen: string[] = [];
+
+    mapStylesheet("p { /* color: red; */ margin: 0 }", (declaration) => {
+      seen.push(declaration.property);
+      return undefined;
+    });
+
+    expect(seen).toEqual(["margin"]);
+  });
+
+  test("untouched means unchanged character for character, whitespace and comments included", () => {
+    const css = `@charset "utf-8";
+
+/* 書自己的註解 */
+p   {
+  margin : 0 0 1em ;
+  text-indent:1em
+}
+`;
+
+    expect(mapStylesheet(css, () => undefined)).toBe(css);
+  });
+
+  test("!important is split off the value, and the property name is lowercased", () => {
+    const seen: Array<{ property: string; value: string; important: boolean }> = [];
+
+    mapStylesheet("p { FONT-SIZE: 12px ! IMPORTANT }", (declaration) => {
+      seen.push({
+        property: declaration.property,
+        value: declaration.value,
+        important: declaration.important,
+      });
+      return undefined;
+    });
+
+    expect(seen).toEqual([{ property: "font-size", value: "12px", important: true }]);
+  });
+});
+
+describe("prefixed writing-mode", () => {
+  test("an equivalent unprefixed declaration is added", () => {
+    // 《入境大廳》's shape: both prefixes written, the unprefixed one not once.
+    const css = `body {
+  -epub-writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+}`;
+
+    const rewritten = normalisePrefixedWritingMode(css);
+
+    expect(rewritten).toContain("-epub-writing-mode: vertical-rl");
+    expect(rewritten).toContain("-webkit-writing-mode: vertical-rl");
+    expect(rewritten.match(/[^-]writing-mode: vertical-rl/g)?.length).toBe(2);
+  });
+
+  test("the original declaration stays; it is not replaced", () => {
+    const rewritten = normalisePrefixedWritingMode("body { -epub-writing-mode: vertical-rl }");
+
+    expect(rewritten).toContain("-epub-writing-mode");
+  });
+
+  test("!important comes along with the added declaration", () => {
+    const rewritten = normalisePrefixedWritingMode(
+      "body { -webkit-writing-mode: vertical-rl !important }",
+    );
+
+    expect(rewritten).toContain("writing-mode: vertical-rl !important");
+  });
+
+  test("a book that already has an unprefixed declaration is left alone", () => {
+    const css = "html { writing-mode: vertical-rl }";
+    expect(normalisePrefixedWritingMode(css)).toBe(css);
+  });
+
+  test("the old tb-rl syntax needs no handling — all three accept it", () => {
+    // Measured in docs/browser-quirks.md: all three accept it, and the computed value
+    // normalizes to vertical-rl.
+    const css = "html { writing-mode: tb-rl }";
+    expect(normalisePrefixedWritingMode(css)).toBe(css);
+  });
+});
+
+describe("page-break-*", () => {
+  test("always becomes a column break", () => {
+    const rewritten = normalisePageBreaks("h1 { page-break-before: always }");
+
+    expect(rewritten).toContain("page-break-before: always");
+    expect(rewritten).toContain("break-before: column");
+  });
+
+  test("avoid has the same name on both sides", () => {
+    expect(normalisePageBreaks("figure { page-break-inside: avoid }")).toContain(
+      "break-inside: avoid",
+    );
+  });
+
+  test("left and right degrade to a column break — a multicol layout has no spreads", () => {
+    expect(normalisePageBreaks("h1 { page-break-before: left }")).toContain("break-before: column");
+  });
+
+  test("an unrecognized value is left alone", () => {
+    const css = "h1 { page-break-before: recto }";
+    expect(normalisePageBreaks(css)).toBe(css);
+  });
+
+  test("nothing is added twice when the book already uses the modern spelling", () => {
+    const css = "h1 { break-before: column }";
+    expect(normalisePageBreaks(css)).toBe(css);
+  });
+});
+
+describe("demoting !important", () => {
+  const OVERRIDDEN = new Set(["font-size"]);
+
+  test("for a property the reader overrode, the flag goes and the value stays", () => {
+    const rewritten = demoteImportant("p { font-size: 12px !important }", OVERRIDDEN);
+
+    expect(rewritten).toContain("font-size: 12px");
+    expect(rewritten).not.toContain("!important");
+  });
+
+  test("for a property the reader did not override, the flag stays", () => {
+    // ADR-0003's threshold: with no reader setting there is nothing being blocked, and so
+    // no reason to intervene.
+    const css = "p { color: #000 !important }";
+    expect(demoteImportant(css, OVERRIDDEN)).toBe(css);
+  });
+
+  test("declarations of the same property without !important are left alone", () => {
+    const css = "p { font-size: 12px }";
+    expect(demoteImportant(css, OVERRIDDEN)).toBe(css);
+  });
+
+  test("an !important in a style attribute can be demoted too", () => {
+    // This is the slot that matters: nothing anywhere in the cascade outranks an inline
+    // !important.
+    expect(
+      demoteImportant("font-size: 12px !important; color: red", OVERRIDDEN, "declarations"),
+    ).toBe("font-size: 12px; color: red");
+  });
+});
+
+describe("converting absolute font sizes to rem", () => {
+  test("px converts against the 16px basis", () => {
+    expect(relativiseFontSizes("p { font-size: 12px }")).toContain("font-size: 0.75rem");
+    expect(relativiseFontSizes("h1 { font-size: 32px }")).toContain("font-size: 2rem");
+  });
+
+  test("pt goes to px first, then converts", () => {
+    // 12pt = 16px = 1rem.
+    expect(relativiseFontSizes("p { font-size: 12pt }")).toContain("font-size: 1rem");
+  });
+
+  test("the book's own size hierarchy is left intact", () => {
+    const rewritten = relativiseFontSizes(`h1 { font-size: 32px }
+p { font-size: 16px }`);
+
+    // 2 : 1, item for item the same as before the conversion — when the reader adjusts the
+    // size, the whole document scales by one ratio.
+    expect(rewritten).toContain("font-size: 2rem");
+    expect(rewritten).toContain("font-size: 1rem");
+  });
+
+  test("nested absolute sizes do not compound", () => {
+    // This is the entire reason for choosing rem over em. With em, the span would come out
+    // at 0.75 × 0.625.
+    const rewritten = relativiseFontSizes(`p { font-size: 12px }
+p span { font-size: 10px }`);
+
+    expect(rewritten).toContain("font-size: 0.75rem");
+    expect(rewritten).toContain("font-size: 0.625rem");
+  });
+
+  test("values already in relative units are left alone", () => {
+    for (const value of ["1.2em", "0.9rem", "120%", "larger", "medium"]) {
+      const css = `p { font-size: ${value} }`;
+      expect(relativiseFontSizes(css)).toBe(css);
+    }
+  });
+
+  test("compound values are left alone — converting them wrongly is worse than not at all", () => {
+    const css = "p { font-size: calc(12px + 1vw) }";
+    expect(relativiseFontSizes(css)).toBe(css);
+  });
+
+  test("!important stays on the converted declaration", () => {
+    // Converting and demoting the flag are two independent rewrites, each doing one
+    // thing.
+    expect(relativiseFontSizes("p { font-size: 12px !important }")).toContain(
+      "font-size: 0.75rem !important",
+    );
+  });
+
+  test("absolute sizes in a style attribute convert too", () => {
+    expect(relativiseFontSizes("font-size: 24px; color: red", "declarations")).toBe(
+      "font-size: 1.5rem; color: red",
+    );
+  });
+});
+
+describe("rewriting url()", () => {
+  const resolve = (reference: string): string | undefined =>
+    reference === "images/plate.png" ? "blob:https://example/abc" : undefined;
+
+  test("a relative path becomes the resolved address", () => {
+    expect(rewriteUrls("p { background: url(images/plate.png) }", resolve)).toContain(
+      'url("blob:https://example/abc")',
+    );
+  });
+
+  test("the quoted spellings are recognized too", () => {
+    expect(rewriteUrls(`p { background: url("images/plate.png") }`, resolve)).toContain(
+      'url("blob:https://example/abc")',
+    );
+    expect(rewriteUrls(`p { background: url('images/plate.png') }`, resolve)).toContain(
+      'url("blob:https://example/abc")',
+    );
+  });
+
+  test("what cannot be resolved is left as it stands", () => {
+    const css = "p { background: url(data:image/gif;base64,AAAA) }";
+    expect(rewriteUrls(css, resolve)).toBe(css);
+  });
+
+  test("an @import's url() is rewritten too — it is inside no declaration at all", () => {
+    expect(rewriteUrls("@import url(images/plate.png);", resolve)).toContain(
+      'url("blob:https://example/abc")',
+    );
+  });
+
+  test("a url() inside a comment is left alone", () => {
+    const css = "/* url(images/plate.png) */ p { margin: 0 }";
+    expect(rewriteUrls(css, resolve)).toBe(css);
+  });
+
+  test("an @font-face's font goes through the same route", () => {
+    const rewritten = rewriteUrls(
+      `@font-face { font-family: "書"; src: url(images/plate.png) format("opentype") }`,
+      resolve,
+    );
+
+    expect(rewritten).toContain('url("blob:https://example/abc") format("opentype")');
+  });
+});
+
+/**
+ * Expanding `@import` in place.
+ *
+ * This function exists because of what was measured on real books: four books in the
+ * sample have content documents that `<link>` only an aggregate file, and that file
+ * holds nothing but `@charset` and `@import` strings — without expansion the whole
+ * stylesheet **disappears**, and four vertical books lay out horizontally
+ * (`inlineImports` in `src/renderer/css.ts`).
+ *
+ * Testing both spellings is not about coverage: the `writing-mode-behind-import`
+ * fixture plays only the string spelling (the one that was measured), and the `url()`
+ * spelling is another branch of the same expander — something a pure string function
+ * can test should not cost an extra book (ADR-0007).
+ */
+describe("expanding @import", () => {
+  /** The expander only returns "the CSS at this address"; how a path resolves is document-source's business. */
+  const expand = (reference: string): string | undefined =>
+    reference === "book-style.css" ? "html { writing-mode: vertical-rl }" : undefined;
+
+  test("the string spelling expands — this is the one measured in the sample", () => {
+    expect(inlineImports(`@import "book-style.css";`, expand)).toBe(
+      "html { writing-mode: vertical-rl }",
+    );
+  });
+
+  test("the single-quoted and url() spellings are recognized too", () => {
+    for (const rule of [
+      `@import 'book-style.css';`,
+      "@import url(book-style.css);",
+      `@import url("book-style.css");`,
+    ]) {
+      expect(inlineImports(rule, expand)).toBe("html { writing-mode: vertical-rl }");
+    }
+  });
+
+  test("the expansion goes exactly where the @import was — the cascade depends on order", () => {
+    expect(
+      inlineImports(`p { color: red }\n@import "book-style.css";\np { color: blue }`, expand),
+    ).toBe("p { color: red }\nhtml { writing-mode: vertical-rl }\np { color: blue }");
+  });
+
+  test("what cannot be expanded is left as it stands rather than deleted", () => {
+    // Deleting it would leave whoever investigates unable to see what the book asked for,
+    // and an @import that resolves to nothing has the same on-screen effect as its
+    // absence.
+    const css = `@import "missing.css";\np { margin: 0 }`;
+    expect(inlineImports(css, expand)).toBe(css);
+  });
+
+  test("one with a media query is wrapped in an @media; that condition may not be lost", () => {
+    expect(inlineImports(`@import "book-style.css" print;`, expand)).toBe(
+      "@media print {\nhtml { writing-mode: vertical-rl }\n}",
+    );
+    expect(inlineImports(`@import "book-style.css" screen and (min-width: 30em);`, expand)).toBe(
+      "@media screen and (min-width: 30em) {\nhtml { writing-mode: vertical-rl }\n}",
+    );
+  });
+
+  test("the layer() and supports() spellings are left as they stand", () => {
+    // Both change the cascade's layering and conditions, and splicing the text in does not
+    // reproduce that.
+    for (const rule of [
+      `@import "book-style.css" layer(book);`,
+      `@import "book-style.css" supports(display: grid);`,
+    ]) {
+      expect(inlineImports(rule, expand)).toBe(rule);
+    }
+  });
+
+  test("an @import inside a comment or a string is not an at-rule", () => {
+    for (const css of [
+      `/* @import "book-style.css"; */ p { margin: 0 }`,
+      `p { content: "@import \\"book-style.css\\";" }`,
+    ]) {
+      expect(inlineImports(css, expand)).toBe(css);
+    }
+  });
+
+  test("an @import inside a block is non-conforming and is left as it stands", () => {
+    const css = `@media print { @import "book-style.css"; }`;
+    expect(inlineImports(css, expand)).toBe(css);
+  });
+
+  test("a stylesheet with no @import at all is unchanged character for character", () => {
+    const css = `@charset "UTF-8";\n/* 書自己的 */\nhtml { font-family: "書" }\n`;
+    expect(inlineImports(css, expand)).toBe(css);
+  });
+
+  test("multiple @imports in one stylesheet all expand", () => {
+    const two = (reference: string): string | undefined =>
+      reference === "a.css"
+        ? "p { margin: 0 }"
+        : reference === "b.css"
+          ? "p { padding: 0 }"
+          : undefined;
+
+    expect(inlineImports(`@import "a.css";\n@import "b.css";`, two)).toBe(
+      "p { margin: 0 }\np { padding: 0 }",
+    );
+  });
+});
+
+describe("@import's boundaries", () => {
+  const expand = (): string | undefined => "p { margin: 0 }";
+
+  test("an at-rule whose name merely starts like @import is left alone", () => {
+    // Without the lookahead, `@imports` matches too, and that rule gets eaten whole.
+    const css = "@imports-are-fun x;\np { color: red }";
+    expect(inlineImports(css, expand)).toBe(css);
+  });
+
+  test("case does not matter", () => {
+    expect(inlineImports(`@IMPORT "a.css";`, expand)).toBe("p { margin: 0 }");
+  });
+
+  test("an @import with no recognizable address is left as it stands", () => {
+    const css = "@import ;";
+    expect(inlineImports(css, expand)).toBe(css);
+  });
+});
+
+/**
+ * Filling in the generic families the book delegated to the platform.
+ *
+ * The weight here sits on **what is left alone**, for the reason this rewrite exists at all:
+ * it is only entitled to the stretches the book declined to decide. A face the book named,
+ * a quoted family that merely happens to be called "serif", a keyword the reader has said
+ * nothing about — one of those being rewritten would make `genericFamilies` a second
+ * `fontFamily`, which is precisely what it is not (`settings.ts`).
+ */
+describe("resolving generic families", () => {
+  const FAMILIES = { serif: '"Noto Serif TC", Georgia, serif', sansSerif: '"Noto Sans TC"' };
+
+  test("a bare serif becomes the reader's stack", () => {
+    // The whitespace before the `}` is gone because the value was trimmed — the same shape
+    // every rewrite in this module produces (see `demoteImportant`'s cases above).
+    expect(resolveGenericFamilies("p { font-family: serif }", FAMILIES)).toBe(
+      'p { font-family: "Noto Serif TC", Georgia, serif}',
+    );
+  });
+
+  test("the keyword is kept as the last resort when the stack does not already end with it", () => {
+    // A stack naming only faces would otherwise leave that stretch with no fallback at all
+    // — a worse outcome than the platform's own choice.
+    expect(resolveGenericFamilies("p { font-family: sans-serif }", FAMILIES)).toBe(
+      'p { font-family: "Noto Sans TC", sans-serif}',
+    );
+  });
+
+  test("a stack already ending with the keyword does not repeat it", () => {
+    expect(resolveGenericFamilies("p { font-family: serif }", FAMILIES)).not.toContain(
+      "serif, serif",
+    );
+  });
+
+  test("faces the book named are kept, and only the trailing keyword is filled in", () => {
+    // The whole difference from `fontFamily`: the book's own first choice still wins wherever
+    // it is installed.
+    expect(resolveGenericFamilies('p { font-family: "Yu Mincho", serif }', FAMILIES)).toBe(
+      'p { font-family: "Yu Mincho", "Noto Serif TC", Georgia, serif}',
+    );
+  });
+
+  test("the book's !important is carried over", () => {
+    // This rewrite replaces a value, so the declaration keeps the weight the book gave it —
+    // which is why `overriddenProperties` has nothing to add for this setting.
+    expect(resolveGenericFamilies("p { font-family: serif !important }", FAMILIES)).toBe(
+      'p { font-family: "Noto Serif TC", Georgia, serif !important}',
+    );
+  });
+
+  test('a quoted "serif" is a family name, not the keyword', () => {
+    const css = 'p { font-family: "serif" }';
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(css);
+  });
+
+  test("a keyword the reader said nothing about is left alone", () => {
+    const css = "p { font-family: monospace }";
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(css);
+    // And so is a generic whose field is absent, rather than falling back to the other one.
+    expect(resolveGenericFamilies("p { font-family: sans-serif }", { serif: "X" })).toBe(
+      "p { font-family: sans-serif }",
+    );
+  });
+
+  test("with nothing to substitute the text is unchanged character for character", () => {
+    const css = "p {\n  /* the body face */\n  font-family:   Georgia  ;\n}";
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(css);
+  });
+
+  test("other properties are never touched", () => {
+    const css = "p { font-size: serif; color: red }";
+    // `font-size: serif` is nonsense, and that is the point: the property name is what
+    // decides, not the value looking like a family.
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(css);
+  });
+
+  test("the font shorthand is out of scope, and left verbatim", () => {
+    // Reaching into it means parsing the shorthand's grammar, and getting that wrong
+    // rewrites the declaration into nonsense (`css.ts`'s comment).
+    const css = "p { font: 12px serif }";
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(css);
+  });
+
+  test("a comma inside a quoted family name does not split the list", () => {
+    const css = 'p { font-family: "Weird, Face", serif }';
+    expect(resolveGenericFamilies(css, FAMILIES)).toBe(
+      'p { font-family: "Weird, Face", "Noto Serif TC", Georgia, serif}',
+    );
+  });
+
+  test("it applies to a style attribute too", () => {
+    // The case that decides whether the book can keep a generic out of reach: an external
+    // stylesheet cannot beat a style attribute, so the substitution has to happen in both.
+    expect(resolveGenericFamilies("font-family: serif", FAMILIES, "declarations")).toBe(
+      'font-family: "Noto Serif TC", Georgia, serif',
+    );
+  });
+});
+
+describe("fitting the book's colours to the reader's page", () => {
+  /** Folis's own dark theme. */
+  const DARK = colorTheme("#d8d5cf", "#1b1b1e") as ColorTheme;
+
+  test("a colour that reads on the reader's page is left character for character", () => {
+    // The case the whole rewrite exists for, and the one worth a whole-text comparison:
+    // 190 of 951 declarations across 34 books are chapter headings and captions that are
+    // legible on a dark page already, and the old shape replaced every one of them.
+    const source = "p.h5 {\n  color: #518fcc; /* 章號 */\n}";
+
+    expect(adaptColors(source, DARK)).toBe(source);
+  });
+
+  test("the book's body ink becomes the reader's", () => {
+    expect(adaptColors("p { color: #000000 }", DARK)).toBe("p { color: #d8d5cf}");
+  });
+
+  test("the book's !important is carried over, because only the value changed", () => {
+    expect(adaptColors("p { color: #000 !important }", DARK)).toBe(
+      "p { color: #d8d5cf !important}",
+    );
+  });
+
+  test("nothing else that names a colour is touched", () => {
+    // `background-color` is answered whole by the reader's stylesheet, and the other three
+    // ways to colour text appear zero times in the sample.
+    const source =
+      "p { background-color: #000; border-color: #000; -webkit-text-fill-color: #000 }";
+
+    expect(adaptColors(source, DARK)).toBe(source);
+  });
+
+  test("it reaches a style attribute, where no stylesheet could", () => {
+    expect(adaptColors("color: #000; margin: 0", DARK, "declarations")).toBe(
+      "color: #d8d5cf; margin: 0",
+    );
+  });
+
+  test("a value frond cannot read is left alone rather than guessed at", () => {
+    const source = "p { color: var(--ink) } q { color: transparent } r { color: inherit }";
+
+    expect(adaptColors(source, DARK)).toBe(source);
+  });
+
+  test("a colour inside @media is reached like any other", () => {
+    expect(adaptColors("@media print { p { color: black } }", DARK)).toBe(
+      "@media print { p { color: #d8d5cf} }",
+    );
+  });
+});

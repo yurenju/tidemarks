@@ -1,0 +1,74 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "folis",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  // Stated rather than left at wrangler's 8787: the Vite dev server proxies /api and /auth to
+  // this port, and that target is written in vite.config.ts. The two have to agree, so the
+  // number belongs in a file rather than in whatever each of us types.
+  "dev": {
+    "port": 5002
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Everything the Worker owns has to be listed here. `single-page-application` means an
+    // unmatched path serves index.html, so a missing entry does not 404 — it answers /mcp
+    // with the React app, and the failure reads as "this MCP server speaks HTML".
+    "run_worker_first": ["/api/*", "/auth/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*"]
+  },
+  "routes": [{ "pattern": "app.folis.ink", "custom_domain": true }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "folis",
+      "database_id": "0fd75d7f-b01d-4165-b98c-0d2070116dc1",
+      // Stated rather than left to the default so a reader of this file can find where the
+      // schema lives. `npm run deploy` applies these before uploading the Worker, which is
+      // the order that matters: a Worker reading a column the database has not got yet fails
+      // on the first request, not at deploy time.
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "folis"
+    }
+  ],
+  // OAuth grants, authorization codes and access tokens for the MCP server. KV rather than D1
+  // because workers-oauth-provider owns the storage and only speaks KV; nothing in here is a
+  // reader's data, and every entry expires on its own.
+  //
+  // The `id` is pinned rather than left for wrangler to provision. Auto-provisioning was the
+  // original plan — a missing id makes wrangler create the namespace on first deploy and
+  // write the id back here — but the deploy runs in Cloudflare's build environment, which
+  // cannot commit to the repo. So the namespace got created and the write-back was lost, and
+  // every deploy after that tried to create it again and hit "already exists" (code 10014).
+  // Stating the id, like the D1 id above, is what actually lets a repeatable deploy bind to
+  // the namespace that already exists.
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "cd05cb3a68b54bb4b4bcd9fb698c44b0"
+    }
+  ],
+  "vars": {
+    "RP_ID": "app.folis.ink",
+    "ORIGIN": "https://app.folis.ink",
+    // Sender of the magic-code mail. **Its domain is whichever one is verified with Resend**,
+    // which has nothing to do with the hostname Folis is served from — Resend refuses every
+    // message from an unverified domain, and then nobody can log in.
+    "MAIL_FROM": "Folis <login@folis.ink>"
+
+    // "OPEN_SIGNUP": "true" — absent, and absent means only addresses in the `signup_allowlist`
+    // table can create an account. Adding this line is the launch line itself (ADR-0004): the
+    // moment data starts belonging to people who did not agree it could be thrown away. It is a
+    // deploy on purpose, so that opening signup leaves a commit behind, while adding one friend
+    // to the allowlist is a `wrangler d1 execute` and needs nothing.
+  }
+  // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY.
+  // RESEND_API_KEY unset means magic codes are written to the log instead of mailed — that is
+  // the zero-vendor path for a self-hosted Folis, not an outage. See worker/email.ts.
+}

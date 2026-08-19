@@ -1,0 +1,30 @@
+{
+  // What every TypeScript configuration in the monorepo agrees on, so that a rule is decided
+  // once instead of per package.
+  //
+  // **What stays out of here is the environment**: `lib`, `types`, `jsx`, and the module
+  // resolution mode. Those differ because the code really does run in different places — the
+  // reader's browser, a Cloudflare Worker with no DOM, Node — and a shared answer would be
+  // wrong for at least one of them.
+  //
+  // Everything else is a judgement about how strictly to read TypeScript, and that has no
+  // reason to vary by package. `noUncheckedIndexedAccess` arrived with frond, which had it
+  // from the start; adopting it here rather than dropping it there is the direction that
+  // keeps a rule instead of losing one.
+  "compilerOptions": {
+    "target": "es2023",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    /* How strictly to read the code */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}

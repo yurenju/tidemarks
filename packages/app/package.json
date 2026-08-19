@@ -1,0 +1,43 @@
+{
+  "name": "app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --noEmit && tsc -p tsconfig.tests.json --noEmit",
+    "test:browser": "playwright test",
+    "sweep": "playwright test --config=playwright.sweep.config.ts",
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev",
+    "deploy:ci": "npm run db:migrate && wrangler deploy",
+    "versions:upload": "wrangler versions upload",
+    "db:migrate": "wrangler d1 migrations apply folis --remote",
+    "db:migrate:local": "wrangler d1 migrations apply folis --local"
+  },
+  "dependencies": {
+    "@base-ui/react": "~1.7.0",
+    "@cloudflare/workers-oauth-provider": "^0.10.1",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@yurenju/frond": "*",
+    "dexie": "^4.4.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.20.2",
+    "@cloudflare/workers-types": "^5.20260715.1",
+    "@playwright/test": "1.61.1",
+    "@simplewebauthn/server": "^13.3.2",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10",
+    "wrangler": "~4.119.0"
+  }
+}

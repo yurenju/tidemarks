@@ -1,0 +1,38 @@
+{
+  "name": "folis",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "build:frond": "npm run build -w @yurenju/frond",
+    "dev": "npm run build:frond && npm run dev -w app",
+    "build": "npm run build:frond && npm run build -w app",
+    "lint": "oxlint",
+    "typecheck": "npm run typecheck -w @yurenju/frond && npm run typecheck -w app",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build:frond && vitest run",
+    "test:container": "./scripts/test-in-container.sh",
+    "shots": "./scripts/capture-shots.sh",
+    "preview": "npm run preview -w app",
+    "worker:dev": "npm run worker:dev -w app",
+    "deploy": "npm run build && npm run deploy:ci",
+    "deploy:ci": "npm run deploy:ci -w app",
+    "versions:upload": "npm run versions:upload -w app",
+    "db:migrate": "npm run db:migrate -w app",
+    "db:migrate:local": "npm run db:migrate:local -w app"
+  },
+  "devDependencies": {
+    "oxlint": "^1.71.0",
+    "prettier": "3.9.6",
+    "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260801.1": true
+  }
+}

@@ -1,0 +1,16 @@
+{
+  // The reader's half: React in a browser, with Vite's client types.
+  //
+  // Only the environment is stated here; how strictly the code is read comes from the base.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}

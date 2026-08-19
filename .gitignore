@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# git worktrees opened by Claude Code: per-machine working dirs, never committed
+.claude/worktrees/
+
+# wrangler
+.wrangler
+.dev.vars
+
+# Playwright output
+playwright-report/
+test-results/
+
+# Wayfinding: one exploration's working notes, whose life is that exploration and no longer.
+# What survives becomes a GitHub issue or a file under docs/specs/ (docs/agents/issue-tracker.md).
+.scratch/
+
+# playwright-cli's scratch output: snapshots and console logs it writes beside the repo root
+# while capturing evidence on the host (docs/agents/pull-requests.md)
+.playwright-cli/
+
+# Commercially published books: kept here for verification, never committed
+# (a private repo does not change the licence)
+tests/books/commercial/

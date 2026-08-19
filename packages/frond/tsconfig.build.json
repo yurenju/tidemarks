@@ -1,0 +1,57 @@
+{
+  // The build configuration for the artifact. This package's `tsconfig.json` serves "working
+  // inside the package" — it takes in scripts/ and tests/, does not emit, and pulls in
+  // @types/node. This one serves exactly one thing: turning `src/epub` and `src/renderer`
+  // into JavaScript the app can import.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+
+    // What consumers receive is .js, and the types have to come from .d.ts. declarationMap
+    // and sourceMap make "jump to definition" land on frond's source rather than the
+    // emitted copy — that is the only thing a consumer can point at precisely when
+    // reporting a problem.
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // This setting is the crux of the whole configuration. Inside src/ everything imports
+    // everything else with a .ts extension (for the reason see the root tsconfig.json),
+    // while browsers and Node only recognise .js. This switch rewrites `./x.ts` into
+    // `./x.js` on emit, and rewrites the type imports inside the .d.ts along with it.
+    //
+    // Without it only two routes remain: every consumer must have a bundler that can
+    // compile TypeScript, or we bring in a bundler ourselves. Both would destroy the
+    // property "zero dependencies, importable directly by a browser".
+    "rewriteRelativeImportExtensions": true,
+
+    // **@types/node is deliberately not pulled in.**
+    //
+    // `EpubBook` and `Renderer` have zero Node dependencies to begin with (ADR-0005: the
+    // former has to run in both the browser and Node, the latter needs only the DOM), and
+    // that is currently held in place by discipline alone. Removing the node types from the
+    // build configuration turns that discipline into something a machine enforces: the day
+    // someone imports `node:crypto` in either layer, what turns red is `npm run build`
+    // rather than some consumer's runtime.
+    //
+    // `src/test-fixtures/` writes files with node:fs, so it is excluded below — it is our
+    // tool for producing synthetic fixtures, not part of the shipped surface.
+    "types": [],
+
+    // **An empty `paths`, even though the root `tsconfig.json` no longer sets one.**
+    //
+    // It used to clear a real mapping (a dev-time shortcut from `@yurenju/frond/*` to
+    // `src/`, which existed so frond-react could typecheck against an unbuilt tree). That
+    // mapping is gone with frond-react, so this line is a no-op today — and it stays,
+    // because what it guards is not the mapping that was there but **any mapping that ever
+    // gets added**. In this build's module graph not one bare specifier resolves, not even a
+    // shortcut that only holds inside the repo, and the day someone adds a convenience
+    // `paths` to the root config that property is still true here. Zero dependencies is
+    // therefore not held in place by review.
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/test-fixtures/**"]
+}

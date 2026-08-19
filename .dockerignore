@@ -1,0 +1,24 @@
+# Every pattern here is written `**/x` rather than `x`, because the same directory now appears
+# once per workspace as well as at the root, and a root-anchored pattern would let the copy
+# inside `packages/` through.
+
+# The image installs its own from the lockfile, and this one was installed on the host, quite
+# possibly for another platform — the image is linux/amd64, the host often is not.
+**/node_modules/
+
+# Build output and test artifacts: produced inside the image, and copying them in only makes
+# "which copy is this" a question with two answers.
+**/dist/
+**/playwright-report/
+**/test-results/
+
+# Local state that has no business in a test image.
+.git/
+# Wayfinding, and where the screen sweep leaves its pictures. The sweep writes about 10 MB into
+# `.scratch/shots/` on every run, and inside the build context that is 10 MB of churn which
+# invalidates `COPY . .` — so the next sweep would rebuild frond before it could start.
+.scratch/
+**/.wrangler/
+**/public/fixtures/
+.claude/settings.local.json
+.claude/worktrees/

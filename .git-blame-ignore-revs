@@ -1,0 +1,10 @@
+# Commits that changed formatting and nothing else. `git blame` skips them with:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# (GitHub reads this file on its own.) Only add a commit here if it is genuinely
+# a no-op for behaviour — the point is that blame still lands on whoever wrote
+# the line, and a commit that slipped a real change in would hide it.
+
+# Format the repository with prettier, and keep it that way
+a4eedaf501d62ac4eae5729a3611cbd53fe0a6fe

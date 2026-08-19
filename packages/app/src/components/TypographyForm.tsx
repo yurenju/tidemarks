@@ -1,0 +1,325 @@
+import { useEffect, useRef, useState } from "react";
+import { db } from "../lib/db";
+import {
+  COLUMN_CHOICES,
+  DEFAULT_SETTINGS,
+  FONT_FAMILIES,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  FONT_SIZE_STEP,
+  LINE_HEIGHTS,
+  MARGINS,
+  THEME_CHOICES,
+  type ReaderSettings,
+} from "../lib/settings";
+import { carriedFontKinds, type WebFontKind } from "../lib/web-font";
+import { webFontFraction, webFontNote, type WebFontStatus } from "../lib/web-font-store";
+
+/**
+ * The six, once. Two shells wear this: the reader's 〈排版〉 panel and 〈設定〉's 排版 tab.
+ *
+ * **One component, not two that look alike.** The bug this whole change came out of was two
+ * sets of controls that rendered identically and wrote to different places; keeping one copy is
+ * what stops that growing back. There is only one place to write to now, so the only thing the
+ * two shells differ in is what surrounds them (ADR-0026).
+ *
+ * Every row is **label left, control right**, and that is why the segmented controls below are
+ * sized to their options rather than stretched across the row the way the design showed them.
+ * Label-above would buy each of them a fuller line and cost every row about 22px of height —
+ * six of those is most of what the hand-held panel has to give (#160), and it would leave the
+ * two rows that are still a slider and a select reading as a different form.
+ *
+ * On a hand-held the panel is capped at `min(70vh, 36rem)`, and the book showing above it is
+ * the preview — six rows in the two-line arrangement this replaced would have eaten it entirely.
+ */
+export default function TypographyForm({
+  settings,
+  onChange,
+  onReset,
+  verticalBook,
+  webFontStatus = null,
+}: {
+  settings: ReaderSettings;
+  onChange: (patch: Partial<ReaderSettings>) => void;
+  onReset: () => void;
+  /**
+   * Whether the book on screen lays out vertically. False wherever there is no book to ask
+   * about, which is everywhere except the reader.
+   */
+  verticalBook: boolean;
+  /**
+   * What a face fetch is doing right now, when there is a book that asked for one. `null`
+   * everywhere else, and then the line under 字型 reports what this device is holding instead.
+   */
+  webFontStatus?: WebFontStatus | null;
+}) {
+  return (
+    <div className="form-rows">
+      <Segmented
+        label="主題"
+        testId="setting-theme"
+        options={THEME_CHOICES}
+        value={settings.theme}
+        onChange={(theme) => onChange({ theme })}
+      />
+
+      {/* Disabled over a vertical book because frond cannot honour two columns there at all —
+          "cannot do it" is the only grounds for taking a choice away. Two columns on a phone is
+          merely "looks bad" (eight characters a column), and that stays the reader's call. */}
+      <Segmented
+        label="欄數"
+        testId="setting-columns"
+        options={COLUMN_CHOICES}
+        value={settings.columns}
+        disabled={verticalBook}
+        disabledReason="直排書固定單欄"
+        onChange={(columns) => onChange({ columns })}
+      />
+
+      <Segmented
+        label="字型"
+        testId="setting-font-family"
+        options={FONT_FAMILIES}
+        value={settings.fontFamily}
+        onChange={(fontFamily) => onChange({ fontFamily })}
+      />
+      <FontLine status={webFontStatus} />
+
+      <label className="form-row">
+        <span className="form-label">字級 {settings.fontSize}%</span>
+        <input
+          data-testid="setting-font-size"
+          type="range"
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          step={FONT_SIZE_STEP}
+          value={settings.fontSize}
+          onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
+        />
+      </label>
+
+      <label className="form-row">
+        <span className="form-label">行距</span>
+        <select
+          data-testid="setting-line-height"
+          value={String(settings.lineHeight)}
+          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
+        >
+          {LINE_HEIGHTS.map((h) => (
+            <option key={h.value} value={String(h.value)}>
+              {h.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <Segmented
+        label="留白"
+        testId="setting-margin"
+        options={MARGINS}
+        value={settings.margin}
+        onChange={(margin) => onChange({ margin })}
+      />
+
+      {/* The only button left. "以後每本書都這樣排" went with the layer it promoted into. */}
+      <div className="form-actions">
+        <button data-testid="setting-reset" onClick={onReset} disabled={isDefault(settings)}>
+          回到預設值
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A setting whose options are few enough and short enough to stand on the page at once.
+ *
+ * **Not the `Select` the spec turned down.** The two reasons for keeping the native
+ * `<select>` — that on a phone it opens the operating system's own menu, and that Base UI's
+ * `Select` has an open issue where opening one freezes the main thread — are both about
+ * components that *hide* the options until asked. This hides nothing: it is a radio group
+ * wearing one border. What decides which settings get it is the options, not the library:
+ * three or four of them, each a word or two. 行距 has six and they read 「更寬鬆（2.0）」,
+ * so it stays a `<select>`; that is the line, and it is about what fits.
+ *
+ * The chosen cell is filled with moss rather than underlined with it. Fill survives being
+ * glanced at, and it survives the dark theme, where `--accent` flips to a light green on a
+ * near-black panel and a 2px rule under a Song face would be a rule nobody can see. ADR-0022's
+ * green budget counts this as one green with its control, not one per cell.
+ */
+function Segmented<T extends string | number>({
+  label,
+  testId,
+  options,
+  value,
+  disabled = false,
+  disabledReason,
+  onChange,
+}: {
+  label: string;
+  testId: string;
+  options: readonly { label: string; value: T }[];
+  value: T;
+  disabled?: boolean;
+  /** Why the whole group is off, as the tooltip on every cell of it. */
+  disabledReason?: string;
+  onChange: (value: T) => void;
+}) {
+  const cells = useRef<(HTMLButtonElement | null)[]>([]);
+  const at = options.findIndex((option) => option.value === value);
+
+  /**
+   * An arrow key moves the choice, and the focus with it.
+   *
+   * **This is the half a `<select>` used to come with for free**, and hand-rolling `radiogroup`
+   * without it leaves a control that announces itself as a radio group to a screen reader and
+   * behaves as three unrelated buttons to a keyboard — the worse of the two failures, because
+   * the announcement is what promises the arrow keys. Choosing on arrival rather than requiring
+   * a second press is the radio group's own convention: the group holds one value, so landing on
+   * a cell *is* choosing it (ADR-0021).
+   */
+  function move(delta: number) {
+    const next = (at + delta + options.length) % options.length;
+    const landing = options[next];
+    if (landing === undefined) return;
+    onChange(landing.value);
+    cells.current[next]?.focus();
+  }
+
+  return (
+    <div className="form-row">
+      <span className="form-label" id={`${testId}-label`}>
+        {label}
+      </span>
+      {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen beside it, and
+          a fieldset brings a legend and a border of its own that would both have to be undone.
+          The group is labelled by the span, so a screen reader reads 「主題，淺色」 rather than
+          announcing three unrelated buttons. */}
+      <div
+        className="segmented"
+        role="radiogroup"
+        data-testid={testId}
+        aria-labelledby={`${testId}-label`}
+        onKeyDown={(event) => {
+          if (disabled) return;
+          const back = event.key === "ArrowLeft" || event.key === "ArrowUp";
+          const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
+          if (!back && !forward) return;
+          event.preventDefault();
+          move(forward ? 1 : -1);
+        }}
+      >
+        {options.map((option, index) => (
+          <button
+            key={String(option.value)}
+            ref={(node) => {
+              cells.current[index] = node;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={option.value === value}
+            /* One tab stop for the whole group, on whichever cell is chosen — a radio group is
+               one control, and tabbing through four cells to leave 主題 would make it four. */
+            tabIndex={option.value === value ? 0 : -1}
+            data-testid={`${testId}-${option.value}`}
+            className="segment"
+            disabled={disabled}
+            title={disabled ? disabledReason : undefined}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function isDefault(settings: ReaderSettings): boolean {
+  return (Object.keys(DEFAULT_SETTINGS) as (keyof ReaderSettings)[]).every(
+    (key) => settings[key] === DEFAULT_SETTINGS[key],
+  );
+}
+
+const KIND_LABEL: Record<WebFontKind, string> = { serif: "明體", sans: "黑體" };
+const KINDS = Object.keys(KIND_LABEL) as WebFontKind[];
+
+/**
+ * The one line under 字型, and the one place the carried faces are ever mentioned.
+ *
+ * It used to be two things in two places: a running download line here in the reader, and a
+ * standalone 〈自帶字型〉 section in 〈設定〉 that answered the same question when nothing was
+ * downloading. One position, three states — not downloaded, downloading, held — so a reader
+ * asking "will picking 明體 cost me a 16 MB wait" looks in one spot (ADR-0014, ADR-0026).
+ *
+ * A live status wins while there is one, because it is the more specific answer. `stored` is
+ * not one of those: it says exactly what the readout below already says.
+ */
+function FontLine({ status }: { status: WebFontStatus | null }) {
+  const [carried, setCarried] = useState<Record<WebFontKind, boolean> | "unreadable" | null>(null);
+  // Re-read when a fetch changes state, so the line stops saying 還沒下載 the moment one lands.
+  const state = status?.state ?? null;
+
+  useEffect(() => {
+    let alive = true;
+    void db.fonts
+      .toCollection()
+      .primaryKeys()
+      .then((keys) => {
+        if (alive) setCarried(carriedFontKinds(keys.map(String)));
+      })
+      // Private mode, or storage evicted mid-read. "Cannot tell" is its own answer here:
+      // reporting 還沒下載 would be a guess wearing the clothes of a fact.
+      .catch(() => {
+        if (alive) setCarried("unreadable");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [state]);
+
+  const note = state === "downloading" || state === "unavailable" ? webFontNote(status) : null;
+  if (note !== null) {
+    const progress = webFontFraction(status);
+    return (
+      <div className="form-note" data-testid="font-line">
+        <span>{note}</span>
+        {/* The bar under the line, only while the fetch is running. The line alone leaves a slow
+            connection looking stuck: 16 MB over a weak signal can hold one percentage for a long
+            time, and a number that does not move reads as a number that died. The bar's sheen
+            keeps moving whatever the percentage does. Without a declared total there is no width
+            to draw, so it slides instead — see `webFontFraction`. */}
+        {state === "downloading" && (
+          <div
+            className={`font-progress${progress === null ? " indeterminate" : ""}`}
+            role="progressbar"
+            aria-label="字型下載進度"
+            {...(progress === null
+              ? {}
+              : {
+                  "aria-valuenow": Math.round(progress * 100),
+                  "aria-valuemin": 0,
+                  "aria-valuemax": 100,
+                })}
+          >
+            <div
+              className="font-progress-fill"
+              style={progress === null ? undefined : { width: `${progress * 100}%` }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (carried === null) return null;
+  return (
+    <p className="form-note" data-testid="font-line">
+      {carried === "unreadable"
+        ? "讀不到這台裝置上的字型。"
+        : KINDS.map(
+            (kind) => `${KIND_LABEL[kind]}${carried[kind] ? "已在這台裝置上" : "還沒下載"}`,
+          ).join("・")}
+    </p>
+  );
+}

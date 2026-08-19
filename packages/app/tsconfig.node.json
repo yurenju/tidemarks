@@ -1,0 +1,22 @@
+{
+  // The build's own configuration files, which run in Node rather than in a browser.
+  //
+  // The runner configs joined `vite.config.ts` here when the repository became a workspace:
+  // they resolve their paths against their own location now, and that is exactly the kind of
+  // thing worth having a compiler check.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"]
+  },
+  "include": [
+    "vite.config.ts",
+    "vitest.node.config.ts",
+    "vitest.worker.config.ts",
+    "playwright.config.ts",
+    "playwright.sweep.config.ts"
+  ]
+}

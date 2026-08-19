@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel a still-running job when the same PR is pushed to again.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+
+    # One engine per job. What runs is unchanged — three browsers, all equals, any one red
+    # means red (frond's ADR-0004) — but they used to run one after another inside a single
+    # job, and nothing about the three needs them to. Splitting them makes the wall clock one
+    # engine's share instead of the sum of all three.
+    #
+    # It is cheaper in runner-minutes as well, which is the opposite of what splitting a job
+    # usually costs. The single job was serial to the point of leaving the runner mostly idle:
+    # 710s of tests, one Playwright worker, on a machine with more than one core. Three jobs
+    # that each use their whole runner finish more total work per minute paid for, and the
+    # extra image builds do not eat the difference.
+    strategy:
+      # Every engine reports, even when another has already failed. The whole reason for
+      # keeping three is that they disagree about vertical CJK, so "chromium is red" and "all
+      # three are red" are different findings and the default (cancel the rest) would throw
+      # away which one this is.
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # How many workers Playwright gets is a function of this, and the worker count is what
+      # the timings in the log below mean. Worth one line to not have to infer it.
+      - name: Report the runner's core count
+        run: nproc
+
+      # CI and local machines share one image and one script. A step that only exists in CI is
+      # how a "green locally, red in CI" gap gets built, and a gap that lands in the font layer
+      # is extremely hard to trace (see the Dockerfile's header). What the matrix adds is an
+      # argument, not a step: `--project` is a filter over the same suite, and both packages
+      # name their Playwright projects after the engine, so one value filters both.
+      #
+      # The engine is named rather than left to the script to work out, and the name is
+      # load-bearing: `scripts/container.sh` prefers podman, the runner ships both, and this
+      # runner's podman and crun disagree about the OCI spec version — `podman build` dies with
+      # "unknown version specified" before a single `RUN` executes. Without this line CI lands on
+      # the broken one. This picks *which* engine builds the image, not what is in it.
+      - name: Run both runners in the container
+        env:
+          FOLIS_CONTAINER_ENGINE: docker
+        run: ./scripts/test-in-container.sh --project=${{ matrix.browser }}
+
+      # The screen sweep, which is not a test: it walks every screen the app has and photographs
+      # each one, and nothing compares those images to anything
+      # (docs/adr/0027-the-screen-sweep-runs-in-the-container.md). **The images are discarded
+      # here** — this runner is thrown away and nothing uploads them. What the step asserts is
+      # that the sweep still runs end to end, because that is the part which rots on its own: it
+      # is 27 steps of clicking through the app, and a renamed `data-testid` breaks it in silence
+      # months before the day someone needs the pictures.
+      #
+      # One engine, where the tests take three. Rot looks identical in all three — a selector
+      # that is gone is gone everywhere — so the other two would buy three copies of one finding.
+      # What three engines do buy is their disagreement about vertical CJK, and `tests/browser/`
+      # is where that is held.
+      #
+      # Both devices, though: the desktop and hand-held paths are not the same code, and raising
+      # the chrome is a tap on one and a click on the other.
+      - name: Check the screen sweep still runs
+        if: ${{ matrix.browser == 'chromium' }}
+        env:
+          FOLIS_CONTAINER_ENGINE: docker
+        run: ./scripts/capture-shots.sh
+
+      # One artifact per engine. `upload-artifact@v4` rejects a name that another job in the
+      # same run has already used, so the engine has to be in it — and it is the right name
+      # anyway, because a report is now one engine's.
+      - name: Upload the Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
