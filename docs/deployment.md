@@ -267,7 +267,9 @@ therefore one migration behind until their branch lands — which is the right w
 round. `scripts/deploy.ts` is one file covering both modes so that this rule is
 an `if` somebody can read, rather than a line the other script happens to lack.
 
-`npm run deploy` is the same thing with a build in front, for a laptop.
+`npm run deploy` is the laptop equivalent: a build, then migrations, then
+`wrangler deploy` — but reading `wrangler.jsonc` directly, **not** through the
+generator. Self-hosting deploys never need the build variables described below.
 
 ### What the build token has to be able to do
 
@@ -352,8 +354,8 @@ npx wrangler d1 execute DB --local \
 
 ## The official deployment
 
-Everything above describes deploying your own. The tidemarks.io deployment runs
-the same code from the same repository, and differs in exactly one way: **its
+Everything above describes deploying your own. The official deployment runs the
+same code from the same repository, and differs in exactly one way: **its
 account-specific values are not in the repository at all.**
 
 They are Workers Builds *build variables*, and `scripts/deploy.ts` merges them

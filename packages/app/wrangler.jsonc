@@ -8,9 +8,12 @@
   // The official tidemarks.io deployment generates its own configuration at build time from
   // Workers Builds' build variables — see `scripts/deploy.ts` and `docs/deployment.md`.
   //
-  // Two things worth knowing before trying to avoid the generator (both checked against
+  // Three things worth knowing before trying to avoid the generator (all checked against
   // wrangler 4.124, not inferred from the docs):
   //
+  //  - This file is valid as it stands. Wrangler raises nothing about the missing ids, the
+  //    missing `routes` or the missing `vars` — it gets as far as bundling, so a parse error
+  //    here is a real error and not the blanks.
   //  - Wrangler does not interpolate `${VAR}` in a configuration file.
   //  - `wrangler deploy` has no flag that overrides a D1 `database_id`, an R2 `bucket_name`
   //    or a KV `id`, so a command line cannot stand in for them either.

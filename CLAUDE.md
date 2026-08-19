@@ -37,6 +37,11 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 佈局怎麼變都不用回頭改它。**dashboard 裡不要出現直接叫工具的指令**，那種指令會在根目錄找
 `wrangler.jsonc`，而它在 `packages/app/`。見 [deployment.md](docs/deployment.md)。
 
+**`deploy:ci` 與 `versions:upload` 是這條規則唯一的例外**：它們跑的是 `scripts/deploy.ts`，那支
+script 本來就住在根目錄（它要讀 `packages/app/wrangler.jsonc` 再產生官方那台的設定），轉一手
+換不到東西。`npm run deploy`（自架、從筆電部署那條）照樣走 `-w app`，而且**刻意不經過產生器**
+——自架的人沒有那些 build variables。
+
 ## 現在是開發階段
 
 Folis 雖然已經部署在 `app.folis.ink`（真的 D1、真的 R2），但**還沒上線**——上線定義成
@@ -48,8 +53,10 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 「資料可以丟」不等於「schema 靠手動送上去」。**動到 D1 的 schema 就在 `packages/app/migrations/`
 加一支**，開發階段那支裡面允許 `DROP`。改既有的 migration 檔沒有用——資料庫已經記得它跑過了。
 
-跑 migration 的是 `npm run deploy:ci`（`migrations apply --remote` 再 `wrangler deploy`），
-自動部署與手動部署都走它。順序與理由見 [deployment.md](docs/deployment.md)。
+跑 migration 的是 `npm run deploy:ci`（`scripts/deploy.ts production`：產生設定 → `migrations
+apply --remote` → `wrangler deploy`），自動部署走它；從筆電手動部署走 `npm run deploy`，同樣是
+先 migration 再 deploy，只是讀 repo 那份設定。preview 分支的 `versions:upload` **不跑
+migration**。順序與理由見 [deployment.md](docs/deployment.md)。
 
 ## 這個 repo 是公開的，而且沒有私有的另一半
 
@@ -160,10 +167,15 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 
 ### 測試分層
 
-`npm test` 有三個 vitest project：**node** 蓋 app 的純邏輯，**worker** 把 worker 真的跑在 workerd
-裡帶真的 D1／R2／KV，**frond** 蓋渲染層的解析半邊。`npm run test:container` 在容器裡跑三家瀏覽器：
-先 frond 的（量字符幾何，`--network=none`），再 app 的（真的開一本真的書）。動到 reader 就跑
-`test:container`。
+`npm test` 有四個 vitest project：**node** 蓋 app 的純邏輯，**worker** 把 worker 真的跑在 workerd
+裡帶真的 D1／R2／KV，**frond** 蓋渲染層的解析半邊，**scripts** 蓋 `scripts/` 底下的純函式。
+`npm run test:container` 在容器裡跑三家瀏覽器：先 frond 的（量字符幾何，`--network=none`），
+再 app 的（真的開一本真的書）。動到 reader 就跑 `test:container`。
+
+**scripts 那層只收純函式**，也就是 `scripts/deploy.ts` 那種部署腳本裡「不碰檔案、不叫外部指令」的
+半邊（現在是 `deploy-config.ts`）。它買的東西跟 worker 那層同一類：這些程式碼跑在 Cloudflare 的
+build 環境裡，錯了不會紅燈，會變成一次「部署成功、但指到錯的資料庫」。I／O 那一半不測——把它跟
+判斷分開，就是為了讓判斷測得到。
 
 frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅，先看 frond 的失敗才知道是哪一層。
 

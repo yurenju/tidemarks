@@ -22,7 +22,8 @@ export const BUILD_VARIABLES = [
 
 export type BuildVariable = (typeof BUILD_VARIABLES)[number];
 
-export type BuildEnv = Partial<Record<BuildVariable, string>>;
+/** The nine variables, all present — which is the only state anything downstream accepts. */
+export type BuildEnv = Record<BuildVariable, string>;
 
 /** Every build variable that is absent or blank, in the order they are declared above. */
 export function missingBuildVariables(env: Record<string, string | undefined>): BuildVariable[] {
@@ -69,7 +70,7 @@ function only(bindings: Binding[] | undefined, field: string): Binding {
  * change to, say, `assets.run_worker_first` would reach self-hosters and never reach
  * production.
  */
-export function buildOfficialConfig(base: WranglerConfig, env: Required<BuildEnv>): OfficialConfig {
+export function buildOfficialConfig(base: WranglerConfig, env: BuildEnv): OfficialConfig {
   const d1 = only(base.d1_databases, "d1_databases");
   const r2 = only(base.r2_buckets, "r2_buckets");
   const kv = only(base.kv_namespaces, "kv_namespaces");

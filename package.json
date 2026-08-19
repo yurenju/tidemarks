@@ -20,7 +20,7 @@
     "shots": "./scripts/capture-shots.sh",
     "preview": "npm run preview -w app",
     "worker:dev": "npm run worker:dev -w app",
-    "deploy": "npm run build && npm run deploy:ci",
+    "deploy": "npm run build && npm run deploy -w app",
     "deploy:ci": "node scripts/deploy.ts production",
     "versions:upload": "node scripts/deploy.ts preview",
     "db:migrate": "npm run db:migrate -w app",

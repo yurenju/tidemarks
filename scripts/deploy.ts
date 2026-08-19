@@ -25,7 +25,8 @@ import {
   buildOfficialConfig,
   missingBuildVariables,
   stripJsonComments,
-  type BuildVariable,
+  type BuildEnv,
+  type OfficialConfig,
   type WranglerConfig,
 } from "./deploy-config.ts";
 
@@ -52,27 +53,24 @@ function readMode(argument: string | undefined): Mode {
   fail(`Usage: node scripts/deploy.ts <production|preview> (got ${argument ?? "nothing"})`);
 }
 
-function readBuildVariables(): Record<BuildVariable, string> {
+function readBuildVariables(): BuildEnv {
   const missing = missingBuildVariables(process.env);
   if (missing.length > 0) {
     fail(
       `Missing build variables: ${missing.join(", ")}\n\n` +
-        `  All ${BUILD_VARIABLES.length} are set in the Cloudflare dashboard under\n` +
-        `  Workers & Pages → tidemarks → Settings → Builds → Variables and Secrets.\n` +
+        `  All ${BUILD_VARIABLES.length} are set in the Cloudflare dashboard, under the\n` +
+        `  Worker's Settings → Builds → Variables and Secrets.\n` +
         `  Expected: ${BUILD_VARIABLES.join(", ")}\n\n` +
-        `  Refusing to continue rather than falling back to packages/app/wrangler.jsonc:\n` +
-        `  that file carries no ids on purpose, so wrangler would provision a second set of\n` +
-        `  resources and every later deploy would fail with "already exists" (code 10014).`,
+        `  Stopping rather than falling back to packages/app/wrangler.jsonc, which carries no\n` +
+        `  ids: see "The official deployment" in docs/deployment.md for why that fallback\n` +
+        `  would be worse than this failure.`,
     );
   }
   // Every name is present and non-blank, which is what the check above establishes.
-  return Object.fromEntries(BUILD_VARIABLES.map((name) => [name, process.env[name]!])) as Record<
-    BuildVariable,
-    string
-  >;
+  return Object.fromEntries(BUILD_VARIABLES.map((name) => [name, process.env[name]!])) as BuildEnv;
 }
 
-function generateConfig(): void {
+function generateConfig(): OfficialConfig {
   const source = readFileSync(SOURCE_CONFIG, "utf8");
 
   let base: WranglerConfig;
@@ -86,6 +84,7 @@ function generateConfig(): void {
   writeFileSync(resolve(APP_DIR, GENERATED_CONFIG), `${JSON.stringify(config, null, 2)}\n`);
 
   console.log(`Generated ${GENERATED_CONFIG} for worker "${config.name}" on ${config.vars.ORIGIN}`);
+  return config;
 }
 
 // npm hoists workspace binaries to the root, which is where wrangler lands even though it is
@@ -112,13 +111,17 @@ function wrangler(...args: string[]): void {
 }
 
 const mode = readMode(process.argv[2]);
-generateConfig();
+const config = generateConfig();
 
 if (mode === "production") {
   // Migrations first: a Worker that reads a column the database has not got yet fails on its
-  // first request, not at deploy time. `DB` is the binding name — `d1 migrations apply` takes
-  // a name or a binding, and a binding keeps the database's name out of this file.
-  wrangler("d1", "migrations", "apply", "DB", "--remote", "--config", GENERATED_CONFIG);
+  // first request, not at deploy time.
+  //
+  // The binding is read back out of the configuration rather than written here as "DB".
+  // `d1 migrations apply` takes a name or a binding, and taking the binding means this script
+  // cannot disagree with the file it just generated.
+  const binding = config.d1_databases[0]!.binding;
+  wrangler("d1", "migrations", "apply", binding, "--remote", "--config", GENERATED_CONFIG);
   wrangler("deploy", "--config", GENERATED_CONFIG);
 } else {
   // No migrations here — see the header. The generated config still carries the production
