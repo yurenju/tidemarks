@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
-  dropLegacyOverrides,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   frondLayout,
@@ -53,13 +52,13 @@ describe("settings", () => {
   });
 
   it("falls back to defaults on corrupt JSON", () => {
-    localStorage.setItem("folis-settings", "{not json");
+    localStorage.setItem("tidemarks-settings", "{not json");
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 
   it("ignores invalid stored values", () => {
     localStorage.setItem(
-      "folis-settings",
+      "tidemarks-settings",
       JSON.stringify({
         theme: "neon",
         fontSize: 9000,
@@ -77,24 +76,24 @@ describe("settings", () => {
   });
 
   it("keeps 0 (book default) as a valid line height", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ lineHeight: 0 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ lineHeight: 0 }));
     expect(loadSettings().lineHeight).toBe(0);
   });
 
   it("fills the margin default for settings saved before the field existed", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ theme: "dark" }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ theme: "dark" }));
     expect(loadSettings().margin).toBe(DEFAULT_SETTINGS.margin);
   });
 
   it("round-trips a valid margin and keeps 0 (none)", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ margin: 0 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ margin: 0 }));
     expect(loadSettings().margin).toBe(0);
-    localStorage.setItem("folis-settings", JSON.stringify({ margin: 48 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ margin: 48 }));
     expect(loadSettings().margin).toBe(48);
   });
 
   it("rejects margins outside the option set", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ margin: 999 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ margin: 999 }));
     expect(loadSettings().margin).toBe(DEFAULT_SETTINGS.margin);
   });
 });
@@ -108,46 +107,46 @@ describe("migrating the font size back to a percentage", () => {
 
   it("converts a stored px against the browser default", () => {
     // 18px was the default, and 18/16 lands between two notches, so it snaps up to 115.
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 18 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 18 }));
     expect(loadSettings().fontSize).toBe(115);
   });
 
   it("keeps a larger choice larger", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 24 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 24 }));
     expect(loadSettings().fontSize).toBe(150);
   });
 
   it("lands both ends of the px range on a notch inside the percentage range", () => {
     // Nothing is clamped here, and nothing can be: 14–32px converts to 87.5–200%, which fits
     // inside what the panel offers. The clamp is for the percentages below it, further down.
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 14 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 14 }));
     expect(loadSettings().fontSize).toBe(90);
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 32 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 32 }));
     expect(loadSettings().fontSize).toBe(FONT_SIZE_MAX);
   });
 
   it("leaves a percentage from before the px detour alone", () => {
     // Both percentages were relative to the browser default, so there is nothing to convert —
     // and the ranges cannot overlap, since px topped out at 32 and percentages start at 70.
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 160 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 160 }));
     expect(loadSettings().fontSize).toBe(160);
   });
 
-  it("clamps an old percentage below the range Folis now offers", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 70 }));
+  it("clamps an old percentage below the range Tidemarks now offers", () => {
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 70 }));
     expect(loadSettings().fontSize).toBe(FONT_SIZE_MIN);
   });
 
   it("rejects a value in neither vocabulary", () => {
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 50 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 50 }));
     expect(loadSettings().fontSize).toBe(DEFAULT_SETTINGS.fontSize);
-    localStorage.setItem("folis-settings", JSON.stringify({ fontSize: 9000 }));
+    localStorage.setItem("tidemarks-settings", JSON.stringify({ fontSize: 9000 }));
     expect(loadSettings().fontSize).toBe(DEFAULT_SETTINGS.fontSize);
   });
 });
 
 // The percentage is a percentage of the reader's own root size, so this is where the basis
-// comes from. Folis's own UI is all `rem` and has followed that setting all along; the book
+// comes from. Tidemarks' own UI is all `rem` and has followed that setting all along; the book
 // is the one place that used to ignore it.
 describe("readRootFontSize", () => {
   // Restored afterwards: these run under Node with no DOM, so anything left behind would put
@@ -178,40 +177,6 @@ describe("readRootFontSize", () => {
   });
 });
 
-// The single layer's one piece of housekeeping: the two-layer model's storage is not read,
-// and does not linger (ADR-0026).
-describe("dropping what the two-layer model left behind", () => {
-  beforeEach(stubStorage);
-
-  it("clears the old per-book overrides", () => {
-    localStorage.setItem("folis-book-overrides", JSON.stringify({ a: { fontSize: 120 } }));
-    dropLegacyOverrides();
-    expect(localStorage.getItem("folis-book-overrides")).toBeNull();
-  });
-
-  it("does not let a book's old claim reach the settings it returns", () => {
-    localStorage.setItem("folis-book-overrides", JSON.stringify({ a: { fontSize: 200 } }));
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
-  });
-
-  it("survives storage that will not let anything be cleared", () => {
-    globalThis.localStorage = {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error("private mode");
-      },
-      removeItem: () => {
-        throw new Error("private mode");
-      },
-      clear: () => {},
-      key: () => null,
-      length: 0,
-    } as Storage;
-    expect(() => dropLegacyOverrides()).not.toThrow();
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
-  });
-});
-
 describe("frondSettings", () => {
   const base = { ...DEFAULT_SETTINGS };
   // A laptop-sized box, wide enough for two columns but not wide enough for the ceiling to
@@ -233,7 +198,7 @@ describe("frondSettings", () => {
   });
 
   it("hands a reader with a larger browser default a larger book at the same percentage", () => {
-    // The reason for the percentage: Folis's own UI has always followed this setting, and the
+    // The reason for the percentage: Tidemarks' own UI has always followed this setting, and the
     // book used to be the one place that did not.
     const roomier = { ...context, rootFontSize: 20 };
     expect(frondSettings({ ...base, fontSize: 100 }, roomier).fontSize).toBe(20);
@@ -296,7 +261,7 @@ describe("frondSettings", () => {
   });
 });
 
-describe("frondSettings with the faces Folis carries", () => {
+describe("frondSettings with the faces Tidemarks carries", () => {
   const base = { ...DEFAULT_SETTINGS };
   const context: RenderContext = {
     theme: "light",
@@ -309,12 +274,12 @@ describe("frondSettings with the faces Folis carries", () => {
     family: kind === "serif" ? "Noto Serif CJK TC" : "Noto Sans CJK TC",
     kind,
     weight,
-    src: `blob:folis/${kind}-${weight}`,
+    src: `blob:tidemarks/${kind}-${weight}`,
   });
 
   it("changes nothing at all while no face has been fetched", () => {
     // Offline, or a book with no Han characters in it. What the reader gets is what they got
-    // before Folis carried any font — not an error, and not a different stack.
+    // before Tidemarks carried any font — not an error, and not a different stack.
     expect(frondSettings(base, context).genericFamilies).toEqual({
       serif: fontStack("serif", false),
       sansSerif: fontStack("sans", false),
@@ -322,7 +287,7 @@ describe("frondSettings with the faces Folis carries", () => {
   });
 
   // The stacks name our copy first already (`chinese.ts`), but only in the row matching the
-  // book's variant: a Simplified book leads with `Noto Serif CJK SC`, which is a face Folis
+  // book's variant: a Simplified book leads with `Noto Serif CJK SC`, which is a face Tidemarks
   // does not carry. Left alone, a reader who happens to have that installed would be served
   // their copy instead of ours — and "the same font on every machine" is the whole point.
   it("puts the fetched face first even when the book leads with the other variant", () => {

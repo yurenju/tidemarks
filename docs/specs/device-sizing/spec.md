@@ -94,7 +94,7 @@
 
 | token | 桌機（fine） | 手機（coarse） | 用在 |
 | --- | --- | --- | --- |
-| `--type-title` | 1.3125rem | 1.3125rem | 大書書名（另有 `clamp`）、Folis |
+| `--type-title` | 1.3125rem | 1.3125rem | 大書書名（另有 `clamp`）、Tidemarks |
 | `--type-lede` | 1rem | 1.125rem | 抽屜標題 |
 | `--type-body` | 0.9375rem | 1rem | 介面內文、列項 |
 | `--type-ui` | 0.84375rem | 0.9375rem | bar 上的字、label |

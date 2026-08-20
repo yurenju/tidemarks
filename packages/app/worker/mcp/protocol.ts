@@ -13,7 +13,7 @@ export const LATEST_PROTOCOL_VERSION = "2025-06-18";
 /** Newest first. A client asking for one of these gets that one back. */
 export const SUPPORTED_PROTOCOL_VERSIONS = [LATEST_PROTOCOL_VERSION, "2025-03-26", "2024-11-05"];
 
-export const SERVER_INFO = { name: "folis", title: "Folis", version: "0.1.0" };
+export const SERVER_INFO = { name: "tidemarks", title: "Tidemarks", version: "0.1.0" };
 
 const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;

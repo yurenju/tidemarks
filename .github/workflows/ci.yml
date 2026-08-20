@@ -71,7 +71,7 @@ jobs:
       # the broken one. This picks *which* engine builds the image, not what is in it.
       - name: Run both runners in the container
         env:
-          FOLIS_CONTAINER_ENGINE: docker
+          TIDEMARKS_CONTAINER_ENGINE: docker
         run: ./scripts/test-in-container.sh --project=${{ matrix.browser }}
 
       # The screen sweep, which is not a test: it walks every screen the app has and photographs
@@ -92,7 +92,7 @@ jobs:
       - name: Check the screen sweep still runs
         if: ${{ matrix.browser == 'chromium' }}
         env:
-          FOLIS_CONTAINER_ENGINE: docker
+          TIDEMARKS_CONTAINER_ENGINE: docker
         run: ./scripts/capture-shots.sh
 
       # One artifact per engine. `upload-artifact@v4` rejects a name that another job in the

@@ -91,7 +91,7 @@ async function connectAgent(): Promise<string> {
   const challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
   const redirect = "https://agent.example/callback";
 
-  const registered = await SELF.fetch("https://folis.test/oauth/register", {
+  const registered = await SELF.fetch("https://tidemarks.test/oauth/register", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -108,12 +108,12 @@ async function connectAgent(): Promise<string> {
   const query =
     `response_type=code&client_id=${clientId}` +
     `&redirect_uri=${encodeURIComponent(redirect)}&state=xyz` +
-    `&code_challenge=${challenge}&code_challenge_method=S256&scope=folis:read`;
+    `&code_challenge=${challenge}&code_challenge_method=S256&scope=tidemarks:read`;
 
-  const approved = await SELF.fetch(`https://folis.test/authorize?${query}`, {
+  const approved = await SELF.fetch(`https://tidemarks.test/authorize?${query}`, {
     method: "POST",
     headers: {
-      cookie: `folis_session=${SESSION}`,
+      cookie: `tidemarks_session=${SESSION}`,
       "content-type": "application/x-www-form-urlencoded",
     },
     body: "decision=approve",
@@ -123,7 +123,7 @@ async function connectAgent(): Promise<string> {
   const code = new URL(approved.headers.get("location") ?? "").searchParams.get("code");
   expect(code).toBeTruthy();
 
-  const exchanged = await SELF.fetch("https://folis.test/oauth/token", {
+  const exchanged = await SELF.fetch("https://tidemarks.test/oauth/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -140,7 +140,7 @@ async function connectAgent(): Promise<string> {
 }
 
 async function callTool(token: string, name: string, args: Record<string, unknown> = {}) {
-  const response = await SELF.fetch("https://folis.test/mcp", {
+  const response = await SELF.fetch("https://tidemarks.test/mcp", {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify({
@@ -164,7 +164,7 @@ describe("/mcp without a token", () => {
   it("refuses, and says where to go and get one", async () => {
     // The only test of this that means anything: the tools are read-only but the shelf is not
     // public, and nothing in the pure tests would notice if the route stopped being wrapped.
-    const response = await SELF.fetch("https://folis.test/mcp", {
+    const response = await SELF.fetch("https://tidemarks.test/mcp", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
@@ -215,9 +215,9 @@ describe("the page range a device pushes", () => {
     // A guard on the SQL, which no pure test can see: `?N` and `bind()` drifting out of step
     // writes a value into the wrong column, and typechecks perfectly on the way (#28).
     const pageRange = "epubcfi(/6/4!/4,/2/1:10,/8/1:40)";
-    const pushed = await SELF.fetch("https://folis.test/api/sync", {
+    const pushed = await SELF.fetch("https://tidemarks.test/api/sync", {
       method: "POST",
-      headers: { cookie: `folis_session=${SESSION}`, "content-type": "application/json" },
+      headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
       body: JSON.stringify({
         progress: [
           {
@@ -232,8 +232,8 @@ describe("the page range a device pushes", () => {
     });
     expect(pushed.status).toBe(200);
 
-    const pulled = await SELF.fetch("https://folis.test/api/sync?since=0", {
-      headers: { cookie: `folis_session=${SESSION}` },
+    const pulled = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
     });
     const body = (await pulled.json()) as { progress: { pageRange: string; percentage: number }[] };
     expect(body.progress).toHaveLength(1);

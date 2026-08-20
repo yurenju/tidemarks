@@ -65,7 +65,7 @@ Alice）；手上有版權的書用你自己的路徑，那些**永遠不要 com
 
 三件事會踩到：
 
-- **`--persistent` 不能省。** Folis 把 epub body 存成 Blob，暫時性 profile 存不進去，WebKit 上匯入會
+- **`--persistent` 不能省。** Tidemarks 把 epub body 存成 Blob，暫時性 profile 存不進去，WebKit 上匯入會
   直接失敗（`Error preparing Blob/File data to be stored in object store`）。
 - **要一個乾淨的書架就先 `playwright-cli delete-data`。** `--persistent` 的另一面是資料留到下一次。
 - **等排版落定再看畫面**，不要用 `sleep` 猜：
@@ -242,7 +242,7 @@ sync 要 session cookie，headless browser 過不了 WebAuthn，所以 passkey �
 4. 在瀏覽器裡登入，拿到 HttpOnly session cookie：
 
    ```bash
-   playwright-cli eval "async () => (await fetch('/auth/code/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'preview@folis.test', code: '424242' }) })).status"
+   playwright-cli eval "async () => (await fetch('/auth/code/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'preview@tidemarks.test', code: '424242' }) })).status"
    ```
 
 5. 之後 `syncNow()` 就有登入身分，可驗 sync 行為（例：加一本書 → 確認 push 上 D1／R2；換裝置狀態 →

@@ -52,7 +52,7 @@ export interface PositionStores {
  * moment this exists to keep cheap — and two tabs reading two books would take turns
  * clobbering each other's entry.
  */
-const keyFor = (bookId: string): string => `folis.position.${bookId}`;
+const keyFor = (bookId: string): string => `tidemarks.position.${bookId}`;
 
 const browserStores = (): PositionStores => ({
   durable: window.localStorage,

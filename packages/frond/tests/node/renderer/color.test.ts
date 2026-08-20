@@ -7,7 +7,7 @@ import {
   type ColorTheme,
 } from "../../../src/renderer/color.ts";
 
-/** Folis's own dark theme, so the numbers here are the ones a reader actually meets. */
+/** Tidemarks' own dark theme, so the numbers here are the ones a reader actually meets. */
 const DARK = colorTheme("#d8d5cf", "#1b1b1e") as ColorTheme;
 
 /** How readable something is once `adaptColor` is done with it. */
@@ -158,7 +158,7 @@ describe("adapting the book's colour to the reader's page", () => {
   });
 
   test("a light theme darkens rather than lightens, and reaches the same bar", () => {
-    // Nothing in the rule assumes the reader's page is dark. Folis sets no theme at all in
+    // Nothing in the rule assumes the reader's page is dark. Tidemarks sets no theme at all in
     // light mode, so this is unused today, but a rule that only worked one way round would
     // be a trap the day it is.
     const light = colorTheme("#1b1b1e", "#ffffff")!;

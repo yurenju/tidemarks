@@ -51,7 +51,7 @@ async function plantCode(email: string, code: string, over: Record<string, numbe
 }
 
 function postJson(path: string, body: unknown, cookie?: string) {
-  return SELF.fetch(`https://folis.test${path}`, {
+  return SELF.fetch(`https://tidemarks.test${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -191,7 +191,7 @@ describe("spending a magic code", () => {
     expect(account).not.toBeNull();
 
     const cookie = response.headers.get("set-cookie") ?? "";
-    const me = await SELF.fetch("https://folis.test/auth/me", {
+    const me = await SELF.fetch("https://tidemarks.test/auth/me", {
       headers: { cookie: cookie.split(";")[0]! },
     });
     expect(me.status).toBe(200);

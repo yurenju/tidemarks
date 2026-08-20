@@ -1,6 +1,6 @@
 # frond
 
-渲染層，Folis 這個 monorepo 底下的一個 package。這份只講 frond 自己的規矩；語言慣例、package 佈局、
+渲染層，Tidemarks 這個 monorepo 底下的一個 package。這份只講 frond 自己的規矩；語言慣例、package 佈局、
 測試分層那些整個 repo 共用的，在根目錄的 `CLAUDE.md`。
 
 ## 這個 package 裡有什麼
@@ -96,4 +96,4 @@ CJK 在這裡常常**不是可以翻譯的文字而是資料**（fixture 的日�
 
 ## 這個 package 的 ADR 自己編號
 
-`docs/adr/` 從 0001 起，跟 Folis 的 `docs/adr/` **編號重疊**。引用時寫清楚是哪一邊的，而且不要重編。
+`docs/adr/` 從 0001 起，跟 Tidemarks 的 `docs/adr/` **編號重疊**。引用時寫清楚是哪一邊的，而且不要重編。

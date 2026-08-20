@@ -4,13 +4,7 @@ import Library from "./components/Library";
 import Reader from "./components/Reader";
 import SettingsScreen from "./components/SettingsScreen";
 import { authorizeReturnTarget } from "./lib/authorize-return";
-import {
-  DEFAULT_SETTINGS,
-  dropLegacyOverrides,
-  loadSettings,
-  saveSettings,
-  type ReaderSettings,
-} from "./lib/settings";
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, type ReaderSettings } from "./lib/settings";
 import {
   hashFor,
   openBookId,
@@ -67,12 +61,6 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta && surface) meta.setAttribute("content", surface);
   }, [resolvedTheme]);
-
-  // Once, at startup: the two-layer model's storage is read by nothing now, and leaving it
-  // there would make it look like state something still wants (ADR-0026).
-  useEffect(() => {
-    dropLegacyOverrides();
-  }, []);
 
   // A drawer standing over the shelf locks the shelf, so a flick meant for the drawer does not
   // scroll the covers behind it. On the root element rather than on `<body>`: the root is the

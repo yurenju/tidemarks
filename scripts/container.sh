@@ -23,7 +23,7 @@
 #   container_build  builds the image, then refuses to return unless it holds the working
 #                    directory (issue #185)
 
-IMAGE_NAME="${FOLIS_TEST_IMAGE:-folis-test}"
+IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # The requirement is that running the tests needs no root-equivalent access, and **podman is the
@@ -48,10 +48,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # specified" before the command inside it starts — so CI pins docker, and the pin is load-bearing
 # rather than belt-and-braces now that the order below would land on podman. Either way both
 # engines build the same Dockerfile, so the image stays the one thing CI and local machines share.
-if [[ -n "${FOLIS_CONTAINER_ENGINE:-}" ]]; then
-    ENGINE="$FOLIS_CONTAINER_ENGINE"
+if [[ -n "${TIDEMARKS_CONTAINER_ENGINE:-}" ]]; then
+    ENGINE="$TIDEMARKS_CONTAINER_ENGINE"
     if ! command -v "$ENGINE" >/dev/null 2>&1; then
-        echo "FOLIS_CONTAINER_ENGINE is set to ${ENGINE}, which is not on PATH." >&2
+        echo "TIDEMARKS_CONTAINER_ENGINE is set to ${ENGINE}, which is not on PATH." >&2
         exit 1
     fi
 elif command -v podman >/dev/null 2>&1; then

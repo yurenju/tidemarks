@@ -40,13 +40,13 @@ Multi-context repo（根目錄存在 `CONTEXT-MAP.md`）：
 
 ## 這個 repo 的實際形狀
 
-上面那兩種形狀都不完全是這裡。Folis 是 monorepo，而 context 跟著 **package** 走，不是跟著
+上面那兩種形狀都不完全是這裡。Tidemarks 是 monorepo，而 context 跟著 **package** 走，不是跟著
 `src/<context>/`：
 
 ```
 /
-├── CONTEXT.md                   Folis 的：閱讀位置、highlight、書、同步
-├── docs/adr/                    Folis 的決定（0001 起）
+├── CONTEXT.md                   Tidemarks 的：閱讀位置、highlight、書、同步
+├── docs/adr/                    Tidemarks 的決定（0001 起）
 └── packages/
     ├── app/                     沒有自己的 CONTEXT.md，它就是根目錄那份講的東西
     └── frond/

@@ -1,7 +1,7 @@
-// The Folis Worker, in two halves.
+// The Tidemarks Worker, in two halves.
 //
 // The reader's own half — /auth/* (passkeys), /api/sync (pull/push), /api/books/:id file &
-// cover streaming, and the /authorize consent screen — is `folisApp` below, authenticated by
+// cover streaming, and the /authorize consent screen — is `tidemarksApp` below, authenticated by
 // the session cookie. Everything it does not claim falls through to static assets (PWA).
 //
 // The agent's half is /mcp, authenticated by an OAuth access token. It is not reachable from
@@ -24,7 +24,7 @@ interface McpEnv extends Env {
   OAUTH_PROVIDER: OAuthHelpers;
 }
 
-const folisApp = {
+const tidemarksApp = {
   async fetch(request: Request, env: McpEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -73,12 +73,12 @@ const mcpApi = {
 
 export default new OAuthProvider<McpEnv>({
   apiHandlers: { "/mcp": mcpApi },
-  defaultHandler: folisApp,
+  defaultHandler: tidemarksApp,
 
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/oauth/token",
   // Dynamic client registration, because the reader's agent is theirs to choose: hard-coding
-  // client ids would mean Folis deciding which apps are allowed to ask (#63).
+  // client ids would mean Tidemarks deciding which apps are allowed to ask (#63).
   clientRegistrationEndpoint: "/oauth/register",
 
   scopesSupported: [READ_SCOPE],
@@ -90,7 +90,7 @@ export default new OAuthProvider<McpEnv>({
   // `resourceMetadata.resource` is deliberately left out: the provider then derives it from
   // the request origin, so `wrangler dev` on localhost advertises localhost and production
   // advertises production. Pinning it would put the deployed hostname in the source and make
-  // the OAuth flow untestable anywhere else — Folis is one server on one origin, so there is
+  // the OAuth flow untestable anywhere else — Tidemarks is one server on one origin, so there is
   // nothing here for a pinned audience to protect against.
 });
 

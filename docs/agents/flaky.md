@@ -144,7 +144,7 @@ git log --oneline -8 -- <紅的那個檔案>
 
 ```bash
 gh run list --branch <你的分支> --limit 5
-gh api repos/yurenju/folis/actions/runs/<run-id>/jobs -q '.jobs[] | "\(.name)\t\(.conclusion)"'
+gh api repos/yurenju/tidemarks/actions/runs/<run-id>/jobs -q '.jobs[] | "\(.name)\t\(.conclusion)"'
 ```
 
 這是唯一能讓帳本不漏的機制——按鈕比開 issue 容易太多了，不定這條規矩，帳本一定漏。它沒有做成硬性
@@ -164,7 +164,7 @@ package，所以指定單一檔案的時候不能用它——直接對同一個�
 是 fallback，兩個的參數在這裡一樣）：
 
 ```bash
-podman run --rm --init folis-test npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
+podman run --rm --init tidemarks-test npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
 ```
 
 frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh` 的註解。

@@ -119,7 +119,7 @@ segmented 的選中格跟它的控制項一起算一個綠，因為那塊綠說�
 | token | fine | coarse | 用在 |
 | --- | --- | --- | --- |
 | `--type-display` | 1.875rem | 同左 | 還沒有畫面用到 |
-| `--type-title` | 1.3125rem | 同左 | `Folis`、大書的書名（另有 `clamp`） |
+| `--type-title` | 1.3125rem | 同左 | `Tidemarks`、大書的書名（另有 `clamp`） |
 | `--type-lede` | 1rem | 1.125rem | 抽屜標題、確認框標題、〈帳號〉第一句 |
 | `--type-body` | 0.9375rem | 1rem | 內文、目錄項、引用 |
 | `--type-ui` | 0.84375rem | 0.9375rem | bar 上的字、label、清單 |

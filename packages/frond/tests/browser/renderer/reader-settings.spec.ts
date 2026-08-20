@@ -167,7 +167,7 @@ test.describe("themes", () => {
  * in the theme block above).
  *
  * Every colour below is a shape measured in the sample of 34 books, and the contrast
- * figures are against this block's own `#111111` rather than Folis's `#1b1b1e`.
+ * figures are against this block's own `#111111` rather than Tidemarks' `#1b1b1e`.
  */
 test.describe("the book's own colours under a theme", () => {
   const COLOURED_SECTION = `<?xml version="1.0" encoding="utf-8"?>

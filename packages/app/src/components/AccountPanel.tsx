@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<SyncState["status"], string> = {
 };
 
 /**
- * 〈帳號〉: the half of Folis that runs on someone else's machine, and whether the reader
+ * 〈帳號〉: the half of Tidemarks that runs on someone else's machine, and whether the reader
  * wants it.
  *
  * The line it draws is the product's: **a book runs in the browser, so reading costs nothing;
@@ -101,7 +101,7 @@ function Backup({ onImported }: { onImported: () => void }) {
         db.readingSessions.toArray(),
       ]);
       const json = await serializeExport({ books, progress, annotations, sessions });
-      downloadBlob(new Blob([json], { type: "application/json" }), "folis-export.json");
+      downloadBlob(new Blob([json], { type: "application/json" }), "tidemarks-export.json");
     } finally {
       setBusy(null);
     }
@@ -135,7 +135,7 @@ function Backup({ onImported }: { onImported: () => void }) {
     <section className="settings-section">
       <h3 className="settings-section-title">備份</h3>
       <div className="settings-actions">
-        {/* Deliberately not 帶走我的書櫃: what comes out is a bundle only Folis can read
+        {/* Deliberately not 帶走我的書櫃: what comes out is a bundle only Tidemarks can read
             (ADR-0013), and 備份 is what that actually is. */}
         <button
           className={busy === "export" ? "busy-edge" : undefined}

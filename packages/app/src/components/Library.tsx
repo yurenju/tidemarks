@@ -120,7 +120,7 @@ export default function Library({
           it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a setting
           is a question that no longer arises (ADR-0026). */}
       <header className="library-header">
-        <h1>Folis</h1>
+        <h1>Tidemarks</h1>
         <div className="library-actions">
           <button className="ghost" onClick={onOpenSettings} data-testid="open-settings">
             設定

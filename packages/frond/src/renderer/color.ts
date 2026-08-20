@@ -92,7 +92,7 @@ export function contrastRatio(a: Rgb, b: Rgb): number {
  *    chosen: in the sample no colour at all sits between lightness 0.225 and 0.290, and
  *    the 361 declarations below that gap are all black, `#333`, `#231815` and the like.
  *    **Only the dark end has a threshold**, and that asymmetry is deliberate: a near-white
- *    only ever fails against a light page, and Folis sets no theme at all in light mode,
+ *    only ever fails against a light page, and Tidemarks sets no theme at all in light mode,
  *    so the mirrored constant would be answering a case nobody has measured. On a light
  *    theme a book's white text therefore comes out a mid grey by case 4 rather than the
  *    reader's ink. Readable, and the day a light theme exists this is the line to revisit.
