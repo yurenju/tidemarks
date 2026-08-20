@@ -51,11 +51,21 @@ async function plantCode(email: string, code: string, over: Record<string, numbe
     .run();
 }
 
-/** The host the worker test environment's RP_ID is set to; see vitest.worker.config.ts. */
-const ORIGIN = "https://tidemarks.test";
+/**
+ * Where these tests knock. The host matches the worker test environment's RP_ID, so the
+ * default state here is a correctly configured deployment — see vitest.worker.config.ts.
+ *
+ * Not named ORIGIN: the Worker has a binding by that name, and the passkey check deliberately
+ * has nothing to do with it (worker/rp-id.ts says why).
+ */
+const CONFIGURED_HOST_URL = "https://tidemarks.test";
 
-function postJson(path: string, body: unknown, cookie?: string, origin = ORIGIN) {
-  return SELF.fetch(`${origin}${path}`, {
+function postJson(path: string, body: unknown, cookie?: string) {
+  return postJsonTo(CONFIGURED_HOST_URL, path, body, cookie);
+}
+
+function postJsonTo(baseUrl: string, path: string, body: unknown, cookie?: string) {
+  return SELF.fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -323,12 +333,7 @@ describe("a deployment whose RP_ID does not cover the host it is answering on", 
     // `app.tidemarks.test` under `RP_ID=tidemarks.test` is a legitimate WebAuthn arrangement,
     // and reading the host off the request is the only way this can be told apart from the
     // mismatch above.
-    const response = await postJson(
-      "/auth/login/options",
-      {},
-      undefined,
-      "https://app.tidemarks.test",
-    );
+    const response = await postJsonTo("https://app.tidemarks.test", "/auth/login/options", {});
     expect(response.status).toBe(200);
   });
 });

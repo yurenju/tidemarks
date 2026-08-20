@@ -23,9 +23,27 @@
  */
 export function rpIdCoversHost(rpID: string | undefined, host: string): boolean {
   if (!rpID) return false;
+  const scope = normalizeHost(rpID);
+  const arrived = normalizeHost(host);
   // The dot is the whole point: a bare `endsWith(rpID)` would let `nottidemarks.io` pass for
   // `tidemarks.io`, which shares the tail and nothing else.
-  return host === rpID || host.endsWith(`.${rpID}`);
+  return arrived === scope || arrived.endsWith(`.${scope}`);
+}
+
+/**
+ * A hostname in the one spelling two of them can be compared in.
+ *
+ * Both sides need it, and for different reasons. `RP_ID` is typed by hand into a dashboard
+ * field, so it arrives however somebody typed it — `App.Example.com` names the same host as
+ * `app.example.com`, and DNS has never cared which. The host off the request is already
+ * lower-cased by `URL`, but may carry the root's trailing dot.
+ *
+ * Getting this wrong would refuse passkeys on a deployment that is configured correctly, with
+ * a message insisting the two hostnames differ while printing what looks like the same one
+ * twice — the worst kind of wrong answer to be told.
+ */
+function normalizeHost(value: string): string {
+  return value.trim().toLowerCase().replace(/\.$/, "");
 }
 
 /**

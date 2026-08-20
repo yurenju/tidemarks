@@ -84,10 +84,6 @@ function reason(e: unknown): string {
  * is never reached on this path: a check there would be unreachable code that reads like the
  * real defence. `options` is the last moment we can still answer in words.
  *
- * The hostname is compared, not ORIGIN. Locally Vite answers on 5001 and wrangler on 5002, so
- * the origin never equals ORIGIN and comparing them would fail every day of development, while
- * `localhost` matches `RP_ID=localhost` every time.
- *
  * Magic codes are untouched by design (ADR-0030): when RP_ID is wrong, `/auth/code/*` is the
  * only remaining way into your own deployment.
  */

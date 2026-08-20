@@ -21,10 +21,22 @@ describe("whether an RP ID covers the host a request arrived on", () => {
   });
 
   it("covers localhost, which is how a developer registers a real passkey", () => {
-    // `RP_ID=localhost` in `.dev.vars`; browsers treat localhost as a secure context. Ports
-    // are absent from a hostname, which is why this compares hostnames and not origins —
-    // locally Vite answers on 5001 and wrangler on 5002, and neither equals ORIGIN.
+    // Pinned because local development depends on it: `RP_ID=localhost` in `.dev.vars`, and a
+    // hostname carries no port, which is the reason this rule is about hostnames at all.
     expect(rpIdCoversHost("localhost", "localhost")).toBe(true);
+  });
+
+  it("ignores the capitals somebody typed into the dashboard field", () => {
+    // CF_RP_ID is typed by hand, and `App.Example.com` names the same host as
+    // `app.example.com`. `URL` hands us a lower-cased host, so without folding the other side
+    // this would refuse a deployment that is configured correctly — and say so by printing two
+    // hostnames that read the same.
+    expect(rpIdCoversHost("App.Example.com", "app.example.com")).toBe(true);
+    expect(rpIdCoversHost("Example.com", "app.example.com")).toBe(true);
+  });
+
+  it("ignores the root's trailing dot", () => {
+    expect(rpIdCoversHost("example.com.", "app.example.com")).toBe(true);
   });
 
   it("covers nothing at all when it is unset", () => {
