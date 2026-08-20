@@ -24,7 +24,7 @@ spine 自架 Noto Sans CJK 與 Noto Serif CJK，**繁簡日韓各一套字形都
 行長是安全的預設，對決定要不要下載 16 MB 則方向相反。要另一個判定，實際數到漢字才算——而且**數兩種
 字**：漢字說這本書可能是中文，假名或諺文說它不是。漢字統一之下日文書用的大半是同一批 code point，只
 數漢字會把每一本日文書都當成中文書、用 `ZHT` 去排，那正是日文讀者一眼看得出來的錯
-（[#55](https://github.com/yurenju/spine/issues/55)）。日韓書留在平台字型。
+（舊 repo 的 #55）。日韓書留在平台字型。
 
 ## 下載中怎麼讓讀者看到
 
@@ -50,8 +50,8 @@ spine 自架 Noto Sans CJK 與 Noto Serif CJK，**繁簡日韓各一套字形都
 
 ## 為什麼要自架
 
-在這之前，讀者看到的字型是「他的機器上剛好裝了什麼」的函式。[#38](https://github.com/yurenju/spine/issues/38)
-與 [#72](https://github.com/yurenju/spine/issues/72) 把堆疊補到能涵蓋 Debian、Ubuntu、Fedora、Apple 與
+在這之前，讀者看到的字型是「他的機器上剛好裝了什麼」的函式。舊 repo 的 #38
+與 舊 repo 的 #72 把堆疊補到能涵蓋 Debian、Ubuntu、Fedora、Apple 與
 Windows，那解掉的是「有沒有字可用」。
 
 這張 ADR 解的是另一件事：**可預期性**。同一本書、同一組設定，今天在 iPhone 上是 Songti TC，在 Windows
@@ -180,7 +180,7 @@ webkit 有 `-webkit-locale` 能做到同一件事，但那要一張 `ZHT → zh-
 對比、字腔小，描邊加粗先吃掉那些空隙），所以明體先帶——但標題在黑體上一樣是合成的、一樣三家不一致，
 而目標是「每台機器同一個字」，不是「難看到某個門檻才管」。補 Bold 是低風險的：advance 完全沒動（同段
 字三家三種畫法都是 288.00px），不改變分頁、不動存好的閱讀位置。判讀留言在
-[#92](https://github.com/yurenju/spine/issues/92)。
+舊 repo 的 #92。
 
 ## 為什麼不 subset
 

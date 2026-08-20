@@ -12,7 +12,7 @@
 授權，README 寫明 `app.folis.ink` 是官方唯一的託管服務。** 那句話這次一併補進兩份 README，因為
 在此之前它只存在於 ADR 裡。
 
-apex `folis.ink` **留給官方網站**（[#110](https://github.com/yurenju/spine/issues/110) 剩下的
+apex `folis.ink` **留給官方網站**（舊 repo 的 #110 剩下的
 那一半），app 永遠住在 `app.` 底下。這其實已經是既成事實：WebAuthn 的 RP ID 是
 `app.folis.ink`，而 RP ID 在有 credential 之後不可變。
 
@@ -20,7 +20,11 @@ apex `folis.ink` **留給官方網站**（[#110](https://github.com/yurenju/spin
 有日期的紀錄，改寫等於竄改當時說過的話，而編號與檔名是別的文件引用時用的錨點。同理，
 `docs/superpowers/specs/` 底下那兩份設計文件的檔名也不改。散在程式碼註解裡的 `spine` 照
 `CLAUDE.md` 那條「一次只改手上那個檔案」的節奏處理，不做全庫掃描。文件裡指向
-`github.com/yurenju/spine/…` 的連結也不批次改寫，GitHub 的 redirect 接得住。
+`github.com/yurenju/<舊 repo>/…` 的連結也不批次改寫，GitHub 的 redirect 接得住。
+
+> **2026-08-20：最後那句不成立了。** 舊 repo 後來轉成 private，redirect 跟著失效，那些連結對外
+> 一律 404。所以它們**還是批次清掉了**——內容對讀者有意義的改寫進本文，純粹是工作追蹤的整句刪除。
+> 上面關於 ADR 內文與檔名不改的那幾句沒有變。
 
 ## 為什麼：`spine` 是 EPUB 封裝格式的元素名
 

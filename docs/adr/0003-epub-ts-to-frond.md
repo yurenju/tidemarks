@@ -38,7 +38,7 @@ highlight，這是它的決定而不是缺口：顏色、透明度、深色模�
 
 ## 順手修掉的 bug
 
-[#29](https://github.com/yurenju/spine/issues/29)：refresh 之後位置飄回
+舊 repo 的 #29：refresh 之後位置飄回
 section 開頭。根因是 React effect ordering——先 `display(saved.cfi)` 還原，才套字級／spread／
 content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同時收下 `settings` 與
 `start: { cfi }`，載入時只有一次確定性的 layout，之後不再 relayout；settings effect 用
@@ -64,11 +64,11 @@ content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同
   有一個 viewport 大）可能不會重現，但沒有在真機上試過，也沒有辦法在容器裡試——記在 frond#66。
 - **WebKit 存不進 Blob**，所以容器裡的 WebKit 跑不了任何需要匯入書的測試，見
   `tests/browser/reader/storage.spec.ts`。與這次遷移無關（三個 byte 的 Blob 就失敗），但可能是真實
-  iOS Safari 的曝險，記在 [#23](https://github.com/yurenju/spine/issues/23)。
+  iOS Safari 的曝險，記在 舊 repo 的 #23。
 - **直排本文在草枕那本書上有字符相撞**（登り／働け／立つ 各自畫在同一格），Chromium 與 Firefox 皆有，
   根因未定。frond 已排除（同一段在它的 harness 裡乾淨），而 frond 那本刻意做健康的直排 fixture 在 spine
   裡 32px 全乾淨——所以是那本書的 markup，不是直排渲染本身。記在
-  [#25](https://github.com/yurenju/spine/issues/25)。
+  舊 repo 的 #25。
 
 ## 為什麼不是 foliate-js
 

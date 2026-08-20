@@ -27,10 +27,6 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 `../src/lib/types`，拆開就要多一個 `shared`，換不到東西。決定與理由見
 [ADR-0018](docs/adr/0018-one-repo-many-packages.md)。
 
-`packages/site`（行銷首頁、定價頁、`legal/` 四份法律文件，走 SSG 好讓爬蟲讀得到 HTML）**之後會
-有，現在還沒有**：用什麼做、放哪個網域、走哪個 deploy target 都還沒決定，所以連目錄都不開。要開的
-時候是 [#110](https://github.com/yurenju/spine/issues/110) 剩下的那一半。
-
 根目錄的 script 一律轉給 package（`npm run build` = 先 `build:frond` 再 `npm run build -w app`）。
 **這是刻意的**：Cloudflare Workers Builds 的設定在 dashboard 裡，寫的是根目錄的 npm script
 （`npm run build`、`npm run deploy`、preview 分支的 `npm run versions:upload`），所以 package
@@ -137,7 +133,7 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 
 - **UI 文案**——Tidemarks 是給中文讀者的閱讀 app，畫面上的字就是產品本身
   （`packages/app/src/lib/settings.ts` 的 `黑體` / `明體` / `書籍預設`）。要不要做 i18n
-  是產品決策，不是這條慣例管的事——那筆決策在 #31。
+  是產品決策，不是這條慣例管的事。
 - **被測對象**——`packages/app/src/lib/chinese.ts` 的簡繁對照表、`epub.test.ts` /
   `toc.test.ts` 的 fixture 文字與章節標題、`lang` 屬性、直排相關測試裡有鑑別力的
   字元。`packages/frond/` 底下同理：fixture 的日文散文、註解裡為了說明字形而引用的

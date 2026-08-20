@@ -1,16 +1,19 @@
 # Issue tracker
 
-**2026-07-30 起分成兩半：**
+**工作項目分兩半放**（2026-07-30 起）：
 
-- **bug 與 task 用 GitHub issue**（<https://github.com/yurenju/spine/issues>）。用 `gh issue create`
-  ／`gh issue list`。PR 用 closing keyword 關它們（見 [pull-requests.md](pull-requests.md)）。
+- **bug 與 task 用 GitHub issue**。用 `gh issue create`／`gh issue list`，在這個 repo 底下跑就會落在
+  對的地方。PR 用 closing keyword 關它們（見 [pull-requests.md](pull-requests.md)）。
 - **spec（有些人稱 PRD）留在 repo 裡**，以 markdown 檔案存放於 `docs/specs/`。它們是隨程式碼一起
   演進的設計文件，跟著 branch 走比放在 issue 裡好。
 
 之所以搬一半而不是全搬：一張 bug 票的價值在於「被看到、被指派、被 PR 關掉」，那是 issue tracker 的
 主場；一份 spec 的價值在於「跟這個 branch 的程式碼對得起來」，那是版本控制的主場。
 
-同一件事**不要兩邊都放**。這條規則落地時，`.scratch/` 底下原有的 issue 檔全部搬進了 GitHub（#23–#29）並刪除，
+**tracker 只有一個，就是這個 repo 的。** 更早的那些 private repo 已經不再使用，那邊的 issue 也不必
+去查——理由見 `CLAUDE.md` 的〈這個 repo 是公開的，而且沒有私有的另一半〉。
+
+同一件事**不要兩邊都放**。這條規則落地時，`.scratch/` 底下原有的 issue 檔全部搬進了 GitHub 並刪除，
 就是為了這個。內容放兩份必然漂移，而漂移之後沒有人知道哪一份是真的。
 
 ## 兩個目錄，界線是「會不會 commit」
@@ -32,7 +35,17 @@ spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個
 - spec 放在 `docs/specs/<feature-slug>/spec.md`
 - 支撐這個 feature 的量測、判讀、實驗紀錄放同一個目錄，各自取名（`measurements.md` 這類）。它們跟
   ADR 的分工是：**ADR 寫決定與為什麼，這裡寫數字與怎麼重驗**
-- spec 引用工作項目時**寫 issue 號**（`#26`），不要寫檔案路徑。路徑會爛，號碼不會
+- spec 引用工作項目時**寫 issue 號加標題**（`#61 死區`），不要寫檔案路徑
+
+⚠️ **號碼會爛。** 這條規則以前寫的是「路徑會爛，號碼不會」，後面那半句已經被推翻了：搬 repo 不會
+把號碼一起搬過來，這個 repo 是從 #1 重新編的。
+
+而號碼爛得比路徑安靜。`#61` 在文字裡只是一段字，不會報錯，讀的人（或 agent）在這裡的脈絡下自然
+會以為是這個 repo 的 61 號；等這裡真的編到 61 號，那就是一個**看起來對、實際上完全無關**的引用。
+路徑爛掉至少點下去是 404。
+
+所以兩種寫法其實都會爛，差別在壞掉的時候看不看得出來。加上標題的成本幾乎是零，換到的是把一個
+安靜的錯誤變成讀得懂的線索。
 
 ## issue 內文怎麼寫
 

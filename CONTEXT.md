@@ -12,20 +12,18 @@
 行文裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。潮痕——潮水退去後留在岸上的那條線：
 **來來去去，而痕跡慢慢變深**。
 
-**檔案裡已經改完了**（#4）。`git grep -i folis` 還找得到的只有刻意留著的四種：**兩套**
-`docs/adr/`（根目錄與 frond 各一）的內文與檔名、指向舊 repo 的引用（#2 的範圍，兩種寫法都算：
-`github.com/yurenju/folis/issues/124` 與 `yurenju/folis#124`）、`folis.ink` 這個網域（見下一段），
-以及像這一節這樣**在講改名這件事本身**的句子。
+**檔案裡已經改完了。** `git grep -i folis` 還找得到的只有刻意留著的兩種：**兩套** `docs/adr/`
+（根目錄與 frond 各一）的內文與檔名，以及像這一節這樣**在講改名這件事本身**的句子。指向舊 repo 的
+連結已經全部清掉了。
 
-**hostname 定了，但還沒活著。** 新的是 `app.tidemarks.io`，#8 已經把它寫進 Workers Builds 的
-build variables；讓那個主機名真的回應請求是 [#11](https://github.com/yurenju/tidemarks/issues/11)，
-還沒做完。所以文件裡寫的官方網址暫時還是 `app.folis.ink`——那是一句過期但成立的話，改成一個
-連不上的網址才是錯的。等 #11 做完由 [#6](https://github.com/yurenju/tidemarks/issues/6) 一起改。
-hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 credential 之後就不能改**。
+**hostname 定了，但還沒活著。** 新的是 `app.tidemarks.io`，[#8](https://github.com/yurenju/tidemarks/issues/8)
+已經把它寫進 Workers Builds 的 build variables，兩份 README 也已經指向它；讓那個主機名真的回應請求
+是 [#11 把 Tidemarks 真的部署上去](https://github.com/yurenju/tidemarks/issues/11)，還沒做完，所以
+在那之前 README 上那個網址是打不開的。hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有
+credential 之後就不能改**。
 
 **一個名字，不是兩個**——它同時是軟體與服務，「官方那一台」與「自己架的那一份」的區別由主機名
-扛。apex 留給官方網站（[#110](https://github.com/yurenju/spine/issues/110)），app 住在子網域
-底下。
+扛。apex 留給官方網站，app 住在子網域底下。
 
 **2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與代價見
 [ADR-0019](docs/adr/0019-the-product-name-does-not-take-a-word-from-the-format.md) 與
@@ -56,7 +54,7 @@ Tidemark 單數（複數是刻意的，指的是累積的那些痕跡，不是�
   選走一個詞並升起搜尋 bar，而那個 bar 收拾不掉（它不是文件的一部分）。條件是**手指或觸控筆、不是
   連結**，跟位置無關。tap 不再翻頁之後這條**一個字都沒改**，換的只是它保護的東西：從「這一下要翻的
   頁」變成「這一下要叫的 chrome」。
-  **機制是量出來的，不是照文件寫的**（[#40](https://github.com/yurenju/spine/issues/40)）：
+  **機制是量出來的，不是照文件寫的**：
   Chrome 文件說「文字不可選取就不會觸發」，實機上那條只把冒出 bar 的比例從 72% 壓到 21%；真的
   擋住的是取消那一下 tap 的預設動作，0/15。代價是那一下沒有 `click`，所以「不是連結」這個條件
   從「反正也沒理由擋」變成**非有不可**——沒有它，書裡的註腳連結會點不開。
@@ -200,7 +198,7 @@ _Avoid_: 分頁、tab（那是〈設定〉這個**畫面**的東西，正好是�
   動一次。原本不推的理由是「問我在哪不該把我移走」，那句話對〈目錄〉還成立，對〈排版〉不成立，
   而兩個面板兩種行為就是兩套 bug。
 - **手機**：沒有欄可以讓，所以 entries 與 Scrubber 退場，書一格都不動。〈找〉那條「Scrubber 恆在」
-  因此只適用桌機——三層疊起來的結果是三層都看不清楚（#160）。
+  因此只適用桌機——三層疊起來的結果是三層都看不清楚。
 
 **不常駐**，三個狀態互斥那條沒有例外（[ADR-0020](docs/adr/0020-the-interface-steps-behind-the-book.md)）。
 那支 ADR 拿掉的兩個側欄是常駐的，這一個是〈找〉的一部分：它跟著 chrome 一起走，點內文收掉面板、
@@ -325,8 +323,8 @@ _Avoid_: 最近閱讀（少掉匯入那一半，而那一半正是 max 存在的
 ## 書名排序
 
 書架按書名排時用的 collation。**綁介面語言，不綁 `navigator.language`**——介面語言今天是常數
-（`lib/language.ts` 的 `UI_LANGUAGE`，值是 `zh-Hant`，排出來是筆畫序），[#31](https://github.com/yurenju/spine/issues/31)
-接上語言切換時換成設定值，介面與書架就永遠是同一種語言。讀瀏覽器語系的話，設 en-US 的讀者會拿到
+（`lib/language.ts` 的 `UI_LANGUAGE`，值是 `zh-Hant`，排出來是筆畫序），將來接上語言切換時換成設定
+值，介面與書架就永遠是同一種語言。讀瀏覽器語系的話，設 en-US 的讀者會拿到
 中文介面配 Unicode 碼序的書架，兩邊都不對。
 
 `numeric` 開著：關掉的話「第 10 集」排在「第 2 集」前面。
@@ -475,7 +473,7 @@ LWW 合併，而訂閱狀態是伺服器單方面的事實，不該有任何一�
 
 _Avoid_: 會員（暗示等級制，而 ADR-0011 只有一個級距）、付費使用者（那是人，這是帳號上的一個狀態，
 而且訂閱停掉之後那個人還在）、`subscribeSync` 那個 subscribe（那是 sync 狀態的 observer，跟付費
-無關，改名見 [#112](https://github.com/yurenju/spine/issues/112)）
+無關）
 
 ## 開放註冊
 

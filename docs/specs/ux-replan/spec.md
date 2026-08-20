@@ -1,6 +1,6 @@
 # UX 重新規劃：介面退到書後面去
 
-> **這份 spec 描述的是 #127–#129 當時做出來的樣子，其中排版與〈設定〉那一段已經不算數了。**
+> **這份 spec 描述的是底下三個工作項目當時做出來的樣子，其中排版與〈設定〉那一段已經不算數了。**
 > [ADR-0026](../../adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md) 把排版收成
 > 一層、把〈設定〉從抽屜改成一層樓（`#/settings/typography`、`#/settings/account` 兩個 tab），
 > 所以底下的路由表、「閱讀器留四項覆寫」、「以後每本書都這樣排」與〈裝置預設〉這個詞都已經過期。
@@ -15,10 +15,8 @@
 [ADR-0020](../../adr/0020-the-interface-steps-behind-the-book.md) 與
 [ADR-0021](../../adr/0021-accessibility-is-borrowed-not-written.md)。
 
-工作項目：[#127](https://github.com/yurenju/folis/issues/127)、
-[#128](https://github.com/yurenju/folis/issues/128)、
-[#129](https://github.com/yurenju/folis/issues/129)，
-外加 [#130](https://github.com/yurenju/folis/issues/130)（不在這一輪）。
+工作項目三件，見底下〈三個工作項目〉：兩個抽屜、閱讀器 chrome、書架第一屏與「還要多久」。
+另外還有「連上的 agent」那一面，**不在這一輪**。
 
 ## 根因
 
@@ -38,7 +36,7 @@
 | 帳號 | 伺服器那一半，我要不要？ | 免費／付費界線、登入、同步、訂閱、匯出備份 | 排版設定 |
 
 **介面語言不在〈設定〉這一輪的清單裡。** `lib/language.ts` 的 `UI_LANGUAGE` 今天是常數 `zh-Hant`，
-放一個切不動的項目比不放更糟。那一項等 [#31](https://github.com/yurenju/folis/issues/31) 自己做。
+放一個切不動的項目比不放更糟。那一項等語言切換自己做（見 `CONTEXT.md` 的〈書名排序〉）。
 
 導覽：〈書架〉是家。〈閱讀〉從書架進、從書架出。〈設定〉〈帳號〉〈書的詳情〉是**抽屜**，疊在當前
 畫面上，不是分頁。
@@ -90,8 +88,8 @@ replan 的初稿寫著「要補上位置條件」，那是誤判。[navigator.ts
 
 ### 要改寫的那條測試
 
-`tests/browser/reader/tap.spec.ts` 有一條斷言「中間點也前進」，那是
-[#60](https://github.com/yurenju/folis/issues/60) 留下的守門。它要改寫成「中間點叫出 chrome、不翻頁」，
+`tests/browser/reader/tap.spec.ts` 有一條斷言「中間點也前進」，那是當初把整個畫面都做成翻頁區時
+留下的守門。它要改寫成「中間點叫出 chrome、不翻頁」，
 而下方三成的左右各補一條。
 
 ### 誤觸不做自動退場
@@ -176,15 +174,14 @@ Scrubber 跟目錄答的是同一個問題的兩種問法（「我要跳到哪�
 
 ### 手機：sheet 打開就收掉另外兩層
 
-sheet ＋入口列 ＋ Scrubber 三層疊起來，書只剩最上面 25%，而且六列的表單自己還被切掉兩列
-（[#160](https://github.com/yurenju/folis/issues/160)）。
+sheet ＋入口列 ＋ Scrubber 三層疊起來，書只剩最上面 25%，而且六列的表單自己還被切掉兩列。
 
 **sheet 站著的時候，入口列與 Scrubber 一起退場。**〈找〉狀態的「Scrubber 恆在」因此改成**桌機
 限定**：那條規則的理由是「拿走 Scrubber 去換目錄，等於逼讀者記住剛才瞄到的百分比」，而手機上
 兩個都要的結果是**兩個都看不清楚**。叫出〈排版〉的那一刻讀者要的是看見改動，不是知道自己在哪；
 上方留下的四成是沒有 scrim 的真書，那才是這個面板待在閱讀器裡的理由。
 
-sheet 因此也不再需要停在 Scrubber 上方，高度上限（`min(60vh, 29rem)`）跟著鬆綁一階——#160 的
+sheet 因此也不再需要停在 Scrubber 上方，高度上限（`min(60vh, 29rem)`）跟著鬆綁一階——那一筆的
 債就是在這裡還掉的。
 
 ### 樣式細節
@@ -282,7 +279,7 @@ segmented 為什麼繞得過「6 個原生 `<select>` 不換」那條：**它不
 **上線前的唯一差別**：這一面就照上線版做。`OPEN_SIGNUP` 沒開的時候，寄登入碼那一步多一種結果，
 不在白名單就顯示「尚未開放註冊」。開放之後這句話消失，訊息改成一律含糊。
 
-**「連上的 agent」不在這一輪**（[#130](https://github.com/yurenju/folis/issues/130)）。那個畫面今天
+**「連上的 agent」不在這一輪。** 那個畫面今天
 不存在，需要 Worker 加 endpoint 與 D1 查詢。〈帳號〉的版面留一格給它。
 
 ## 書的詳情
@@ -379,9 +376,9 @@ anchor 是 frond 從 iframe 換算出來的矩形。要換得先做一個 virtua
 
 分成三個 PR，各自一張 issue，各自一個新 session。
 
-1. **[#127](https://github.com/yurenju/folis/issues/127) 兩個抽屜**。純搬家，做完 `Library.tsx` 的
+1. **兩個抽屜**。純搬家，做完 `Library.tsx` 的
    header 就清空了。也是 Base UI 的試金石：這一塊不對勁，第二塊還來得及退回去。
-2. **[#128](https://github.com/yurenju/folis/issues/128) 閱讀器 chrome**。風險最高，要動分區與版面，
+2. **閱讀器 chrome**。風險最高，要動分區與版面，
    而且要在三個引擎上實測 tap。
-3. **[#129](https://github.com/yurenju/folis/issues/129) 書架第一屏與「還要多久」**。唯一需要新演算法
+3. **書架第一屏與「還要多久」**。唯一需要新演算法
    的一塊，也是唯一可以先上假資料的一塊。

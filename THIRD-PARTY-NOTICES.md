@@ -1,26 +1,24 @@
 # Third-party notices
 
-This file covers material incorporated into the repository itself. It is
-deliberately **not** shipped inside the tarball — `package.json`'s `files`
-brings in `dist` and `src` and nothing else — because everything it describes is
-test material that never reaches a consumer.
+This file covers material incorporated into the repository as a whole rather than
+into any one package, which is why it sits at the root. Everything it describes
+is test material: none of it is served to a browser or bundled into a deployment.
 
-`@yurenju/frond` ships no runtime dependencies at all, so the tarball carries no
-third-party code, and the notices below are about the repository rather than
-about anything a consumer installs.
+`packages/frond` keeps a pointer here rather than a copy of its own — a second
+copy would be a second thing to keep in sync.
 
 ## foliate-js
 
 <https://github.com/johnfactotum/foliate-js>
 
-frond is a reimplementation, not a port: no foliate-js code is used in `src/`,
-and foliate-js is not a dependency of the published package (ADR-0001).
+frond is a reimplementation, not a port: no foliate-js code is used in
+`packages/frond/src/`, and foliate-js is not a dependency
+([frond ADR-0001](packages/frond/docs/adr/0001-reimplementation-not-port.md)).
 
 What *is* incorporated is upstream's `tests/epubcfi-tests.js` — the CFI strings
 and comparison cases from it are used verbatim as an acceptance table in
-`tests/node/cfi/foliate-acceptance.test.ts`. That file is test material, not
-part of the published package, but it lives in this public repository and so
-carries the notice below.
+`packages/frond/tests/node/cfi/foliate-acceptance.test.ts`. That file is test
+material, but it lives in this public repository and so carries the notice below.
 
 ```
 MIT License
@@ -46,17 +44,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-The browser quirk knowledge recorded in `docs/browser-quirks.md` was learned by
-reading foliate-js, but knowledge is not code and carries no licence obligation
-(ADR-0001).
+The browser quirk knowledge recorded in `packages/frond/docs/browser-quirks.md`
+was learned by reading foliate-js, but knowledge is not code and carries no
+licence obligation (frond ADR-0001).
 
-## The public-domain books in the repository's `tests/books/`
+## The public-domain books in `tests/books/`
 
-Two complete EPUB publications are redistributed in this repository, as
-ADR-0007's second layer of test material. They sit at the root rather than inside
-this package, because the app's browser suite opens the same two files. Both are
-trimmed rather than verbatim: `scripts/trim-public-books.ts` is the trim, and
-ADR-0007 records what came out of each. Neither is a dependency; they exist so
+Two complete EPUB publications are redistributed in this repository, as the
+second layer of test material in
+[frond ADR-0007](packages/frond/docs/adr/0007-test-fixtures.md). They sit at the
+root rather than inside a package because both packages' browser suites open the
+same two files. Both are trimmed rather than verbatim:
+`scripts/trim-public-books.ts` is the trim, and that ADR records what came out of
+each. Neither is a dependency; they exist so
 that a change to layout can be judged against a real book before a pull request.
 
 ### Kusamakura (草枕) — `kusamakura-vertical-japanese.epub`

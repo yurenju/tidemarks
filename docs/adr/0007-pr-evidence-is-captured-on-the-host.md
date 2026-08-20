@@ -34,7 +34,7 @@ frond 那邊不動，而且不該動：它是公開 repo，外部貢獻者手上
 **二、WebKit 第一次進得了要匯入書的證據。** 容器裡的 WebKit 存不進 Blob
 （`tests/browser/reader/storage.spec.ts`），所以三支 reader spec 都 skip 它，PR 說明只能寫
 「WebKit：未能執行」。host 上加 `--persistent` 就過了——匯入、開書、翻頁全部正常。那指向存不進去
-的是 ephemeral profile 而不是引擎，量測補在 [#23](https://github.com/yurenju/spine/issues/23)。
+的是 ephemeral profile 而不是引擎，量測補在 舊 repo 的 #23。
 
 **三、不固定的步驟不必再包成 spec。** 每次判讀要走的操作都不一樣，而那正是 spec 最不擅長的事。
 以前要寫一個檔、跑腳本 build 映像、把 `docs/evidence/` 掛成可寫才拿得到圖；現在截圖直接落在
@@ -52,13 +52,13 @@ frond 那邊不動，而且不該動：它是公開 repo，外部貢獻者手上
 差一版還有一個反過來的後果：`node_modules` 裡那份 `playwright` **只在容器裡成立**。它照 revision 號
 組執行檔的路徑，而 host 的 `~/.cache/ms-playwright` 只有 provisioning 裝的那組，所以在 host 上
 `launch()` 會回 `Executable doesn't exist at …/chromium_headless_shell-1228/…`
-（[#57](https://github.com/yurenju/spine/issues/57) 有四個引擎的完整對照）。host 上要 playwright 本體
+（舊 repo 的 #57 有四個引擎的完整對照）。host 上要 playwright 本體
 的 API——包括 CDP——是從 playwright-cli 的 `run-code` 拿，見
 [verify.md](../agents/verify.md)。
 
 **二、沒有 build-time 的字型守門了。** `docker/verify-fonts.sh` 在映像 build 時斷言六組
 fontconfig 解析，理由是字型綁錯會**靜默失敗**——沒有東西會 throw，測試照樣全綠，後面每個幾何數字
-都建立在錯的字面上（[#25](https://github.com/yurenju/spine/issues/25) 就是這樣過了很久才找到）。
+都建立在錯的字面上（舊 repo 的 #25 就是這樣過了很久才找到）。
 host 上沒有等價的東西。接住它的只剩判讀清單裡「重疊」那一格：字型沒有直排 advance 的症狀就是字疊
 在一起，而判讀是逐張圖做的。
 

@@ -54,8 +54,8 @@ book 上的那一層有沒有對準**才是這一層自己的風險，而且是�
 沒跑」。
 
 **WebKit 在這一層是跑得動的**，雖然 `packages/app/tests/browser/reader/storage.spec.ts` 那邊仍然 skip 它。那個
-skip 是容器裡的暫時性 profile 存不進 Blob，host 上開 `--persistent` 就沒有這件事
-（[#23](https://github.com/yurenju/spine/issues/23)）。所以三家都要有判讀，沒有一家可以留空。
+skip 是容器裡的暫時性 profile 存不進 Blob，host 上開 `--persistent` 就沒有這件事。所以三家都要有
+判讀，沒有一家可以留空。
 
 **這是開 PR 前的作者側檢查，不是 CI 閘門。**
 
@@ -65,7 +65,7 @@ skip 是容器裡的暫時性 profile 存不進 Blob，host 上開 `--persistent
 值（矩形座標、頁數、墨水像素數）並指出是哪一條測試在守它。只有圖沒有數字的 PR 說明，等於把「我看起來
 覺得對」寫進紀錄。
 
-frond 那邊有一個現成的範例：#67 的判讀表把「委派段像素有變／指名段像素沒變」兩欄並排，第二欄就是排除
+frond 那邊有一個現成的範例，它的判讀表把「委派段像素有變／指名段像素沒變」兩欄並排，第二欄就是排除
 「其實是重排造成的位移」這個混淆變因的對照組。
 
 ## 圖怎麼放：`pr-image`
@@ -177,8 +177,8 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
 
 判讀「重疊」那一格常會需要再往下問一層：**畫出來的字實際上用了哪個 face**。圖上分不出「字型沒有直排
 advance」和「排版算錯」，但 CDP 問得到——做法在 [verify.md](verify.md) 的〈CLI 問不出來的東西〉，那段
-可以直接貼。（[#25](https://github.com/yurenju/spine/issues/25) 拖那麼久才找到，就是因為當時沒有這個
-問法。）
+可以直接貼。（測試映像少一套帶直排 advance 的字型、整節漢字疊在一起那個缺陷拖那麼久才找到，就是
+因為當時沒有這個問法。）
 
 ### 傳上去的圖是公開的，先想清楚畫面上有什麼
 

@@ -91,4 +91,5 @@ frond is a reimplementation, not a port, and carries no third-party code. The on
 piece of upstream material is the CFI acceptance table in
 `tests/node/cfi/foliate-acceptance.test.ts`, taken from
 [foliate-js](https://github.com/johnfactotum/foliate-js) (MIT, Copyright (c)
-2022 John Factotum). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+2022 John Factotum). See [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md) at the
+repository root.

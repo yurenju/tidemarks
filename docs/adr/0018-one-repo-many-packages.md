@@ -23,7 +23,7 @@ build 概念，還有一層跟 CI 之間的距離。
 
 ## 為什麼要 monorepo
 
-收費服務要有定價、隱私、條款、退款政策四個公開頁面（[#83](https://github.com/yurenju/spine/issues/83)），
+收費服務要有定價、隱私、條款、退款政策四個公開頁面（舊 repo 的 #83），
 而那些頁面要被搜尋引擎讀得到，現在的 `index.html` 是一個空殼 SPA。那需要第二個 deploy target，而
 第二個 deploy target 需要第二個 package。
 

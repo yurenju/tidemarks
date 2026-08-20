@@ -4,7 +4,7 @@
 
 ## 決定
 
-frond 的原始碼搬進 spine 的 monorepo（[#110](https://github.com/yurenju/spine/issues/110) 之後的
+frond 的原始碼搬進 spine 的 monorepo（舊 repo 的 #110 之後的
 第二步），spine 用 workspace link 相依，不再 pin 版號。
 
 **不再發布到 npm**，`@yurenju/frond` 停在 0.4.15。公開的 `yurenju/frond` repo 封存，README 指向

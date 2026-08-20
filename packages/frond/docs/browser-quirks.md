@@ -6,10 +6,10 @@
 
 登記的門檻是**實測**。從別人的原始碼或文件推得的行為要標明未經本專案驗證，不要與量測結果混在一起。
 
-⚠️ 底下多處寫「圖以 `docs/evidence/<n>/` 保存」。**那些 PNG 沒有跟著搬進這個 repo**（11 MB，而
-spine 的 [ADR-0008](../../../docs/adr/0008-pr-images-are-hosted-not-committed.md) 判過 PR 的圖不
-commit）。它們留在封存的 `yurenju/frond`，在當時那些 PR 的內文裡也還看得到。每一條的**數字與結論
-都在這份表裡**，圖是佐證不是資料來源；要重做的話產生方式每一條都寫著。
+⚠️ **這份表原本每一條都配著截圖，那些 PNG 沒有跟著搬進這個 repo**（11 MB，而
+[ADR-0008](../../../docs/adr/0008-pr-images-are-hosted-not-committed.md) 判過這類圖不 commit）。
+原本嵌圖的位置現在寫的是**那些圖上看得到什麼**，因為圖從頭到尾都是佐證而不是資料來源——每一條
+的數字與結論都在表裡，而且產生方式每一條都寫著，要重做就照著跑一次。
 
 ## 讀每一條之前先看：這個數字是誰排的
 
@@ -48,16 +48,12 @@ commit）。它們留在封存的 `yurenju/frond`，在當時那些 PR 的內文
 
 WebKit 預設的直排渲染除了位置不對，墨水像素數也較少（752 對 1086）——從圖上看得出原因：**句點被字面方框的下緣裁掉了**。取到的不只是位置不同，而是不同的字符。
 
-`。`（Noto Serif CJK JP，200px 方框，灰框為方框邊界）：
+截圖上看得到的（`。`，Noto Serif CJK JP，200px 方框，灰框畫出方框邊界）就是上表那三組座標：
+Chromium 與 Firefox 的句點貼在方框右上，預設與強制 `"vert" 1` 兩種情況看不出差別；WebKit 預設那
+一張落在左下，而且句點的下緣缺一角——那就是墨水像素少掉三百多點的地方——強制之後才移到右上。
+橫排的對照三家一致，都在左下。
 
-| | Chromium | Firefox | WebKit |
-| --- | --- | --- | --- |
-| 直排（預設） | ![](evidence/3/chromium-vertical-default.png) | ![](evidence/3/firefox-vertical-default.png) | ![](evidence/3/webkit-vertical-default.png) |
-| 直排 + `"vert" 1` | ![](evidence/3/chromium-vertical-vert-forced.png) | ![](evidence/3/firefox-vertical-vert-forced.png) | ![](evidence/3/webkit-vertical-vert-forced.png) |
-
-橫排三家一致，都在左下，作為對照：![](evidence/3/chromium-horizontal.png)
-
-圖以 `docs/evidence/3/` 保存。產生方式：`tests/browser/support/glyph.ts` 的同一組參數，加上 1px 邊框以顯示方框邊界。
+產生方式：`tests/browser/support/glyph.ts` 的同一組參數，加上 1px 邊框以顯示方框邊界。
 
 **繞法**
 
@@ -75,11 +71,10 @@ foliate-js 的 `paginator.js` 不注入任何 `font-feature-settings`，所以�
 | Firefox | **逐位元組相同** | (0.770, 0.203) ／ 125 px | 同左 |
 | WebKit | **不同** | (0.447, 0.447) ／ 157 px | (0.765, 0.224) ／ 196 px |
 
-| | WebKit 預設 | WebKit 強制 `"vert" 1` | Chromium 預設 | Firefox 預設 |
-| --- | --- | --- | --- | --- |
-| foliate 渲染的 `。`（64px） | ![](evidence/7/webkit-fullstop.png) | ![](evidence/7/webkit-fullstop-vert-forced.png) | ![](evidence/7/chromium-fullstop.png) | ![](evidence/7/firefox-fullstop.png) |
-
-右邊三格的句點都在右上，只有第一格在左下。WebKit 那兩格裁進了上一個字的一角（原因見上一段），另外兩格沒有——所以**不要拿第一格的墨水像素數去和第三、四格比**，那條比法在這裡不成立。
+四張截圖（foliate 渲染的 `。`，64px）比的是 WebKit 預設、WebKit 強制 `"vert" 1`、Chromium 預設、
+Firefox 預設：後三張的句點都在右上，只有 WebKit 預設那一張在左下。WebKit 的兩張都裁進了上一個字
+的一角（原因見上一段），另外兩張沒有——所以**不要拿 WebKit 預設的墨水像素數去和 Chromium、
+Firefox 比**，那條比法在這裡不成立。
 
 **frond 是否需要處理**
 
@@ -127,24 +122,15 @@ foliate-js 的 `paginator.js` 不注入任何 `font-feature-settings`，所以�
 
 **看得到的樣子**
 
-書宣告 `serif`、`lang="ja"`，句點（唯一有鑑別力的字）落在哪：
+書宣告 `serif`、`lang="ja"`，句點（唯一有鑑別力的字）落在哪：三家各截一張，再各截一張指名
+`Noto Serif CJK JP` 的當對照。**JP 字面的句點在方框左下，TC 字面置中。** 六張裡只有 Firefox 的
+兩張看起來一樣——它的 `serif` 解析到了 JP。WebKit 宣告 `serif` 那張是置中的，也就是 TC。逐位元組
+比對佐證了眼睛看到的：Firefox 的 `serif+ja` 與指名 JP 的截圖 hash 相同，Chromium 與 WebKit 都不同。
 
-| | Chromium | Firefox | WebKit |
-| --- | --- | --- | --- |
-| 書宣告 `serif` | ![](evidence/4/chromium-fullstop-serif-ja.png) | ![](evidence/4/firefox-fullstop-serif-ja.png) | ![](evidence/4/webkit-fullstop-serif-ja.png) |
-| 對照：指名 `Noto Serif CJK JP` | ![](evidence/4/chromium-fullstop-named-jp-ja.png) | ![](evidence/4/firefox-fullstop-named-jp-ja.png) | ![](evidence/4/webkit-fullstop-named-jp-ja.png) |
+明體／黑體那一軸換漢字看（漢字鑑別不了字面，但看得出筆畫）：三家各一張 `日`，**Chromium 那張沒有
+起筆收筆**——書要的是明體，畫出來是黑體。
 
-JP 字面的句點在左下，TC 字面置中。**只有 Firefox 的兩格相同**——它的 `serif` 解析到了 JP。WebKit 的第一格置中，是 TC。逐位元組比對：Firefox 的 `serif+ja` 與指名 JP 截圖 hash 相同，Chromium 與 WebKit 都不同。
-
-明體／黑體那一軸換漢字看（漢字鑑別不了字面，但看得出筆畫）：
-
-| | Chromium | Firefox | WebKit |
-| --- | --- | --- | --- |
-| 書宣告 `serif` | ![](evidence/4/chromium-kanji-serif-ja.png) | ![](evidence/4/firefox-kanji-serif-ja.png) | ![](evidence/4/webkit-kanji-serif-ja.png) |
-
-Chromium 的 `日` 沒有起筆收筆——書要的是明體，畫出來是黑體。
-
-圖以 `docs/evidence/4/` 保存。產生方式：`tests/browser/support/glyph.ts` 的同一組參數（單字元、200px 方框、每次量測用全新的 page），加上 1px 邊框以顯示方框邊界。**不要換成看起來比較有說服力的字串**：漢字的區域字形由 `lang` 驅動，樣本裡混進漢字會讓 WebKit 的 `serif+ja` 與指名 JP 的截圖變得逐位元組相同，看起來像 WebKit 是對的。
+產生方式：`tests/browser/support/glyph.ts` 的同一組參數（單字元、200px 方框、每次量測用全新的 page），加上 1px 邊框以顯示方框邊界。**不要換成看起來比較有說服力的字串**：漢字的區域字形由 `lang` 驅動，樣本裡混進漢字會讓 WebKit 的 `serif+ja` 與指名 JP 的截圖變得逐位元組相同，看起來像 WebKit 是對的。
 
 **各家的機制**（以下每一條都由介入實驗確認，不是從原始碼推的）
 
@@ -277,9 +263,9 @@ Chromium 那一欄的意思是：**同一份 `lang=zh-TW` 的內容，只因為�
 
 **行推進那一列只有符號可以跨瀏覽器比，數值不行**，理由與 foliate 無關：三家對「單一字元的 range」回傳的矩形不是同一個框。同樣是 32px 的 `h1`，Chromium 與 WebKit 回 46px 寬（= 字型的 ascent + descent 決定的 inline 內容區，Noto Serif CJK 約 1.44 em），Firefox 回 32px（= 字面方框，1.0 em）；16px 的 `p` 對應 23px 與 16px，比例相同。量的框不一樣，起點自然差。**這一格是量測方法的陷阱**：拿單字元 range 的 `left` 去做跨瀏覽器差分，會得到一組與版面無關的差異。
 
-| Chromium | Firefox | WebKit |
-| --- | --- | --- |
-| ![](evidence/7/chromium-foliate-vertical.png) | ![](evidence/7/firefox-foliate-vertical.png) | ![](evidence/7/webkit-foliate-vertical.png) |
+三家各截了一張第一頁。**三張看起來是同一頁**——同樣的字排在同樣的位置，同樣的斷行處，右起同樣
+數量的行。Firefox 那張沒有任何一處能指出來說「這裡跟另外兩家不同」，而這一條原本就是為了確認那
+件事才量的。
 
 **答案：沒有壞。** 三家都排得出直排、翻得動、回得去原位，而且**每一個會影響讀者的量都相同**：欄寬、頁數、頁長、位置、進度。表裡唯一有數值差異的那一列是量測方法造成的（見上），不是版面差異。三家裡真正排錯東西的是 **WebKit**——直排標點沒有換成直排字符（本檔第一條），Firefox 在那一格是對的。
 
@@ -309,13 +295,11 @@ Chromium 那一欄的意思是：**同一份 `lang=zh-TW` 的內容，只因為�
 
 **內容沒有遺失也沒有重複**：Chromium 與 Firefox 的總墨水差 7 px（0.01%）。分岔的是斷頁位置——Chromium 每頁少排一行。WebKit 多出來的 2,043 px（3.2%）是另一回事，那是本檔第一條的 `vert` 沒生效造成的字符差異，與分頁無關。
 
-| | Chromium 第 2 頁（5 行） | Firefox 第 2 頁（6 行） |
-| --- | --- | --- |
-| 直排 64px | ![](evidence/7/chromium-64px-page2.png) | ![](evidence/7/firefox-64px-page2.png) |
+兩家的第 2 頁並排截過：**Chromium 那頁 5 行，Firefox 6 行**，而 Chromium 的左側空出約一個行框寬
+（115.2px）——那就是少排的那一行留下的空位。頁首也對得上這個落差：Chromium 的第 2 頁從
+「が差しこんで」開始，Firefox 到那裡已經排到「いた。」。
 
-Chromium 的左側空出約一個行框寬（115.2px），第 2 頁從「が差しこんで」開始而 Firefox 已經到「いた。」。Chromium 多出來的第 4 頁不是空白頁，有 4,618 px 的墨水：
-
-![Chromium 直排 64px 的第 4 頁](evidence/7/chromium-64px-page4.png)
+Chromium 多出來的第 4 頁也截過，**不是空白頁**，上面有 4,618 px 的墨水。
 
 **繞法**
 
@@ -342,7 +326,7 @@ Chromium 的左側空出約一個行框寬（115.2px），第 2 頁從「が差�
 
 **frond 自己的分欄設定下，這條分歧沒有重現（#32）**
 
-同一本 `vertical-japanese`、同一個 800×600 viewport、同樣把讀者字級設成 64px，改由 frond 渲染：**三家都排成 3 頁**（`docs/evidence/32/` 的 `*-vertical-64px.png`）。
+同一本 `vertical-japanese`、同一個 800×600 viewport、同樣把讀者字級設成 64px，改由 frond 渲染：**三家都排成 3 頁**（三家各截過一張，那時候比對的就是頁數）。
 
 這**不推翻**上面那組量測，也不放寬 ADR-0004 的規則，理由是本檔開頭〈這個數字是誰排的〉那一條：上面那組是在 **foliate 的分欄設定**下量到的（`column-width: 466px`、`width: 744px`、`padding` 28px，全部 `!important` 寫在 `documentElement` 上），而 frond 的設定不一樣——欄寬取整數、邊界在 iframe 外面、`column-gap` 40px。同一個 fixture 換一組設定就換一組斷點，所以兩組數字本來就不該相等。
 
@@ -484,13 +468,12 @@ computed 值與幾何在每一格都同進退——宣告被丟掉時兩者一�
 
 **看得到的樣子**（同一份宣告：`-epub-` 與 `-webkit-` 前綴寫在 `<body>` 上、無前綴的不給；320×220 容器、Noto Serif CJK TC 22px、`line-height: 1.6`）：
 
-| Chromium | Firefox | WebKit |
-| --- | --- | --- |
-| ![](evidence/21/chromium-prefixed-writing-mode.png) | ![](evidence/21/firefox-prefixed-writing-mode.png) | ![](evidence/21/webkit-prefixed-writing-mode.png) |
+三家各截一張。**Chromium 與 WebKit 那兩張字由上而下、行由右而左；Firefox 那張是橫排**，從左上開始
+由左而右——同一份 HTML，差異全部來自前綴認不認。
 
-第一格與第三格字由上而下、行由右而左；**中間那格是橫排**，從左上開始由左而右。三張圖是同一份 HTML 在三家的結果，差異全部來自前綴要不要認。
-
-圖裡的句子是**為了截圖自造的**，不取自任何書——商業書不進 repo，截圖同樣適用（ADR-0007）。圖以 `docs/evidence/21/` 保存；產生方式是一支一次性的 Playwright spec，用 `page.setContent` 餵上面那份 HTML 後對容器 `locator.screenshot()`，重寫得出來，因此沒有留在 repo 裡。
+圖裡的句子是**為了截圖自造的**，不取自任何書——商業書不進 repo，截圖同樣適用（ADR-0007）。產生
+方式是一支一次性的 Playwright spec，用 `page.setContent` 餵上面那份 HTML 後對容器
+`locator.screenshot()`，重寫得出來，所以那支 spec 本來就沒有留在 repo 裡。
 
 順帶量到的三件事，都與原本的預期不同：
 
@@ -669,12 +652,11 @@ frond 用 `:root img { max-block-size: 100% !important }` 擋「圖比一欄還�
 | Firefox | 64×720，下緣 720 | 同上，逐數字相同 | 49×552，溢出 0 |
 | WebKit | union 460×552 | **圖被切成兩段分到相鄰兩欄**，讀者看到同一張圖的上半在這一頁、下半在下一頁 | 49×552，溢出 0 |
 
-| | 修正前 | 修正後 |
-| --- | --- | --- |
-| Chromium | ![](evidence/37/before-chromium-tall-plate.png) | ![](evidence/37/after-chromium-tall-plate.png) |
-| WebKit | ![](evidence/37/before-webkit-tall-plate.png) | ![](evidence/37/after-webkit-tall-plate.png) |
+Chromium 與 WebKit 各截了修正前後兩張。**修正前** Chromium 那張的圖版從欄的上緣一路長出下緣、
+下半截被切掉，WebKit 那張則是同一張圖的上半在這一欄、下半接在右邊那一欄的頂端——讀者翻頁才會
+看到後半。**修正後**兩家都是一張完整的圖，等比縮到一欄裝得下，欄外什麼都沒有。
 
-WebKit 那一格值得看一眼：`break-inside: avoid` 在那裡**幫不上忙**——一個比一欄還高的盒子無論如何都避不開切割，所以 avoid 只能被忽略。三家都是「合規地做了一件讀者讀不到內容的事」。
+WebKit 那一格值得多看一眼：`break-inside: avoid` 在那裡**幫不上忙**——一個比一欄還高的盒子無論如何都避不開切割，所以 avoid 只能被忽略。三家都是「合規地做了一件讀者讀不到內容的事」。
 
 **繞法**
 
@@ -718,11 +700,9 @@ WebKit 那一格值得看一眼：`break-inside: avoid` 在那裡**幫不上忙*
 | WebKit | 3 | 0 | 489 | 2 |
 | Firefox | **1** | **751px** | **1301** | **1** |
 
-| Chromium（切欄） | Firefox（不切） |
-| --- | --- |
-| ![](evidence/37/chromium-tall-table.png) | ![](evidence/37/firefox-tall-table.png) |
-
-Firefox 那張圖上第 13 列被橫向切掉一半——封閉缺陷清單裡的「裁切」與「溢出」同時命中，而第 14 到 30 列一列都到不了。
+兩家各截一張並排。**Chromium 那張的表格分成三段接在相鄰的欄裡**，30 列全部讀得到；**Firefox 那
+張只有一段**，直直長出容器下緣，第 13 列被橫向切掉一半——封閉缺陷清單裡的「裁切」與「溢出」同時
+命中，而第 14 到 30 列一列都到不了。
 
 **`cap-overflowing-boxes` 為什麼擋不住**
 

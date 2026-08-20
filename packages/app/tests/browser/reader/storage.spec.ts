@@ -33,8 +33,8 @@ import { expect, test } from "../support/fixtures.js";
  *
  * Safari on a phone has a profile, so the session this fails in is not one a reader is ever in.
  * That is an argument rather than a measurement — nothing here runs on iOS. Storing the body as
- * an `ArrayBuffer` instead is still filed as
- * https://github.com/yurenju/spine/issues/23, and this spec no longer makes the case for it.
+ * an `ArrayBuffer` instead would sidestep the whole question, and this spec no longer makes
+ * the case for it.
  */
 
 test("an ArrayBuffer can be stored, in every engine", async ({ page }) => {

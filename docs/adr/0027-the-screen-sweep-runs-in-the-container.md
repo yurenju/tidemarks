@@ -36,7 +36,7 @@ ADR-0007 那份**沒有被推翻**，它講的是另一種圖。它放棄的四�
 
 容器是這個 repo 裡唯一釘死這兩者的地方：`Dockerfile` 綁死 Playwright 版本、釘住
 `fonts-noto-cjk` 的版本、用 `75-folis-cjk.conf` 綁定 generic family，並在 build 時用
-`docker/verify-fonts.sh` 斷言那些綁定真的生效。[#25](https://github.com/yurenju/spine/issues/25)
+`docker/verify-fonts.sh` 斷言那些綁定真的生效。舊 repo 的 #25
 就是沒有這一層時發生的事：直排日文的每個漢字都疊在一起，因為 fontconfig 把 `serif` 解析到一顆
 沒有直排 advance 的字型上，而**沒有任何東西會 throw**。
 
