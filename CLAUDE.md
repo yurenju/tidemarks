@@ -62,9 +62,14 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 repo 已經是 public，**檔案、`git log`、commit message、issue 與 PR 內文，全部都在外面看得到**。
 沒有一個「之後才會公開」的時間點，也沒有一份留在私有處的版本——寫下去就是公開的。
 
-（[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md) 當初規劃的是「另開一個
-public repo、單一 initial commit」，實際走的是直接公開現在這一個。那筆帳要補一份 ADR，在
-[#7](https://github.com/yurenju/tidemarks/issues/7)。）
+（[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md) 規劃的「另開一個 public
+repo、單一 initial commit」照做了：`yurenju/tidemarks` 是 2026-08-19 新開的，歷史從單一個
+`Initial commit` 開始。沒跟著成立的是它換到的第二件事——舊 repo 不再是工作台，往後的開發都在
+這裡。）
+
+**`yurenju/folis`（更早叫 `yurenju/spine`）是以前的 private repo，已經不再使用。** 它不是備援，
+指向它的連結對外一律 404，那邊的 issue 也不必去查——現在唯一算數的是這個公開的
+`yurenju/tidemarks`。
 
 所以標準只有一條：**每一種敘述都照給陌生人讀的標準寫**，不分檔案、commit 還是 issue。
 
