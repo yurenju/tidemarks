@@ -122,15 +122,6 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
 };
 
 const KEY = "folis-settings";
-/**
- * Where the two-layer model kept each book's claims.
- *
- * Read by nothing now, and cleared on the way past in `loadSettings` so it does not sit there
- * looking like state something might still want. Nothing is salvaged from it: picking one book's
- * claims to become the new settings would need a rule for *which* book, and every answer to that
- * is a guess (ADR-0026, and the development phase makes throwing it away free — ADR-0004).
- */
-const LEGACY_OVERRIDES_KEY = "folis-book-overrides";
 const THEMES: Theme[] = ["system", "light", "dark"];
 const FONT_CHOICES: FontChoice[] = ["publisher", "sans", "serif"];
 
@@ -247,21 +238,6 @@ export function saveSettings(settings: ReaderSettings) {
     localStorage.setItem(KEY, JSON.stringify(settings));
   } catch {
     // storage unavailable (private mode); settings just won't persist
-  }
-}
-
-/**
- * Clears what the two-layer model left in storage.
- *
- * Its own function, called once from `App`'s startup, rather than folded into `loadSettings`:
- * a `load` that quietly writes is a `load` nobody can reason about, and this one would have run
- * inside a `useState` initializer.
- */
-export function dropLegacyOverrides() {
-  try {
-    localStorage.removeItem(LEGACY_OVERRIDES_KEY);
-  } catch {
-    // storage unavailable (private mode); there was nothing stored to clear either
   }
 }
 

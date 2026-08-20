@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
-  dropLegacyOverrides,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   frondLayout,
@@ -175,40 +174,6 @@ describe("readRootFontSize", () => {
     expect(readRootFontSize()).toBe(16);
     stubRoot("0px");
     expect(readRootFontSize()).toBe(16);
-  });
-});
-
-// The single layer's one piece of housekeeping: the two-layer model's storage is not read,
-// and does not linger (ADR-0026).
-describe("dropping what the two-layer model left behind", () => {
-  beforeEach(stubStorage);
-
-  it("clears the old per-book overrides", () => {
-    localStorage.setItem("folis-book-overrides", JSON.stringify({ a: { fontSize: 120 } }));
-    dropLegacyOverrides();
-    expect(localStorage.getItem("folis-book-overrides")).toBeNull();
-  });
-
-  it("does not let a book's old claim reach the settings it returns", () => {
-    localStorage.setItem("folis-book-overrides", JSON.stringify({ a: { fontSize: 200 } }));
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
-  });
-
-  it("survives storage that will not let anything be cleared", () => {
-    globalThis.localStorage = {
-      getItem: () => null,
-      setItem: () => {
-        throw new Error("private mode");
-      },
-      removeItem: () => {
-        throw new Error("private mode");
-      },
-      clear: () => {},
-      key: () => null,
-      length: 0,
-    } as Storage;
-    expect(() => dropLegacyOverrides()).not.toThrow();
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
   });
 });
 
