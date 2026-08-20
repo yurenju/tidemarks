@@ -11,6 +11,7 @@ const EMAIL = "reader@example.com";
 
 interface TestEnv {
   DB: D1Database;
+  RP_ID: string;
   RESEND_API_KEY?: string;
   MAIL_FROM?: string;
 }
@@ -50,8 +51,21 @@ async function plantCode(email: string, code: string, over: Record<string, numbe
     .run();
 }
 
+/**
+ * Where these tests knock. The host matches the worker test environment's RP_ID, so the
+ * default state here is a correctly configured deployment — see vitest.worker.config.ts.
+ *
+ * Not named ORIGIN: the Worker has a binding by that name, and the passkey check deliberately
+ * has nothing to do with it (worker/rp-id.ts says why).
+ */
+const CONFIGURED_HOST_URL = "https://tidemarks.test";
+
 function postJson(path: string, body: unknown, cookie?: string) {
-  return SELF.fetch(`https://tidemarks.test${path}`, {
+  return postJsonTo(CONFIGURED_HOST_URL, path, body, cookie);
+}
+
+function postJsonTo(baseUrl: string, path: string, body: unknown, cookie?: string) {
+  return SELF.fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -268,5 +282,58 @@ describe("registering a passkey", () => {
   it("refuses a browser with no session — there is no signup door here any more", async () => {
     const response = await postJson("/auth/register/options", {});
     expect(response.status).toBe(401);
+  });
+});
+
+describe("a deployment whose RP_ID does not cover the host it is answering on", () => {
+  // What the rule is belongs to worker/rp-id.test.ts. What these buy is the wiring only a
+  // running Worker can show: that both `options` endpoints really consult it, that the host
+  // comes off the request rather than out of a binding, and — the one that matters most — that
+  // the way back in is still open. Somebody who mistyped CF_RP_ID has no other door.
+  async function withRpId<T>(rpID: string, body: () => Promise<T>): Promise<T> {
+    // One property at a time, put back by hand: `env` is a proxy, so spreading it copies
+    // nothing and "restoring" from that snapshot would leak the value into every later test.
+    const running = testEnv();
+    const original = running.RP_ID;
+    running.RP_ID = rpID;
+    try {
+      return await body();
+    } finally {
+      running.RP_ID = original;
+    }
+  }
+
+  it("refuses to start a passkey login, and names both hostnames", async () => {
+    const response = await withRpId("app.tidemarks.io", () => postJson("/auth/login/options", {}));
+    expect(response.status).toBe(400);
+
+    const { error } = (await response.json()) as { error: string };
+    expect(error).toContain("app.tidemarks.io");
+    expect(error).toContain("tidemarks.test");
+  });
+
+  it("refuses to register one either, before it ever looks for a session", async () => {
+    // A 400 rather than the 401 an unauthenticated caller normally gets: no session makes a
+    // passkey scoped to somebody else's hostname work, so the deployment is the answer here.
+    const response = await withRpId("app.tidemarks.io", () =>
+      postJson("/auth/register/options", {}),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("still lets a mailed code through, which is the only way back in", async () => {
+    await allowlist(EMAIL);
+    const response = await withRpId("app.tidemarks.io", () =>
+      postJson("/auth/code/request", { email: EMAIL }),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("serves a passkey login to a host below the RP_ID", async () => {
+    // `app.tidemarks.test` under `RP_ID=tidemarks.test` is a legitimate WebAuthn arrangement,
+    // and reading the host off the request is the only way this can be told apart from the
+    // mismatch above.
+    const response = await postJsonTo("https://app.tidemarks.test", "/auth/login/options", {});
+    expect(response.status).toBe(200);
   });
 });

@@ -32,6 +32,7 @@ import {
   type CodeVerdict,
   type MagicCodeRow,
 } from "./magic-code";
+import { rpIdMismatchMessage } from "./rp-id";
 import { openSignupFrom, signupDecision } from "./signup-gate";
 
 export interface Env {
@@ -72,6 +73,23 @@ export function json(data: unknown, init?: ResponseInit): Response {
  */
 function reason(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * A refusal naming both hostnames when this deployment's RP_ID has nothing to do with the host
+ * the request arrived on, or null when it has. See worker/rp-id.ts for the rule.
+ *
+ * **Only the two `options` endpoints call this, and the `verify` ones must not.** A wrong RP ID
+ * stops the ceremony inside the browser, before any credential exists to send back, so `verify`
+ * is never reached on this path: a check there would be unreachable code that reads like the
+ * real defence. `options` is the last moment we can still answer in words.
+ *
+ * Magic codes are untouched by design (ADR-0030): when RP_ID is wrong, `/auth/code/*` is the
+ * only remaining way into your own deployment.
+ */
+function rpIdRefusal(request: Request, env: Env): Response | null {
+  const message = rpIdMismatchMessage(env.RP_ID, new URL(request.url).hostname);
+  return message ? json({ error: message }, { status: 400 }) : null;
 }
 
 // --- cookies ---
@@ -275,6 +293,12 @@ export async function handleAuth(
 }
 
 async function registerOptions(request: Request, env: Env): Promise<Response> {
+  // Before the session, because this one is about the deployment rather than the caller: a
+  // passkey registered here would be scoped to a hostname this deployment is not served from,
+  // and no session makes that work.
+  const misconfigured = rpIdRefusal(request, env);
+  if (misconfigured) return misconfigured;
+
   // Always an existing session: an account is created by the mailed code, and a passkey is
   // something it grows afterwards. There is no longer a door here for a stranger to knock on.
   const userId = await sessionUserId(env, request);
@@ -350,7 +374,10 @@ async function registerVerify(request: Request, env: Env): Promise<Response> {
   return json({ ok: true }, { headers: { "set-cookie": clearChallengeCookie() } });
 }
 
-async function loginOptions(_request: Request, env: Env): Promise<Response> {
+async function loginOptions(request: Request, env: Env): Promise<Response> {
+  const misconfigured = rpIdRefusal(request, env);
+  if (misconfigured) return misconfigured;
+
   // discoverable credentials: no allowCredentials, the authenticator picks
   const options = await generateAuthenticationOptions({
     rpID: env.RP_ID,

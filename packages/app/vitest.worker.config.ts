@@ -42,6 +42,11 @@ export default defineConfig(async () => {
             // A secret in production (`wrangler secret put`), so it is not in
             // wrangler.jsonc and has to be supplied here.
             COOKIE_SECRET: "test-cookie-secret",
+            // Set to the host the tests fetch, so the default state here is a correctly
+            // configured deployment and a test that wants a mismatch says so itself. Like
+            // COOKIE_SECRET this cannot come from wrangler.jsonc: RP_ID is a build variable,
+            // and that file deliberately ships without one.
+            RP_ID: "tidemarks.test",
             // RESEND_API_KEY and OPEN_SIGNUP are deliberately absent: unset is the state
             // the repo ships in, so the tests run against the allowlist and against login
             // codes going to the log rather than to a vendor.
