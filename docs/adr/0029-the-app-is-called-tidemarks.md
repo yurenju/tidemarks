@@ -13,7 +13,7 @@
 
 **定名與改名是兩步。** 這份 ADR 只定名字。把 `Folis` 換成 `Tidemarks` 那件事——行文、UI 文案、
 識別字、套件名、GitHub repo、網域、D1／R2／Dexie、Resend 的 sending domain——照 ADR-0025 的
-規劃留到上線前一次做完，清單在 [#155](https://github.com/yurenju/spine/issues/155)。
+規劃留到上線前一次做完，清單在 舊 repo 的 #155。
 
 **網域是 `tidemarks.io`，app 在 `app.tidemarks.io`**，見底下〈網域與 hostname〉。那是這次唯一
 不可逆的一步。

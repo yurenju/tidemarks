@@ -22,7 +22,7 @@ email 是帳號的**唯一識別**：一個 email 一個帳號。
 | 換到 | 付掉 |
 | --- | --- |
 | 帳號找得回來——弄丟所有 passkey 不再等於筆記沒了 | **抗釣魚保護**。passkey 的核心價值之一是釣魚站拿不到憑證；magic code 拿得到，因為受害者會自己把碼貼過去 |
-| [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md) 承諾的「到期前寄信通知才清」第一次寄得出去（[#88](https://github.com/yurenju/spine/issues/88)） | 第一個外部廠商（Resend） |
+| [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md) 承諾的「到期前寄信通知才清」第一次寄得出去（舊 repo 的 #88） | 第一個外部廠商（Resend） |
 | 開發階段「資料丟掉之前先通知」也第一次做得到，白名單那批人才有東西可以依靠 | 多一個會壞的地方：Resend 掛掉就沒有人登得進來（緩衝是 session 有 90 天） |
 
 所以這份 ADR 的標題就是那個代價：**帳號的實際強度是信箱的強度**，不是 passkey 的強度。
@@ -52,10 +52,10 @@ email 是帳號的**唯一識別**：一個 email 一個帳號。
 | 收尾驗證的自動登入繞道（`scripts/seed-preview-auth.sh`） | 往 D1 塞一列 magic code，比現在**更貼近真實路徑** |
 
 留著它換不到新能力，卻要付三筆：帳號的強度等於**最弱那條入口**，多一條就多一個攻擊面；多
-一套要測的不變式（[#27](https://github.com/yurenju/spine/issues/27)）；以及它本質上是一個
+一套要測的不變式（舊 repo 的 #27）；以及它本質上是一個
 賭注——使用者按了「我已存好」的勾選，實際上沒存，而發現的那天正是最糟的一天。
 
-（[#86](https://github.com/yurenju/spine/issues/86) 因此只剩一半：passkey 同時有效數設上限
+（舊 repo 的 #86 因此只剩一半：passkey 同時有效數設上限
 那條照舊，「recovery code 一次只發一組」那條隨著它一起消失。）
 
 ## 意圖核心那條分法要修訂
@@ -70,7 +70,7 @@ email 是帳號的**唯一識別**：一個 email 一個帳號。
 ## 沒設供應商的時候，magic code 寫進 log
 
 自架的人要能零廠商跑起來——[ADR-0009](0009-open-source-buys-an-exit-not-contributions.md) 的
-〈退路〉是開源要買的東西本身，而 [#70](https://github.com/yurenju/spine/issues/70) 承諾過「一個
+〈退路〉是開源要買的東西本身，而 舊 repo 的 #70 承諾過「一個
 外人架得起來，而且不需要自訂網域」。magic code 成為唯一入口之後，寄信需要一個驗證過的網域，
 那句承諾就會破。
 

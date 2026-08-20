@@ -2,7 +2,7 @@
 
 意圖核心：[docs/intent/2026-07-15-spine-cross-device-reading.md](../../docs/intent/2026-07-15-spine-cross-device-reading.md)
 
-工作項目：[#63](https://github.com/yurenju/spine/issues/63)（唯讀，先做）、[#64](https://github.com/yurenju/spine/issues/64)（寫回筆記，待重新審視）、[yurenju/frond#84](https://github.com/yurenju/frond/issues/84)（定位下沉，擋在最前面）
+工作項目三件：唯讀（先做）、寫回筆記（待重新審視），以及擋在最前面的「定位下沉到 frond」。
 
 ## 要解決什麼
 
@@ -14,7 +14,7 @@
 
 **做**：OAuth AS、`/mcp`、讀的工具（列書、搜尋、取節、當前位置與內文、筆記）、位置的時間戳、`sendBeacon` 強推。
 
-**不做（延到 #64）**：agent 寫回筆記、`annotations` 拆表、`source` 欄位。
+**不做（延到「寫回筆記」那一件）**：agent 寫回筆記、`annotations` 拆表、`source` 欄位。
 
 ## 形狀
 
@@ -53,7 +53,7 @@ spine 只出一個 remote MCP server；spine 自己不長聊天面板。長了�
 
 `src/App.tsx:56` 現在只在**變成可見**時 sync，翻頁走 `scheduleSync()` 的 3 秒 debounce。讀者翻完頁馬上切走，那個 timer 在已經被切到背景的分頁裡跑，手機上會被凍結——agent 拿到**上上一頁**，而讀者只會覺得這功能不準。
 
-沒有它，#63 驗出來的結論不算數。
+沒有它，唯讀那一件驗出來的結論不算數。
 
 ## 不可逆的決定
 
@@ -75,9 +75,9 @@ spine 只出一個 remote MCP server；spine 自己不長聊天面板。長了�
 
 這條跟「書的內文會進 agent 的對話」不衝突，界線是**這份文字會不會離開讀者**：自己的書進自己的 agent 對話是可以的；外洩到 repo、PR、pr-image 那種公開或半公開的地方不行（pr-image 的 URL 沒有認證，見 [ADR-0008](../../docs/adr/0008-pr-images-are-hosted-not-committed.md)）。
 
-## 筆記模型（#64，方向而非規格）
+## 筆記模型（「寫回筆記」那一件，方向而非規格）
 
-現在的 `Annotation` 把「書上畫的那一段」與「掛在上面的文字」壓在同一列，所以 agent 想留一句話就被迫連帶畫出一段範圍。拆成錨點／重點／筆記三個東西，一個錨點掛 0..N 則筆記，筆記帶 `source`。細節在 #64。
+現在的 `Annotation` 把「書上畫的那一段」與「掛在上面的文字」壓在同一列，所以 agent 想留一句話就被迫連帶畫出一段範圍。拆成錨點／重點／筆記三個東西，一個錨點掛 0..N 則筆記，筆記帶 `source`。
 
 **這一段是在 agent 還沒上線時寫的，動手前要先重讀。** 唯讀到底缺什麼，現在沒有證據。
 
@@ -133,4 +133,4 @@ spine 只出一個 remote MCP server；spine 自己不長聊天面板。長了�
 
 > Claude 那塊真的有在用嗎？還是它其實是「聽起來很好但實際上不會做」的功能？
 
-**什麼時候回來看**：#63 上線自己用滿兩週之後。如果那時候一次都沒切過去問，#64 就不該做——該做的是把這整條路拆掉。
+**什麼時候回來看**：唯讀那一件上線、自己用滿兩週之後。如果那時候一次都沒切過去問，「寫回筆記」就不該做——該做的是把這整條路拆掉。

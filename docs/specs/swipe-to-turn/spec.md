@@ -9,17 +9,15 @@ frond 的 [ADR-0013](../../../packages/frond/docs/adr/0013-a-half-turned-page-is
 （翻到一半的那一頁是 frond 的狀態）。要量的數字在
 [measurements.md](measurements.md)。
 
-工作項目：[#139](https://github.com/yurenju/folis/issues/139)（frond 的進行中翻頁 API 與三個渲染面）、
-[#140](https://github.com/yurenju/folis/issues/140)（app 接上拖曳翻頁）、
-[#141](https://github.com/yurenju/folis/issues/141)（拿掉 tap 翻頁）。三張照這個順序，後面兩張各自
-擋在前一張後面。
+工作項目三件，照這個順序做，後面兩件各自擋在前一件後面：frond 的進行中翻頁 API 與三個渲染面、
+app 接上拖曳翻頁、拿掉 tap 翻頁。
 
 ## 根因
 
 今天的 swipe 是放手才判斷的離散手勢：位移超過 50px 才翻，過程中畫面完全不動
 （`touch.ts` 的 `MIN_SWIPE_PX`）。讀者滑到一半沒有任何回饋，不知道自己滑夠了沒有，也**不知道翻過去
-會是什麼**。位移落在 10 到 50px 之間時更糟，兩個門檻中間沒有人接，什麼都不會發生
-（[#61](https://github.com/yurenju/folis/issues/61)）。
+會是什麼**。位移落在 10 到 50px 之間時更糟，兩個門檻中間沒有人接，什麼都不會發生（底下第 4 節的「死區」講的
+就是這個）。
 
 ## 讀者看到什麼
 
@@ -105,7 +103,7 @@ pointerdown → pointermove（一次）→ pointercancel → touchmove ×5 → t
 Reader 的同一組 `onPress`／`onMove`／`onRelease`。
 
 `none` 而不是 `pan-y`：直排書的分頁軸是垂直的，留一軸給瀏覽器等於讓它把直排書捲離 frond 的頁格線
-（那就是 [#124](https://github.com/yurenju/folis/issues/124) 講的病）。兩個方向本來就都不給手動捲，
+（frond 的 `interventions.ts` 裡 `gesture-ownership` 那一條記的就是這個病）。兩個方向本來就都不給手動捲，
 所以沒有東西被拿走。
 
 ## 動畫

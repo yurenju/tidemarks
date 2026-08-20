@@ -78,7 +78,7 @@ export function layoutStylesheet(metrics: PageMetrics, writingMode: WritingMode)
     //
     // `none` rather than `pan-y`: the pagination axis is vertical in a vertical book, so
     // leaving one axis to the browser would let it scroll a 直排 book off frond's own page
-    // grid, which is the ailment `yurenju/folis#124` describes. Nothing here is scrollable by
+    // grid, which is the ailment this rule was added for. Nothing here is scrollable by
     // hand in either direction, so nothing is being taken away.
     `  touch-action: none !important;`,
     `}`,

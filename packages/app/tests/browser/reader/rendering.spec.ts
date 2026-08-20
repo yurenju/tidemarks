@@ -7,8 +7,8 @@ import { BOOKS, openBook, openPanel, readerFrame, settled } from "../support/lib
  * ## Why a geometric assertion lives in spine at all
  *
  * The split this suite otherwise keeps is that frond owns the typographic claims and spine
- * owns behaviour. This one is an exception on purpose, because the defect it caught
- * ([#25](https://github.com/yurenju/spine/issues/25)) was **in spine's test image**, and no
+ * owns behaviour. This one is an exception on purpose, because the defect it caught was
+ * **in the app's own test image**, and no
  * suite that runs in frond's image can see it: the image resolved `serif` — and every family
  * name it does not have, which is every name the book and spine's own stack put ahead of the
  * generic — to WenQuanYi Zen Hei, whose Han glyphs carry no vertical advance. Every kanji in
