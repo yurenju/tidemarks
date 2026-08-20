@@ -48,11 +48,11 @@ export interface Env {
   MAIL_FROM?: string;
 }
 
-const SESSION_COOKIE = "folis_session";
-const CHALLENGE_COOKIE = "folis_challenge";
+const SESSION_COOKIE = "tidemarks_session";
+const CHALLENGE_COOKIE = "tidemarks_challenge";
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
-const RP_NAME = "Folis";
+const RP_NAME = "Tidemarks";
 
 export function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -292,7 +292,7 @@ async function registerOptions(request: Request, env: Env): Promise<Response> {
     rpName: RP_NAME,
     rpID: env.RP_ID,
     // The address, so the passkey shows up in the authenticator's list as this account rather
-    // than as an anonymous "Folis" indistinguishable from every other Folis account.
+    // than as an anonymous "Tidemarks" indistinguishable from every other Tidemarks account.
     userName: user.email,
     userID: Uint8Array.from(new TextEncoder().encode(userId)),
     attestationType: "none",
@@ -409,7 +409,7 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
  * Mail a magic code to one address.
  *
  * The reply is the same whether the address has an account or not: this endpoint is the only
- * one a stranger can reach, so anything it varies on is a way to ask Folis who its readers
+ * one a stranger can reach, so anything it varies on is a way to ask Tidemarks who its readers
  * are. The one exception is the refusal while the allowlist is in force, which is deliberate
  * and goes away at launch (see worker/signup-gate.ts).
  */

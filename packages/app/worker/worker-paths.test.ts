@@ -33,7 +33,7 @@ describe("the paths the Worker owns", () => {
     const denylist = workerNavigationDenylist();
     const navigable = [
       "/authorize",
-      "/authorize?response_type=code&client_id=abc&scope=folis:read",
+      "/authorize?response_type=code&client_id=abc&scope=tidemarks:read",
       "/mcp",
       "/oauth/token",
       "/api/sync?since=0",

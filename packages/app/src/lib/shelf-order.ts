@@ -32,7 +32,7 @@ export const SHELF_ORDERS: { label: string; value: ShelfOrder }[] = [
 
 export const DEFAULT_SHELF_ORDER: ShelfOrder = "recent";
 
-const KEY = "folis-shelf-order";
+const KEY = "tidemarks-shelf-order";
 
 /**
  * When the reader last had anything to do with this book — read it, or imported it.
@@ -50,7 +50,7 @@ export function lastTouchedAt(book: ShelfBook, progress: ReadonlyMap<string, Rea
 /**
  * The shelf in the order the reader asked for. Returns a new array; the input is left alone.
  *
- * `language` is a BCP-47 tag and comes from **Folis's interface language**, not the browser's
+ * `language` is a BCP-47 tag and comes from **Tidemarks' interface language**, not the browser's
  * (`lib/language.ts` says why). Titles collate through `Intl.Collator`, so what "alphabetical"
  * means is the language's business: `zh-Hant` orders Han characters by stroke count, which is
  * how a Traditional Chinese index reads. `numeric` is on because without it 「第 10 集」 sorts

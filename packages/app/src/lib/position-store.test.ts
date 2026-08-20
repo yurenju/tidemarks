@@ -115,7 +115,7 @@ describe("rememberPosition", () => {
   // clearing site data. None of it is worth losing the book over.
   it("ignores a durable entry that is not a position", async () => {
     const durable = durableStore();
-    durable.setItem("folis.position.kusamakura", "{not json");
+    durable.setItem("tidemarks.position.kusamakura", "{not json");
     const settled = settledStore(position({ lastReadAt: 40 }));
 
     expect(

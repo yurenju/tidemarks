@@ -2,7 +2,7 @@
 //
 // Rendered by the Worker rather than by the React app on purpose: it must be readable before
 // any JavaScript loads, it must not be reachable by a client-side route the SPA could get
-// wrong, and it is the only page in Folis where getting the origin bar right matters.
+// wrong, and it is the only page in Tidemarks where getting the origin bar right matters.
 //
 // The passkey layer and OAuth meet in exactly one line — `completeAuthorization({ userId })`.
 // Everything else here is the reader looking at who is asking and pressing a button.
@@ -15,7 +15,7 @@ import { AUTHORIZE_PATH, RETURN_PARAM } from "../src/lib/authorize-return";
 import { sessionUserId, type Env } from "./auth";
 
 /** The only scope this server issues. Read-only is the whole shape of #63. */
-export const READ_SCOPE = "folis:read";
+export const READ_SCOPE = "tidemarks:read";
 
 export interface AuthorizeEnv extends Env {
   OAUTH_PROVIDER: OAuthHelpers;
@@ -110,7 +110,7 @@ function consentPage(clientName: string): Response {
   · 你讀到哪裡、當下看到的那一頁
   · 你畫的重點與寫的筆記
 
-它<strong>不能</strong>改動任何東西，也不能刪書。你隨時可以在 Folis 裡收回。`,
+它<strong>不能</strong>改動任何東西，也不能刪書。你隨時可以在 Tidemarks 裡收回。`,
     `<form method="post">
       <button type="submit" name="decision" value="approve" class="primary">允許</button>
       <button type="submit" name="decision" value="deny" class="ghost">不要</button>
@@ -126,7 +126,7 @@ function page(status: number, heading: string, body: string, actions = ""): Resp
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(heading)} — Folis</title>
+<title>${escapeHtml(heading)} — Tidemarks</title>
 <style>
   :root { color-scheme: light dark; }
   body {

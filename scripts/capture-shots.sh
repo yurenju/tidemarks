@@ -36,5 +36,5 @@ echo "==> sweeping every screen into ${SHOTS_DIR}"
 
 exec "$ENGINE" run --rm --init \
     --volume "${SHOTS_DIR}:/work/.scratch/shots" \
-    --env FOLIS_SHOTS_DIR=/work/.scratch/shots \
+    --env TIDEMARKS_SHOTS_DIR=/work/.scratch/shots \
     "$IMAGE_NAME" npm run sweep -w app -- "$@"

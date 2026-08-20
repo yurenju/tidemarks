@@ -11,7 +11,7 @@ import { expect, test } from "../support/fixtures.js";
  *     Error preparing Blob/File data to be stored in object store
  *
  * while the same store accepts an `ArrayBuffer`. Chromium and Firefox accept both either way.
- * Folis writes the epub body and the cover as Blobs (`lib/types.ts`'s `BookRecord`), so in an
+ * Tidemarks writes the epub body and the cover as Blobs (`lib/types.ts`'s `BookRecord`), so in an
  * ephemeral WebKit session a book cannot be imported at all — which is what the whole reader
  * suite used to skip that engine for.
  *

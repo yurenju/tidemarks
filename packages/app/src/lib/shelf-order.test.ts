@@ -134,7 +134,7 @@ describe("the stored choice", () => {
   });
 
   it("falls back to the default for a value nobody could have chosen", () => {
-    localStorage.setItem("folis-shelf-order", "by-author");
+    localStorage.setItem("tidemarks-shelf-order", "by-author");
     expect(loadShelfOrder()).toBe(DEFAULT_SHELF_ORDER);
   });
 

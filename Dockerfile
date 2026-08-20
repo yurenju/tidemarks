@@ -1,4 +1,4 @@
-# Folis's browser-test environment.
+# Tidemarks' browser-test environment.
 #
 # Ported from frond's, and deliberately leaner. The shape is the same and for the same
 # reason: **CI and local machines share one image**, so "the tests are green" means the same
@@ -6,13 +6,13 @@
 # layer.
 #
 # frond's fontconfig pinning is ported too, and it used to not be. The argument for leaving
-# it out was that frond measures glyph geometry while Folis measures **behaviour** — does a
+# it out was that frond measures glyph geometry while Tidemarks measures **behaviour** — does a
 # page turn advance, does a highlight land over the text it was drawn from, does the
 # Scrubber mirror for a vertical book — and that none of those change with the face.
 #
 # **That argument was wrong, and issue #25 is the bill.** The base image carries WenQuanYi
 # Zen Hei, and unpinned fontconfig resolved `serif` to it — along with every family name
-# this image does not have, which is every name the book and Folis's own stack put ahead of
+# this image does not have, which is every name the book and Tidemarks' own stack put ahead of
 # the generic. WenQuanYi Zen Hei's Han glyphs have no vertical advance, so every kanji in
 # the vertical Japanese book was drawn with none and the next character landed on top of
 # it. What that shows is not that the premise was too narrow but that the conclusion did not
@@ -21,7 +21,7 @@
 #
 # The CJK font's version is pinned for the original reason as well: a font update changes
 # glyph metrics, which changes line breaking, which changes **page** breaking — and a spec
-# asserting "there is a second page" would then flake for a reason unrelated to Folis's
+# asserting "there is a second page" would then flake for a reason unrelated to Tidemarks'
 # code. Without any CJK font the vertical Japanese book renders as tofu boxes, which would
 # make every evidence screenshot worthless.
 
@@ -43,7 +43,7 @@ RUN apt-get update \
 # image's 60-latin.conf and the 70-fonts-noto-cjk.conf that ships with fonts-noto-cjk both
 # touch the same generic families, and this file has to come after both. The complete
 # ordering rules, including one that runs counter to intuition, are in the file's header.
-COPY docker/fontconfig/75-folis-cjk.conf /etc/fonts/conf.d/75-folis-cjk.conf
+COPY docker/fontconfig/75-tidemarks-cjk.conf /etc/fonts/conf.d/75-tidemarks-cjk.conf
 RUN fc-cache --force --really-force
 
 # The process locale is part of the font configuration. When WebKit asks fontconfig for a
@@ -60,8 +60,8 @@ ENV LC_ALL=C.UTF-8
 # Checks at build time that the bindings took effect. A broken binding raises no error and
 # turns no assertion red — it silently renders everything in another face. Better to fail
 # here than to find out from a screenshot.
-COPY docker/verify-fonts.sh /usr/local/bin/folis-verify-fonts
-RUN chmod +x /usr/local/bin/folis-verify-fonts && folis-verify-fonts
+COPY docker/verify-fonts.sh /usr/local/bin/tidemarks-verify-fonts
+RUN chmod +x /usr/local/bin/tidemarks-verify-fonts && tidemarks-verify-fonts
 
 WORKDIR /work
 

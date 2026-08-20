@@ -1,8 +1,8 @@
-# Folis
+# Tidemarks
 
 Local-first 的 epub 閱讀 PWA。資料存在瀏覽器的 IndexedDB，離線可讀可寫；可選配 Cloudflare Worker 做跨裝置同步（用 passkey 登入，或收一封信裡的登入碼，兩條路都不用密碼）。
 
-**官方的 Folis 只有 [app.folis.ink](https://app.folis.ink) 這一台。** 其他任何一份部署，不管它叫什麼名字，都是別人的——原始碼讀得到本來就是為了這件事，但也因此要認的是主機名。
+**官方的 Tidemarks 只有 [app.folis.ink](https://app.folis.ink) 這一台。** 其他任何一份部署，不管它叫什麼名字，都是別人的——原始碼讀得到本來就是為了這件事，但也因此要認的是主機名。
 
 English: [README.md](README.md)
 
@@ -38,7 +38,7 @@ Vite + React + TypeScript、[frond](packages/frond/README.md)（渲染與 CFI �
 價，三家瀏覽器等價驗證）、[Dexie](https://dexie.org/)（IndexedDB）。
 
 渲染層原本是 epub.js，之後是它的 typed fork `@likecoin/epub-ts`，現在是 frond ——
-frond 是為了 Folis 寫的，把「直排要自己打補丁」那半個 `src/lib/` 收回 library 那一側。
+frond 是為了 Tidemarks 寫的，把「直排要自己打補丁」那半個 `src/lib/` 收回 library 那一側。
 見 [ADR-0003](docs/adr/0003-epub-ts-to-frond.md)。
 
 這個 repo 是 npm workspaces 的 monorepo：`packages/app` 是 PWA 與 Worker，`packages/frond` 是渲染層。

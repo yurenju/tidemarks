@@ -7,7 +7,7 @@ export interface MetaRow {
 }
 
 /**
- * One CJK face Folis carries (ADR-0014), as it sits on this device.
+ * One CJK face Tidemarks carries (ADR-0014), as it sits on this device.
  *
  * **A Blob, not an ArrayBuffer.** A face is 16 MB, and an ArrayBuffer read back out of
  * IndexedDB is 16 MB of memory; a Blob read back out is still a reference to something the
@@ -19,7 +19,7 @@ export interface FontRow {
   file: Blob;
 }
 
-export const db = new Dexie("folis") as Dexie & {
+export const db = new Dexie("tidemarks") as Dexie & {
   books: EntityTable<BookRecord, "id">;
   progress: EntityTable<Progress, "bookId">;
   annotations: EntityTable<Annotation, "id">;
@@ -47,9 +47,9 @@ db.version(2).stores({
   meta: "key",
 });
 
-// v3: the CJK faces Folis carries. **No `dirtyAt`, and that is not an oversight** — the
+// v3: the CJK faces Tidemarks carries. **No `dirtyAt`, and that is not an oversight** — the
 // other four tables carry one because they hold what the reader made, which belongs on every
-// device they read on. This holds a file anyone can fetch from Folis's own origin, so
+// device they read on. This holds a file anyone can fetch from Tidemarks' own origin, so
 // pushing 16 MB of it through the sync payload would buy nothing. Each device fetches its
 // own copy the first time it opens a book that needs one.
 db.version(3).stores({

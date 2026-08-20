@@ -9,7 +9,7 @@
 同一批書，所以它的偏差也一樣：固定版面書、童書、教科書都不在裡面。
 
 量的對象是每本書的 `.css` 檔、`<style>` 區塊與 `style` 屬性裡的 `color` 宣告（`background-color`
-之類不算）。對比是 WCAG contrast ratio，背景取 Folis 深色主題的 `#1b1b1e`
+之類不算）。對比是 WCAG contrast ratio，背景取 Tidemarks 深色主題的 `#1b1b1e`
 （`packages/app/src/lib/settings.ts` 的 `DARK_THEME`）。「沒有色相」的定義跟實作同一條：
 `(max - min) / 255 < 0.15`。
 

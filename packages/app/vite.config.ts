@@ -53,8 +53,8 @@ export default defineConfig({
         navigateFallbackDenylist: workerNavigationDenylist(),
       },
       manifest: {
-        name: "Folis",
-        short_name: "Folis",
+        name: "Tidemarks",
+        short_name: "Tidemarks",
         description: "epub reader with cross-device sync",
         display: "standalone",
         // `--surface-page` in the dark theme, spelled out: a manifest is read before any CSS

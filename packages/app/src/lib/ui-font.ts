@@ -1,5 +1,5 @@
 /**
- * The carried CJK face, lent to Folis's own chrome.
+ * The carried CJK face, lent to Tidemarks' own chrome.
  *
  * The interface is set in a serif (docs/design-system.md), and the Latin half of that is a
  * face shipped with the app. The Han half is not: `Noto Serif CJK TC` is 16 MB for Regular

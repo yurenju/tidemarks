@@ -23,7 +23,7 @@ async function markFinished(page: Page, bookId: string): Promise<void> {
   await page.evaluate(
     ([id]) =>
       new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open("folis");
+        const open = indexedDB.open("tidemarks");
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;

@@ -26,9 +26,9 @@ export interface ReaderSettings {
   /**
    * Font size, as a **percentage of the reader's own root font size**.
    *
-   * The basis is the live root size rather than a number Folis picks, so a reader who set
+   * The basis is the live root size rather than a number Tidemarks picks, so a reader who set
    * their browser's default font larger gets a larger book without touching this at all.
-   * Folis's own UI is all `rem` and has followed that setting all along; the book was the one
+   * Tidemarks' own UI is all `rem` and has followed that setting all along; the book was the one
    * place that ignored it, because this used to be an absolute px.
    *
    * A percentage is also the mechanism's own vocabulary: frond relativises the book's absolute
@@ -121,7 +121,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   margin: 32,
 };
 
-const KEY = "folis-settings";
+const KEY = "tidemarks-settings";
 const THEMES: Theme[] = ["system", "light", "dark"];
 const FONT_CHOICES: FontChoice[] = ["publisher", "sans", "serif"];
 
@@ -174,18 +174,18 @@ function snapToOfferedSize(percent: number): number {
 // A reader who had deliberately set 160%, or 30px, keeps a comparable size rather than being
 // reset to the default — the setting is one they made, and silently dropping it is the worse
 // failure of the two. Clamping rather than rejecting is the same argument one step down: a
-// value outside the range still says "smaller than standard", and the nearest size Folis
+// value outside the range still says "smaller than standard", and the nearest size Tidemarks
 // offers keeps that intent where the default would lose it.
 function validFontSize(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
 
   // px, from the frond migration. Divided by the browser default because that is what frond
-  // was resolving those px against — a root size Folis set absolutely, ignoring the reader's.
+  // was resolving those px against — a root size Tidemarks set absolutely, ignoring the reader's.
   if (v >= LEGACY_PX_MIN && v <= LEGACY_PX_MAX) {
     return snapToOfferedSize((v / BROWSER_DEFAULT_PX) * 100);
   }
 
-  // A percentage: either one Folis wrote, or one from before the px detour. The two need no
+  // A percentage: either one Tidemarks wrote, or one from before the px detour. The two need no
   // conversion between them, because epub.js resolved its percentage against the browser
   // default as well — the difference is only that the basis now follows the reader.
   if (v >= LEGACY_PERCENT_MIN && v <= LEGACY_PERCENT_MAX) return snapToOfferedSize(v);
@@ -198,8 +198,8 @@ function validFontSize(v: unknown): number | undefined {
  * The reader's own root font size in px, which is what `fontSize` is a percentage of.
  *
  * Read live rather than assumed, because the whole point is to follow a reader who set their
- * browser's default font larger. Folis sets no root size of its own, so this **is** that
- * setting; the day Folis sets one, this quietly starts answering something else.
+ * browser's default font larger. Tidemarks sets no root size of its own, so this **is** that
+ * setting; the day Tidemarks sets one, this quietly starts answering something else.
  *
  * Browser zoom deliberately does not show up here — zoom scales the rendered page, so applying
  * it again through the basis would compound it.
@@ -260,9 +260,9 @@ export interface RenderContext {
   /** The reader's own root size in px — what `fontSize`'s percentage is a percentage of. */
   rootFontSize: number;
   /**
-   * The faces Folis carries that are on this device already (ADR-0014) — empty until one
+   * The faces Tidemarks carries that are on this device already (ADR-0014) — empty until one
    * has been fetched, and empty for good on a book with no Han characters or a reader who
-   * is offline. Empty means every mapping below behaves exactly as it did before Folis
+   * is offline. Empty means every mapping below behaves exactly as it did before Tidemarks
    * carried any font.
    */
   webFonts: readonly LoadedWebFont[];
@@ -309,7 +309,7 @@ export function frondSettings(
       sansSerif: stack("sans"),
     },
     fontFaces: webFonts.length === 0 ? undefined : webFonts.map(frondFontFace),
-    // Only alongside a face Folis actually carries. The property shapes whatever face the
+    // Only alongside a face Tidemarks actually carries. The property shapes whatever face the
     // text lands on, and against a platform font that is an instruction to something nobody
     // here has seen — some faces carry no `locl` at all, and which regional forms one holds
     // is not knowable from its name. Our own is a pan-CJK build with all five language
@@ -332,7 +332,7 @@ function frondFontFace(font: LoadedWebFont): FrondFontFace {
  * The carried face moved to the front of a stack it is already somewhere in.
  *
  * `chinese.ts` names it first **for the book's own variant** — but a Simplified book leads
- * with `Noto Serif CJK SC`, a face Folis does not carry, so ours would sit behind whatever
+ * with `Noto Serif CJK SC`, a face Tidemarks does not carry, so ours would sit behind whatever
  * a reader happens to have installed under that name. Moving it to the front is what makes
  * "the same font on every machine" true for Simplified books too; the variant of the glyphs
  * is `fontLanguage`'s job, not the stack's.

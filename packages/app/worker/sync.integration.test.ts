@@ -59,9 +59,9 @@ describe("sync", () => {
       endFraction: 0.42,
     };
 
-    const pushed = await SELF.fetch("https://folis.test/api/sync", {
+    const pushed = await SELF.fetch("https://tidemarks.test/api/sync", {
       method: "POST",
-      headers: { cookie: `folis_session=${SESSION}`, "content-type": "application/json" },
+      headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
       body: JSON.stringify({
         books: [
           {
@@ -79,8 +79,8 @@ describe("sync", () => {
     });
     expect(pushed.status).toBe(200);
 
-    const pulled = await SELF.fetch("https://folis.test/api/sync?since=0", {
-      headers: { cookie: `folis_session=${SESSION}` },
+    const pulled = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
     });
     expect(pulled.status).toBe(200);
     const body = (await pulled.json()) as {
@@ -104,15 +104,15 @@ describe("sync", () => {
       startFraction: null,
       endFraction: null,
     };
-    const pushed = await SELF.fetch("https://folis.test/api/sync", {
+    const pushed = await SELF.fetch("https://tidemarks.test/api/sync", {
       method: "POST",
-      headers: { cookie: `folis_session=${SESSION}`, "content-type": "application/json" },
+      headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
       body: JSON.stringify({ readingSessions: [session] }),
     });
     expect(pushed.status).toBe(200);
 
-    const pulled = await SELF.fetch("https://folis.test/api/sync?since=0", {
-      headers: { cookie: `folis_session=${SESSION}` },
+    const pulled = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
     });
     const body = (await pulled.json()) as { readingSessions: ReadingSession[] };
     expect(body.readingSessions).toEqual([session]);

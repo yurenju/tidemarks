@@ -41,7 +41,7 @@ assert_face() {
     esac
 }
 
-echo "Folis font binding verification"
+echo "Tidemarks font binding verification"
 echo
 
 echo "default resolution of the generic families (no lang information)"
@@ -80,7 +80,7 @@ Common causes and what to do:
   * The face names differ from what is expected (a different regional suffix, or a switch
     to variable-font naming)
     → Noto CJK's distribution form has changed across versions. Update
-      docker/fontconfig/75-folis-cjk.conf and the expectations here against the real names,
+      docker/fontconfig/75-tidemarks-cjk.conf and the expectations here against the real names,
       and record the version-to-name correspondence in the commit message.
 
   * The names are all there, but serif / sans-serif land on a Latin font (DejaVu Serif,

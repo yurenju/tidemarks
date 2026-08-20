@@ -87,12 +87,12 @@ const DROP_FACTOR = 1.5;
  * Prefixed, because anything at all may call `console.timeStamp` and the trace does not say who.
  */
 const SEGMENT = {
-  warmup: "folis:warmup",
-  follow: "folis:follow",
-  settle: "folis:settle",
-  slide: "folis:slide",
-  reshuffle: "folis:reshuffle",
-  between: "folis:between",
+  warmup: "tidemarks:warmup",
+  follow: "tidemarks:follow",
+  settle: "tidemarks:settle",
+  slide: "tidemarks:slide",
+  reshuffle: "tidemarks:reshuffle",
+  between: "tidemarks:between",
 } as const;
 
 export interface TurnOptions {

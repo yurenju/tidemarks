@@ -12,7 +12,7 @@ import { join } from "node:path";
  *
  * ## Why
  *
- * Folis stores the epub body and the cover as `Blob`s (`lib/types.ts`'s `BookRecord`), and an
+ * Tidemarks stores the epub body and the cover as `Blob`s (`lib/types.ts`'s `BookRecord`), and an
  * ephemeral WebKit session cannot put a `Blob` in IndexedDB. A three-byte one fails with
  *
  *     Error preparing Blob/File data to be stored in object store
@@ -26,7 +26,7 @@ import { join } from "node:path";
  * side by side, so the day WebKit stops needing this, that spec says so.
  *
  * **This is a property of the session, not of the engine's storage code**, which is why it is
- * fixed here rather than by changing what Folis stores: Safari on a device has a profile, and
+ * fixed here rather than by changing what Tidemarks stores: Safari on a device has a profile, and
  * every context in this suite now has one too.
  *
  * ## What it costs
@@ -62,7 +62,7 @@ export const test = base.extend({
       // test's title: WebKit's launcher parses its own arguments through GLib and dies on a
       // non-ASCII `--user-data-dir` with "Invalid byte sequence in conversion input". Plenty of
       // titles in this suite are written in Chinese.
-      const profile = await mkdtemp(join(tmpdir(), "folis-webkit-"));
+      const profile = await mkdtemp(join(tmpdir(), "tidemarks-webkit-"));
       const context = await playwright.webkit.launchPersistentContext(profile);
       await use(context);
       await context.close();

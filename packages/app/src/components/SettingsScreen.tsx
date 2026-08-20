@@ -75,7 +75,7 @@ export default function SettingsScreen({
         className="settings-footer"
         title={BUILD.dirty ? "這個版本是從有未提交變更的工作目錄建置的" : undefined}
       >
-        <span>Folis</span>
+        <span>Tidemarks</span>
         <span data-testid="settings-build">{formatBuild(BUILD)}</span>
       </footer>
     </div>

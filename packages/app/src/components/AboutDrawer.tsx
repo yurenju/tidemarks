@@ -150,9 +150,9 @@ export default function AboutDrawer({
 /**
  * 刪除, and the question before it.
  *
- * The question used to be the browser's own `confirm()`, which blocks the whole page, comes in
- * the browser's words rather than Folis's, and on a phone arrives as a system sheet with the
- * origin printed across it. This one says what else goes with the book, which is the part the
+ * The question used to be the browser's own `confirm()`, which blocks the whole page, is worded
+ * by the browser rather than by us, and on a phone arrives as a system sheet with the origin
+ * printed across it. This one says what else goes with the book, which is the part the
  * reader cannot see from the shelf.
  *
  * **`Dialog` rather than `AlertDialog`, and that is the a11y-correct choice here rather than a

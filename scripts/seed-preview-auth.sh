@@ -10,7 +10,7 @@
 set -euo pipefail
 
 USER_ID="preview-user"
-EMAIL="preview@folis.test"
+EMAIL="preview@tidemarks.test"
 # Six digits, like every code the Worker issues. Stored as sha256 of the digits — must match
 # worker/auth.ts sha256hex().
 CODE="424242"
@@ -19,7 +19,7 @@ HASH=$(printf '%s' "$CODE" | sha256sum | cut -d' ' -f1)
 EXPIRES_AT=$(( ($(date +%s) + 600) * 1000 ))
 
 # Ensure the local D1 has tables (idempotent; a fresh worktree's local D1 is empty).
-npx wrangler d1 migrations apply folis --local >/dev/null
+npx wrangler d1 migrations apply tidemarks --local >/dev/null
 
 # The account is seeded directly rather than created through the code, so that verification
 # starts from a shelf that is already there. The allowlist row is what would let the code
@@ -32,7 +32,7 @@ INSERT INTO magic_codes (id, email, code_hash, created_at, expires_at, attempts,
   VALUES ('preview-code', '$EMAIL', '$HASH', 0, $EXPIRES_AT, 0, NULL);
 "
 
-npx wrangler d1 execute folis --local --command="$SQL"
+npx wrangler d1 execute tidemarks --local --command="$SQL"
 
 echo ""
 echo "Seeded test account. In the preview browser console, log in with:"

@@ -19,7 +19,7 @@ import { BOOKS_DIR, segment, settled } from "../browser/support/library.js";
 // everywhere else it is `.scratch/shots`, which `.gitignore` already covers — these are looked
 // at and thrown away, not kept.
 const SHOTS_DIR =
-  process.env.FOLIS_SHOTS_DIR ??
+  process.env.TIDEMARKS_SHOTS_DIR ??
   resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", ".scratch", "shots");
 
 /**

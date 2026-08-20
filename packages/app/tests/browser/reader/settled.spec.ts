@@ -63,7 +63,7 @@ test.describe("settled", () => {
 async function swapPageFrameOnFontsReady(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.addEventListener("message", (event) => {
-      if (event.data !== "folis-test:swap-page-frame") return;
+      if (event.data !== "tidemarks-test:swap-page-frame") return;
       const mount = document.querySelector(".viewer-mount");
       const stale = mount?.querySelector("iframe[data-frond-page]");
       if (!mount || !stale) return;
@@ -87,7 +87,7 @@ async function swapPageFrameOnFontsReady(page: Page): Promise<void> {
       Object.defineProperty(document.fonts, "ready", {
         configurable: true,
         get() {
-          window.parent.postMessage("folis-test:swap-page-frame", "*");
+          window.parent.postMessage("tidemarks-test:swap-page-frame", "*");
           return new Promise(() => {});
         },
       });

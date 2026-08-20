@@ -38,7 +38,7 @@ host 上用 playwright-cli 把畫面截出來判讀（見〈截圖怎麼產〉�
 | 空白頁 | 有沒有整頁空白或幾乎空白 |
 | 錯位 | highlight／選字工具列／Scrubber 拇指有沒有落在該落的位置 |
 
-最後一項是 Folis 換掉 frond 的「裁切」那一格的：字符被切一半是排版層的缺陷，frond 在守；**疊在
+最後一項是 Tidemarks 換掉 frond 的「裁切」那一格的：字符被切一半是排版層的缺陷，frond 在守；**疊在
 book 上的那一層有沒有對準**才是這一層自己的風險，而且是這次遷移新寫的程式碼最容易錯的地方。
 
 **清單只有這五項，不能加、也不能換成「看起來對嗎」——這不是形式。** LLM 的判讀是非決定性的：問
@@ -160,7 +160,7 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
   導掉（`>/dev/null 2>&1`），連錯誤訊息都看不到，圖看起來就只是「書沒開」。用
   `tests/browser/support/library.ts` 的 `openBook()` 同一個選擇器，順帶讓文件與測試開書的路徑是同
   一條。
-- **`--persistent` 不能省。** Folis 把 epub body 存成 Blob，而暫時性 profile 存不進去——WebKit 上匯入
+- **`--persistent` 不能省。** Tidemarks 把 epub body 存成 Blob，而暫時性 profile 存不進去——WebKit 上匯入
   會直接失敗（`Error preparing Blob/File data to be stored in object store`）。
 - **`delete-data` 也不能省，而且要夾在兩次 `open` 中間。** `--persistent` 的另一面是資料會留到下一輪，
   上次匯入的書會出現在這次的書架裡。這一行有兩件事要順著它排：**session 沒開著的時候它什麼也不做**
@@ -218,7 +218,7 @@ gh run view <run-id> --json conclusion,jobs -q '.conclusion, (.jobs[]|"\(.name)\
 | 看 PR 的 CI 過了沒 | `gh pr checks <n>` | `gh run list --branch <分支>` |
 | 卡著等 CI 跑完 | `gh pr checks <n> --watch` | `gh run watch <run-id> --exit-status` |
 | 看某個 commit 的 CI | `gh api .../commits/<sha>/check-runs` | `gh run list --commit <sha>` |
-| 逐個 job 的結果 | `gh run view` 的 ANNOTATIONS 段 | `gh api repos/yurenju/folis/actions/runs/<run-id>/jobs` |
+| 逐個 job 的結果 | `gh run view` 的 ANNOTATIONS 段 | `gh api repos/yurenju/tidemarks/actions/runs/<run-id>/jobs` |
 
 換得過來是因為這個 repo 的 CI **只有 GitHub Actions 一家**（`.github/workflows/` 就一支）。Checks
 API 的用處是把各家 CI 的結果匯整成一份，只有一家的時候，直接問 Actions 拿到的是同一批資料。哪天接了
@@ -256,8 +256,8 @@ file on disk」——書根本沒進去，跟被斷言的那顆按鈕無關。
 2. **在本機容器裡重現**。挑那一個 engine、那一支測試就好，不必跑整套：
 
    ```bash
-   podman build --tag folis-test .
-   podman run --rm --init localhost/folis-test npm run test:browser -w app -- --project=chromium -g "那支測試的名字"
+   podman build --tag tidemarks-test .
+   podman run --rm --init localhost/tidemarks-test npm run test:browser -w app -- --project=chromium -g "那支測試的名字"
    ```
 
    改完再跑一次同一行確認，然後三家都跑一遍確認沒有打到別人（`--project=chromium --project=webkit`，

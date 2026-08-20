@@ -64,7 +64,7 @@ dev:100000:65536
 
 ### rootless docker 是 fallback
 
-**rootless docker 一樣滿足這個要求**：dockerd 跑在一般 uid 底下，socket 開在 `$XDG_RUNTIME_DIR`，沒有 `docker` 群組可加。已經這樣設好的機器照舊能跑，`FOLIS_CONTAINER_ENGINE=docker` 也隨時指定得動。
+**rootless docker 一樣滿足這個要求**：dockerd 跑在一般 uid 底下，socket 開在 `$XDG_RUNTIME_DIR`，沒有 `docker` 群組可加。已經這樣設好的機器照舊能跑，`TIDEMARKS_CONTAINER_ENGINE=docker` 也隨時指定得動。
 
 ```bash
 dockerd-rootless-setuptool.sh install
@@ -78,7 +78,7 @@ dockerd-rootless-setuptool.sh install
 
 **這個檢查只問 docker**，不是因為相信 podman 的名字——上一段的重點正是名字不算證據——而是因為沒有 rootful podman 要抓：非 root 使用者跑它就是映射到從屬 UID 範圍，它只有這一種模式。
 
-兩個引擎都在時要指定哪一個，用 `FOLIS_CONTAINER_ENGINE=docker`（或 `=podman`）。CI 就是這樣釘的，而且**那個釘子是必要的而不是保險**：GitHub runner 兩個引擎都有，但它的 podman 跟旁邊的 crun 對 OCI spec 版本認知不合，`podman build` 會在每個 `RUN` 真正執行之前就死在 `unknown version specified`。順序改成 podman 優先之後，CI 少了那一行就會落在壞掉的那個引擎上。
+兩個引擎都在時要指定哪一個，用 `TIDEMARKS_CONTAINER_ENGINE=docker`（或 `=podman`）。CI 就是這樣釘的，而且**那個釘子是必要的而不是保險**：GitHub runner 兩個引擎都有，但它的 podman 跟旁邊的 crun 對 OCI spec 版本認知不合，`podman build` 會在每個 `RUN` 真正執行之前就死在 `unknown version specified`。順序改成 podman 優先之後，CI 少了那一行就會落在壞掉的那個引擎上。
 
 ### rootless docker 裝完記得接上 client
 

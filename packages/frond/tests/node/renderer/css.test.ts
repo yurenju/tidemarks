@@ -530,7 +530,7 @@ describe("resolving generic families", () => {
 });
 
 describe("fitting the book's colours to the reader's page", () => {
-  /** Folis's own dark theme. */
+  /** Tidemarks' own dark theme. */
   const DARK = colorTheme("#d8d5cf", "#1b1b1e") as ColorTheme;
 
   test("a colour that reads on the reader's page is left character for character", () => {

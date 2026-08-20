@@ -42,7 +42,7 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 
 ## 現在是開發階段
 
-Folis 雖然已經部署在 `app.folis.ink`（真的 D1、真的 R2），但**還沒上線**——上線定義成
+Tidemarks 雖然已經部署在 `app.folis.ink`（真的 D1、真的 R2），但**還沒上線**——上線定義成
 **開放外界註冊**那一刻（不管入口是 email、邀請碼還是別的；免費試用的帳號也算）。在那之前：
 frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以隨便改，**資料可以丟**。上線
 之後一律要接過去。細節與理由見
@@ -75,7 +75,7 @@ public repo、單一 initial commit」，實際走的是直接公開現在這一
 ## frond 的邊界
 
 渲染層 frond 就在 `packages/frond`，原始碼、測試、ADR 與它自己的 `CONTEXT.md` 都在那裡。它是為
-Folis 而做的，**但 UI 一項都不在它裡面**。
+Tidemarks 而做的，**但 UI 一項都不在它裡面**。
 
 分法是 frond 的
 [ADR-0002](packages/frond/docs/adr/0002-frond-owns-facts-spine-owns-policy.md)：
@@ -86,7 +86,7 @@ Folis 而做的，**但 UI 一項都不在它裡面**。
 等 merge、等手動發版。那道摩擦沒有了（[ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
 現在改 frond 跟改 app 一樣近，所以怎麼分要自己講得清楚。它一句話講得完：
 
-> **拿不到只有 frond 知道的事實，就讓 frond 補上那個事實；只是繁瑣，就留在 Folis。**
+> **拿不到只有 frond 知道的事實，就讓 frond 補上那個事實；只是繁瑣，就留在 Tidemarks。**
 
 碰到「這件 UI 的事在 app 做很痛，是不是該搬進 frond」，**先問痛的原因**：
 
@@ -130,7 +130,7 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 
 這兩類**原樣保留**，它們不是可以翻譯的文字：
 
-- **UI 文案**——Folis 是給中文讀者的閱讀 app，畫面上的字就是產品本身
+- **UI 文案**——Tidemarks 是給中文讀者的閱讀 app，畫面上的字就是產品本身
   （`packages/app/src/lib/settings.ts` 的 `黑體` / `明體` / `書籍預設`）。要不要做 i18n
   是產品決策，不是這條慣例管的事——那筆決策在 #31。
 - **被測對象**——`packages/app/src/lib/chinese.ts` 的簡繁對照表、`epub.test.ts` /
@@ -161,7 +161,7 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 
 ### Domain docs
 
-一個 package 一份 `CONTEXT.md` 加自己的 `docs/adr/`：根目錄那組是 Folis 的，`packages/frond/` 那組
+一個 package 一份 `CONTEXT.md` 加自己的 `docs/adr/`：根目錄那組是 Tidemarks 的，`packages/frond/` 那組
 是 frond 的。兩套 ADR **各自編號、不重編**，所以引用時要寫清楚是哪一邊的（「frond ADR-0002」加相對
 路徑）。見 `docs/agents/domain.md`。
 

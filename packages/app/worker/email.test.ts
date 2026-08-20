@@ -10,7 +10,7 @@ describe("magicCodeMail", () => {
     // The code is not tied to the browser that asked for it, so a caller who talks somebody
     // into reading six digits aloud is in. This sentence is the whole defence, which is why
     // it is asserted rather than trusted to survive the next edit of the wording.
-    expect(magicCodeMail("048213").text).toContain("Folis 不會有任何人跟你要這串碼");
+    expect(magicCodeMail("048213").text).toContain("Tidemarks 不會有任何人跟你要這串碼");
   });
 });
 
@@ -47,7 +47,7 @@ describe("sendMail with Resend configured", () => {
       .mockResolvedValue(new Response("{}", { status: 200 }));
     try {
       await sendMail(
-        { RESEND_API_KEY: "key-test", MAIL_FROM: "Folis <login@folis.test>" },
+        { RESEND_API_KEY: "key-test", MAIL_FROM: "Tidemarks <login@tidemarks.test>" },
         "reader@example.com",
         { subject: "hi", text: "body" },
       );
@@ -55,7 +55,7 @@ describe("sendMail with Resend configured", () => {
       expect(url).toBe("https://api.resend.com/emails");
       expect((init.headers as Record<string, string>).authorization).toBe("Bearer key-test");
       expect(JSON.parse(init.body as string)).toEqual({
-        from: "Folis <login@folis.test>",
+        from: "Tidemarks <login@tidemarks.test>",
         to: "reader@example.com",
         subject: "hi",
         text: "body",
@@ -71,10 +71,14 @@ describe("sendMail with Resend configured", () => {
       .mockResolvedValue(new Response("domain not verified", { status: 403 }));
     try {
       await expect(
-        sendMail({ RESEND_API_KEY: "key-test", MAIL_FROM: "Folis <login@folis.test>" }, "r@e.com", {
-          subject: "hi",
-          text: "body",
-        }),
+        sendMail(
+          { RESEND_API_KEY: "key-test", MAIL_FROM: "Tidemarks <login@tidemarks.test>" },
+          "r@e.com",
+          {
+            subject: "hi",
+            text: "body",
+          },
+        ),
       ).rejects.toThrow(/403/);
     } finally {
       fetchSpy.mockRestore();

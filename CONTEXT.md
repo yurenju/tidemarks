@@ -1,10 +1,10 @@
-# Folis — Domain Glossary
+# Tidemarks — Domain Glossary
 
 專案共用術語表。skill 產出（issue 標題、重構提案、測試名稱）都用這裡定義的詞。
 
 渲染層是 [frond](packages/frond/README.md)（見 [ADR-0003](docs/adr/0003-epub-ts-to-frond.md) 與 [ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
 它自己有一份 CONTEXT.md 定義「頁」、「fraction」、「CFI」、「書寫模式」這些**書與版面**的詞。
-這份表只定義 Folis 這一層的詞——**決策**與**介面**。兩邊詞不重複，是刻意的：一個詞只有一個擁有者。
+這份表只定義 Tidemarks 這一層的詞——**決策**與**介面**。兩邊詞不重複，是刻意的：一個詞只有一個擁有者。
 
 ## Tidemarks
 
@@ -12,12 +12,16 @@
 行文裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。潮痕——潮水退去後留在岸上的那條線：
 **來來去去，而痕跡慢慢變深**。
 
-**但檔案裡現在寫的還是 `Folis`。** 定名與改名是兩步：換掉那 296 處留到上線前一次做完
-（[#155](https://github.com/yurenju/spine/issues/155)）。**在那之前照常寫 `Folis`，不必迴避、
-也不要順手改**——半套的改名比沒改更難讀。
+**檔案裡已經改完了**（#4）。`git grep -i folis` 還找得到的只有刻意留著的四種：**兩套**
+`docs/adr/`（根目錄與 frond 各一）的內文與檔名、指向舊 repo 的引用（#2 的範圍，兩種寫法都算：
+`github.com/yurenju/folis/issues/124` 與 `yurenju/folis#124`）、`folis.ink` 這個網域（見下一段），
+以及像這一節這樣**在講改名這件事本身**的句子。
 
-**網域與 hostname 還沒定**（`.com` / `.app` / `.io` 三選一，見 ADR-0029）。這是這次唯一不可逆
-的一步：**WebAuthn 的 RP ID 有 credential 之後就不能改**。
+**hostname 定了，但還沒活著。** 新的是 `app.tidemarks.io`，#8 已經把它寫進 Workers Builds 的
+build variables；讓那個主機名真的回應請求是 [#11](https://github.com/yurenju/tidemarks/issues/11)，
+還沒做完。所以文件裡寫的官方網址暫時還是 `app.folis.ink`——那是一句過期但成立的話，改成一個
+連不上的網址才是錯的。等 #11 做完由 [#6](https://github.com/yurenju/tidemarks/issues/6) 一起改。
+hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 credential 之後就不能改**。
 
 **一個名字，不是兩個**——它同時是軟體與服務，「官方那一台」與「自己架的那一份」的區別由主機名
 扛。apex 留給官方網站（[#110](https://github.com/yurenju/spine/issues/110)），app 住在子網域
@@ -25,8 +29,8 @@
 
 **2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與代價見
 [ADR-0019](docs/adr/0019-the-product-name-does-not-take-a-word-from-the-format.md) 與
-[ADR-0025](docs/adr/0025-folis-is-a-placeholder-name-until-launch.md)。那些日期以前的 ADR 與
-設計文件裡寫的 `spine` 與 `Folis` 就是 Tidemarks，它們的內文與檔名一律不改。
+[ADR-0025](docs/adr/0025-folis-is-a-placeholder-name-until-launch.md)。那些日期以前的 ADR 裡
+寫的 `spine` 與 `Folis` 就是 Tidemarks，它們的內文與檔名一律不改。
 
 _Avoid_: spine（**現在只指 EPUB 封裝格式裡的 `<spine>` 元素**，而 frond 連那個意思都改用
 `readingOrder`）、Spine、Folis（都是舊名字，寫下來的時候一定是在講改名這件事本身）、
@@ -100,7 +104,7 @@ _Avoid_: RenditionPort（已不存在）, adapter（現在沒有東西需要被�
 
 ## 紙／墨／葉綠
 
-Folis 視覺上的三個**材質**，是所有視覺判斷的根據（[ADR-0022](docs/adr/0022-the-interface-is-a-print-shop.md)，
+Tidemarks 視覺上的三個**材質**，是所有視覺判斷的根據（[ADR-0022](docs/adr/0022-the-interface-is-a-print-shop.md)，
 規則的展開在 [docs/design-system.md](docs/design-system.md)）。
 
 - **紙**＝容器，讀者改不動的：底、卡、封面、抽屜、bar。
@@ -111,7 +115,7 @@ Folis 視覺上的三個**材質**，是所有視覺判斷的根據（[ADR-0022]
 能被拿起來**；質感只出現在讀者碰過的地方，介面本身不做貼圖與擬物。
 
 _Avoid_: 主題色／theme color（那是一個可以換的變數，而葉綠是一個**有名額的**語意）、
-品牌色（Folis 的品牌是那三個材質加襯線，不是一個色票）、卡片（「卡」在這裡是紙的一種，
+品牌色（Tidemarks 的品牌是那三個材質加襯線，不是一個色票）、卡片（「卡」在這裡是紙的一種，
 不是 Material 那一套的元件）
 
 ## chrome
@@ -257,7 +261,7 @@ _Avoid_: 語言（它答的不是「這本書是什麼語言」，而且會讓�
 
 ## 自帶字型
 
-Folis 自己那一份 Noto CJK，**在這台裝置上有沒有**。讀者開了真的有漢字的書才下載，位元組存進 Dexie，
+Tidemarks 自己那一份 Noto CJK，**在這台裝置上有沒有**。讀者開了真的有漢字的書才下載，位元組存進 Dexie，
 要用的時候做成 `blob:` URL 交給 frond（見
 [ADR-0014](docs/adr/0014-spine-carries-the-font-rather-than-borrowing-it.md)）。
 
@@ -270,10 +274,10 @@ Folis 自己那一份 Noto CJK，**在這台裝置上有沒有**。讀者開了�
 **介面跟它借**，但只借明體、也只在**下一次開 app** 的時候借（`lib/ui-font.ts`）。書在 iframe 裡，
 `@font-face` 是 per-document 的，所以頂層文件要自己再註冊一次；借到之後介面的中文粗體才是真的 Bold
 字形，不是瀏覽器合成的。不跟著〈排版設定〉的 `fontFamily` 走：那個設定的語意是「**書**該長什麼樣」。
-拉丁那半不必借，Folis 自己帶了 Source Serif 4（90 KB，跟 app 一起載）。
+拉丁那半不必借，Tidemarks 自己帶了 Source Serif 4（90 KB，跟 app 一起載）。
 
 _Avoid_: 內嵌字型（暗示跟 app shell 一起打包，而它正好相反，不進 precache）、web font（太泛，書自己
-也可能帶字型，那是書的資源不是 Folis 的）
+也可能帶字型，那是書的資源不是 Tidemarks 的）
 
 ## 閱讀位置
 
@@ -414,7 +418,7 @@ _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（�
 
 字級是**讀者瀏覽器 root 字級的百分比**，不是絕對 px（見
 [ADR-0006](docs/adr/0006-font-size-is-a-percentage-of-the-readers-root.md)）——同一個「大一點」，讀者在
-瀏覽器裡講過一次就算數，Folis 的介面本來就跟著，書也跟著。
+瀏覽器裡講過一次就算數，Tidemarks 的介面本來就跟著，書也跟著。
 
 _Avoid_: 全域設定（含糊，講不出「全域」的邊界其實停在這台機器上）、使用者偏好（暗示跟著人走，
 正好相反）、裝置預設（那個詞的存在前提是還有另一層，而另一層沒有了）、書的覆寫（同上，已作廢）
@@ -487,7 +491,7 @@ _Avoid_: 會員（暗示等級制，而 ADR-0011 只有一個級距）、付費�
 
 錯誤訊息兩邊相反：白名單期間**講白**（「這個信箱還不能註冊」——那時候輸入 email 的是維護者認識
 的人，含糊只會讓他對著空信箱枯等）；開放之後**一律含糊**（有沒有帳號都回同一句，否則任何人都問
-得出某個 email 有沒有在用 Folis）。
+得出某個 email 有沒有在用 Tidemarks）。
 
 _Avoid_: 邀請制（沒有邀請碼這種東西，名單是維護者單方面加的）、註冊模式（「模式」在這份文件裡
 是書寫模式那一類）、beta（講不出這裡真正要講的事：資料還可以清）
@@ -497,7 +501,7 @@ _Avoid_: 邀請制（沒有邀請碼這種東西，名單是維護者單方面�
 **開發階段**：現在。使用者是維護者自己，加上白名單裡那幾個人，所以**資料可以丟**——schema
 要改就改，migration 裡直接砍掉重建也算數。**但丟之前要寄信通知、並且給得出匯出**：白名單裡
 的人不是維護者，他們把整櫃書搬進來之前有權知道這件事會發生。這個承諾做得到，是因為到那時候
-Folis 手上第一次有 email。這段期間**付款走 Stripe test mode**——要驗的是流程跑不跑得通，不是
+Tidemarks 手上第一次有 email。這段期間**付款走 Stripe test mode**——要驗的是流程跑不跑得通，不是
 有沒有人願意掏錢，而收了真的錢就不能再說「資料可以丟」。
 
 **上線**：**開放註冊**那一刻。白名單期間存在的理由就是那之前要做完的事（email 註冊、付款），
@@ -526,7 +530,7 @@ _Avoid_: 部署、deploy、release、production（**這四件事都已經成立�
 它是好幾個決定的共同理由，所以值得有個名字：`worker/` 必須一起開源（只開前端就等於沒開）、
 `docs/deployment.md` 必須讓一個外人照著架得起來（而且不需要自訂網域）、停止付費之後資料不刪、
 **匯出的格式別人也讀得懂**（見 [ADR-0013](docs/adr/0013-your-copy-is-yours.md)——現在吐的是
-一包只有 Folis 吃得下的 JSON，那讓「搬得走」只搬得到另一個 Folis，是 lock-in 不是退路）。
+一包只有 Tidemarks 吃得下的 JSON，那讓「搬得走」只搬得到另一個 Tidemarks，是 lock-in 不是退路）。
 
 **退路不包含「伺服器看不到我的書」**——那件事開源買不到，MCP 又讓它永久出局，所以不承諾。
 能承諾的只有免費的那一級，而且要用查得證的句子講：**不註冊的話，書、筆記、閱讀位置一個位元組都
@@ -541,7 +545,7 @@ _Avoid_: 開源（那是手段，不是要換到的東西）、可攜性（聽�
 
 ## 寄物櫃
 
-Folis 對使用者上傳的書所站的位置：**收下、保管、只還給本人**。這個詞由
+Tidemarks 對使用者上傳的書所站的位置：**收下、保管、只還給本人**。這個詞由
 [ADR-0010](docs/adr/0010-spine-is-never-the-path-to-a-book.md) 引入，
 [ADR-0013](docs/adr/0013-your-copy-is-yours.md) 是它在檔案那一層的展開。
 
@@ -549,8 +553,8 @@ Folis 對使用者上傳的書所站的位置：**收下、保管、只還給本
 去重、沒有簽名 URL 也沒有公開網址、匯出原封不動、不掃描內容。**每一項壞掉都只要一個「加一下
 也還好」的決定**，所以每一項都得有名字。
 
-_Avoid_: 網路硬碟（那一類服務有分享連結，正好是 Folis 沒有的那一半）、雲端書櫃（「書櫃」暗示
-給人看，而寄物櫃的重點是只還給本人）、平台（Folis 不是雙邊的，沒有第三人）
+_Avoid_: 網路硬碟（那一類服務有分享連結，正好是 Tidemarks 沒有的那一半）、雲端書櫃（「書櫃」暗示
+給人看，而寄物櫃的重點是只還給本人）、平台（Tidemarks 不是雙邊的，沒有第三人）
 
 ## 畫面巡檢
 

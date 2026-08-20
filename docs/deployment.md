@@ -1,11 +1,11 @@
-# Deploying Folis to Cloudflare
+# Deploying Tidemarks to Cloudflare
 
-Folis is a monorepo (ADR-0018) and the deployable half is `packages/app`, which
+Tidemarks is a monorepo (ADR-0018) and the deployable half is `packages/app`, which
 is where `wrangler.jsonc` and `migrations/` live. Any npm script named below is
 run from the **root**; the `wrangler` commands here are one-off provisioning and
 run from wherever you like.
 
-Folis runs as a single Cloudflare Worker that serves the PWA (static assets),
+Tidemarks runs as a single Cloudflare Worker that serves the PWA (static assets),
 the auth endpoints (`/auth/*`), and the sync API (`/api/*`). Storage is
 **D1** (structured data) and **R2** (epub files and covers), plus a small **KV**
 namespace holding OAuth grants for the read-only MCP server.
@@ -76,7 +76,7 @@ Worker. The two values the Worker does read at runtime, `COOKIE_SECRET` and
 `CF_RP_ID` has to be set before the first deploy, and cannot be changed
 afterwards without invalidating every passkey. So decide now, not later:
 
-- **With a custom domain**: a dedicated subdomain (`folis.example.com`) rather
+- **With a custom domain**: a dedicated subdomain (`tidemarks.example.com`) rather
   than an apex, so passkeys are scoped to this app only. Its zone must be on
   your Cloudflare account. Set `CF_ROUTE` and `CF_RP_ID` to it.
 - **Without one**: your Worker's address is
@@ -137,11 +137,11 @@ address is one of the two ways in (the other is a passkey). So something has to
 send mail.
 
 **Without a key nothing is sent and the code goes to the log**, where
-`npx wrangler tail` shows it. That is the whole self-hosting path: a Folis you
+`npx wrangler tail` shows it. That is the whole self-hosting path: a Tidemarks you
 run for yourself needs no vendor, no verified domain and no DNS. It is also how
 login gets tested by hand — see `docs/agents/verify.md`.
 
-For a Folis other people log into, that is not good enough, and the vendor is
+For a Tidemarks other people log into, that is not good enough, and the vendor is
 [Resend](https://resend.com):
 
 1. Add your domain in the Resend dashboard and publish the DNS records it asks
@@ -151,7 +151,7 @@ For a Folis other people log into, that is not good enough, and the vendor is
    and **nobody can log in**. Start this early; it is the step that waits.
 3. Set `CF_MAIL_FROM` to an address **on the domain you just verified**. This is
    the step that gets skipped, because nothing complains until a reader tries to
-   log in. The sending domain has nothing to do with the hostname Folis is
+   log in. The sending domain has nothing to do with the hostname Tidemarks is
    served from — they are two independent choices, and Resend only knows about
    the one you verified with it. Send from a domain it has not verified and
    every request for a code fails with 403, which reads to the reader
@@ -171,7 +171,7 @@ status Resend answered with and the body it sent back. Read that before
 guessing; the two failures that look identical from the browser (unverified
 domain, bad key) are one line apart there.
 
-Resend is the only vendor Folis talks to, and if it is down nobody who has lost
+Resend is the only vendor Tidemarks talks to, and if it is down nobody who has lost
 their session can get in. Sessions last 90 days, which is the whole of the
 cushion; there is no second provider (see
 [ADR-0015](adr/0015-an-account-is-only-as-strong-as-its-inbox.md)).
@@ -185,7 +185,7 @@ and the certificate, as long as that zone is on your account.
 
 ## 6. Connect the build, and deploy
 
-This is where the code actually ships. Folis uses
+This is where the code actually ships. Tidemarks uses
 [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/):
 Cloudflare watches the GitHub repo and builds/deploys on push. **It is the only
 way anything here is deployed** — there is no laptop path, because the build
@@ -311,7 +311,7 @@ npx wrangler d1 execute <CF_D1_NAME> --remote \
 ```
 
 Opening signup to everyone means adding `"OPEN_SIGNUP": "true"` to `vars` in
-`wrangler.jsonc` and deploying, on purpose — for Folis itself that edit *is* the
+`wrangler.jsonc` and deploying, on purpose — for Tidemarks itself that edit *is* the
 launch line ([ADR-0004](adr/0004-development-phase-and-launch-line.md)), and it
 should leave a commit behind. Adding one person should not need a deploy, which
 is why the list is in the database and the switch is not.
