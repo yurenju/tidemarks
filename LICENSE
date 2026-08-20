@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This repository incorporates material from third parties, chiefly the two
-public-domain EPUB publications redistributed under `tests/books/`. The required
-notices are in packages/frond/THIRD-PARTY-NOTICES.md, which covers the
-repository as a whole rather than that package alone.

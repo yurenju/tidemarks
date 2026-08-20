@@ -2,7 +2,9 @@
 
 A local-first epub reader, built as a PWA. Everything lives in the browser's IndexedDB, so a book stays readable and writable offline; an optional Cloudflare Worker syncs across devices (sign in with a passkey, or with a code mailed to you — no password either way).
 
-**The only official Tidemarks is [app.folis.ink](https://app.folis.ink).** Any other deployment, whatever it calls itself, is somebody else's — which is the point of the source being readable, but it means the hostname is the thing to check.
+**You can run your own.** That is what the source being readable is for — [docs/deployment.md](docs/deployment.md) walks through standing one up on your own Cloudflare account, and it is the same path the hosted one takes.
+
+**[app.tidemarks.io](https://app.tidemarks.io) is the one the maintainer runs.** Any other deployment, whatever it calls itself, is somebody else's — so the hostname is the thing to check.
 
 繁體中文版：[README.zh-TW.md](README.zh-TW.md)
 
@@ -14,6 +16,17 @@ A local-first epub reader, built as a PWA. Everything lives in the browser's Ind
 - Reading stats: opening a book records a session, and the time accumulates
 - Export: one book's notes as markdown; the whole dataset — epub files included — as JSON, so another browser can pick up where this one left off
 - Sync (optional): a book imported on the desktop turns up on the phone's shelf, with progress, highlights, notes and stats travelling with it; the epub body itself downloads only when the book is opened
+
+## Where this is going
+
+The first line above describes what works today. The name points somewhere else: a tidemark is what a tide leaves behind, and what this is aiming to be is a place for what reading leaves behind. Reading well is the foundation; the half worth getting right is what you write down.
+
+Two things follow from that, and **neither has code behind it yet**:
+
+- **A note should not need a book and a selection.** Today a note is a string attached to a highlight, which is attached to one book and one range of text. The kind of note this is aiming at needs neither.
+- **EPUB should not be the only source.** Articles and video belong here too.
+
+These are positions, not a schedule. They are written down so that a feature request has something to be measured against — see [ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md) for how the name forced the question.
 
 ## Development
 
@@ -42,3 +55,13 @@ Backend: Cloudflare Workers + D1 + R2, with [@simplewebauthn](https://simpleweba
 Deployment: [docs/deployment.md](docs/deployment.md)
 
 Why it exists: [docs/intent/2026-07-15-spine-cross-device-reading.md](docs/intent/2026-07-15-spine-cross-device-reading.md)
+
+## Contributing
+
+The source is open for the exit it buys: if the hosted service goes away, the reader your library lives in is still something you can run yourself ([ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md)). Running a community around it is separate work, and for now the effort goes into building this solo.
+
+So, plainly: issues get read, but a pull request is unlikely to get a timely review and some will get none at all. Better to say that up front than to leave you reading silence. Forking is fine — the licence is MIT, and see `## Where this is going` above for what a feature request would be measured against.
+
+## Licence
+
+MIT, in [LICENSE](LICENSE). Third-party material bundled or vendored here is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
