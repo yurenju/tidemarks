@@ -104,7 +104,11 @@
   // somebody else's RP_ID deploys fine and cannot be logged into, and one with an unverified
   // MAIL_FROM deploys fine and mails nothing.
   //
-  // Whether RP_ID should fall back to the request's host is an open question — issue #9.
+  // RP_ID is never derived from the request's host, and that is a decision rather than an
+  // omission — see ADR-0030. The host is used for one thing: a passkey ceremony asked for on a
+  // host this RP_ID does not cover is refused with a sentence naming both, instead of a
+  // `SecurityError` the browser throws with no explanation attached. Magic codes are untouched
+  // by that check, because when RP_ID is wrong they are the only way back in.
   //
   // "OPEN_SIGNUP": "true" — absent, and absent means only addresses in the `signup_allowlist`
   // table can create an account. Adding this line is the launch line itself (ADR-0004): the

@@ -84,6 +84,22 @@ afterwards without invalidating every passkey. So decide now, not later:
   in the dashboard under Workers & Pages → Overview before you deploy anything.
   Set `CF_RP_ID` to that whole hostname, leave `CF_ROUTE` unset.
 
+**If you get it wrong, the deploy still succeeds** — a wrong hostname is not a
+wrong configuration file, and nothing about it is visible until somebody tries
+to use a passkey. So the Worker checks it for you: a passkey asked for on a host
+this `CF_RP_ID` does not cover is refused with a sentence naming both hostnames,
+rather than the unexplained `SecurityError` the browser would throw instead.
+
+**Magic codes are deliberately not checked**, which makes them the way back in:
+sign in with a mailed code (with no `RESEND_API_KEY`, it is printed by
+`npx wrangler tail`), correct `CF_RP_ID`, redeploy, and register the passkey
+again. A passkey registered against the old value is gone either way — that is
+what "cannot be changed afterwards" means.
+
+`RP_ID` may also be a registrable domain above the host, so `example.com` covers
+a Worker answering on `app.example.com`. What it cannot be is a hostname you do
+not serve from.
+
 ## 1. Create the storage resources (one-time)
 
 ```sh
