@@ -15,7 +15,8 @@
 識別字、套件名、GitHub repo、網域、D1／R2／Dexie、Resend 的 sending domain——照 ADR-0025 的
 規劃留到上線前一次做完，清單在 [#155](https://github.com/yurenju/spine/issues/155)。
 
-**網域與 hostname 還沒定**，見底下〈還沒決定的那一件〉。那是這次唯一不可逆的一步。
+**網域是 `tidemarks.io`，app 在 `app.tidemarks.io`**，見底下〈網域與 hostname〉。那是這次唯一
+不可逆的一步。
 
 **frond 不改名**，理由見 ADR-0025：它是函式庫不是產品，不對外發布，讀到這個名字的只有打開
 `packages/frond/` 的人。
@@ -98,23 +99,16 @@
 - **現成存在的詞勝過拼出來的詞。** 決賽圈裡活到最後的（tidemark、eddyline、strandline、
   ripplemark）全都是真實存在的術語，自帶一個畫面；我們自己黏出來的沒有一個活過一輪。
 
-## 還沒決定的那一件：TLD 與 hostname
+## 網域與 hostname（2026-08-20 補上）
+
+網域是 **`tidemarks.io`**，app 放在 **`app.tidemarks.io`**。
 
 **WebAuthn 的 RP ID 一旦有 credential 就不可變**，所以 hostname 選定那一刻是這次改名唯一走不
-回頭的一步（ADR-0019 為此付過一次，ADR-0025 記過一次）。三個選項：
+回頭的一步（ADR-0019 為此付過一次，ADR-0025 記過一次）。這一節單獨存在就是為了記下這件事。
 
-| | 子網域 | 風險 |
-| --- | --- | --- |
-| `tidemarks.com` | `app.tidemarks.com`，ADR-0019 的規矩原封不動 | 未確認買不買得到 |
-| `tidemarks.app` | `app.tidemarks.app` 會結巴，要改用 `read.` 之類 | 無；`.app` 強制 HTTPS |
-| `tidemarks.io` | `app.tidemarks.io` 乾淨 | `.io` 是英屬印度洋領地的國碼域名，主權已於 2025 年移交模里西斯。ICANN 表示存廢取決於 ISO 3166-1 是否移除 `IO`；若移除，退場政策給五年以上的過渡期 |
-
-`.io` 的風險不是「會消失」，是「有一個沒關掉的問號」，而問號的代價形狀不對稱：`.app` 的缺點
-（子網域要換一個字）今天就付完，`.io` 的缺點（可能要搬 hostname，而搬家讓每一把 passkey 作廢）
-是延後的，付的時候已經有使用者了。ADR-0004 的整個邏輯就是趁沒有使用者的時候把不可逆的事做完，
-這一題適用。
-
-決定之後補進這一節。
+至於 TLD 選哪一個，**沒有花力氣比較，因為這一題沒有想像中重要**：Tidemarks 是開源專案，想用的
+人自己架得起來，官方託管只是「不想自己架的話，我幫你出雲端資源的錢，所以酌收」。官方那一台不是
+主戰場，綁在官方 hostname 上的人本來就不會多。`app.tidemarks.io` 唸得順、拼得出來，這樣就夠了。
 
 ## 這個 repo 裡會有三個名字
 
