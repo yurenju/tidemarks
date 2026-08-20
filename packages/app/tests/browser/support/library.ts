@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { COMMIT_FRACTION, TAP_SLOP_PX } from "../../../src/lib/touch.js";
 
 // The books sit at the repository root rather than inside this package: both packages read the
 // same two files, and two copies would be two things to keep in step.
@@ -270,8 +271,10 @@ const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
  * a real finger reporting to the frame it started in once it has wandered off it. That is the
  * engine's business, and it is on the by-hand list (docs/agents/verify.md).
  *
- * @param dx how far to drag, in px. Negative is leftward.
- * @param ms roughly how long the whole gesture takes. Short is a flick.
+ * @param dx how far to drag, in px. Negative is leftward. For a drag that is meant to turn the
+ *   page on distance, take it from `farEnoughToTurn` rather than writing a number down.
+ * @param ms roughly how long the whole gesture takes. `0` is a flick, and is paced differently
+ *   — see the spin below.
  * @param hold leaves the finger down, for asserting on a turn in progress. `releaseDrag` ends it.
  */
 export async function dragPage(
@@ -314,10 +317,25 @@ export async function dragPage(
 
       const frameGap = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
+      // A flick's steps are paced by a spin rather than by a frame. `requestAnimationFrame`
+      // hands the wait to the scheduler, and a loaded machine stretches it well past the 90ms
+      // the app reads speed over — so a gesture written to be fast arrives slow, reads as
+      // stationary, and the page correctly refuses to turn (#15). A spin is the one wait a busy
+      // machine cannot lengthen much. 2ms rather than none, because two samples sharing a
+      // timestamp are no speed at all and Firefox coarsens its clock.
+      const spin = () => {
+        const until = performance.now() + 2;
+        while (performance.now() < until);
+      };
+
       send("pointerdown", 0);
       for (let step = 1; step <= steps; step += 1) {
-        await frameGap();
-        if (ms > 0) await new Promise((resolve) => setTimeout(resolve, ms / steps));
+        if (ms > 0) {
+          await frameGap();
+          await new Promise((resolve) => setTimeout(resolve, ms / steps));
+        } else {
+          spin();
+        }
         send("pointermove", (dx * step) / steps);
       }
 
@@ -327,6 +345,33 @@ export async function dragPage(
     },
     { dx, ms, steps, hold, selector: PAGE_FRAME },
   );
+}
+
+/**
+ * How far a finger has to travel before letting go turns the page, with room to spare.
+ *
+ * **Two different gestures commit a turn, and a spec has to say which one it means.** Letting
+ * go turns the page if the drag went past `COMMIT_FRACTION` of the page, *or* if it was still
+ * moving fast enough to be a flick (`commitsTurn`, src/lib/touch.ts). A spec that writes down a
+ * fixed number of pixels is choosing between those two by accident: 260px is a third of a phone
+ * and a fifth of this suite's 904px page, so every spec that dragged 260 and expected a turn
+ * was in fact asking for the flick — and getting it only because the synthetic finger happened
+ * to be quick. On a loaded machine its steps spread past the window the app reads speed over
+ * (`VELOCITY_WINDOW_MS`), the reading collapses to zero, and the page goes back where it was.
+ * Correct behaviour, red test: that is #15.
+ *
+ * So the distance is read off the page the spec is actually looking at, and half a page is
+ * taken rather than the third that would only just do — a threshold cleared by one pixel is the
+ * same accident with a smaller margin.
+ */
+export async function farEnoughToTurn(page: Page): Promise<number> {
+  // Half a page is only a margin for as long as the threshold is under half a page. Saying so
+  // out loud costs one comparison and means the day someone raises the third, these specs fail
+  // where the reason is written down rather than somewhere in the middle of a gesture.
+  if (COMMIT_FRACTION >= 0.5) throw new Error("half a page no longer commits a turn");
+
+  const extent = await page.locator(".viewer-mount").evaluate((mount) => mount.clientWidth);
+  return Math.round(extent / 2) + TAP_SLOP_PX;
 }
 
 /** Lifts a finger left down by `dragPage(..., { hold: true })`. */

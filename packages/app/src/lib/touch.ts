@@ -80,8 +80,12 @@ export function incomingEdge(travel: number): TurnEdge {
  * A proportion rather than a number of pixels: a third of a phone screen and a third of a
  * tablet are the same gesture and very different distances. **The third itself is a guess** —
  * measurements.md §2 says how to settle it.
+ *
+ * Exported because the browser specs have to drag past it. A spec that writes its own number
+ * instead is not asking for a turn, it is asking for whichever of the two routes in
+ * `commitsTurn` that number happens to land on — which is how #15 was let in.
  */
-const COMMIT_FRACTION = 1 / 3;
+export const COMMIT_FRACTION = 1 / 3;
 
 /**
  * The speed at which a flick counts however short it was, in px per ms.

@@ -2,6 +2,7 @@ import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
   dragPage,
+  farEnoughToTurn,
   openBook,
   pageOffset,
   releaseDrag,
@@ -34,14 +35,15 @@ test.describe("horizontal book", () => {
     page,
   }) => {
     const before = await visibleText(page);
+    const finger = -(await farEnoughToTurn(page));
 
-    await dragPage(page, { dx: -260, hold: true });
+    await dragPage(page, { dx: finger, hold: true });
 
     // The page has moved with the finger, and it has moved by about as much as the finger did
     // — the first ten pixels are the slop that decided this was a drag at all.
     const offset = await pageOffset(page);
-    expect(offset).toBeLessThan(-200);
-    expect(offset).toBeGreaterThan(-260);
+    expect(offset).toBeLessThan(finger * 0.8);
+    expect(offset).toBeGreaterThan(finger);
     // And the page coming in is on screen behind it. This is the whole of what the reader
     // asked for: they can see where they are going before they commit to it.
     expect(await visibleFrames(page)).toBe(2);
@@ -55,10 +57,12 @@ test.describe("horizontal book", () => {
 
   test("dragging back the other way returns to the page just left", async ({ page }) => {
     const first = await visibleText(page);
-    await dragPage(page, { dx: -260 });
+    const finger = await farEnoughToTurn(page);
+
+    await dragPage(page, { dx: -finger });
     await expect.poll(async () => await visibleText(page)).not.toBe(first);
 
-    await dragPage(page, { dx: 260 });
+    await dragPage(page, { dx: finger });
     await expect.poll(async () => await visibleText(page)).toBe(first);
   });
 
@@ -76,6 +80,10 @@ test.describe("horizontal book", () => {
   test("a flick turns the page even though it barely moved", async ({ page }) => {
     // A thumb on a phone: 40px and gone. Distance alone refuses it, and refusing it is what
     // "I swiped and nothing happened" is made of — with no tap to fall back on (#61).
+    //
+    // This is the one spec here that is meant to ride on speed, so it is the one that cannot
+    // take its distance from `farEnoughToTurn`. What keeps it honest instead is how `dragPage`
+    // paces a flick: see the spin in that helper, and #15 for what a frame-paced one did.
     const before = await visibleText(page);
 
     await dragPage(page, { dx: -40, ms: 0, steps: 3 });
@@ -106,11 +114,12 @@ test.describe("horizontal book", () => {
     // Dragging cannot be mistaken for "put this away", so it is not blocked while the bars are
     // up — and a page turn ends 〈找〉, whichever gesture asked for it.
     const before = await visibleText(page);
+    const finger = -(await farEnoughToTurn(page));
     const box = (await page.locator(".viewer").boundingBox())!;
     await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.4);
     await expect(page.getByTestId("chrome-bottom")).toBeVisible();
 
-    await dragPage(page, { dx: -260 });
+    await dragPage(page, { dx: finger });
 
     await expect(page.getByTestId("chrome-bottom")).toBeHidden();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
@@ -129,7 +138,7 @@ test.describe("vertical book (直排)", () => {
     // (frond ADR-0013).
     const before = await visibleText(page);
 
-    await dragPage(page, { dx: 260 });
+    await dragPage(page, { dx: await farEnoughToTurn(page) });
 
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
   });
