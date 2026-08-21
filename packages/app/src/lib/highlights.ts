@@ -84,7 +84,7 @@ export function boxesContain(
  *
  * Inks, and not highlighter colours: a marked passage is a wash of one of these with a firmer
  * line pressed along its bottom edge, which is what a nib leaves behind. None of the four is
- * anywhere near moss, so "what I marked" is never read as "what I can press".
+ * apart from tide, so "what I marked" is never read as "what I can press".
  *
  * The labels name pigments rather than colours — 蓼藍 rather than 藍色 — so each one carries
  * the material a scribe would have ground. Translating them is picking that language's name for
