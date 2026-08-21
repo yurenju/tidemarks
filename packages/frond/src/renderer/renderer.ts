@@ -243,8 +243,29 @@ export class Renderer {
     prev: undefined,
     next: undefined,
   };
-  /** Recognises a peek mount that has gone stale, the way `loadGeneration` does for the page itself. */
-  private neighbourGeneration = 0;
+  /**
+   * Which section each side already has a mount on its way for, if any.
+   *
+   * Separate from `peeks`, which holds only what has **landed**. A mount takes long enough
+   * that a reader turning pages steadily starts several before the first one arrives, and
+   * without somewhere to record that, every turn starts another. The cost is not just the
+   * mount: each one builds a whole document into the container before it can be thrown
+   * away. A hundred turns measured 201 frames in the container at once.
+   */
+  private readonly peekMounts: { prev: number | undefined; next: number | undefined } = {
+    prev: undefined,
+    next: undefined,
+  };
+  /**
+   * Recognises a peek mount whose **document** has gone stale — built from settings that
+   * have since been replaced (`dropPeeks`).
+   *
+   * **Not bumped per turn**, which is what it used to be. A mount that lands after the
+   * reader has turned a few more pages is still a perfectly good document of the right
+   * section, and `mountPeek` points it at wherever they have got to; calling it stale threw
+   * away the one thing that makes a run of turns cost a single mount.
+   */
+  private peekDocumentGeneration = 0;
   private turn: ActiveTurn | undefined;
   /**
    * The chain the enqueued operations are strung onto. See `enqueue()`.
@@ -979,12 +1000,10 @@ export class Renderer {
    * `rebuilt` says the documents themselves are out of date (a settings change rewrites them),
    * so a peek showing the right section is still the wrong document and has to be mounted again.
    */
-  private refreshNeighbours(rebuilt = false): void {
+  private refreshNeighbours(): void {
     if (this.destroyed || this.view === undefined) return;
     // Not while the reader is dragging one of them across the screen.
     if (this.turn !== undefined) return;
-
-    const generation = (this.neighbourGeneration += 1);
 
     for (const side of ["prev", "next"] as const) {
       const wanted = this.neighbourAt(side);
@@ -996,33 +1015,52 @@ export class Renderer {
         continue;
       }
 
-      if (peek !== undefined && !rebuilt && peek.want.sectionIndex === wanted.sectionIndex) {
+      if (peek !== undefined && peek.want.sectionIndex === wanted.sectionIndex) {
         peek.view.goToPage(wanted.page === "last" ? peek.view.pageCount - 1 : wanted.page);
         peek.want = wanted;
         continue;
       }
 
+      // A mount for this side is already on its way, and it is building the very section
+      // this turn wants. A second one would not make the preview arrive any sooner —
+      // whichever mount lands re-reads where the reader is by then — so one mount serves a
+      // whole run of turns rather than one being started, and discarded, per turn.
+      if (this.peekMounts[side] === wanted.sectionIndex) continue;
+
       peek?.view.destroy();
       this.peeks[side] = undefined;
-      void this.mountPeek(side, wanted, generation);
+      this.peekMounts[side] = wanted.sectionIndex;
+      void this.mountPeek(side, wanted.sectionIndex, this.peekDocumentGeneration);
     }
   }
 
-  /** Tears both peeks down. A settings change does this, because their documents are the old ones. */
+  /**
+   * Tears both peeks down. A settings change does this, because their documents are the old ones.
+   *
+   * The generation carries that same message to the mounts still on their way: they are
+   * building documents from the settings being replaced, so whichever of them lands after
+   * this has to be discarded rather than shown. This is the **only** thing that ages a peek
+   * document out — see `peekDocumentGeneration`.
+   */
   private dropPeeks(): void {
+    this.peekDocumentGeneration += 1;
     for (const side of ["prev", "next"] as const) {
       this.peeks[side]?.view.destroy();
       this.peeks[side] = undefined;
+      this.peekMounts[side] = undefined;
     }
   }
 
   private async mountPeek(
     side: TurnDirection,
-    wanted: NeighbourPage,
+    sectionIndex: number,
     generation: number,
   ): Promise<void> {
-    const section = this.book.readingOrder[wanted.sectionIndex];
-    if (section === undefined) return;
+    const section = this.book.readingOrder[sectionIndex];
+    if (section === undefined) {
+      this.peekMounts[side] = undefined;
+      return;
+    }
 
     let view: SectionView;
     try {
@@ -1031,10 +1069,25 @@ export class Renderer {
       // A section that will not mount is reported when the reader actually goes there
       // (`loadSection`). Saying it twice, from a page they have not asked for yet, would put an
       // error on screen over a page that is perfectly readable.
+      this.peekMounts[side] = undefined;
       return;
     }
 
-    if (this.destroyed || generation !== this.neighbourGeneration) {
+    if (this.peekMounts[side] === sectionIndex) this.peekMounts[side] = undefined;
+
+    // Where the reader is **now**, rather than where they were when this mount was asked
+    // for. Turning a page is far quicker than mounting a document, so by the time one lands
+    // the reader has usually moved on — and re-asking is exactly what lets a single mount
+    // serve a whole run of turns. A section change or a settings change still discards it:
+    // the first makes it the wrong section, the second the wrong document.
+    const wanted = this.neighbourAt(side);
+
+    if (
+      this.destroyed ||
+      wanted === undefined ||
+      wanted.sectionIndex !== sectionIndex ||
+      generation !== this.peekDocumentGeneration
+    ) {
       view.destroy();
       return;
     }
