@@ -1,7 +1,3 @@
-import { describe, expect, test } from "vitest";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 /**
  * The stylesheet's own custom properties, checked for the one mistake nothing else catches.
  *
@@ -20,7 +16,11 @@ import { fileURLToPath } from "node:url";
  * It deliberately does **not** check for unused properties. A type scale is a ramp and may
  * legitimately hold a step nothing is on yet; a name with no definition is never legitimate.
  */
-const CSS = readFileSync(fileURLToPath(new URL("../index.css", import.meta.url)), "utf8");
+
+import { describe, expect, test } from "vitest";
+// `?raw` rather than `node:fs`, and that is the environment talking: `src` is compiled with
+// Vite's client types and no Node ones, because everything else in here runs in a browser.
+import CSS from "../index.css?raw";
 
 /**
  * Properties set from TypeScript rather than in a stylesheet block, so the stylesheet reads
@@ -39,13 +39,12 @@ const SET_AT_RUNTIME = new Set([
   "--scrubber-inset",
 ]);
 
-function declared(css: string): Set<string> {
-  return new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)].map((m) => m[1]));
+function namesIn(css: string, pattern: RegExp): Set<string> {
+  return new Set([...css.matchAll(pattern)].flatMap((match) => match[1] ?? []));
 }
 
-function referenced(css: string): Set<string> {
-  return new Set([...css.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((m) => m[1]));
-}
+const declared = (css: string) => namesIn(css, /^\s*(--[a-z0-9-]+)\s*:/gm);
+const referenced = (css: string) => namesIn(css, /var\(\s*(--[a-z0-9-]+)/g);
 
 describe("index.css custom properties", () => {
   test("every var() names a property that exists", () => {
