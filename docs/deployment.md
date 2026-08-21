@@ -20,10 +20,33 @@ be taken back later — see *Deciding the hostname first* below.
 ## Prerequisites
 
 - A Cloudflare account
-- `npx wrangler login` (or an API token) for the one-time provisioning steps
+- `npx wrangler login` (or an API token) for the one-time provisioning steps —
+  **optional**, see *Being walked through it* below
 - A hostname whose zone is on that account — **optional**, see step 5
 - Node.js and `npm install` at the root of the repo, if you want to run it
   locally as well (one lockfile covers every package)
+
+## Being walked through it
+
+```sh
+npm run setup:cloudflare
+```
+
+[`scripts/setup-cloudflare.sh`](../scripts/setup-cloudflare.sh) is everything
+below, in the order you actually do it. It opens each page, says what to do
+there, captures the ids you copy back, and prints them as the table you paste
+into the build variables form. Every step is a page in a browser, so it needs no
+`wrangler login` — which is what makes the prerequisite above optional.
+
+**It is the sequence, not the reference.** The reasoning is here, and it is what
+you want when something does not behave; the wizard cannot tell you why a step
+exists. What it can do is keep you from arriving at the end having skipped one,
+which matters because the two steps most easily skipped — verifying the sending
+domain, and setting `COOKIE_SECRET` — both deploy successfully and then let
+nobody log in.
+
+Ctrl-C stops it and re-running picks up where you left off. It writes only into
+`.scratch/`, which is gitignored, and never writes a secret down at all.
 
 ## How a deployment is configured
 
