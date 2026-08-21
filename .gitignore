@@ -34,6 +34,11 @@ dist-ssr
 # build variables on every build. Build output, and it holds the official account's ids.
 packages/app/wrangler.generated.json
 
+# Compiled message catalogs, built from the .po files beside them by `lingui compile`. Build
+# output: the .po files are the source, and a committed .js copy of them is a second answer to
+# "what does this say in Japanese" that nothing keeps honest.
+packages/app/src/locales/*.js
+
 # Playwright output
 playwright-report/
 test-results/

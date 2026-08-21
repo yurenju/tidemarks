@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-21 21:06+0900\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ja\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#. Label of the only control in 〈設定〉's language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
+#. 〈設定〉tab holding the interface language. One word, sits beside 排版 and 帳號.
+#: src/components/LanguageForm.tsx
+#: src/components/SettingsScreen.tsx
+msgid "Language"
+msgstr "言語"
+
+#. Under the language control in 〈設定〉. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.
+#: src/components/LanguageForm.tsx
+msgid "This device only — the language follows the machine in your hand, not your account. Books are unaffected: each one is laid out in whatever it was written in."
+msgstr "この端末だけの設定です。言語はアカウントではなく、手元の端末に従います。本には影響しません。どの本もそれぞれ書かれた言語のまま組まれます。"

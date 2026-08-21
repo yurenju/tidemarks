@@ -1,8 +1,12 @@
+import { Trans } from "@lingui/react/macro";
 import AccountPanel from "./AccountPanel";
+import LanguageForm from "./LanguageForm";
 import TypographyForm from "./TypographyForm";
 import type { ReaderSettings } from "../lib/settings";
+import type { Locale } from "../lib/locale";
 import type { SettingsTab } from "../lib/route";
 import { BUILD, formatBuild } from "../lib/version";
+import type { ReactNode } from "react";
 
 /**
  * 〈設定〉: everything that is not a book.
@@ -27,6 +31,8 @@ export default function SettingsScreen({
   onChange,
   onReset,
   onImported,
+  locale,
+  onLocaleChange,
 }: {
   tab: SettingsTab;
   onTab: (tab: SettingsTab) => void;
@@ -36,6 +42,8 @@ export default function SettingsScreen({
   onReset: () => void;
   /** The shelf has to reload after a backup lands: it is holding rows that just changed. */
   onImported: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 }) {
   return (
     <div className="settings-screen" data-testid="settings-screen">
@@ -52,6 +60,17 @@ export default function SettingsScreen({
       <nav className="settings-tabs" data-testid="settings-tabs">
         <Tab open={tab} tab="typography" label="排版" onTab={onTab} />
         <Tab open={tab} tab="account" label="帳號" onTab={onTab} />
+        {/* Last, because it is the rarest: a reader sets this once and never returns. */}
+        <Tab
+          open={tab}
+          tab="language"
+          label={
+            <Trans comment="〈設定〉tab holding the interface language. One word, sits beside 排版 and 帳號.">
+              Language
+            </Trans>
+          }
+          onTab={onTab}
+        />
       </nav>
 
       <div className="settings-pane">
@@ -64,8 +83,10 @@ export default function SettingsScreen({
                disables it in the reader's own panel, where the book is. */
             verticalBook={false}
           />
-        ) : (
+        ) : tab === "account" ? (
           <AccountPanel onImported={onImported} />
+        ) : (
+          <LanguageForm locale={locale} onChange={onLocaleChange} />
         )}
       </div>
 
@@ -92,7 +113,7 @@ function Tab({
   open: SettingsTab;
   /** Which tab this button is. */
   tab: SettingsTab;
-  label: string;
+  label: ReactNode;
   onTab: (tab: SettingsTab) => void;
 }) {
   const current = open === tab;

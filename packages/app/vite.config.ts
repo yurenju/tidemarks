@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
+import { linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import { VitePWA } from "vite-plugin-pwa";
 import { workerNavigationDenylist } from "./src/lib/worker-paths.ts";
 
@@ -31,6 +33,14 @@ export default defineConfig({
   define: { __BUILD__: JSON.stringify(build) },
   plugins: [
     react(),
+    // Lingui's macros, which are the whole point of writing `t` and `<Trans>` rather than
+    // catalog lookups: they leave the English in the code where it is read and reviewed, and
+    // turn it into a message id at build time. The preset filters itself down to files that
+    // import a macro, so this is not a Babel pass over the whole tree.
+    //
+    // The Worker cannot have this — wrangler bundles it with esbuild and there is no Babel in
+    // that path — so it names its messages explicitly instead (`worker/i18n.ts`).
+    babel({ presets: [linguiTransformerBabelPreset()] }),
     VitePWA({
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache

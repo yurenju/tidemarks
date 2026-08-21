@@ -14,9 +14,9 @@ const SETTINGS_PREFIX = "#/settings";
 const ABOUT_PREFIX = "about/";
 
 /** Which pane of 〈設定〉 is showing. */
-export type SettingsTab = "typography" | "account";
+export type SettingsTab = "typography" | "account" | "language";
 
-const SETTINGS_TABS: SettingsTab[] = ["typography", "account"];
+const SETTINGS_TABS: SettingsTab[] = ["typography", "account", "language"];
 /** The one a reader almost always came for, and what an unreadable tab falls back to. */
 const DEFAULT_SETTINGS_TAB: SettingsTab = "typography";
 
