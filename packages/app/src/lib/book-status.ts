@@ -32,7 +32,7 @@ export function isFinished(progress: Progress | undefined): boolean {
 /**
  * The one book the shelf leads with, or `null` when there is none.
  *
- * **Read, and not finished** — by the reading time, not by the shelf's recency order: a book imported this
+ * **Read, and not finished** — by the reading time, not by 〈最近碰過〉: a book imported this
  * morning is the most recently touched thing on the shelf, and it is not what the reader was
  * in the middle of. A shelf where nothing qualifies (everything is new, or everything is done)
  * gets no large book at all, because blowing an unopened one up to half the screen reads as

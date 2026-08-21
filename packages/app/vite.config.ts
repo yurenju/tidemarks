@@ -1,19 +1,9 @@
-import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import babel from "@rolldown/plugin-babel";
-import { linguiTransformerBabelPreset } from "@lingui/vite-plugin";
-import { getConfig } from "@lingui/conf";
-
 import { VitePWA } from "vite-plugin-pwa";
 import { workerNavigationDenylist } from "./src/lib/worker-paths.ts";
-// Loaded from a spelled-out path rather than discovered, because discovery starts at the
-// working directory — and `npm test` starts at the repository root, where there is no Lingui
-// config and the error says only "No Lingui config found". Handing the resolved config to the
-// macro plugin as well means nothing downstream goes looking for it either.
-const linguiConfigPath = fileURLToPath(new URL("./lingui.config.ts", import.meta.url));
-const linguiConfig = getConfig({ configPath: linguiConfigPath });
+import { linguiMacros } from "./lingui-babel.ts";
 
 // The build stamp the app shows (`src/lib/version.ts`). Read here rather than at runtime
 // because the service worker can be serving a bundle older than the one on the server, and
@@ -49,9 +39,7 @@ export default defineConfig({
     //
     // The Worker cannot have this — wrangler bundles it with esbuild and there is no Babel in
     // that path — so it names its messages explicitly instead (`worker/i18n.ts`).
-    babel({
-      presets: [linguiTransformerBabelPreset({ linguiConfig }, { configPath: linguiConfigPath })],
-    }),
+    linguiMacros(),
     VitePWA({
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache

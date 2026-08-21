@@ -14,6 +14,7 @@ import {
   LINE_HEIGHTS,
   MARGINS,
   THEME_CHOICES,
+  type FontChoice,
   type ReaderSettings,
 } from "../lib/settings";
 import { carriedFontKinds, type WebFontKind } from "../lib/web-font";
@@ -175,20 +176,22 @@ function isDefault(settings: ReaderSettings): boolean {
   );
 }
 
-// The two carried faces, named the way the typeface control names them — one entry each,
-// shared with `FONT_FAMILIES` rather than written twice.
+// The two carried faces, named the way the typeface control names them — the same two entries,
+// read out of `FONT_FAMILIES` rather than written a second time here.
 const KIND_LABEL: Record<WebFontKind, MessageDescriptor> = {
-  serif: msg({
-    message: "Serif",
-    comment:
-      "One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.",
-  }),
-  sans: msg({
-    message: "Sans",
-    comment:
-      "One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.",
-  }),
+  serif: fontChoiceLabel("serif"),
+  sans: fontChoiceLabel("sans"),
 };
+
+function fontChoiceLabel(choice: FontChoice): MessageDescriptor {
+  const found = FONT_FAMILIES.find((family) => family.value === choice);
+  // Unreachable: the two names come from the same union `FONT_FAMILIES` is built over. Throwing
+  // rather than falling back to a blank, because a nameless typeface in the line below reads as
+  // a rendering bug rather than as a missing entry.
+  if (!found) throw new Error(`no label for the ${choice} typeface`);
+  return found.label;
+}
+
 const KINDS = Object.keys(KIND_LABEL) as WebFontKind[];
 
 /**

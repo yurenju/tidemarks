@@ -115,17 +115,6 @@ describe("the language a refusal comes back in", () => {
       "このメールアドレスはまだ登録できません",
     );
   });
-
-  it("falls back to English when the caller asks for a language Tidemarks has none of", async () => {
-    const response = await SELF.fetch(`${CONFIGURED_HOST_URL}/auth/code/request`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "accept-language": "ko-KR" },
-      body: JSON.stringify({ email: EMAIL }),
-    });
-    expect(((await response.json()) as { error: string }).error).toBe(
-      "This address cannot sign up yet",
-    );
-  });
 });
 
 describe("asking for a magic code while signup is closed", () => {

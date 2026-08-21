@@ -46,10 +46,11 @@ export function lastTouchedAt(book: ShelfBook, progress: ReadonlyMap<string, Rea
 /**
  * The shelf in the order the reader asked for. Returns a new array; the input is left alone.
  *
- * `language` is a BCP-47 tag and comes from **Tidemarks' interface language**, not the browser's
- * (`lib/language.ts` says why). Titles collate through `Intl.Collator`, so what "alphabetical"
- * means is the language's business: `zh-Hant` orders Han characters by stroke count, which is
- * how a Traditional Chinese index reads. `numeric` is on because without it 「第 10 集」 sorts
+ * `language` is a BCP-47 tag and comes from **Tidemarks' interface language**, not the
+ * browser's (`lib/locale.ts` says why). Titles collate through `Intl.Collator`, so what
+ * "alphabetical" means is the language's business: a reader in 繁體中文 gets Han characters
+ * ordered by stroke count, which is how a Traditional Chinese index reads; the same shelf in
+ * English does not. `numeric` is on because without it 「第 10 集」 sorts
  * ahead of 「第 2 集」.
  *
  * Directions are fixed — recency descends, titles ascend — because the reverse of either is a

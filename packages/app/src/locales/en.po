@@ -571,8 +571,6 @@ msgid "Restore from backup"
 msgstr "Restore from backup"
 
 #. One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.
-#. One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.
-#: src/components/TypographyForm.tsx
 #: src/lib/settings.ts
 msgid "Sans"
 msgstr "Sans"
@@ -583,8 +581,6 @@ msgid "Save"
 msgstr "Save"
 
 #. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
-#. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
-#: src/components/TypographyForm.tsx
 #: src/lib/settings.ts
 msgid "Serif"
 msgstr "Serif"
@@ -696,7 +692,6 @@ msgstr "Syncing…"
 msgid "System"
 msgstr "System"
 
-#. Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.
 #. Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.
 #. js-lingui-explicit-id
 #: worker/auth.ts
@@ -863,9 +858,6 @@ msgstr "Typeface"
 msgid "US$3 a month (provisional)"
 msgstr "US$3 a month (provisional)"
 
-#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
-#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
-#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
 #. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
 #. js-lingui-explicit-id
 #: worker/auth.ts

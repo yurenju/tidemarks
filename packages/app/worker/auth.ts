@@ -245,6 +245,31 @@ function decideSignup(i18n: I18n, env: Env, email: string, hasAccount: boolean) 
 }
 
 /**
+ * The two things a passkey ceremony can be refused for, each said in one place.
+ *
+ * Functions rather than constants for the same reason `verdictMessage` below is one: extraction
+ * only sees a descriptor spelled out inside an `i18n._()` call, so "one copy" has to mean one
+ * call. Four call sites wanted the first of these.
+ */
+function passkeyFailed(i18n: I18n): string {
+  return i18n._({
+    id: "auth.passkey.failed",
+    message: "Verification failed",
+    comment:
+      "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
+  });
+}
+
+function challengeExpired(i18n: I18n): string {
+  return i18n._({
+    id: "auth.passkey.challengeExpired",
+    message: "That attempt timed out — try again",
+    comment:
+      "Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.",
+  });
+}
+
+/**
  * Why a code was refused, in the reader's language.
  *
  * ⚠️ **A function of switches rather than a table of descriptors**, and that is not a style
@@ -381,12 +406,7 @@ async function registerVerify(request: Request, env: Env): Promise<Response> {
   if (!payload?.userId)
     return json(
       {
-        error: i18n._({
-          id: "auth.passkey.challengeExpired",
-          message: "That attempt timed out — try again",
-          comment:
-            "Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.",
-        }),
+        error: challengeExpired(i18n),
       },
       { status: 400 },
     );
@@ -403,15 +423,7 @@ async function registerVerify(request: Request, env: Env): Promise<Response> {
   } catch (e) {
     return json(
       {
-        error:
-          e instanceof Error
-            ? e.message
-            : i18n._({
-                id: "auth.passkey.failed",
-                message: "Verification failed",
-                comment:
-                  "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
-              }),
+        error: e instanceof Error ? e.message : passkeyFailed(i18n),
       },
       { status: 400 },
     );
@@ -419,12 +431,7 @@ async function registerVerify(request: Request, env: Env): Promise<Response> {
   if (!verification.verified || !verification.registrationInfo) {
     return json(
       {
-        error: i18n._({
-          id: "auth.passkey.failed",
-          message: "Verification failed",
-          comment:
-            "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
-        }),
+        error: passkeyFailed(i18n),
       },
       { status: 400 },
     );
@@ -470,12 +477,7 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
   if (!payload)
     return json(
       {
-        error: i18n._({
-          id: "auth.passkey.challengeExpired",
-          message: "That attempt timed out — try again",
-          comment:
-            "Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.",
-        }),
+        error: challengeExpired(i18n),
       },
       { status: 400 },
     );
@@ -515,15 +517,7 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
   } catch (e) {
     return json(
       {
-        error:
-          e instanceof Error
-            ? e.message
-            : i18n._({
-                id: "auth.passkey.failed",
-                message: "Verification failed",
-                comment:
-                  "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
-              }),
+        error: e instanceof Error ? e.message : passkeyFailed(i18n),
       },
       { status: 400 },
     );
@@ -531,12 +525,7 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
   if (!verification.verified)
     return json(
       {
-        error: i18n._({
-          id: "auth.passkey.failed",
-          message: "Verification failed",
-          comment:
-            "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
-        }),
+        error: passkeyFailed(i18n),
       },
       { status: 400 },
     );
