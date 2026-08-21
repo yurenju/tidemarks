@@ -20,6 +20,7 @@
     "shots": "./scripts/capture-shots.sh",
     "preview": "npm run preview -w app",
     "worker:dev": "npm run worker:dev -w app",
+    "setup:cloudflare": "./scripts/setup-cloudflare.sh",
     "deploy": "node scripts/deploy.ts production",
     "versions:upload": "node scripts/deploy.ts preview",
     "db:migrate:local": "npm run db:migrate:local -w app"
