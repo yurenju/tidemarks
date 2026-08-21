@@ -16,9 +16,10 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import { apiFetch } from "./api";
 
 async function post<T>(url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -39,7 +40,7 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
 }
 
 export async function me(): Promise<{ userId: string } | null> {
-  const res = await fetch("/auth/me");
+  const res = await apiFetch("/auth/me");
   if (!res.ok) return null;
   return res.json();
 }

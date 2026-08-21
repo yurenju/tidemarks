@@ -77,6 +77,38 @@ export function matchLocale(preferences: readonly string[]): Locale {
   return DEFAULT_LOCALE;
 }
 
+/**
+ * An `Accept-Language` header as an ordered preference list, ready for `matchLocale`.
+ *
+ * The Worker's only signal about what language to answer in. The app sets the header from the
+ * interface language on every request it makes, and a browser navigating to the consent page
+ * sets its own — one mechanism covering both, rather than a body field that only the first
+ * kind of request could carry.
+ *
+ * Sorted by `q` rather than trusting the written order. Browsers write the list in preference
+ * order already, so the two agree in practice; but `q` is what the specification says decides,
+ * and anything at all may send this header.
+ */
+export function parseAcceptLanguage(header: string | null | undefined): string[] {
+  if (!header) return [];
+
+  return (
+    header
+      .split(",")
+      .map((part) => {
+        const [tag, ...params] = part.split(";").map((piece) => piece.trim());
+        const quality = params
+          .map((param) => /^q=([\d.]+)$/.exec(param))
+          .find((match) => match !== null);
+        return { tag: tag ?? "", quality: quality ? Number(quality[1]) : 1 };
+      })
+      // The wildcard asks for nothing in particular, so there is nothing to match it against.
+      .filter((entry) => entry.tag !== "" && entry.tag !== "*" && Number.isFinite(entry.quality))
+      .sort((a, b) => b.quality - a.quality)
+      .map((entry) => entry.tag)
+  );
+}
+
 function validLocale(value: unknown): Locale | undefined {
   return LOCALES.some((locale) => locale.value === value) ? (value as Locale) : undefined;
 }

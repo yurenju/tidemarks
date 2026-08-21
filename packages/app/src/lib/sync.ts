@@ -6,6 +6,7 @@ import { db, getSyncCursor, setSyncCursor } from "./db";
 import { clearableDirty, dedupeSessions, mergeAnnotation, mergeBook, mergeProgress } from "./merge";
 import { isEmptyPayload, syncPayload, toSyncBook, type SyncPayload } from "./sync-payload";
 import type { Progress, ReadingSession } from "./types";
+import { apiFetch } from "./api";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "offline" | "unauthenticated" | "error";
 
@@ -41,7 +42,7 @@ interface PushResponse {
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await apiFetch(url, init);
   if (res.status === 401) throw Object.assign(new Error("unauthenticated"), { auth: true });
   if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${url}: ${res.status}`);
   return res.json();
@@ -83,8 +84,8 @@ async function pushDirty(snapshotAt: number) {
   // upload epub bodies for freshly imported books (metadata row now exists server-side)
   for (const b of dirtyBooks) {
     if (b.deletedAt || !b.file) continue;
-    await fetch(`/api/books/${b.id}/file`, { method: "PUT", body: b.file });
-    if (b.cover) await fetch(`/api/books/${b.id}/cover`, { method: "PUT", body: b.cover });
+    await apiFetch(`/api/books/${b.id}/file`, { method: "PUT", body: b.file });
+    if (b.cover) await apiFetch(`/api/books/${b.id}/cover`, { method: "PUT", body: b.cover });
   }
 
   await db.transaction(
@@ -174,7 +175,7 @@ async function pull() {
   // covers are part of shelf sync (small images); epub bodies stay lazy
   for (const id of coversToFetch) {
     try {
-      const res = await fetch(`/api/books/${id}/cover`);
+      const res = await apiFetch(`/api/books/${id}/cover`);
       if (res.ok) await db.books.update(id, { cover: await res.blob() });
     } catch {
       // cover is cosmetic; next sync retries
@@ -276,7 +277,7 @@ export function beaconPositions(): boolean {
 
 // download an epub body on demand (lazy download), storing it in Dexie
 export async function downloadBookFile(id: string): Promise<Blob> {
-  const res = await fetch(`/api/books/${id}/file`);
+  const res = await apiFetch(`/api/books/${id}/file`);
   if (!res.ok) {
     throw new Error(
       i18n._(

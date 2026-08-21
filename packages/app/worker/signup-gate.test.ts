@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { openSignupFrom, signupDecision } from "./signup-gate";
+import { i18nOf } from "./i18n";
+
+// Assertions read the source language, so a failure is a difference in behaviour rather than
+// one in translation.
+const i18n = i18nOf("en");
 
 describe("openSignupFrom", () => {
   it("is closed when the var is missing, which is the state the repo ships in", () => {
@@ -23,7 +28,9 @@ describe("openSignupFrom", () => {
 describe("signupDecision while signup is closed", () => {
   it("sends a code to an address that already has an account", async () => {
     const allowlisted = vi.fn().mockResolvedValue(false);
-    expect(await signupDecision({ openSignup: false, hasAccount: true }, allowlisted)).toEqual({
+    expect(
+      await signupDecision(i18n, { openSignup: false, hasAccount: true }, allowlisted),
+    ).toEqual({
       allowed: true,
     });
   });
@@ -31,13 +38,15 @@ describe("signupDecision while signup is closed", () => {
   it("does not consult the allowlist for an account that exists", async () => {
     // Removing somebody from the list must not lock them out of data that is already theirs.
     const allowlisted = vi.fn().mockResolvedValue(false);
-    await signupDecision({ openSignup: false, hasAccount: true }, allowlisted);
+    await signupDecision(i18n, { openSignup: false, hasAccount: true }, allowlisted);
     expect(allowlisted).not.toHaveBeenCalled();
   });
 
   it("lets a listed address create an account", async () => {
     const allowlisted = vi.fn().mockResolvedValue(true);
-    expect(await signupDecision({ openSignup: false, hasAccount: false }, allowlisted)).toEqual({
+    expect(
+      await signupDecision(i18n, { openSignup: false, hasAccount: false }, allowlisted),
+    ).toEqual({
       allowed: true,
     });
   });
@@ -46,17 +55,20 @@ describe("signupDecision while signup is closed", () => {
     // Plain, not vague: the person typing this address is somebody the maintainer knows, and
     // vagueness would leave them watching an empty inbox.
     const decision = await signupDecision(
+      i18n,
       { openSignup: false, hasAccount: false },
       vi.fn().mockResolvedValue(false),
     );
-    expect(decision).toEqual({ allowed: false, message: "這個信箱還不能註冊" });
+    expect(decision).toEqual({ allowed: false, message: "This address cannot sign up yet" });
   });
 });
 
 describe("signupDecision once signup is open", () => {
   it("lets any address create an account", async () => {
     const allowlisted = vi.fn().mockResolvedValue(false);
-    expect(await signupDecision({ openSignup: true, hasAccount: false }, allowlisted)).toEqual({
+    expect(
+      await signupDecision(i18n, { openSignup: true, hasAccount: false }, allowlisted),
+    ).toEqual({
       allowed: true,
     });
   });
@@ -65,8 +77,8 @@ describe("signupDecision once signup is open", () => {
     // Not "the table is empty so everything passes" — the switch changes which code path runs,
     // so a forgotten row cannot lock anyone out after launch.
     const allowlisted = vi.fn().mockResolvedValue(false);
-    await signupDecision({ openSignup: true, hasAccount: false }, allowlisted);
-    await signupDecision({ openSignup: true, hasAccount: true }, allowlisted);
+    await signupDecision(i18n, { openSignup: true, hasAccount: false }, allowlisted);
+    await signupDecision(i18n, { openSignup: true, hasAccount: true }, allowlisted);
     expect(allowlisted).not.toHaveBeenCalled();
   });
 });

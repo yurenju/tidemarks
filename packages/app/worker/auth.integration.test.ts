@@ -98,11 +98,43 @@ beforeEach(async () => {
   );
 });
 
+describe("the language a refusal comes back in", () => {
+  // The app states the reader's chosen interface language on every call it makes
+  // (`src/lib/api.ts`), and the Worker answers in it. Asserted here rather than only in a
+  // unit test because the whole chain is what can break: a header name typed wrong, a handler
+  // that built its `I18n` from the wrong request, a catalog that never reached the bundle.
+  // None of those fail type checking, and all of them look like "it works" in English.
+  it("answers in the language the request asked for", async () => {
+    const response = await SELF.fetch(`${CONFIGURED_HOST_URL}/auth/code/request`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "accept-language": "ja" },
+      body: JSON.stringify({ email: EMAIL }),
+    });
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { error: string }).error).toBe(
+      "このメールアドレスはまだ登録できません",
+    );
+  });
+
+  it("falls back to English when the caller asks for a language Tidemarks has none of", async () => {
+    const response = await SELF.fetch(`${CONFIGURED_HOST_URL}/auth/code/request`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "accept-language": "ko-KR" },
+      body: JSON.stringify({ email: EMAIL }),
+    });
+    expect(((await response.json()) as { error: string }).error).toBe(
+      "This address cannot sign up yet",
+    );
+  });
+});
+
 describe("asking for a magic code while signup is closed", () => {
   it("refuses an address nobody put on the list, and writes nothing down", async () => {
     const response = await postJson("/auth/code/request", { email: EMAIL });
     expect(response.status).toBe(403);
-    expect(((await response.json()) as { error: string }).error).toBe("這個信箱還不能註冊");
+    expect(((await response.json()) as { error: string }).error).toBe(
+      "This address cannot sign up yet",
+    );
 
     const { results } = await testEnv().DB.prepare("SELECT id FROM magic_codes").all();
     expect(results).toHaveLength(0);
@@ -221,7 +253,7 @@ describe("spending a magic code", () => {
     );
     const replay = await postJson("/auth/code/verify", { email: EMAIL, code: "123456" });
     expect(replay.status).toBe(400);
-    expect(((await replay.json()) as { error: string }).error).toContain("用過");
+    expect(((await replay.json()) as { error: string }).error).toContain("already been used");
   });
 
   it("voids the code after five wrong guesses, correct one included", async () => {

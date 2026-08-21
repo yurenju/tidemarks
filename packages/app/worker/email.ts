@@ -7,8 +7,11 @@
 //
 // See docs/adr/0015-an-account-is-only-as-strong-as-its-inbox.md.
 //
-// The message bodies are in Chinese because they are product copy, not prose about the code.
+// The letters go out in the reader's own interface language, which the request that triggered
+// them carried (`worker/i18n.ts`). Their messages are written by hand with explicit ids rather
+// than with the macros the app uses — that file has why.
 
+import type { I18n } from "@lingui/core";
 import { CODE_TTL_MS } from "./magic-code";
 
 export interface MailerEnv {
@@ -21,29 +24,76 @@ export interface Mail {
   text: string;
 }
 
-export function magicCodeMail(code: string): Mail {
+export function magicCodeMail(i18n: I18n, code: string): Mail {
   const minutes = Math.round(CODE_TTL_MS / 60_000);
   return {
-    subject: `Tidemarks 登入碼：${code}`,
+    subject: i18n._({
+      id: "email.magicCode.subject",
+      message: "Tidemarks sign-in code: {code}",
+      comment:
+        "Subject line of the letter carrying a one-time sign-in code. The product name stays as it is; the value is six digits.",
+      values: { code },
+    }),
     text: [
-      `登入碼：${code}`,
+      i18n._({
+        id: "email.magicCode.code",
+        message: "Sign-in code: {code}",
+        comment: "First line of the sign-in letter. The value is six digits.",
+        values: { code },
+      }),
       "",
-      `${minutes} 分鐘內有效，只能用一次。`,
+      i18n._({
+        id: "email.magicCode.validity",
+        message: "Good for {minutes} minutes, and once only.",
+        comment:
+          "How long the code lasts. The value comes from what the Worker actually enforces, so it is not a rounded promise.",
+        values: { minutes },
+      }),
       "",
-      "Tidemarks 不會有任何人跟你要這串碼。有人這樣要求，那個人不是我們。",
-      "不是你要登入的話，把這封信丟掉就好，沒有人進得去。",
+      i18n._({
+        id: "email.magicCode.warning",
+        message:
+          "Nobody at Tidemarks will ever ask you for this code. If someone does, that someone is not us.",
+        comment:
+          "The anti-phishing line in the sign-in letter. Keep it blunt — its whole job is to be remembered by a reader who is being talked to by an attacker.",
+      }),
+      i18n._({
+        id: "email.magicCode.notYou",
+        message: "If you were not signing in, throw this away. Nobody gets in without it.",
+        comment:
+          "Closing line of the sign-in letter, for someone who did not ask for it. It says the code alone is the key, so ignoring the letter is enough.",
+      }),
     ].join("\n"),
   };
 }
 
-export function loginNoticeMail(): Mail {
+export function loginNoticeMail(i18n: I18n): Mail {
   return {
-    subject: "Tidemarks：剛才有人用登入碼登入",
+    subject: i18n._({
+      id: "email.loginNotice.subject",
+      message: "Tidemarks: someone signed in with a code",
+      comment:
+        "Subject of the letter sent after a successful code sign-in. The product name stays as it is.",
+    }),
     text: [
-      "剛才有人用登入碼登入了你的 Tidemarks 帳號。",
+      i18n._({
+        id: "email.loginNotice.body",
+        message: "Someone just signed in to your Tidemarks account with a code.",
+        comment: "First line of the after-the-fact sign-in notice.",
+      }),
       "",
-      "是你的話，這封信不用理會。",
-      "不是你的話，你的信箱可能被別人讀得到——先去把信箱的密碼換掉，那是帳號真正的鑰匙。",
+      i18n._({
+        id: "email.loginNotice.wasYou",
+        message: "If that was you, there is nothing to do.",
+        comment: "The reassuring half of the sign-in notice.",
+      }),
+      i18n._({
+        id: "email.loginNotice.wasNotYou",
+        message:
+          "If it was not, someone can read your inbox — change that password first. It is the real key to this account.",
+        comment:
+          "The half that matters: an account secured by email is only as strong as the inbox (ADR-0015). The advice is deliberately about the mailbox, not about Tidemarks.",
+      }),
     ].join("\n"),
   };
 }

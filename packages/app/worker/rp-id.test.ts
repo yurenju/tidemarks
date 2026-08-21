@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { rpIdCoversHost, rpIdMismatchMessage } from "./rp-id";
+import { i18nOf } from "./i18n";
+
+// Assertions read the source language, so a failure is a difference in behaviour rather than
+// one in translation.
+const i18n = i18nOf("en");
 
 describe("whether an RP ID covers the host a request arrived on", () => {
   it("covers the host it is equal to", () => {
@@ -50,21 +55,23 @@ describe("whether an RP ID covers the host a request arrived on", () => {
 
 describe("the sentence a mismatch produces", () => {
   it("is absent when the RP ID covers the host", () => {
-    expect(rpIdMismatchMessage("tidemarks.io", "app.tidemarks.io")).toBeNull();
+    expect(rpIdMismatchMessage(i18n, "tidemarks.io", "app.tidemarks.io")).toBeNull();
   });
 
   it("names both hostnames, so the reader does not have to go and look one up", () => {
-    const message = rpIdMismatchMessage("app.tidemarks.io", "tidemarks-abc.workers.dev");
+    const message = rpIdMismatchMessage(i18n, "app.tidemarks.io", "tidemarks-abc.workers.dev");
     expect(message).toContain("app.tidemarks.io");
     expect(message).toContain("tidemarks-abc.workers.dev");
   });
 
   it("points at the way back in, which is the mailed code", () => {
-    expect(rpIdMismatchMessage("app.tidemarks.io", "elsewhere.example")).toContain("登入碼");
+    expect(rpIdMismatchMessage(i18n, "app.tidemarks.io", "elsewhere.example")).toContain(
+      "emailed code",
+    );
   });
 
   it("says so rather than leaving a blank when the RP ID is unset", () => {
-    const message = rpIdMismatchMessage(undefined, "app.tidemarks.io");
-    expect(message).toContain("沒有設定");
+    const message = rpIdMismatchMessage(i18n, undefined, "app.tidemarks.io");
+    expect(message).toContain("(not set)");
   });
 });

@@ -25,6 +25,12 @@ msgstr ": {reason}"
 msgid "‹ Shelf"
 msgstr "‹ Shelf"
 
+#. Stands in for the configured RP_ID in the message above when the deployment set none. Brackets included.
+#. js-lingui-explicit-id
+#: worker/rp-id.ts
+msgid "auth.passkey.rpIdUnset"
+msgstr "(not set)"
+
 #. One half of the line under the typeface control, reporting which carried faces this device already holds. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog. The two halves are joined with '・'.
 #: src/components/TypographyForm.tsx
 msgid "{face} is on this device"
@@ -49,6 +55,12 @@ msgstr "{sittings, plural, one {# sitting} other {# sittings}}"
 #: src/components/AccountPanel.tsx
 msgid "A code is on its way to {email}. It is good for 10 minutes."
 msgstr "A code is on its way to {email}. It is good for 10 minutes."
+
+#. Refusal when codes are asked for too quickly. The value is how long is left to wait.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.tooSoon"
+msgstr "A code went out a moment ago — try again in {seconds} seconds"
 
 #. Tooltip on the disabled columns control. It is disabled because frond cannot lay a vertically-written book out in two columns at all.
 #: src/components/TypographyForm.tsx
@@ -83,6 +95,12 @@ msgstr "Add a passkey"
 msgid "Add note"
 msgstr "Add note"
 
+#. The button that grants the agent access to the shelf.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.consent.approve"
+msgstr "Allow"
+
 #. Heading of the free half of the price list.
 #: src/components/AccountPanel.tsx
 msgid "Always free"
@@ -92,6 +110,12 @@ msgstr "Always free"
 #: src/components/AccountPanel.tsx
 msgid "An app wants to connect to your shelf. You will come back here to confirm after signing in."
 msgstr "An app wants to connect to your shelf. You will come back here to confirm after signing in."
+
+#. Refusal shown when a code is submitted for an address that was never sent one.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.none"
+msgstr "Ask for a sign-in code first"
 
 #. One of three column choices for a page: let the line length decide how many columns fit.
 #: src/lib/settings.ts
@@ -209,6 +233,18 @@ msgstr "Edit note"
 msgid "Email me a code"
 msgstr "Email me a code"
 
+#. Refusal when the sign-in form was submitted with no address at all.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.email.missing"
+msgstr "Enter an email address"
+
+#. Refusal when the verify request arrived without one of the two fields.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.verify.missing"
+msgstr "Enter both your email address and the code"
+
 #. Button that writes every book, note and position on this device out to one file.
 #: src/components/AccountPanel.tsx
 msgid "Export backup"
@@ -229,10 +265,34 @@ msgstr "Font download progress"
 msgid "Font is on this device"
 msgstr "Font is on this device"
 
+#. How long the code lasts. The value comes from what the Worker actually enforces, so it is not a rounded promise.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.magicCode.validity"
+msgstr "Good for {minutes} minutes, and once only."
+
+#. The half that matters: an account secured by email is only as strong as the inbox (ADR-0015). The advice is deliberately about the mailbox, not about Tidemarks.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.loginNotice.wasNotYou"
+msgstr "If it was not, someone can read your inbox — change that password first. It is the real key to this account."
+
+#. The reassuring half of the sign-in notice.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.loginNotice.wasYou"
+msgstr "If that was you, there is nothing to do."
+
 #. Heading of the line explaining what happens if the reader stops paying.
 #: src/components/AccountPanel.tsx
 msgid "If you stop"
 msgstr "If you stop"
+
+#. Closing line of the sign-in letter, for someone who did not ask for it. It says the code alone is the key, so ignoring the letter is enough.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.magicCode.notYou"
+msgstr "If you were not signing in, throw this away. Nobody gets in without it."
 
 #. The shelf's own verb: opens a file picker for epub files. 'epub' stays lower case, as the format spells itself.
 #: src/components/Library.tsx
@@ -280,6 +340,12 @@ msgstr "Language"
 #: src/lib/settings.ts
 msgid "Large"
 msgstr "Large"
+
+#. The question on the consent page. The value is the name the agent registered under, and is escaped before it reaches the page. The quotation marks are this language's — Chinese uses 「」.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.consent.heading"
+msgstr "Let “{clientName}” connect to your shelf?"
 
 #. One of three theme choices: dark text on a pale page.
 #: src/lib/settings.ts
@@ -337,6 +403,12 @@ msgstr "Moss"
 msgid "Next page"
 msgstr "Next page"
 
+#. The button that refuses the agent. Short and plain — it is the safe answer, not an apology.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.consent.deny"
+msgstr "No"
+
 #. Opening line of the account pane, before any mention of signing in. It is the product's own line: reading needs no account at all.
 #: src/components/AccountPanel.tsx
 msgid "No account needed to read. Your books, notes and reading positions never leave this device."
@@ -346,6 +418,12 @@ msgstr "No account needed to read. Your books, notes and reading positions never
 #: src/components/Library.tsx
 msgid "No books yet. Drop an epub in, and start here."
 msgstr "No books yet. Drop an epub in, and start here."
+
+#. The anti-phishing line in the sign-in letter. Keep it blunt — its whole job is to be remembered by a reader who is being talked to by an attacker.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.magicCode.warning"
+msgstr "Nobody at Tidemarks will ever ask you for this code. If someone does, that someone is not us."
 
 #. Smallest of four margin widths: no margin at all.
 #: src/lib/settings.ts
@@ -401,6 +479,18 @@ msgstr "Ochre"
 #: src/components/AccountPanel.tsx
 msgid "Offline"
 msgstr "Offline"
+
+#. The whole body of the consent page. It is HTML: keep the <strong> tags around whatever carries the emphasis in this language, and keep the three bullet lines starting with '  · '. The first bullet is the one that matters — an agent reads the books themselves, not merely their titles.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.consent.body"
+msgstr "Once connected, it can read:\n"
+"\n"
+"  · every book on your shelf, text and all\n"
+"  · where you are in each one, and the page in front of you\n"
+"  · the passages you marked and the notes you wrote\n"
+"\n"
+"It <strong>cannot</strong> change anything, and cannot delete a book. You can take this back in Tidemarks at any time."
 
 #. One column to a page. The word is a count of columns, not the digit.
 #: src/lib/settings.ts
@@ -461,7 +551,7 @@ msgid "Reading progress"
 msgstr "Reading progress"
 
 #. One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it 〈最近碰過〉, deliberately not 「最近閱讀」.
-#: src/lib/shelf-order.ts
+#: src/lib/shelf-order-choices.ts
 msgid "Recently touched"
 msgstr "Recently touched"
 
@@ -527,6 +617,12 @@ msgstr "Sign out"
 msgid "Sign-in code"
 msgstr "Sign-in code"
 
+#. First line of the sign-in letter. The value is six digits.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.magicCode.code"
+msgstr "Sign-in code: {code}"
+
 #. Label of the how-many-times number in the book-details drawer. A sitting is one continuous stretch of reading.
 #: src/components/AboutDrawer.tsx
 msgid "Sittings"
@@ -542,6 +638,12 @@ msgstr "Size {size}%"
 msgid "Small"
 msgstr "Small"
 
+#. First line of the after-the-fact sign-in notice.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.loginNotice.body"
+msgstr "Someone just signed in to your Tidemarks account with a code."
+
 #. One of four ink colours for marking a passage. A pigment name: lampblack ground from pine soot (松煙), the black of an ink stick.
 #: src/lib/highlights.ts
 msgid "Soot"
@@ -551,6 +653,12 @@ msgstr "Soot"
 #: src/lib/settings.ts
 msgid "Standard (1.6)"
 msgstr "Standard (1.6)"
+
+#. What to do about an unregistered app. The reader cannot fix it here, so it points them back at the thing that sent them.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.unknownClient.body"
+msgstr "Start the connection again from your agent."
 
 #. Button that runs a sync round now, rather than waiting for the next one. Same word as the section heading above it, and the same entry.
 #. Heading of the section shown once the reader is signed in. It holds the sync status and the buttons for keys and signing out.
@@ -588,6 +696,43 @@ msgstr "Syncing…"
 msgid "System"
 msgstr "System"
 
+#. Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.
+#. Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.passkey.challengeExpired"
+msgstr "That attempt timed out — try again"
+
+#. Refusal shown when the code is right but has been spent. Codes work once.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.consumed"
+msgstr "That code has already been used"
+
+#. Refusal shown when the code is right but too old.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.expired"
+msgstr "That code has expired — ask for another"
+
+#. Refusal when the code simply does not match.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.mismatch"
+msgstr "That code is not right"
+
+#. Refusal when the browser offered a passkey this deployment has never seen. Usually a key from another Tidemarks.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.passkey.unknown"
+msgstr "That passkey is not registered here"
+
+#. Shown when the mail provider refused or was unreachable. Nothing is wrong with the reader's address; the failure is on this side.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.sendFailed"
+msgstr "The code could not be sent — try again shortly"
+
 #. Slotted into the restore failure message below when the failure carried no reason of its own. Lower case, mid-sentence.
 #: src/components/AccountPanel.tsx
 msgid "the file is not in the right format"
@@ -608,6 +753,24 @@ msgstr "The server's copy is kept for 24 months. The books, notes and positions 
 msgid "Theme"
 msgstr "Theme"
 
+#. Heading of the consent page when the request itself is malformed and there is nowhere safe to redirect to.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.badRequest.heading"
+msgstr "There is something wrong with this authorisation request"
+
+#. Refusal shown while an allowlist is in force, before this deployment opens signups. Plain rather than vague on purpose: the person reading it is somebody the maintainer knows, and a vague answer would leave them watching an empty inbox.
+#. js-lingui-explicit-id
+#: worker/signup-gate.ts
+msgid "signup.notYet"
+msgstr "This address cannot sign up yet"
+
+#. Heading of the consent page when the agent's client id is unknown to this deployment.
+#. js-lingui-explicit-id
+#: worker/authorize.ts
+msgid "authorize.unknownClient.heading"
+msgstr "This app is not registered"
+
 #. The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.
 #: src/components/Reader.tsx
 msgid "This book is unmarked. Select a passage to leave a mark."
@@ -622,6 +785,12 @@ msgstr "This book's marks and notes go with it, on your other devices too."
 #: src/components/SettingsScreen.tsx
 msgid "This build came from a working tree with uncommitted changes"
 msgstr "This build came from a working tree with uncommitted changes"
+
+#. Shown when a deployment's WebAuthn RP_ID does not cover the hostname the reader arrived on. Both names are in the sentence on purpose, so the mismatch and its fix are in one place. The first value is the configured RP_ID, or the words for 'not set' when there is none.
+#. js-lingui-explicit-id
+#: worker/rp-id.ts
+msgid "auth.passkey.rpIdMismatch"
+msgstr "This deployment has RP_ID set to {configured}, but you are connected to {host}, so passkeys cannot work at this address. Sign in with an emailed code instead, or fix the deployment settings."
 
 #. Under the language control in 〈設定〉. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.
 #: src/components/LanguageForm.tsx
@@ -638,6 +807,18 @@ msgstr "This file will not open"
 msgid "This section will not render: {reason}"
 msgstr "This section will not render: {reason}"
 
+#. Subject line of the letter carrying a one-time sign-in code. The product name stays as it is; the value is six digits.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.magicCode.subject"
+msgstr "Tidemarks sign-in code: {code}"
+
+#. Subject of the letter sent after a successful code sign-in. The product name stays as it is.
+#. js-lingui-explicit-id
+#: worker/email.ts
+msgid "email.loginNotice.subject"
+msgstr "Tidemarks: someone signed in with a code"
+
 #. One of six line heights. The number is the multiplier and stays as it is.
 #: src/lib/settings.ts
 msgid "Tight (1.4)"
@@ -649,9 +830,15 @@ msgid "Time spent"
 msgstr "Time spent"
 
 #. The other way to order the shelf: by the book's own title, collated for the interface language.
-#: src/lib/shelf-order.ts
+#: src/lib/shelf-order-choices.ts
 msgid "Title"
 msgstr "Title"
+
+#. Refusal after the guess limit. The code is dead rather than the account locked, so asking for a new one works.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.code.locked"
+msgstr "Too many wrong tries — that code is void. Ask for another"
 
 #. Two columns to a page, turned past together as one page.
 #: src/lib/settings.ts
@@ -675,6 +862,15 @@ msgstr "Typeface"
 #: src/components/AccountPanel.tsx
 msgid "US$3 a month (provisional)"
 msgstr "US$3 a month (provisional)"
+
+#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
+#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
+#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
+#. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
+#. js-lingui-explicit-id
+#: worker/auth.ts
+msgid "auth.passkey.failed"
+msgstr "Verification failed"
 
 #. Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.
 #: src/components/AccountPanel.tsx

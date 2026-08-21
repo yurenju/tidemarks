@@ -15,6 +15,10 @@
   "include": [
     "worker",
     "src/lib/authorize-return.ts",
+    // The Worker answers in the reader's language too, so it shares the matching rules and the
+    // compiled catalogs (`worker/i18n.ts`).
+    "src/lib/locale.ts",
+    "src/locales/catalogs.d.ts",
     "src/lib/merge.ts",
     "src/lib/shelf-order.ts",
     "src/lib/toc.ts",

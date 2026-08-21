@@ -22,6 +22,8 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/server";
 import { magicCodeMail, loginNoticeMail, sendMail } from "./email";
+import { i18nFor } from "./i18n";
+import type { I18n } from "@lingui/core";
 import {
   CODE_TTL_MS,
   RATE_WINDOW_MS,
@@ -88,7 +90,7 @@ function reason(e: unknown): string {
  * only remaining way into your own deployment.
  */
 function rpIdRefusal(request: Request, env: Env): Response | null {
-  const message = rpIdMismatchMessage(env.RP_ID, new URL(request.url).hostname);
+  const message = rpIdMismatchMessage(i18nFor(request), env.RP_ID, new URL(request.url).hostname);
   return message ? json({ error: message }, { status: 400 }) : null;
 }
 
@@ -236,20 +238,56 @@ async function isAllowlisted(env: Env, email: string): Promise<boolean> {
 }
 
 /** The gate, with the two things it asks the database for filled in. */
-function decideSignup(env: Env, email: string, hasAccount: boolean) {
-  return signupDecision({ openSignup: openSignupFrom(env.OPEN_SIGNUP), hasAccount }, () =>
+function decideSignup(i18n: I18n, env: Env, email: string, hasAccount: boolean) {
+  return signupDecision(i18n, { openSignup: openSignupFrom(env.OPEN_SIGNUP), hasAccount }, () =>
     isAllowlisted(env, email),
   );
 }
 
-const VERDICT_MESSAGE: Record<Exclude<CodeVerdict, "ok">, string> = {
-  "no-code": "請先要一組登入碼",
-  expired: "登入碼過期了，請重新要一組",
-  consumed: "這組登入碼已經用過了",
-  locked: "錯太多次，這組登入碼作廢了，請重新要一組",
-  mismatch: "登入碼不正確",
-};
-
+/**
+ * Why a code was refused, in the reader's language.
+ *
+ * ⚠️ **A function of switches rather than a table of descriptors**, and that is not a style
+ * preference. `lingui extract` reads message descriptors out of `i18n._()` calls by looking at
+ * the object literal written there; a descriptor held in a `const` and passed in by name is
+ * invisible to it, and the entry silently never reaches the catalogs. Anything the Worker says
+ * has to be spelled out at the call.
+ */
+function verdictMessage(i18n: I18n, verdict: Exclude<CodeVerdict, "ok">): string {
+  switch (verdict) {
+    case "no-code":
+      return i18n._({
+        id: "auth.code.none",
+        message: "Ask for a sign-in code first",
+        comment: "Refusal shown when a code is submitted for an address that was never sent one.",
+      });
+    case "expired":
+      return i18n._({
+        id: "auth.code.expired",
+        message: "That code has expired — ask for another",
+        comment: "Refusal shown when the code is right but too old.",
+      });
+    case "consumed":
+      return i18n._({
+        id: "auth.code.consumed",
+        message: "That code has already been used",
+        comment: "Refusal shown when the code is right but has been spent. Codes work once.",
+      });
+    case "locked":
+      return i18n._({
+        id: "auth.code.locked",
+        message: "Too many wrong tries — that code is void. Ask for another",
+        comment:
+          "Refusal after the guess limit. The code is dead rather than the account locked, so asking for a new one works.",
+      });
+    case "mismatch":
+      return i18n._({
+        id: "auth.code.mismatch",
+        message: "That code is not right",
+        comment: "Refusal when the code simply does not match.",
+      });
+  }
+}
 // --- handlers ---
 
 interface StoredCredential {
@@ -338,8 +376,20 @@ async function registerOptions(request: Request, env: Env): Promise<Response> {
 }
 
 async function registerVerify(request: Request, env: Env): Promise<Response> {
+  const i18n = i18nFor(request);
   const payload = await openChallenge(env, request, "register");
-  if (!payload?.userId) return json({ error: "challenge 過期，請重試" }, { status: 400 });
+  if (!payload?.userId)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.passkey.challengeExpired",
+          message: "That attempt timed out — try again",
+          comment:
+            "Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.",
+        }),
+      },
+      { status: 400 },
+    );
 
   const body = (await request.json()) as RegistrationResponseJSON;
   let verification;
@@ -351,10 +401,33 @@ async function registerVerify(request: Request, env: Env): Promise<Response> {
       expectedRPID: env.RP_ID,
     });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "驗證失敗" }, { status: 400 });
+    return json(
+      {
+        error:
+          e instanceof Error
+            ? e.message
+            : i18n._({
+                id: "auth.passkey.failed",
+                message: "Verification failed",
+                comment:
+                  "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
+              }),
+      },
+      { status: 400 },
+    );
   }
   if (!verification.verified || !verification.registrationInfo) {
-    return json({ error: "驗證失敗" }, { status: 400 });
+    return json(
+      {
+        error: i18n._({
+          id: "auth.passkey.failed",
+          message: "Verification failed",
+          comment:
+            "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
+        }),
+      },
+      { status: 400 },
+    );
   }
 
   const { credential } = verification.registrationInfo;
@@ -392,14 +465,37 @@ async function loginOptions(request: Request, env: Env): Promise<Response> {
 }
 
 async function loginVerify(request: Request, env: Env): Promise<Response> {
+  const i18n = i18nFor(request);
   const payload = await openChallenge(env, request, "login");
-  if (!payload) return json({ error: "challenge 過期，請重試" }, { status: 400 });
+  if (!payload)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.passkey.challengeExpired",
+          message: "That attempt timed out — try again",
+          comment:
+            "Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.",
+        }),
+      },
+      { status: 400 },
+    );
 
   const body = (await request.json()) as AuthenticationResponseJSON;
   const cred = await env.DB.prepare("SELECT * FROM credentials WHERE id = ?")
     .bind(body.id)
     .first<StoredCredential>();
-  if (!cred) return json({ error: "找不到這把 passkey" }, { status: 400 });
+  if (!cred)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.passkey.unknown",
+          message: "That passkey is not registered here",
+          comment:
+            "Refusal when the browser offered a passkey this deployment has never seen. Usually a key from another Tidemarks.",
+        }),
+      },
+      { status: 400 },
+    );
 
   let verification;
   try {
@@ -417,9 +513,33 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
       },
     });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "驗證失敗" }, { status: 400 });
+    return json(
+      {
+        error:
+          e instanceof Error
+            ? e.message
+            : i18n._({
+                id: "auth.passkey.failed",
+                message: "Verification failed",
+                comment:
+                  "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
+              }),
+      },
+      { status: 400 },
+    );
   }
-  if (!verification.verified) return json({ error: "驗證失敗" }, { status: 400 });
+  if (!verification.verified)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.passkey.failed",
+          message: "Verification failed",
+          comment:
+            "Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.",
+        }),
+      },
+      { status: 400 },
+    );
 
   await env.DB.prepare("UPDATE credentials SET counter = ?, last_used_at = ? WHERE id = ?")
     .bind(verification.authenticationInfo.newCounter, Date.now(), cred.id)
@@ -441,12 +561,23 @@ async function loginVerify(request: Request, env: Env): Promise<Response> {
  * and goes away at launch (see worker/signup-gate.ts).
  */
 async function requestMagicCode(request: Request, env: Env): Promise<Response> {
+  const i18n = i18nFor(request);
   const body = (await request.json().catch(() => ({}))) as { email?: string };
   const email = normalizeEmail(body.email ?? "");
-  if (!email) return json({ error: "請輸入 email" }, { status: 400 });
+  if (!email)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.email.missing",
+          message: "Enter an email address",
+          comment: "Refusal when the sign-in form was submitted with no address at all.",
+        }),
+      },
+      { status: 400 },
+    );
 
   const hasAccount = (await userIdForEmail(env, email)) !== null;
-  const decision = await decideSignup(env, email, hasAccount);
+  const decision = await decideSignup(i18n, env, email, hasAccount);
   // Refused before anything is written, so an address nobody is going to mail leaves no trace.
   if (!decision.allowed) return json({ error: decision.message }, { status: 403 });
 
@@ -463,7 +594,15 @@ async function requestMagicCode(request: Request, env: Env): Promise<Response> {
   if (retryAfterMs > 0) {
     const seconds = Math.ceil(retryAfterMs / 1000);
     return json(
-      { error: `登入碼剛寄出去過，請 ${seconds} 秒後再試` },
+      {
+        error: i18n._({
+          id: "auth.code.tooSoon",
+          message: "A code went out a moment ago — try again in {seconds} seconds",
+          comment:
+            "Refusal when codes are asked for too quickly. The value is how long is left to wait.",
+          values: { seconds },
+        }),
+      },
       { status: 429, headers: { "retry-after": String(seconds) } },
     );
   }
@@ -477,10 +616,20 @@ async function requestMagicCode(request: Request, env: Env): Promise<Response> {
   // write below fails after the letter is away. The reader asks again; nobody is locked out.
   const code = generateCode();
   try {
-    await sendMail(env, email, magicCodeMail(code));
+    await sendMail(env, email, magicCodeMail(i18n, code));
   } catch (e) {
     console.error(`sending a magic code failed: ${reason(e)}`);
-    return json({ error: "寄不出登入碼，請稍後再試" }, { status: 502 });
+    return json(
+      {
+        error: i18n._({
+          id: "auth.code.sendFailed",
+          message: "The code could not be sent — try again shortly",
+          comment:
+            "Shown when the mail provider refused or was unreachable. Nothing is wrong with the reader's address; the failure is on this side.",
+        }),
+      },
+      { status: 502 },
+    );
   }
 
   await env.DB.batch([
@@ -508,11 +657,22 @@ async function verifyMagicCode(
   env: Env,
   ctx?: ExecutionContext,
 ): Promise<Response> {
+  const i18n = i18nFor(request);
   const body = (await request.json().catch(() => ({}))) as { email?: string; code?: string };
   const email = normalizeEmail(body.email ?? "");
   // Spaces because a code read off a phone gets pasted with whatever came with it.
   const code = (body.code ?? "").replace(/\s/g, "");
-  if (!email || !code) return json({ error: "請輸入 email 與登入碼" }, { status: 400 });
+  if (!email || !code)
+    return json(
+      {
+        error: i18n._({
+          id: "auth.verify.missing",
+          message: "Enter both your email address and the code",
+          comment: "Refusal when the verify request arrived without one of the two fields.",
+        }),
+      },
+      { status: 400 },
+    );
 
   const now = Date.now();
   const row = await env.DB.prepare(
@@ -523,7 +683,7 @@ async function verifyMagicCode(
   )
     .bind(email)
     .first<MagicCodeRow & { id: string }>();
-  if (!row) return json({ error: VERDICT_MESSAGE["no-code"] }, { status: 400 });
+  if (!row) return json({ error: verdictMessage(i18n, "no-code") }, { status: 400 });
 
   const verdict = verdictFor(row, await sha256hex(code), now);
   if (verdict === "mismatch") {
@@ -531,7 +691,7 @@ async function verifyMagicCode(
       .bind(row.id)
       .run();
   }
-  if (verdict !== "ok") return json({ error: VERDICT_MESSAGE[verdict] }, { status: 400 });
+  if (verdict !== "ok") return json({ error: verdictMessage(i18n, verdict) }, { status: 400 });
 
   // The gate is asked again here, not carried over from the request that mailed the code: this
   // is the moment an account starts existing, and ten minutes is long enough for the answer to
@@ -539,7 +699,7 @@ async function verifyMagicCode(
   // burning a live code on a request that created nothing would lock a de-listed address out
   // for a minute for no reason.
   const existing = await userIdForEmail(env, email);
-  const decision = await decideSignup(env, email, existing !== null);
+  const decision = await decideSignup(i18n, env, email, existing !== null);
   if (!decision.allowed) return json({ error: decision.message }, { status: 403 });
 
   // Single use, decided by the database rather than by the check above: two requests carrying
@@ -549,7 +709,8 @@ async function verifyMagicCode(
   )
     .bind(now, row.id)
     .run();
-  if (spent.meta.changes !== 1) return json({ error: VERDICT_MESSAGE.consumed }, { status: 400 });
+  if (spent.meta.changes !== 1)
+    return json({ error: verdictMessage(i18n, "consumed") }, { status: 400 });
 
   let userId = existing;
   if (!userId) {
@@ -561,7 +722,7 @@ async function verifyMagicCode(
 
   // The notice is the only way a reader finds out somebody else read their inbox, but it is
   // not worth failing a login that already succeeded — so it goes out after the response.
-  const notice = sendMail(env, email, loginNoticeMail()).catch((e: unknown) => {
+  const notice = sendMail(env, email, loginNoticeMail(i18n)).catch((e: unknown) => {
     console.error(`sending the login notice failed: ${reason(e)}`);
   });
   if (ctx) ctx.waitUntil(notice);
