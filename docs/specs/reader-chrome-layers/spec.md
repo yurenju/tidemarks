@@ -2,6 +2,12 @@
 
 兩件事，同一條 bar：讓 chrome 在視覺上是**另一層**，以及讓手機上的 Scrubber 離開**系統手勢區**。
 
+> **2026-08-22：底下寫的顏色與陰影已經不算數了。** 視覺方向換成 Indigo Dye，`--accent` 改名
+> `--tide`（而且從綠變藍），`--shadow-*` 整組移除——「浮起來」現在由表面階數說。版面、尺寸與
+> 行為那幾段不受影響。值的正本在 `packages/app/src/index.css`，規則在
+> [docs/design-system.md](../../design-system.md)，理由在
+> [ADR-0022](../../adr/0022-the-interface-is-a-print-shop.md)。
+
 「chrome 浮一階」這個決定本身在
 [ADR-0028](../../adr/0028-chrome-floats-one-step-above-the-book.md)，這裡不重述理由，只寫規格與
 量得到的數字。畫面上有什麼、狀態怎麼走在 [ux-replan/spec.md](../ux-replan/spec.md)；斷點與

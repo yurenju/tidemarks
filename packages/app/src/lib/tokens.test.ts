@@ -17,26 +17,37 @@
  * legitimately hold a step nothing is on yet; a name with no definition is never legitimate.
  */
 
+/// <reference types="node" />
 import { describe, expect, test } from "vitest";
-// `?raw` rather than `node:fs`, and that is the environment talking: `src` is compiled with
-// Vite's client types and no Node ones, because everything else in here runs in a browser.
-import CSS from "../index.css?raw";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+// **Read from disk, not through Vite.** `import CSS from "../index.css?raw"` looks tidier and
+// hands back an **empty string**: Vitest stubs stylesheet imports unless `css: true`, and
+// `?raw` does not escape that. It fails silently — both tests below still pass, against no
+// input at all, which is how this file spent one commit asserting nothing.
+//
+// The triple-slash reference is what lets `node:fs` type-check here. `tsconfig.app.json` gives
+// `src` Vite's client types and no Node ones, deliberately, because everything else under it
+// runs in a browser; widening the whole project for one test would be the wrong trade.
+const CSS = readFileSync(fileURLToPath(new URL("../index.css", import.meta.url)), "utf8");
 
 /**
- * Properties set from TypeScript rather than in a stylesheet block, so the stylesheet reads
- * them without ever defining them. Each one is a real contract with a component, which is why
- * they are listed by hand rather than pattern-matched away.
+ * Properties a component sets from TypeScript, which the stylesheet reads without ever
+ * declaring. Each is a real contract with a component, which is why they are listed by hand.
+ *
+ * **Only names the stylesheet never declares belong here.** `--halo` and `--scrubber-inset`
+ * were on this list and should not have been: both are declared in `index.css` as well as set
+ * from a component, so exempting them told the check to skip the two names most worth
+ * following — exactly the mistake this file exists to catch, made inside the file that catches
+ * it.
  */
-const SET_AT_RUNTIME = new Set([
+const SET_ONLY_AT_RUNTIME = new Set([
   // `HighlightLayer` — which of the four inks this mark was made in.
   "--mark",
-  // The surface a focus ring's halo is cut out of, named by whatever is not the page.
-  "--halo",
   // Base UI publishes these while a finger is on a drawer or panel.
   "--drawer-swipe-movement-x",
   "--drawer-swipe-movement-y",
-  // `Scrubber` reads this one back to turn a pointer x into a fraction.
-  "--scrubber-inset",
 ]);
 
 function namesIn(css: string, pattern: RegExp): Set<string> {
@@ -46,21 +57,47 @@ function namesIn(css: string, pattern: RegExp): Set<string> {
 const declared = (css: string) => namesIn(css, /^\s*(--[a-z0-9-]+)\s*:/gm);
 const referenced = (css: string) => namesIn(css, /var\(\s*(--[a-z0-9-]+)/g);
 
+/**
+ * The dark theme's `:root` block — that rule alone, brace to matching brace.
+ *
+ * **Not "everything from here to the end of the file".** That slice was tried and it drags in
+ * every component rule below, two of which declare properties of their own (`--halo`,
+ * `--scrubber-inset`) — so the check reported them as dark-theme orphans, which they are not.
+ *
+ * The selector is matched by pattern rather than as a literal string, because an attribute
+ * value in CSS may be quoted or bare.
+ */
+function darkRootBlock(css: string): string {
+  const start = css.search(/:root\[data-theme\s*=\s*["']?dark["']?\]\s*\{/);
+  if (start < 0) return "";
+
+  let depth = 0;
+  for (let i = css.indexOf("{", start); i < css.length; i++) {
+    if (css[i] === "{") depth++;
+    else if (css[i] === "}" && --depth === 0) return css.slice(start, i);
+  }
+  return "";
+}
+
 describe("index.css custom properties", () => {
   test("every var() names a property that exists", () => {
+    const names = declared(CSS);
     const dangling = [...referenced(CSS)]
-      .filter((name) => !declared(CSS).has(name) && !SET_AT_RUNTIME.has(name))
+      .filter((name) => !names.has(name) && !SET_ONLY_AT_RUNTIME.has(name))
       .sort();
 
     expect(dangling).toEqual([]);
   });
 
-  test("the dark theme redefines nothing the light theme has not declared", () => {
-    // Both themes have to answer with the same set of names, or a component reads a value in
-    // one theme and nothing in the other — the same silent failure, one theme deep.
-    const dark = CSS.slice(CSS.indexOf(':root[data-theme="dark"]'));
-    const overrides = [...declared(dark)].filter((name) => !name.startsWith("--wave"));
+  test("the dark theme overrides nothing the light theme has declared", () => {
+    // Both themes have to answer to the same set of names, or a component reads a value in one
+    // theme and nothing in the other — the same silent failure, one theme deep.
+    const dark = darkRootBlock(CSS);
+    expect(dark, "the dark :root block moved or was renamed").not.toBe("");
 
-    expect(overrides.filter((name) => !declared(CSS).has(name))).toEqual([]);
+    const light = declared(CSS.slice(0, CSS.indexOf(dark)));
+    const orphans = [...declared(dark)].filter((name) => !light.has(name)).sort();
+
+    expect(orphans).toEqual([]);
   });
 });

@@ -94,6 +94,10 @@ html[data-drawer="open"] {
   --paper-100: #fbf7ed;
   --paper-200: #f4eee2;
   --paper-300: #ede5d6;
+  /* Between sunken and the hairline, and it exists for `--surface-cover` alone: a book with no
+     art has to read as an object lying on the shelf, which means a step the shelf does not
+     already use. */
+  --paper-350: #e9e0d1;
   --paper-400: #e4ddce;
   --paper-500: #d9d1be;
   --paper-600: #c6c1b4;
@@ -119,6 +123,10 @@ html[data-drawer="open"] {
   /* A step *above* the page: with no shadows anywhere, this is the whole of how the interface
      says a thing is on top of another thing. */
   --night-700: #1b2733;
+  /* The handoff's fourth dark surface, which it spends on skeletons; here it is the cover.
+     **Lighter than the page, not darker** — in the dark theme a cover that steps down
+     disappears into the shelf, which is what happens if this shares `--surface-sunken`. */
+  --night-650: #1f2c39;
   --night-600: #223040;
   --night-500: #27343f;
   --night-400: #35424e;
@@ -134,7 +142,7 @@ html[data-drawer="open"] {
   --surface-page: var(--paper-200);
   --surface-raised: var(--paper-100);
   --surface-sunken: var(--paper-300);
-  --surface-cover: var(--paper-300);
+  --surface-cover: var(--paper-350);
   --line-hair: var(--paper-400);
   --line-firm: var(--paper-500);
   /* The edge on something that stands on its own, kept apart from `--line-hair`'s job of
@@ -183,9 +191,9 @@ html[data-drawer="open"] {
      black offset on a near-black page is nothing at all — so ADR-0028 had already answered
      that case with a lighter surface. This is that answer, applied to both themes.
 
-     The only `box-shadow` left in this file draws the focus ring's halo and two inset rules
-     (the current chapter's marker, and — until the wave lands — the highlight's edge). None of
-     them is a drop shadow. */
+     The only `box-shadow` left in this file is not a drop shadow anywhere: the focus ring's
+     halo, the Scrubber thumb's ring (a hole punched in the bar it rides), and one inset rule
+     marking the chapter being read. */
 
   /* The four inks a reader can mark with. Highlights are ink, not fluorescent marker.
      `--mark-indigo` is the default and it carries the brand's own blue: leave the setting
@@ -391,7 +399,7 @@ html[data-drawer="open"] {
   --surface-page: var(--night-800);
   --surface-raised: var(--night-700);
   --surface-sunken: var(--night-900);
-  --surface-cover: var(--night-900);
+  --surface-cover: var(--night-650);
   --line-hair: var(--night-600);
   --line-firm: var(--night-500);
   --line-actionable: var(--night-400);
@@ -569,14 +577,14 @@ textarea {
 select {
   appearance: none;
   padding-right: var(--space-6);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236f675d' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23585d64' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   background-size: 10px 7px;
 }
 
 :root[data-theme="dark"] select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239c948a' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23a3aeb6' stroke-width='1.5'/%3E%3C/svg%3E");
 }
 
 /* The faintest ink, and the only place it carries anything word-shaped — a placeholder is a
@@ -866,8 +874,9 @@ button.ghost.book-more::after {
 }
 
 /* Under the pointer the cover does not move. A book lifting off the shelf on hover is the
-   interface performing rather than answering, and the shadow already says it can be picked
-   up; what changes is the one thing hover has to say, which is "this one". */
+   interface performing rather than answering; what changes is the one thing hover has to say,
+   which is "this one". That it can be picked up at all is said by its own surface, a step off
+   the shelf's — there are no shadows to say it with now (ADR-0022). */
 .book-cover:hover {
   border-color: var(--tide);
 }
@@ -1552,7 +1561,7 @@ button.danger:hover {
 
 /* Answered before the fill, so the two never argue over one cell. */
 .segment:hover:not(:disabled) {
-  background: var(--surface-cover);
+  background: var(--fill-selected);
   border-color: var(--text-muted);
   position: relative;
   z-index: 1;
@@ -1573,7 +1582,7 @@ button.danger:hover {
    that refuses the press is the one thing that rule exists to prevent. A step of paper says it
    instead. */
 .segment:disabled[aria-checked="true"] {
-  background: var(--surface-cover);
+  background: var(--surface-sunken);
   border-color: var(--line-firm);
   color: var(--text-muted);
 }
@@ -1726,8 +1735,8 @@ button.danger:hover {
   z-index: 12;
   max-width: min(20rem, calc(100% - 2rem));
   padding: 0.5rem 0.9rem;
-  background: var(--text-primary);
-  color: var(--surface-page);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
   font-size: var(--type-note);
   line-height: var(--leading-text);
   text-align: center;
@@ -1769,7 +1778,7 @@ button.danger:hover {
 }
 
 .toc-item:hover {
-  background: var(--surface-sunken);
+  background: var(--fill-selected);
   border: none;
 }
 

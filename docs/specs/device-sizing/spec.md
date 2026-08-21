@@ -2,6 +2,12 @@
 
 同一個畫面在不同的視窗寬度、不同的指標型別、亮暗兩個模式底下長什麼樣。
 
+> **2026-08-22：底下寫的顏色與陰影已經不算數了。** 視覺方向換成 Indigo Dye，`--accent` 改名
+> `--tide`（而且從綠變藍），`--shadow-*` 整組移除——「浮起來」現在由表面階數說。版面、尺寸與
+> 行為那幾段不受影響。值的正本在 `packages/app/src/index.css`，規則在
+> [docs/design-system.md](../../design-system.md)，理由在
+> [ADR-0022](../../adr/0022-the-interface-is-a-print-shop.md)。
+
 畫面上**有什麼**、流程**怎麼走**不在這裡，那是 [ux-replan/spec.md](../ux-replan/spec.md)。
 為什麼分成兩種 media query 見 [ADR-0023](../../adr/0023-width-places-things-pointer-sizes-them.md)。
 值的正本是 `packages/app/src/index.css` 的 `:root`，這份文件會過期，那個檔案不會。
