@@ -182,7 +182,7 @@ test.describe("tapping the page", () => {
 
     expect(await visibleText(page)).toBe(before);
     // And the desktop's own way forward still works — the buttons are the whole of it now.
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
   });
 });

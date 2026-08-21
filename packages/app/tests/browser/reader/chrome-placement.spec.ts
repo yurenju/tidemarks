@@ -56,7 +56,7 @@ test("puts the chapter under the Scrubber rather than in the title bar", async (
   // any chapter — the label is absent there on purpose ("沒話說就不說"), so asserting against a
   // freshly opened book would be asserting against the empty case.
   await waitForIndex(page);
-  await openPanel(page, "目錄");
+  await openPanel(page, "Contents");
   await page.getByTestId("panel-toc").locator(".toc-item").last().click();
   // The jump puts the chrome away and relays the book out. Raising the chrome again before that
   // has finished spends the click on a page that is still moving — which is a timeout on the two
@@ -107,7 +107,7 @@ test("opens the panel down the right side and leaves the book where it was", asy
   // that opening a drawer cannot shift the shelf sideways, and that gutter is 15px of the 1000.
   const reader = (await page.locator(".reader").boundingBox())!;
 
-  await openPanel(page, "目錄");
+  await openPanel(page, "Contents");
 
   // Polled, because it arrives by transition: measured the instant it opens, a panel that slides
   // in from the right is still off the edge it came from. Flush with the reader's right edge,
@@ -145,7 +145,7 @@ test.describe("in a window wide enough to give up a column", () => {
     await openChrome(page);
     const before = (await page.locator(".viewer").boundingBox())!;
 
-    await openPanel(page, "目錄");
+    await openPanel(page, "Contents");
 
     const reader = (await page.locator(".reader").boundingBox())!;
     const toc = page.getByTestId("panel-toc");
@@ -197,9 +197,9 @@ test.describe("in a window wide enough to give up a column", () => {
       });
     });
 
-    await openPanel(page, "目錄");
-    await openPanel(page, /筆記/);
-    await openPanel(page, "排版");
+    await openPanel(page, "Contents");
+    await openPanel(page, /Notes/);
+    await openPanel(page, "Type");
     await settled(page);
 
     await page.evaluate(() => (window as unknown as { __done: () => void }).__done());
@@ -222,25 +222,25 @@ test.describe("in a window wide enough to give up a column", () => {
  * bug had nothing to do with which two: any switch went through the same stale handler.
  */
 test("switches straight from one panel to another", async ({ page }) => {
-  await openPanel(page, "排版");
+  await openPanel(page, "Type");
   await expect(page.getByTestId("panel-layout")).toBeVisible();
 
-  await page.getByTestId("chrome-nav").getByRole("button", { name: /筆記/ }).click();
+  await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
   await expect(page.getByTestId("panel-notes")).toBeVisible();
   await expect(page.getByTestId("panel-layout")).toBeHidden();
 
-  await page.getByTestId("chrome-nav").getByRole("button", { name: "目錄" }).click();
+  await page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" }).click();
   await expect(page.getByTestId("panel-toc")).toBeVisible();
 
   // And pressing the entry that is already showing still puts it away — the toggle is the same
   // toggle, it just no longer fires for a panel nobody asked to close.
-  await page.getByTestId("chrome-nav").getByRole("button", { name: "目錄" }).click();
+  await page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" }).click();
   await expect(page.getByTestId("panel-toc")).toBeHidden();
   await expect(page.getByTestId("chrome-nav")).toBeVisible();
 });
 
 test("leaves the Scrubber reachable beside an open panel", async ({ page }) => {
-  await openPanel(page, "目錄");
+  await openPanel(page, "Contents");
 
   const panel = (await page.getByTestId("panel-toc").boundingBox())!;
   const scrubber = (await page.getByTestId("scrubber-track").boundingBox())!;

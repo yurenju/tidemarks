@@ -47,7 +47,7 @@ test.describe("vertical book (直排)", () => {
     const before = await visibleText(page);
     expect(before).not.toBe("");
 
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
 
     // The button is labelled by what it does, not by where it points — so asserting on the
     // accessible name and on the text moving together is what pins the inversion.
@@ -56,10 +56,10 @@ test.describe("vertical book (直排)", () => {
 
   test("the right page button turns back to where it was", async ({ page }) => {
     const first = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(first);
 
-    await page.getByRole("button", { name: "上一頁" }).click();
+    await page.getByRole("button", { name: "Previous page" }).click();
     await expect.poll(async () => await visibleText(page)).toBe(first);
   });
 
@@ -67,7 +67,7 @@ test.describe("vertical book (直排)", () => {
     // Two halves: frond forwards the keys pressed inside the iframe (where the outer document
     // receives nothing), and spine listens on the document for the rest. This exercises the
     // second half.
-    await page.getByRole("button", { name: "上一頁" }).focus();
+    await page.getByRole("button", { name: "Previous page" }).focus();
     const before = await visibleText(page);
 
     await page.keyboard.press("ArrowLeft");
@@ -116,7 +116,7 @@ test.describe("horizontal book", () => {
     await openBook(page, BOOKS.horizontal);
 
     const before = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
   });
 });
@@ -137,13 +137,13 @@ test.describe("a turn asked for by a button", () => {
     // there is nothing to slide in, and that turn deliberately falls back to switching outright
     // (`hasPreview`). `turn-pacing.spec.ts` discards its first turn for the same reason.
     const before = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
 
     const middle = await visibleText(page);
     const trace = await traceTurn(page, async () => {
-      await page.getByRole("button", { name: "下一頁" }).click();
+      await page.getByRole("button", { name: "Next page" }).click();
     });
 
     // It travelled, rather than being replaced in place — several frames of it, not one.
@@ -170,12 +170,12 @@ test.describe("a turn asked for by a button", () => {
     await settled(page);
 
     const before = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
 
     const trace = await traceTurn(page, async () => {
-      await page.getByRole("button", { name: "下一頁" }).click();
+      await page.getByRole("button", { name: "Next page" }).click();
     });
 
     expect(Math.max(...trace.offsets)).toBeGreaterThan(50);
@@ -190,7 +190,7 @@ test.describe("a turn asked for by a button", () => {
     const before = await visibleText(page);
 
     const trace = await traceTurn(page, async () => {
-      await page.getByRole("button", { name: "上一頁" }).click();
+      await page.getByRole("button", { name: "Previous page" }).click();
     });
 
     // It moved — towards the right, because the page it is pretending to fetch is behind it.
@@ -220,7 +220,7 @@ test.describe("a turn asked for by a button", () => {
 async function turnForward(page: Page, count: number): Promise<void> {
   for (let turn = 0; turn < count; turn += 1) {
     const before = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
   }
@@ -260,7 +260,7 @@ test.describe("progress", () => {
     // The size mattered in the old failure: a bigger size means more pages per section, so a
     // reflow after the restore had further to drift.
     await openBook(page, BOOKS.vertical);
-    await openPanel(page, "排版");
+    await openPanel(page, "Type");
     await page.getByTestId("setting-font-size").fill("190");
     await page.keyboard.press("Escape");
 

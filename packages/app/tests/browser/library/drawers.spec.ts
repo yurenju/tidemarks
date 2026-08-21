@@ -32,7 +32,7 @@ test("each tab has an address of its own", async ({ page }) => {
   expect(new URL(page.url()).hash).toBe("#/settings/account");
   await page.reload();
   // 帳號's own first line, so this is the pane and not merely the screen.
-  await expect(page.getByText("讀書不必註冊", { exact: false })).toBeVisible();
+  await expect(page.getByText("No account needed to read", { exact: false })).toBeVisible();
 });
 
 test("back leaves the settings screen and lands on the shelf, not outside the app", async ({

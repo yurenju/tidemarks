@@ -68,7 +68,7 @@ test("a book nobody has opened stays on the wall", async ({ page }) => {
   // get on with it.
   await expect(page.getByTestId("reading-now")).toHaveCount(0);
   await expect(bookCards(page)).toHaveCount(1);
-  await expect(page.getByTestId("book-status").first()).toContainText("還沒翻開");
+  await expect(page.getByTestId("book-status").first()).toContainText("Not opened yet");
 });
 
 test("a shelf where everything is finished leads with nothing", async ({ page }) => {
@@ -79,7 +79,7 @@ test("a shelf where everything is finished leads with nothing", async ({ page })
 
   await expect(bookCards(page)).toHaveCount(1);
   await expect(page.getByTestId("reading-now")).toHaveCount(0);
-  await expect(page.getByTestId("book-status").first()).toContainText("讀完了");
+  await expect(page.getByTestId("book-status").first()).toContainText("Finished");
 });
 
 test("the book the reader was in the middle of leads the shelf", async ({ page }) => {
@@ -111,7 +111,7 @@ test("the card's ⋯ opens 〈書的詳情〉 for that book", async ({ page }) =
   await expect(page.getByTestId("drawer-about")).toBeVisible();
   expect(new URL(page.url()).hash).toBe(`#/?d=about/${bookId}`);
   // The three numbers that used to sit under every cover on the shelf.
-  await expect(page.getByTestId("about-sessions")).toContainText("場");
+  await expect(page.getByTestId("about-sessions")).toContainText(/sitting/);
   await expect(page.getByTestId("about-reading-time")).toBeVisible();
 });
 
