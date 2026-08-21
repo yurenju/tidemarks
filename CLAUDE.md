@@ -38,7 +38,7 @@ tests/books/      兩個 package 的測試共讀的公版書，只有一份
 
 ## 現在是開發階段
 
-Tidemarks 雖然已經部署在 `app.folis.ink`（真的 D1、真的 R2），但**還沒上線**——上線定義成
+Tidemarks 雖然已經部署在 `app.tidemarks.io`（真的 D1、真的 R2），但**還沒上線**——上線定義成
 **開放外界註冊**那一刻（不管入口是 email、邀請碼還是別的；免費試用的帳號也算）。在那之前：
 frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以隨便改，**資料可以丟**。上線
 之後一律要接過去。細節與理由見

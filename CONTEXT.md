@@ -16,11 +16,9 @@
 （根目錄與 frond 各一）的內文與檔名，以及像這一節這樣**在講改名這件事本身**的句子。指向舊 repo 的
 連結已經全部清掉了。
 
-**hostname 定了，但還沒活著。** 新的是 `app.tidemarks.io`，[#8](https://github.com/yurenju/tidemarks/issues/8)
-已經把它寫進 Workers Builds 的 build variables，兩份 README 也已經指向它；讓那個主機名真的回應請求
-是 [#11 把 Tidemarks 真的部署上去](https://github.com/yurenju/tidemarks/issues/11)，還沒做完，所以
-在那之前 README 上那個網址是打不開的。hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有
-credential 之後就不能改**。
+**hostname 是 `app.tidemarks.io`**，官方那一台，兩份 README 指的就是它，2026-08-21 起真的回應請求。
+hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 credential 之後就不能改**，所以舊網域
+上註冊過的 passkey 一把都沒帶過來——那是換 hostname 本來就要付的代價，不是哪裡出了問題。
 
 **一個名字，不是兩個**——它同時是軟體與服務，「官方那一台」與「自己架的那一份」的區別由主機名
 扛。apex 留給官方網站，app 住在子網域底下。
@@ -513,7 +511,7 @@ Tidemarks 手上第一次有 email。這段期間**付款走 Stripe test mode**�
 
 寫「註冊」不寫「付費」，因為**免費試用的帳號一樣有資料在伺服器上**。
 
-_Avoid_: 部署、deploy、release、production（**這四件事都已經成立了**——`app.folis.ink`
+_Avoid_: 部署、deploy、release、production（**這四件事都已經成立了**——`app.tidemarks.io`
 是真的。它們講不出這條界線要講的那件事：資料屬於誰）、「開發階段不寫 migration」（曾經是這樣
 講的，現在會讓人以為 schema 可以手動送上去。要說的是**開發階段的 migration 可以丟資料**）、
 開放 email 註冊（**入口不是線**——email + magic code 在白名單期間就已經是註冊的唯一入口了，
