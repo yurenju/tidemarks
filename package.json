@@ -12,6 +12,8 @@
     "dev": "npm run build:frond && npm run dev -w app",
     "build": "npm run build:frond && npm run build -w app",
     "lint": "oxlint",
+    "i18n:check": "node scripts/check-i18n.ts",
+    "i18n:extract": "npm run i18n:extract -w app",
     "typecheck": "npm run typecheck -w @yurenju/frond && npm run typecheck -w app && tsc -p tsconfig.scripts.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

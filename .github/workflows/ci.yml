@@ -25,6 +25,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      # Before the tests, because what it fails on is cheap to read and cheap to fix: a message
+      # nobody translated, or one added with nothing said about where it appears. A test run
+      # would bury that under everything else it has to say.
+      - run: npm run i18n:check
       - run: npm test
       - run: npm run build
 
