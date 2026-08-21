@@ -957,6 +957,11 @@ export default function Reader({
         scheduleSync();
       }
     };
+    // `t` is deliberately not a dependency. What it feeds is an error message stored in state,
+    // and re-running this to refresh that wording would re-open the book — a reader who changed
+    // language while looking at a failure would be sent back to page one of one that worked.
+    // The cost of leaving it out is that a message already on screen keeps the language it was
+    // written in until the next attempt, and changing language is a once-ever act.
   }, [bookId]);
 
   // Reader settings after the first layout. The comparison against what frond already has is
@@ -1066,6 +1071,8 @@ export default function Reader({
     return () => {
       cancelled = true;
     };
+    // `i18n` is left out for the same reason as above: this effect fetches 16 MB, and the only
+    // thing the locale feeds is the wording of a toast that clears itself after 2.6 seconds.
   }, [wantsWebFont, settings.fontFamily]);
 
   // The toast says its piece and clears itself: it explains the reflow, it is not a control.
