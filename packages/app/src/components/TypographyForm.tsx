@@ -99,8 +99,9 @@ export default function TypographyForm({
 
       <Segmented
         label={msg({
-          message: "Typeface",
-          comment: "Label of the control choosing which face the book is set in.",
+          message: "Font",
+          comment:
+            "Label of the control choosing which face the book is set in. Kept short: the row is label-left, control-right, and the control beside it holds three options.",
         })}
         testId="setting-font-family"
         options={FONT_FAMILIES}

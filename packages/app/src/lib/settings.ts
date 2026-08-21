@@ -57,9 +57,9 @@ export interface ReaderSettings {
 export const FONT_FAMILIES: { label: MessageDescriptor; value: FontChoice }[] = [
   {
     label: msg({
-      message: "Publisher's",
+      message: "Book's",
       comment:
-        "One of three typeface choices for the book. It means 'leave the fonts the book itself asked for'. Chinese calls it 書籍預設.",
+        "One of three typeface choices, and the default: leave the fonts the book itself asked for. Short because the three sit side by side in a panel about a phone-width wide — Chinese says 書籍預設, which is narrower than English can be here.",
     }),
     value: "publisher",
   },
@@ -147,7 +147,7 @@ export const LINE_HEIGHT_MAX = 2.4;
 export const LINE_HEIGHTS: { label: MessageDescriptor; value: number }[] = [
   {
     label: msg({
-      message: "Publisher's",
+      message: "Book's",
       comment:
         "First of six line-height choices, and not a height at all: it means 'leave whatever the book asked for'. Same wording as the first typeface choice, which means the same thing — they share one entry deliberately.",
     }),

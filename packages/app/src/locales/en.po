@@ -132,6 +132,12 @@ msgstr "Backup"
 msgid "Billing"
 msgstr "Billing"
 
+#. First of six line-height choices, and not a height at all: it means 'leave whatever the book asked for'. Same wording as the first typeface choice, which means the same thing — they share one entry deliberately.
+#. One of three typeface choices, and the default: leave the fonts the book itself asked for. Short because the three sit side by side in a panel about a phone-width wide — Chinese says 書籍預設, which is narrower than English can be here.
+#: src/lib/settings.ts
+msgid "Book's"
+msgstr "Book's"
+
 #. Button on the selection bar: drop the selection without marking anything.
 #: src/components/Reader.tsx
 msgid "Cancel"
@@ -254,6 +260,11 @@ msgstr "Export backup"
 #: src/lib/book-status.ts
 msgid "Finished"
 msgstr "Finished"
+
+#. Label of the control choosing which face the book is set in. Kept short: the row is label-left, control-right, and the control beside it holds three options.
+#: src/components/TypographyForm.tsx
+msgid "Font"
+msgstr "Font"
 
 #. Screen-reader name for the progress bar shown while a CJK face downloads.
 #: src/components/TypographyForm.tsx
@@ -523,12 +534,6 @@ msgstr "Paid"
 #: src/components/Reader.tsx
 msgid "Previous page"
 msgstr "Previous page"
-
-#. First of six line-height choices, and not a height at all: it means 'leave whatever the book asked for'. Same wording as the first typeface choice, which means the same thing — they share one entry deliberately.
-#. One of three typeface choices for the book. It means 'leave the fonts the book itself asked for'. Chinese calls it 書籍預設.
-#: src/lib/settings.ts
-msgid "Publisher's"
-msgstr "Publisher's"
 
 #. Label of the how-far number in the book-details drawer. The value beside it is a percentage.
 #: src/components/AboutDrawer.tsx
@@ -847,11 +852,6 @@ msgstr "Two"
 #: src/components/SettingsScreen.tsx
 msgid "Type"
 msgstr "Type"
-
-#. Label of the control choosing which face the book is set in.
-#: src/components/TypographyForm.tsx
-msgid "Typeface"
-msgstr "Typeface"
 
 #. The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.
 #: src/components/AccountPanel.tsx
