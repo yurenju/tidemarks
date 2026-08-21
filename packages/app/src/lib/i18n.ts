@@ -10,12 +10,16 @@
  *
  * The Worker has its own copy of this arrangement (`worker/i18n.ts`) rather than importing
  * this one: it activates a language per request, and this module holds one for a session.
+ *
+ * The `.mjs` on the imports below is what the Worker's bundler needs; Vite would resolve them
+ * without it. They are written the same way on both sides so that neither reads as the odd one
+ * — the reason is in `worker/i18n.ts`.
  */
 
 import { i18n } from "@lingui/core";
-import { messages as en } from "../locales/en";
-import { messages as ja } from "../locales/ja";
-import { messages as zhTW } from "../locales/zh-TW";
+import { messages as en } from "../locales/en.mjs";
+import { messages as ja } from "../locales/ja.mjs";
+import { messages as zhTW } from "../locales/zh-TW.mjs";
 import type { Locale } from "./locale";
 
 i18n.load({ en, ja, "zh-TW": zhTW });

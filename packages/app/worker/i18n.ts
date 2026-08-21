@@ -15,13 +15,20 @@
  * Ids read `email.magicCode.subject` — the surface, then what it is. They are never shown to a
  * reader; they exist so two identical English strings in two different letters stay two
  * entries.
+ *
+ * ⚠️ **The `.mjs` on the catalog imports below is load-bearing.** `lingui compile` writes
+ * `.mjs` under `compileNamespace: "es"`, and esbuild — the same bundler as the paragraph above
+ * — only tries `.tsx .ts .jsx .js .css .json` for an extensionless specifier. Vite tries `.mjs`
+ * too, so dropping the extension type-checks, passes every test and builds the PWA, then fails
+ * at `wrangler deploy` with "Could not resolve ../src/locales/en" — after the migrations have
+ * already been applied. Spell the extension out.
  */
 
 import { I18n } from "@lingui/core";
 import { matchLocale, parseAcceptLanguage, type Locale } from "../src/lib/locale";
-import { messages as en } from "../src/locales/en";
-import { messages as ja } from "../src/locales/ja";
-import { messages as zhTW } from "../src/locales/zh-TW";
+import { messages as en } from "../src/locales/en.mjs";
+import { messages as ja } from "../src/locales/ja.mjs";
+import { messages as zhTW } from "../src/locales/zh-TW.mjs";
 
 const CATALOGS = { en, ja, "zh-TW": zhTW };
 
