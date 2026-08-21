@@ -82,9 +82,15 @@ export function boxesContain(
 /**
  * The four inks a reader can mark with.
  *
- * Inks, and not highlighter colours: a marked passage is a wash of one of these with a firmer
- * line pressed along its bottom edge, which is what a nib leaves behind. None of the four is
- * apart from tide, so "what I marked" is never read as "what I can press".
+ * Inks, and not highlighter colours: a marked passage is a wavy line along the edge of the
+ * text in one of these — a tidemark, which is what the product is named for — and nothing
+ * else. No wash, no block of colour.
+ *
+ * `indigo` is the default and carries the brand's own blue, so a reader who never opens the
+ * setting marks passages in the colour this app is named for. It is deliberately not the blue
+ * that means "you can press this": those two are the one pair the palette may never merge
+ * (ADR-0022), and they are told apart by shape as much as by hue — a 2px wave under a line of
+ * text against a filled control.
  *
  * The labels name pigments rather than colours — 蓼藍 rather than 藍色 — so each one carries
  * the material a scribe would have ground. Translating them is picking that language's name for

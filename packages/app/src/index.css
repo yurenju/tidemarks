@@ -202,8 +202,27 @@ html[data-drawer="open"] {
   --mark-ochre: #a4622f;
   --mark-moss: #5f7a4e;
   --mark-soot: #3d4348;
-  --mark-wash: 0.22;
-  --mark-edge: 0.4;
+
+  /* The wave the tide leaves — the brand's own mark, and the shape every highlight takes.
+     ------------------------------------------------------------------------------------
+     **The colour comes from the background and the shape from a mask.** That is what keeps
+     this to two images: bake the colour into the SVG and it becomes four inks × two themes =
+     eight near-identical data URIs, which is the `<select>` chevron's problem multiplied.
+
+     **The tile leaves a pixel at each edge and that is not slack.** The centre line runs 2→4
+     and `stroke-width: 2` puts ink at 1→5 inside a 6px tile. Sized any tighter, the trough
+     lands outside the viewBox and SVG clips it: every wave in the app comes out with a flat
+     bottom, and the vertical one with a flat right side. It is only visible once you know to
+     look, which is why the measurement is written down and not just the value.
+
+     The control point sits outside the viewBox on purpose; SVG clips the rendered stroke, not
+     the geometry that produces it. */
+  --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 3Q2 1 4 3T8 3' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+  --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='8'%3E%3Cpath d='M3 0Q1 2 3 4T3 8' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+  /* The gap between the box's trailing edge and the wave's own, in the direction the text
+     runs. The tile's 1px margin is subtracted where this is used, so the number is the gap a
+     reader sees rather than the gap plus padding. */
+  --wave-drop: 1px;
 
   /* Components. The Latin family leads so figures and Western titles are drawn by the face we
      carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
@@ -404,8 +423,6 @@ html[data-drawer="open"] {
   --mark-ochre: #cf8b4e;
   --mark-moss: #8aab72;
   --mark-soot: #9aa4ab;
-  --mark-wash: 0.3;
-  --mark-edge: 0.75;
 }
 
 body {
@@ -1807,19 +1824,65 @@ button.danger:hover {
   pointer-events: none;
 }
 
-/* A wash of ink with a firmer line pressed along its bottom edge. The line is not decoration:
-   it is what keeps a mark legible on a dark page, where a wash alone thins out to nothing, and
-   it is the shape a nib leaves when it comes off the paper.
+/* A wavy line along the edge of the text, and nothing else: no wash, no block of colour.
+   ---------------------------------------------------------------------------------------
+   This is the one place the product's name is drawn — tidemarks are what the water leaves —
+   so it is the only ornament in the interface, and it appears on the one thing that belongs
+   to the reader rather than to us.
 
    `--mark` is set per box by `HighlightLayer`, which carries the *name* of the ink; both
    themes' values for that name live in the token block, so a mark drawn in one theme is
-   correct in the other without being redrawn. `color-mix` rather than `opacity` because
-   opacity would fade the text underneath along with the wash. */
+   correct in the other without being redrawn.
+
+   **The box itself paints nothing.** It keeps the rectangle frond reported, exactly, because
+   `highlights.ts` hit-tests a tap against those same numbers — the wave is a child drawn
+   outside it, and moving the box to make room for the wave would move the target with it. */
 .highlight-box {
   position: absolute;
-  background: color-mix(in srgb, var(--mark) calc(var(--mark-wash) * 100%), transparent);
-  box-shadow: inset 0 -2px 0
-    color-mix(in srgb, var(--mark) calc(var(--mark-edge) * 100%), transparent);
+}
+
+/* **The two axes are placed differently, and that is measured rather than chosen.**
+   ---------------------------------------------------------------------------------
+   A horizontal rect from frond is the **line box**: 26px tall for 18.4px type, and consecutive
+   rects touch — the gap between them is exactly 0. Draw the wave below such a box and it is
+   not near the text it marks, it is on top of the next line. So the horizontal wave goes
+   *inside*, in the half-leading the line box already carries under its glyphs.
+
+   A vertical rect is the **em box**: 11px across for 23px type, hugging the glyphs with the
+   inter-column space outside it. Draw the wave inside that and it is on the strokes. So the
+   vertical wave goes *outside*, in the gutter between columns — which is where 傍線 belongs in
+   vertical Chinese and Japanese setting anyway, on the right-hand side of the line.
+
+   Neither of these is what a standalone prototype predicts, and the prototype was wrong in
+   both directions before the running reader was measured. If a future frond changes what
+   `rectsFor` reports, this is the pair of numbers to re-measure.
+
+   The 1px subtracted is the tile's own margin (see `--wave-h`). */
+.highlight-box::after {
+  content: "";
+  position: absolute;
+  background: var(--mark);
+}
+
+.highlight-box[data-axis="h"]::after {
+  left: 0;
+  right: 0;
+  bottom: calc(var(--wave-drop) - 1px);
+  height: 6px;
+  mask-image: var(--wave-h);
+  mask-repeat: repeat-x;
+  mask-size: 8px 6px;
+}
+
+/* `HighlightLayer` is told which of the two this is; nothing in the rectangle says so. */
+.highlight-box[data-axis="v"]::after {
+  top: 0;
+  bottom: 0;
+  left: calc(100% + var(--wave-drop) - 1px);
+  width: 6px;
+  mask-image: var(--wave-v);
+  mask-repeat: repeat-y;
+  mask-size: 6px 8px;
 }
 
 .page-btn {
