@@ -14,6 +14,8 @@
  * precache: `vite.config.ts`'s `globPatterns` deliberately omits `woff2`.
  */
 
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { db } from "./db";
 import { webFontKey, type WebFont, type WebFontKind } from "./web-font";
 
@@ -110,10 +112,10 @@ function objectUrlFor(key: string, file: Blob): string {
  * What the settings panel says about the face, in the reader's own language.
  *
  * A line rather than a spinner or a bar: the fetch does not block anything, so what it needs
- * to do is answer "why does 明體 look like it always did" for the minute or two it is
+ * to do is answer "why does the serif look like it always did" for the minute or two it is
  * running, and then stop being interesting.
  */
-export function webFontNote(status: WebFontStatus | null): string | null {
+export function webFontNote(i18n: I18n, status: WebFontStatus | null): string | null {
   if (status === null) return null;
 
   switch (status.state) {
@@ -122,14 +124,40 @@ export function webFontNote(status: WebFontStatus | null): string | null {
       // Bytes rather than a percentage when the server declared no total. A percentage
       // invented from nothing is a bar that jumps backwards.
       if (total === null || total <= 0) {
-        return `字型下載中　${(received / 1024 / 1024).toFixed(1)} MB`;
+        const megabytes = (received / 1024 / 1024).toFixed(1);
+        return i18n._(
+          msg({
+            message: `Downloading font　${{ megabytes }} MB`,
+            comment:
+              "The running line in the typography panel while a CJK face downloads, when the server declared no total size so there is no percentage to show. The character between the words is an ideographic space (U+3000) — keep it, or use whatever spacing this language sets between a phrase and a figure.",
+          }),
+        );
       }
-      return `字型下載中　${Math.min(100, Math.round((received / total) * 100))}%`;
+      const percent = Math.min(100, Math.round((received / total) * 100));
+      return i18n._(
+        msg({
+          message: `Downloading font　${{ percent }}%`,
+          comment:
+            "The running line in the typography panel while a CJK face downloads. The character between the words is an ideographic space (U+3000) — keep it, or use whatever spacing this language sets between a phrase and a figure.",
+        }),
+      );
     }
     case "stored":
-      return "字型已在這台裝置上";
+      return i18n._(
+        msg({
+          message: "Font is on this device",
+          comment:
+            "The line in the typography panel when the face the book needs has already been downloaded, so choosing it costs nothing.",
+        }),
+      );
     case "unavailable":
-      return "連上網路後會下載字型";
+      return i18n._(
+        msg({
+          message: "The font will download once you are online",
+          comment:
+            "The line in the typography panel when the face this book wants is not held and cannot be fetched right now. It is a promise, not an error: the book still renders in the platform's own face.",
+        }),
+      );
   }
 }
 
@@ -154,11 +182,17 @@ export function webFontFraction(status: WebFontStatus | null): number | null {
  * Where `webFontNote` is the running line in the panel, this is the toast that fires once at
  * the end of the whole job — after Regular *and* Bold, not once per face. It names the face so
  * the reflow that just happened reads as "the font finished" rather than a jump out of nowhere.
- * The label is passed in rather than spelled here, so 明體/黑體 have their one home in
+ * The name is passed in rather than spelled here, so the faces have their one home in
  * `FONT_FAMILIES`.
  */
-export function webFontAppliedNote(familyLabel: string): string {
-  return `已套用${familyLabel}`;
+export function webFontAppliedNote(i18n: I18n, familyLabel: string): string {
+  return i18n._(
+    msg({
+      message: `Now set in ${{ familyLabel }}`,
+      comment:
+        "Toast shown once a downloaded face has been applied to the book. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog.",
+    }),
+  );
 }
 
 /**
@@ -168,7 +202,11 @@ export function webFontAppliedNote(familyLabel: string): string {
  * the very "nothing happened" the indicator exists to kill. It is informational, not an error
  * to act on: the platform stack stands and the reader can carry on reading (ADR-0014).
  */
-export const WEB_FONT_UNAVAILABLE_NOTE = "目前無法下載字型，先用系統字型";
+export const WEB_FONT_UNAVAILABLE_NOTE = msg({
+  message: "Cannot download the font right now — using the system font",
+  comment:
+    "Toast shown when every face the reader picked failed to arrive. Informational rather than an error: the book still renders, in whatever face the machine has.",
+});
 
 /**
  * The URL for a face this device already holds, or `null` if it does not hold it.

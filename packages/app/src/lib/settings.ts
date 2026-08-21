@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import type {
   FontFace as FrondFontFace,
   LayoutFacts as FrondLayoutFacts,
@@ -52,10 +54,31 @@ export interface ReaderSettings {
   margin: number;
 }
 
-export const FONT_FAMILIES: { label: string; value: FontChoice }[] = [
-  { label: "書籍預設", value: "publisher" },
-  { label: "黑體", value: "sans" },
-  { label: "明體", value: "serif" },
+export const FONT_FAMILIES: { label: MessageDescriptor; value: FontChoice }[] = [
+  {
+    label: msg({
+      message: "Publisher's",
+      comment:
+        "One of three typeface choices for the book. It means 'leave the fonts the book itself asked for'. Chinese calls it 書籍預設.",
+    }),
+    value: "publisher",
+  },
+  {
+    label: msg({
+      message: "Sans",
+      comment:
+        "One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.",
+    }),
+    value: "sans",
+  },
+  {
+    label: msg({
+      message: "Serif",
+      comment:
+        "One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.",
+    }),
+    value: "serif",
+  },
 ];
 
 export const FONT_SIZE_MIN = 80;
@@ -67,23 +90,49 @@ export const FONT_SIZE_MAX = 200;
  */
 export const FONT_SIZE_STEP = 5;
 
-export const MARGINS: { label: string; value: number }[] = [
-  { label: "無", value: 0 },
-  { label: "小", value: 16 },
-  { label: "中", value: 32 },
-  { label: "大", value: 48 },
+export const MARGINS: { label: MessageDescriptor; value: number }[] = [
+  {
+    label: msg({ message: "None", comment: "Smallest of four margin widths: no margin at all." }),
+    value: 0,
+  },
+  { label: msg({ message: "Small", comment: "One of four margin widths." }), value: 16 },
+  {
+    label: msg({ message: "Medium", comment: "One of four margin widths, and the default." }),
+    value: 32,
+  },
+  { label: msg({ message: "Large", comment: "Widest of four margin widths." }), value: 48 },
 ];
 
 /**
  * The panel's column choices.
  *
- * Labelled 欄 rather than 頁: frond advances a page by the whole container, so two columns
- * are turned past together. They are one page with two columns, not two pages.
+ * Counted in columns rather than pages: frond advances a page by the whole container, so two
+ * columns are turned past together. They are one page with two columns, not two pages — which
+ * is why the Chinese says 欄 and not 頁.
  */
-export const COLUMN_CHOICES: { label: string; value: ColumnChoice }[] = [
-  { label: "自動", value: "auto" },
-  { label: "單欄", value: 1 },
-  { label: "雙欄", value: 2 },
+export const COLUMN_CHOICES: { label: MessageDescriptor; value: ColumnChoice }[] = [
+  {
+    label: msg({
+      message: "Auto",
+      comment:
+        "One of three column choices for a page: let the line length decide how many columns fit.",
+    }),
+    value: "auto",
+  },
+  {
+    label: msg({
+      message: "One",
+      comment: "One column to a page. The word is a count of columns, not the digit.",
+    }),
+    value: 1,
+  },
+  {
+    label: msg({
+      message: "Two",
+      comment: "Two columns to a page, turned past together as one page.",
+    }),
+    value: 2,
+  },
 ];
 export const LINE_HEIGHT_MIN = 1.2;
 export const LINE_HEIGHT_MAX = 2.4;
@@ -95,19 +144,74 @@ export const LINE_HEIGHT_MAX = 2.4;
  * and every book's, in the settings drawer. One ladder, so a value set in one is a value the
  * other can show.
  */
-export const LINE_HEIGHTS: { label: string; value: number }[] = [
-  { label: "書籍預設", value: 0 },
-  { label: "緊密（1.4）", value: 1.4 },
-  { label: "標準（1.6）", value: 1.6 },
-  { label: "寬鬆（1.8）", value: 1.8 },
-  { label: "更寬鬆（2.0）", value: 2 },
-  { label: "最寬（2.2）", value: 2.2 },
+export const LINE_HEIGHTS: { label: MessageDescriptor; value: number }[] = [
+  {
+    label: msg({
+      message: "Publisher's",
+      comment:
+        "First of six line-height choices, and not a height at all: it means 'leave whatever the book asked for'. Same wording as the first typeface choice, which means the same thing — they share one entry deliberately.",
+    }),
+    value: 0,
+  },
+  {
+    label: msg({
+      message: "Tight (1.4)",
+      comment: "One of six line heights. The number is the multiplier and stays as it is.",
+    }),
+    value: 1.4,
+  },
+  {
+    label: msg({
+      message: "Standard (1.6)",
+      comment: "One of six line heights. The number is the multiplier and stays as it is.",
+    }),
+    value: 1.6,
+  },
+  {
+    label: msg({
+      message: "Loose (1.8)",
+      comment: "One of six line heights. The number is the multiplier and stays as it is.",
+    }),
+    value: 1.8,
+  },
+  {
+    label: msg({
+      message: "Looser (2.0)",
+      comment: "One of six line heights. The number is the multiplier and stays as it is.",
+    }),
+    value: 2,
+  },
+  {
+    label: msg({
+      message: "Loosest (2.2)",
+      comment: "Widest of six line heights. The number is the multiplier and stays as it is.",
+    }),
+    value: 2.2,
+  },
 ];
 
-export const THEME_CHOICES: { label: string; value: Theme }[] = [
-  { label: "跟隨系統", value: "system" },
-  { label: "淺色", value: "light" },
-  { label: "深色", value: "dark" },
+export const THEME_CHOICES: { label: MessageDescriptor; value: Theme }[] = [
+  {
+    label: msg({
+      message: "System",
+      comment: "One of three theme choices: follow whatever the operating system is set to.",
+    }),
+    value: "system",
+  },
+  {
+    label: msg({
+      message: "Light",
+      comment: "One of three theme choices: dark text on a pale page.",
+    }),
+    value: "light",
+  },
+  {
+    label: msg({
+      message: "Dark",
+      comment: "One of three theme choices: pale text on a dark page.",
+    }),
+    value: "dark",
+  },
 ];
 
 export const DEFAULT_SETTINGS: ReaderSettings = {

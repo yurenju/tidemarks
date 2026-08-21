@@ -1,3 +1,5 @@
+import { Plural, Trans } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { Dialog } from "@base-ui/react/dialog";
 import { useEffect, useState } from "react";
 import { db } from "../lib/db";
@@ -19,8 +21,9 @@ interface Details {
 /**
  * 〈書的詳情〉: what this one book has cost the reader, and the two things they can do to it.
  *
- * The numbers used to sit on the card, under every cover on the shelf. They answer 「這本我讀了
- * 多少」, which is looking back — the shelf is for picking what to open next, so a whole wall of
+ * The numbers used to sit on the card, under every cover on the shelf. They answer "how much
+ * of this one have I read", which is looking back — the shelf is for picking what to open next,
+ * so a whole wall of
  * them was the wrong question asked twenty times over. They are worth reading once, on purpose,
  * which is what a drawer is for.
  */
@@ -98,15 +101,26 @@ export default function AboutDrawer({
     onDeleted(book.id);
   }
 
+  const sittings = details?.sessionCount ?? 0;
+
   return (
     <Drawer
       open={bookId !== null}
       onClose={onClose}
-      title={details?.book.title ?? "書的詳情"}
+      title={
+        details?.book.title ??
+        msg({
+          message: "About this book",
+          comment:
+            "Title of the book-details drawer, used only in the moment before the book itself has loaded — after that the drawer wears the book's own title. Shares its entry with the reader's bar button that opens it.",
+        })
+      }
       testId="drawer-about"
     >
       {details !== null && (
         <>
+          {/* Named rather than read inline, so the catalog carries `{sittings}` instead of a
+              bare `{0}` that says nothing to whoever translates it. */}
           <section className="drawer-section" data-testid="about-numbers">
             <p className="drawer-note">{details.book.author}</p>
             <ul className="drawer-list">
@@ -114,22 +128,39 @@ export default function AboutDrawer({
                   how long, how many times. */}
               {details.percentage !== null && (
                 <li>
-                  <span>讀到</span>
+                  <span>
+                    <Trans comment="Label of the how-far number in the book-details drawer. The value beside it is a percentage.">
+                      Read to
+                    </Trans>
+                  </span>
                   <span className="drawer-note" data-testid="about-percentage">
                     {Math.round(details.percentage * 100)}%
                   </span>
                 </li>
               )}
               <li>
-                <span>累計時長</span>
+                <span>
+                  <Trans comment="Label of the total-reading-time number in the book-details drawer.">
+                    Time spent
+                  </Trans>
+                </span>
                 <span className="drawer-note" data-testid="about-reading-time">
                   {formatDuration(details.readingMs)}
                 </span>
               </li>
               <li>
-                <span>場次</span>
+                <span>
+                  <Trans comment="Label of the how-many-times number in the book-details drawer. A sitting is one continuous stretch of reading.">
+                    Sittings
+                  </Trans>
+                </span>
                 <span className="drawer-note" data-testid="about-sessions">
-                  {details.sessionCount} 場
+                  <Plural
+                    value={sittings}
+                    one="# sitting"
+                    other="# sittings"
+                    comment="The how-many-times number in the book-details drawer, with its unit. A sitting is one continuous stretch of reading."
+                  />
                 </span>
               </li>
             </ul>
@@ -137,7 +168,11 @@ export default function AboutDrawer({
 
           <section className="drawer-section">
             <div className="drawer-actions">
-              <button onClick={() => void exportMarkdown(details.book)}>筆記 .md</button>
+              <button onClick={() => void exportMarkdown(details.book)}>
+                <Trans comment="Button that writes this book's marks and notes out as a Markdown file. '.md' is the file extension and stays as it is.">
+                  Notes .md
+                </Trans>
+              </button>
               <DeleteBook book={details.book} onConfirm={() => void removeBook(details.book)} />
             </div>
           </section>
@@ -148,7 +183,7 @@ export default function AboutDrawer({
 }
 
 /**
- * 刪除, and the question before it.
+ * Deletion, and the question before it.
  *
  * The question used to be the browser's own `confirm()`, which blocks the whole page, is worded
  * by the browser rather than by us, and on a phone arrives as a system sheet with the origin
@@ -165,22 +200,38 @@ export default function AboutDrawer({
  * and `role="alertdialog"` restores the announcement, without the layer.
  */
 function DeleteBook({ book, onConfirm }: { book: BookRecord; onConfirm: () => void }) {
+  const title = book.title;
+
   return (
     <Dialog.Root modal="trap-focus" disablePointerDismissal>
       <Dialog.Trigger className="danger" data-testid="about-delete">
-        刪除
+        <Trans comment="Button in the book-details drawer that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.">
+          Delete
+        </Trans>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop className="drawer-backdrop" />
         <Dialog.Popup className="alert-popup" role="alertdialog" data-testid="delete-confirm">
-          <Dialog.Title className="alert-title">刪除「{book.title}」？</Dialog.Title>
+          <Dialog.Title className="alert-title">
+            <Trans comment="Title of the delete confirmation. The value is the book's own title; the quotation marks around it are this language's — Chinese uses 「」.">
+              Delete “{title}”?
+            </Trans>
+          </Dialog.Title>
           <Dialog.Description className="drawer-note">
-            這本書的重點與筆記會一起刪掉，其他裝置上的也會。
+            <Trans comment="The one thing a reader cannot see from the shelf, and the reason this question is asked at all: deleting takes the marks and notes with it, everywhere.">
+              This book's marks and notes go with it, on your other devices too.
+            </Trans>
           </Dialog.Description>
           <div className="drawer-actions">
-            <Dialog.Close className="ghost">留著</Dialog.Close>
+            <Dialog.Close className="ghost">
+              <Trans comment="The way out of the delete confirmation: change nothing. Deliberately not 'Cancel' — it says what happens to the book, which is that it stays.">
+                Keep it
+              </Trans>
+            </Dialog.Close>
             <Dialog.Close className="danger" onClick={onConfirm} data-testid="delete-confirmed">
-              刪除
+              <Trans comment="The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.">
+                Delete
+              </Trans>
             </Dialog.Close>
           </div>
         </Dialog.Popup>

@@ -1,4 +1,15 @@
 import { useRef } from "react";
+import { useLingui } from "@lingui/react";
+import type { MessageDescriptor } from "@lingui/core";
+
+/**
+ * A label this control can show: either a message from the catalog, or a string that is
+ * already what it should say.
+ *
+ * The second kind is rarer than it looks — the only one so far is the list of languages, whose
+ * options are each written in themselves and so are the same on every screen (`lib/locale.ts`).
+ */
+export type SegmentLabel = string | MessageDescriptor;
 
 /**
  * A setting whose options are few enough and short enough to stand on the page at once.
@@ -25,15 +36,19 @@ export default function Segmented<T extends string | number>({
   disabledReason,
   onChange,
 }: {
-  label: string;
+  label: SegmentLabel;
   testId: string;
-  options: readonly { label: string; value: T }[];
+  options: readonly { label: SegmentLabel; value: T }[];
   value: T;
   disabled?: boolean;
   /** Why the whole group is off, as the tooltip on every cell of it. */
   disabledReason?: string;
   onChange: (value: T) => void;
 }) {
+  // Resolved here rather than by every caller: a segmented control's options are translated
+  // wherever it is used, so knowing how to read one belongs to the control.
+  const { i18n } = useLingui();
+  const say = (text: SegmentLabel) => (typeof text === "string" ? text : i18n._(text));
   const cells = useRef<(HTMLButtonElement | null)[]>([]);
   const at = options.findIndex((option) => option.value === value);
 
@@ -58,7 +73,7 @@ export default function Segmented<T extends string | number>({
   return (
     <div className="form-row">
       <span className="form-label" id={`${testId}-label`}>
-        {label}
+        {say(label)}
       </span>
       {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen beside it, and
           a fieldset brings a legend and a border of its own that would both have to be undone.
@@ -96,7 +111,7 @@ export default function Segmented<T extends string | number>({
             title={disabled ? disabledReason : undefined}
             onClick={() => onChange(option.value)}
           >
-            {option.label}
+            {say(option.label)}
           </button>
         ))}
       </div>

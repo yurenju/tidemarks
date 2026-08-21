@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { currentlyReading, isFinished, statusLines } from "./book-status";
+import { i18n } from "./i18n";
 import type { Progress, ReadingSession } from "./types";
 
 function progressAt(bookId: string, percentage: number, lastReadAt: number): Progress {
@@ -75,55 +76,86 @@ describe("isFinished", () => {
 describe("statusLines", () => {
   const now = new Date(2026, 7, 12).getTime();
 
+  // English is the source language, so these read the messages as they are written in the
+  // code. The two Chinese cases at the end are here for a rule only Chinese has.
+  beforeEach(() => i18n.activate("en"));
+
   it("says a book was never opened", () => {
-    expect(statusLines(undefined, [], now)).toEqual(["還沒翻開", "剛剛加進來的"]);
+    expect(statusLines(i18n, undefined, [], now)).toEqual(["Not opened yet", "Just added"]);
   });
 
   it("names the chapter and how much is left once there is a speed", () => {
     const sessions = [anHourFrom(1, 0), anHourFrom(2, 0.1)];
-    expect(statusLines(progressAt("b1", 0.5, now), sessions, now)).toEqual([
-      "讀到第七章",
-      "大約還要 5 小時",
+    expect(statusLines(i18n, progressAt("b1", 0.5, now), sessions, now)).toEqual([
+      "Read to 第七章",
+      "About 5 hours left",
     ]);
   });
 
   it("keeps the half hours and drops a trailing zero", () => {
     const sessions = [anHourFrom(1, 0), anHourFrom(2, 0.1)];
-    expect(statusLines(progressAt("b1", 0.55, now), sessions, now)[1]).toBe("大約還要 4.5 小時");
+    expect(statusLines(i18n, progressAt("b1", 0.55, now), sessions, now)[1]).toBe(
+      "About 4.5 hours left",
+    );
+  });
+
+  // The one case English spells differently, and the reason this message is a plural rather
+  // than "About {hours} hours left" with an s that is wrong once.
+  it("counts one hour as one hour", () => {
+    const sessions = [anHourFrom(1, 0), anHourFrom(2, 0.1)];
+    expect(statusLines(i18n, progressAt("b1", 0.9, now), sessions, now)[1]).toBe(
+      "About 1 hour left",
+    );
   });
 
   it("says only that the reader has begun, on the first sitting", () => {
-    expect(statusLines(progressAt("b1", 0.05, now), [anHourFrom(1, 0)], now)).toEqual([
-      "讀到第七章",
-      "才剛開始",
+    expect(statusLines(i18n, progressAt("b1", 0.05, now), [anHourFrom(1, 0)], now)).toEqual([
+      "Read to 第七章",
+      "Only just started",
     ]);
   });
 
-  // Several sittings that stayed under the thresholds: 才剛開始 would be a lie about a reader
-  // halfway through, and a made-up estimate would be worse. Nothing to say, so nothing said.
+  // Several sittings that stayed under the thresholds: "only just started" would be a lie about
+  // a reader halfway through, and a made-up estimate would be worse. Nothing to say, so nothing
+  // said.
   it("keeps quiet rather than guessing after several short sittings", () => {
     const brief = [1, 2, 3].map((n) => ({ ...anHourFrom(n, 0.4), endFraction: 0.4 }));
-    expect(statusLines(progressAt("b1", 0.4, now), brief, now)).toEqual(["讀到第七章"]);
-  });
-
-  // 讀到第七章 is one phrase; 讀到 Chapter 7 is two words in two scripts.
-  it("puts a space in front of a chapter the book named in Latin", () => {
-    const latin = { ...progressAt("b1", 0.3, now), chapterLabel: "I: Down the Rabbit-Hole" };
-    expect(statusLines(latin, [], now)[0]).toBe("讀到 I: Down the Rabbit-Hole");
+    expect(statusLines(i18n, progressAt("b1", 0.4, now), brief, now)).toEqual(["Read to 第七章"]);
   });
 
   it("falls back to the percentage when the chapter is not known", () => {
     const noChapter = { ...progressAt("b1", 0.43, now), chapterLabel: null };
-    expect(statusLines(noChapter, [], now)[0]).toBe("讀到 43%");
+    expect(statusLines(i18n, noChapter, [], now)[0]).toBe("Read to 43%");
   });
 
   it("says when a book was finished", () => {
     const finished = progressAt("b1", 1, new Date(2026, 7, 3).getTime());
-    expect(statusLines(finished, [], now)).toEqual(["讀完了", "8月3日"]);
+    expect(statusLines(i18n, finished, [], now)).toEqual(["Finished", "August 3"]);
   });
 
   it("carries the year once the year has turned", () => {
     const finished = progressAt("b1", 1, new Date(2024, 7, 3).getTime());
-    expect(statusLines(finished, [], now)[1]).toBe("2024年8月3日");
+    expect(statusLines(i18n, finished, [], now)[1]).toBe("August 3, 2024");
+  });
+
+  // 讀到第七章 is one phrase and a space would break it; 讀到 I: Down the Rabbit-Hole is two
+  // scripts and needs one. Both sentences are the same message — which of the two it becomes
+  // depends on the book, so the space cannot be written into the translation.
+  describe("in Chinese, where the space before a chapter name is not automatic", () => {
+    beforeEach(() => i18n.activate("zh-TW"));
+
+    it("runs a Han chapter name straight on", () => {
+      expect(statusLines(i18n, progressAt("b1", 0.3, now), [], now)[0]).toBe("讀到第七章");
+    });
+
+    it("puts a space in front of a chapter the book named in Latin", () => {
+      const latin = { ...progressAt("b1", 0.3, now), chapterLabel: "I: Down the Rabbit-Hole" };
+      expect(statusLines(i18n, latin, [], now)[0]).toBe("讀到 I: Down the Rabbit-Hole");
+    });
+
+    it("dates a finished book the way the interface language does", () => {
+      const finished = progressAt("b1", 1, new Date(2026, 7, 3).getTime());
+      expect(statusLines(i18n, finished, [], now)).toEqual(["讀完了", "8月3日"]);
+    });
   });
 });

@@ -1,5 +1,7 @@
 // Sync engine: push dirty rows, pull deltas, clear dirty. Local Dexie stays
 // the source of truth; the server is a hub. Sync failure never blocks the UI.
+import { msg } from "@lingui/core/macro";
+import { i18n } from "./i18n";
 import { db, getSyncCursor, setSyncCursor } from "./db";
 import { clearableDirty, dedupeSessions, mergeAnnotation, mergeBook, mergeProgress } from "./merge";
 import { isEmptyPayload, syncPayload, toSyncBook, type SyncPayload } from "./sync-payload";
@@ -275,7 +277,17 @@ export function beaconPositions(): boolean {
 // download an epub body on demand (lazy download), storing it in Dexie
 export async function downloadBookFile(id: string): Promise<Blob> {
   const res = await fetch(`/api/books/${id}/file`);
-  if (!res.ok) throw new Error(`下載失敗（${res.status}）`);
+  if (!res.ok) {
+    throw new Error(
+      i18n._(
+        msg({
+          message: `Download failed (${{ status: res.status }})`,
+          comment:
+            "Shown to the reader when the epub file behind a book on the shelf could not be fetched. The value is the HTTP status code, kept because it is the one clue worth reporting.",
+        }),
+      ),
+    );
+  }
   const blob = await res.blob();
   await db.books.update(id, { file: blob });
   return blob;

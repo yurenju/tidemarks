@@ -1,3 +1,6 @@
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useEffect, useRef, useState } from "react";
 import {
   addPasskey,
@@ -15,13 +18,31 @@ import { downloadBlob } from "../lib/download";
 import { parseImport, serializeExport } from "../lib/export";
 import { getSyncState, scheduleSync, subscribeSync, syncNow, type SyncState } from "../lib/sync";
 
-const STATUS_LABEL: Record<SyncState["status"], string> = {
-  idle: "",
-  syncing: "同步中…",
-  synced: "已同步",
-  offline: "離線",
-  unauthenticated: "未登入",
-  error: "同步失敗",
+const STATUS_LABEL: Record<SyncState["status"], MessageDescriptor | null> = {
+  // Nothing to report, so nothing said — the row simply has no second half.
+  idle: null,
+  syncing: msg({
+    message: "Syncing…",
+    comment: "Sync status beside the 'Sync' button. The ellipsis is one character.",
+  }),
+  synced: msg({
+    message: "Synced",
+    comment: "Sync status beside the 'Sync' button: this device and the server agree.",
+  }),
+  offline: msg({
+    message: "Offline",
+    comment:
+      "Sync status beside the 'Sync' button: there is no network, which is not an error — reading carries on.",
+  }),
+  unauthenticated: msg({
+    message: "Not signed in",
+    comment: "Sync status beside the 'Sync' button: there is no account to sync with.",
+  }),
+  error: msg({
+    message: "Sync failed",
+    comment:
+      "Sync status beside the 'Sync' button: the attempt reached the server and did not work.",
+  }),
 };
 
 /**
@@ -41,13 +62,29 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
     <>
       <section className="settings-section">
         <p className="settings-lede">
-          讀書不必註冊。書、筆記、閱讀位置，一個位元組都不離開這台裝置。
+          <Trans comment="Opening line of the account pane, before any mention of signing in. It is the product's own line: reading needs no account at all.">
+            No account needed to read. Your books, notes and reading positions never leave this
+            device.
+          </Trans>
         </p>
         <dl className="price-lines">
-          <dt>永遠免費</dt>
-          <dd>匯入、閱讀、劃重點、寫筆記、排版、匯出，都在你的瀏覽器裡跑。</dd>
-          <dt>要付錢</dt>
-          <dd>兩台裝置之間同步、讓 agent 讀得到你的書。</dd>
+          <dt>
+            <Trans comment="Heading of the free half of the price list.">Always free</Trans>
+          </dt>
+          <dd>
+            <Trans comment="What the free half covers. A list of the app's verbs, ending with where they run.">
+              Importing, reading, marking, note-taking, typesetting and exporting all run in your
+              browser.
+            </Trans>
+          </dd>
+          <dt>
+            <Trans comment="Heading of the paid half of the price list.">Paid</Trans>
+          </dt>
+          <dd>
+            <Trans comment="What the paid half covers. Both are things that need a server, which is the whole reason they cost anything.">
+              Syncing between devices, and letting an agent read your books.
+            </Trans>
+          </dd>
         </dl>
       </section>
 
@@ -70,21 +107,49 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
 function Billing() {
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">帳單</h3>
+      <h3 className="settings-section-title">
+        <Trans comment="Heading of the billing section in the account pane.">Billing</Trans>
+      </h3>
       <dl className="price-lines">
-        <dt>同步與 agent</dt>
-        <dd>每月 US$3（暫定）</dd>
-        <dt>停掉之後</dt>
-        <dd>伺服器上那一份留 24 個月。這台裝置上的書、筆記、位置不受影響。</dd>
+        <dt>
+          <Trans comment="What the monthly price is for: the two things that need a server.">
+            Sync and agents
+          </Trans>
+        </dt>
+        <dd>
+          <Trans comment="The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.">
+            US$3 a month (provisional)
+          </Trans>
+        </dd>
+        <dt>
+          <Trans comment="Heading of the line explaining what happens if the reader stops paying.">
+            If you stop
+          </Trans>
+        </dt>
+        <dd>
+          <Trans comment="What happens if the reader stops paying. The point of the second sentence is that nothing on the device is held hostage (ADR-0013).">
+            The server's copy is kept for 24 months. The books, notes and positions on this device
+            are untouched.
+          </Trans>
+        </dd>
       </dl>
-      <p className="settings-note">還不能訂閱，價格也還沒定。</p>
-      <p className="settings-note">不想付、又想要兩台裝置？同步這半邊可以自己架。</p>
+      <p className="settings-note">
+        <Trans comment="Note under the billing section. It says outright that the section describes an intention, not a working checkout.">
+          You cannot subscribe yet, and the price is not settled.
+        </Trans>
+      </p>
+      <p className="settings-note">
+        <Trans comment="Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.">
+          Would rather not pay, but want two devices? The syncing half can be self-hosted.
+        </Trans>
+      </p>
     </section>
   );
 }
 
-/** 匯出備份 and 從備份接回來 — one file, both directions. */
+/** Export and restore — one file, both directions. */
 function Backup({ onImported }: { onImported: () => void }) {
+  const { t } = useLingui();
   // Which direction is running, not merely whether one is: both buttons are disabled
   // while either works, but only the one actually doing something wears the busy line.
   const [busy, setBusy] = useState<"export" | "import" | null>(null);
@@ -125,7 +190,21 @@ function Backup({ onImported }: { onImported: () => void }) {
       onImported();
       scheduleSync();
     } catch (e) {
-      setError(`匯入失敗：${e instanceof Error ? e.message : "格式錯誤"}`);
+      const reason =
+        e instanceof Error
+          ? e.message
+          : t({
+              message: "the file is not in the right format",
+              comment:
+                "Slotted into the restore failure message below when the failure carried no reason of its own. Lower case, mid-sentence.",
+            });
+      setError(
+        t({
+          message: `Restore failed: ${{ reason }}`,
+          comment:
+            "Shown when a backup file could not be read back in. The value is why, and may be a message from deeper in the parser.",
+        }),
+      );
     } finally {
       setBusy(null);
     }
@@ -133,24 +212,32 @@ function Backup({ onImported }: { onImported: () => void }) {
 
   return (
     <section className="settings-section">
-      <h3 className="settings-section-title">備份</h3>
+      <h3 className="settings-section-title">
+        <Trans comment="Heading of the backup section in the account pane: one file out, the same file back in.">
+          Backup
+        </Trans>
+      </h3>
       <div className="settings-actions">
-        {/* Deliberately not 帶走我的書櫃: what comes out is a bundle only Tidemarks can read
-            (ADR-0013), and 備份 is what that actually is. */}
+        {/* Deliberately not "take my shelf with me": what comes out is a bundle only Tidemarks
+            can read (ADR-0013), and a backup is what that actually is. */}
         <button
           className={busy === "export" ? "busy-edge" : undefined}
           onClick={() => void exportAll()}
           disabled={busy !== null}
           data-testid="export-backup"
         >
-          匯出備份
+          <Trans comment="Button that writes every book, note and position on this device out to one file.">
+            Export backup
+          </Trans>
         </button>
         <button
           className={busy === "import" ? "busy-edge" : undefined}
           onClick={() => importInput.current?.click()}
           disabled={busy !== null}
         >
-          從備份接回來
+          <Trans comment="Button that reads a backup file back into this device. Deliberately not 'import' — that word belongs to adding an epub on the shelf.">
+            Restore from backup
+          </Trans>
         </button>
       </div>
       {error && <p className="error">{error}</p>}
@@ -170,6 +257,7 @@ function Backup({ onImported }: { onImported: () => void }) {
 
 /** The two keys: a passkey, and a code in the inbox. */
 function SignIn() {
+  const { t, i18n } = useLingui();
   const [userId, setUserId] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [email, setEmail] = useState("");
@@ -253,10 +341,20 @@ function SignIn() {
   if (userId) {
     return (
       <section className="settings-section" data-testid="signed-in">
-        <h3 className="settings-section-title">同步</h3>
+        <h3 className="settings-section-title">
+          <Trans comment="Heading of the section shown once the reader is signed in. It holds the sync status and the buttons for keys and signing out.">
+            Sync
+          </Trans>
+        </h3>
         <p className="settings-note">
-          {STATUS_LABEL[sync.status]}
-          {sync.status === "error" && sync.error ? `：${sync.error}` : ""}
+          {STATUS_LABEL[sync.status] === null ? null : i18n._(STATUS_LABEL[sync.status]!)}
+          {sync.status === "error" && sync.error
+            ? t({
+                message: `: ${{ reason: sync.error }}`,
+                comment:
+                  "Appended to the sync status when the failure carried a reason. The value is the server's or the network's own message and is not translated. Only the punctuation in front of it is: Chinese uses the full-width colon 「：」.",
+              })
+            : ""}
         </p>
         <div className="settings-actions">
           <button
@@ -264,9 +362,15 @@ function SignIn() {
             onClick={() => void syncNow()}
             disabled={sync.status === "syncing"}
           >
-            同步
+            <Trans comment="Button that runs a sync round now, rather than waiting for the next one. Same word as the section heading above it, and the same entry.">
+              Sync
+            </Trans>
           </button>
-          <button onClick={() => run(addPasskey)}>新增 passkey</button>
+          <button onClick={() => run(addPasskey)}>
+            <Trans comment="Button that registers another passkey on this account — one per device, so this is how a second machine gets a key. 'passkey' is the platform's own term; keep it as the platform spells it in this language.">
+              Add a passkey
+            </Trans>
+          </button>
           <button
             onClick={() =>
               run(async () => {
@@ -278,7 +382,9 @@ function SignIn() {
               })
             }
           >
-            登出
+            <Trans comment="Button that ends the session on this device. Books already on the device stay; only the account link goes.">
+              Sign out
+            </Trans>
           </button>
         </div>
         {error && <p className="error">{error}</p>}
@@ -288,12 +394,21 @@ function SignIn() {
 
   return (
     <section className="settings-section" data-testid="sign-in">
-      <h3 className="settings-section-title">登入</h3>
+      <h3 className="settings-section-title">
+        <Trans comment="Heading of the sign-in section, shown when there is no account on this device yet.">
+          Sign in
+        </Trans>
+      </h3>
       {/* Without this the reader arrives at their bookshelf with no idea why, having asked an
           agent to connect and been handed a library instead. The redirect that brought them
           here is invisible, so the page has to say it. */}
       {pendingAuthorize && (
-        <p className="auth-pending">有一個應用程式要連上你的書架。登入之後會回去讓你確認。</p>
+        <p className="auth-pending">
+          <Trans comment="Shown when the reader arrived here from an agent's authorisation flow rather than by choosing to sign in. It explains why they are looking at a login box, and that they will be sent back afterwards.">
+            An app wants to connect to your shelf. You will come back here to confirm after signing
+            in.
+          </Trans>
+        </p>
       )}
       {step === "email" ? (
         <form
@@ -322,7 +437,9 @@ function SignIn() {
               type="submit"
               disabled={!email || busy}
             >
-              寄登入碼給我
+              <Trans comment="Button that asks the server to email a one-time sign-in code. It is the first of the two doors in — the other is a passkey.">
+                Email me a code
+              </Trans>
             </button>
             {passkeyButton && (
               <button
@@ -334,7 +451,9 @@ function SignIn() {
                   })
                 }
               >
-                用 passkey 登入
+                <Trans comment="Button that signs in with a passkey already on this device. 'passkey' is the platform's own term; keep it as the platform spells it in this language.">
+                  Sign in with a passkey
+                </Trans>
               </button>
             )}
           </div>
@@ -349,14 +468,21 @@ function SignIn() {
             });
           }}
         >
-          <p className="settings-note">登入碼寄到 {email} 了，10 分鐘內有效。</p>
+          <p className="settings-note">
+            <Trans comment="Shown after the code has been sent, above the box it goes in. The value is the address the reader typed. Ten minutes is what the Worker actually enforces, so the number is not a rounding.">
+              A code is on its way to {email}. It is good for 10 minutes.
+            </Trans>
+          </p>
           <input
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="登入碼"
+            placeholder={t({
+              message: "Sign-in code",
+              comment: "Placeholder in the box the six-digit code from the email goes into.",
+            })}
           />
           <div className="settings-actions">
             <button
@@ -364,7 +490,9 @@ function SignIn() {
               type="submit"
               disabled={!code || busy}
             >
-              登入
+              <Trans comment="Button that submits the code from the email and finishes signing in.">
+                Sign in
+              </Trans>
             </button>
             <button
               type="button"
@@ -373,7 +501,9 @@ function SignIn() {
                 setStep("email");
               }}
             >
-              改 email
+              <Trans comment="Button beside the code box that goes back a step, for a reader who typed the wrong address.">
+                Change email
+              </Trans>
             </button>
           </div>
         </form>

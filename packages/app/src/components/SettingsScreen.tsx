@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import AccountPanel from "./AccountPanel";
 import LanguageForm from "./LanguageForm";
 import TypographyForm from "./TypographyForm";
@@ -16,10 +16,11 @@ import type { ReactNode } from "react";
  * pass and a drawer has to fail (CONTEXT.md, 〈三種面〉). It used to stack over the shelf or over
  * a book as `?d=settings`, which is why it never had room for anything but one list.
  *
- * **Two tabs, ordered near to far**: 排版 is touched most days, 帳號 a few times a year. The
- * order is itself a sentence about which one the reader probably came for.
+ * **Three tabs, ordered near to far**: type is touched most days, the account a few times a
+ * year, the language about once. The order is itself a sentence about which one the reader
+ * probably came for.
  *
- * The reader's own 〈排版〉 panel shows the same `TypographyForm` this does. That is not the
+ * The reader's own type panel shows the same `TypographyForm` this does. That is not the
  * duplication this change set out to kill: there is one stored record now, so the two are one
  * setting shown in two places rather than two scopes wearing identical controls (ADR-0026).
  */
@@ -45,27 +46,50 @@ export default function SettingsScreen({
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
 }) {
+  const { t } = useLingui();
+
   return (
     <div className="settings-screen" data-testid="settings-screen">
       {/* Always back to the shelf, because that is the only door in: the reader's bar carries
-          目錄, 筆記 and 排版 and nothing else now (ADR-0026). A reader deep-linked straight here
+          Contents, Notes and Type and nothing else now (ADR-0026). A reader deep-linked straight
+          here
           by the login return still lands somewhere that exists. */}
       <header className="settings-header">
         <button className="ghost" onClick={onBack} data-testid="settings-back">
-          ‹ 書架
+          <Trans comment="The way out of 〈設定〉, always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.">
+            ‹ Shelf
+          </Trans>
         </button>
-        <strong className="settings-title">設定</strong>
+        <strong className="settings-title">
+          <Trans comment="Title of the settings screen. Shares its entry with the button on the shelf that opens it.">
+            Settings
+          </Trans>
+        </strong>
       </header>
 
       <nav className="settings-tabs" data-testid="settings-tabs">
-        <Tab open={tab} tab="typography" label="排版" onTab={onTab} />
-        <Tab open={tab} tab="account" label="帳號" onTab={onTab} />
+        <Tab
+          open={tab}
+          tab="typography"
+          label={
+            <Trans comment="〈設定〉tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
+              Type
+            </Trans>
+          }
+          onTab={onTab}
+        />
+        <Tab
+          open={tab}
+          tab="account"
+          label={<Trans comment="〈設定〉tab holding sign-in, billing and backup.">Account</Trans>}
+          onTab={onTab}
+        />
         {/* Last, because it is the rarest: a reader sets this once and never returns. */}
         <Tab
           open={tab}
           tab="language"
           label={
-            <Trans comment="〈設定〉tab holding the interface language. One word, sits beside 排版 and 帳號.">
+            <Trans comment="〈設定〉tab holding the interface language. One word, sits beside Type and Account.">
               Language
             </Trans>
           }
@@ -79,8 +103,9 @@ export default function SettingsScreen({
             settings={settings}
             onChange={onChange}
             onReset={onReset}
-            /* No book on this floor, so 欄數 has nothing to be taken away for. A 直排 book
-               disables it in the reader's own panel, where the book is. */
+            /* No book on this floor, so the column choice has nothing to be taken away for. A
+               vertically-written book disables it in the reader's own panel, where the book
+               is. */
             verticalBook={false}
           />
         ) : tab === "account" ? (
@@ -94,7 +119,15 @@ export default function SettingsScreen({
           whole app, and giving it to a tab would start that tab collecting strays. */}
       <footer
         className="settings-footer"
-        title={BUILD.dirty ? "這個版本是從有未提交變更的工作目錄建置的" : undefined}
+        title={
+          BUILD.dirty
+            ? t({
+                message: "This build came from a working tree with uncommitted changes",
+                comment:
+                  "Tooltip on the build stamp in 〈設定〉's footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.",
+              })
+            : undefined
+        }
       >
         <span>Tidemarks</span>
         <span data-testid="settings-build">{formatBuild(BUILD)}</span>

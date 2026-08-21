@@ -4,11 +4,11 @@ import {
   lastTouchedAt,
   loadShelfOrder,
   saveShelfOrder,
-  SHELF_ORDERS,
   sortShelf,
   type ShelfBook,
   type ShelfOrder,
 } from "./shelf-order";
+import { SHELF_ORDERS } from "./shelf-order-choices";
 
 function stubStorage() {
   const store = new Map<string, string>();
@@ -155,7 +155,11 @@ describe("the stored choice", () => {
 describe("the offered orders", () => {
   it("offers exactly the two the shelf implements, and every one carries a label", () => {
     expect(SHELF_ORDERS.map((o) => o.value)).toEqual<ShelfOrder[]>(["recent", "title"]);
-    expect(SHELF_ORDERS.every((o) => o.label.length > 0)).toBe(true);
+    // A label is a message descriptor now, so "carries a label" means the catalog has
+    // something to look it up by rather than that a string is non-empty.
+    expect(SHELF_ORDERS.every((o) => typeof o.label.id === "string" && o.label.id !== "")).toBe(
+      true,
+    );
   });
 
   it("defaults to one of them", () => {

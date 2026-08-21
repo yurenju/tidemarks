@@ -1,15 +1,11 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
 import { currentlyReading, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
-import { UI_LANGUAGE } from "../lib/language";
-import {
-  loadShelfOrder,
-  saveShelfOrder,
-  SHELF_ORDERS,
-  sortShelf,
-  type ShelfOrder,
-} from "../lib/shelf-order";
+
+import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
+import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
 import type { BookRecord, Progress, ReadingSession } from "../lib/types";
 
@@ -69,6 +65,8 @@ export default function Library({
     });
   }, [reloadToken]);
 
+  const { t, i18n } = useLingui();
+
   async function addFiles(files: FileList | File[]) {
     setError(null);
     setBusy(true);
@@ -78,8 +76,20 @@ export default function Library({
           const record = await importEpubFile(file);
           await db.books.put(record);
         } catch (e) {
+          const reason =
+            e instanceof Error
+              ? e.message
+              : t({
+                  message: "not a valid epub file",
+                  comment:
+                    "Slotted into the import failure message below when the failure carried no reason of its own. Lower case, mid-sentence.",
+                });
           setError(
-            `無法匯入 ${file.name}：${e instanceof Error ? e.message : "不是有效的 epub 檔"}`,
+            t({
+              message: `Could not import ${{ name: file.name }}: ${{ reason }}`,
+              comment:
+                "Shown above the shelf when an epub the reader dropped in could not be read. The first value is the file's own name; the second is why, and may be a message from deeper in the importer.",
+            }),
           );
         }
       }
@@ -95,16 +105,16 @@ export default function Library({
     saveShelfOrder(next);
   }
 
-  const ordered = sortShelf(shelf.books, shelf.progress, order, UI_LANGUAGE);
+  const ordered = sortShelf(shelf.books, shelf.progress, order, i18n.locale);
   // The one book the reader is in the middle of. Picked from the whole shelf rather than from
-  // the order in front of them: 書名排序 changes where a book sits on the wall, not which one
-  // they were reading last night.
+  // the order in front of them: ordering by title changes where a book sits on the wall, not
+  // which one they were reading last night.
   const reading = currentlyReading(shelf.books, shelf.progress);
   const wall = reading === null ? ordered : ordered.filter((b) => b.id !== reading.id);
   const now = Date.now();
 
   function lines(book: BookRecord): string[] {
-    return statusLines(shelf.progress.get(book.id), shelf.sessions.get(book.id) ?? [], now);
+    return statusLines(i18n, shelf.progress.get(book.id), shelf.sessions.get(book.id) ?? [], now);
   }
 
   return (
@@ -116,14 +126,16 @@ export default function Library({
         addFiles(e.dataTransfer.files);
       }}
     >
-      {/* One door and the name, and nothing else. 〈帳號〉 used to be a second button up here;
-          it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a setting
-          is a question that no longer arises (ADR-0026). */}
+      {/* One door and the name, and nothing else. The account used to be a second button up
+          here; it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a
+          setting is a question that no longer arises (ADR-0026). */}
       <header className="library-header">
         <h1>Tidemarks</h1>
         <div className="library-actions">
           <button className="ghost" onClick={onOpenSettings} data-testid="open-settings">
-            設定
+            <Trans comment="The one door out of the shelf, in the header beside the app's name. Opens 〈設定〉.">
+              Settings
+            </Trans>
           </button>
         </div>
       </header>
@@ -134,15 +146,19 @@ export default function Library({
           the shelf rather than in the header the drawers now own. */}
       <div className="shelf-actions">
         <button onClick={() => fileInput.current?.click()} disabled={busy}>
-          匯入 epub
+          <Trans comment="The shelf's own verb: opens a file picker for epub files. 'epub' stays lower case, as the format spells itself.">
+            Import epub
+          </Trans>
         </button>
         {shelf.books.length > 0 && (
           <label className="shelf-order" data-testid="shelf-order">
-            排序
+            <Trans comment="Label in front of the shelf's order dropdown. A noun, not the verb 'to sort'.">
+              Order
+            </Trans>
             <select value={order} onChange={(e) => changeOrder(e.target.value as ShelfOrder)}>
               {SHELF_ORDERS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {i18n._(o.label)}
                 </option>
               ))}
             </select>
@@ -163,7 +179,9 @@ export default function Library({
 
       {shelf.books.length === 0 ? (
         <p className="empty" data-testid="shelf-empty">
-          還沒有書。把 epub 放進來，就從這裡開始。
+          <Trans comment="The whole of an empty shelf. Two short sentences: what is true, then what to do about it. It sits under the 'Import epub' button, so it points at that.">
+            No books yet. Drop an epub in, and start here.
+          </Trans>
         </p>
       ) : (
         // One box around the two, so a wide window can put them side by side. Below 1280 it is
@@ -178,9 +196,9 @@ export default function Library({
               onAbout={() => onOpenAbout(reading.id)}
             />
           )}
-          {/* Covers, at the size a cover is for. What used to be here was 43% · 1h 12m · 5 場
-              under every one of them — three numbers answering 「我讀了多少」, twenty times
-              over, on the screen whose question is 「接下來讀哪一本」. */}
+          {/* Covers, at the size a cover is for. What used to be here was 43% · 1h 12m · 5
+              sittings under every one of them — three numbers answering "how much have I read",
+              twenty times over, on the screen whose question is "which one next". */}
           <div className="cover-wall" data-testid="cover-wall">
             {wall.map((book) => (
               <BookCard
@@ -236,6 +254,7 @@ function ReadingNow({
   onOpen: () => void;
   onAbout: () => void;
 }) {
+  const { t } = useLingui();
   const coverUrl = useCoverUrl(book.cover);
 
   return (
@@ -243,7 +262,11 @@ function ReadingNow({
       <button
         className="book-cover reading-now-cover"
         onClick={onOpen}
-        title={`開啟 ${book.title}`}
+        title={t({
+          message: `Open ${{ title: book.title }}`,
+          comment:
+            "Tooltip on a book's cover. The value is the book's own title and is never translated.",
+        })}
       >
         {coverUrl ? <img src={coverUrl} alt={book.title} /> : <span>{book.title}</span>}
       </button>
@@ -253,9 +276,19 @@ function ReadingNow({
         <StatusLines lines={lines} testId="reading-now-status" />
         <div className="reading-now-actions">
           <button className="primary" onClick={onOpen} data-testid="continue-reading">
-            繼續讀
+            <Trans comment="The main button on the one book the reader is in the middle of. It reopens that book at the position they left.">
+              Keep reading
+            </Trans>
           </button>
-          <button className="ghost" onClick={onAbout} aria-label={`${book.title} 的詳情`}>
+          <button
+            className="ghost"
+            onClick={onAbout}
+            aria-label={t({
+              message: `About ${{ title: book.title }}`,
+              comment:
+                "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
+            })}
+          >
             ⋯
           </button>
         </div>
@@ -275,6 +308,7 @@ function BookCard({
   onOpen: () => void;
   onAbout: () => void;
 }) {
+  const { t } = useLingui();
   const coverUrl = useCoverUrl(book.cover);
 
   return (
@@ -282,7 +316,11 @@ function BookCard({
       <button
         className="book-cover"
         onClick={onOpen}
-        title={`開啟 ${book.title}`}
+        title={t({
+          message: `Open ${{ title: book.title }}`,
+          comment:
+            "Tooltip on a book's cover. The value is the book's own title and is never translated.",
+        })}
         data-testid="book-open"
       >
         {coverUrl ? <img src={coverUrl} alt={book.title} /> : <span>{book.title}</span>}
@@ -292,12 +330,17 @@ function BookCard({
         <StatusLines lines={lines} testId="book-status" />
       </div>
       {/* The one door to everything else this book can do. It is a door rather than a row of
-          buttons because 筆記 .md and 刪除 are not things anyone does while choosing what to
-          read, and a wall of covers with two buttons under each is not a wall of covers. */}
+          buttons because exporting notes and deleting are not things anyone does while choosing
+          what to read, and a wall of covers with two buttons under each is not a wall of
+          covers. */}
       <button
         className="ghost book-more"
         onClick={onAbout}
-        aria-label={`${book.title} 的詳情`}
+        aria-label={t({
+          message: `About ${{ title: book.title }}`,
+          comment:
+            "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
+        })}
         data-testid="book-more"
       >
         ⋯

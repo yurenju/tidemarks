@@ -36,6 +36,6 @@ describe("formatBuild", () => {
   });
 
   it("says so rather than inventing a version when there was no checkout to read", () => {
-    expect(formatBuild({ ...BUILT, commit: "", builtAt: "" })).toBe("開發版");
+    expect(formatBuild({ ...BUILT, commit: "", builtAt: "" })).toBe("dev build");
   });
 });

@@ -13,14 +13,675 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. Appended to the sync status when the failure carried a reason. The value is the server's or the network's own message and is not translated. Only the punctuation in front of it is: Chinese uses the full-width colon 「：」.
+#: src/components/AccountPanel.tsx
+msgid ": {reason}"
+msgstr ": {reason}"
+
+#. The way out of the reader, in the top bar. The ‹ is part of the label. 'Shelf' is the screen listing every book — the app's home.
+#. The way out of 〈設定〉, always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.
+#: src/components/Reader.tsx
+#: src/components/SettingsScreen.tsx
+msgid "‹ Shelf"
+msgstr "‹ Shelf"
+
+#. One half of the line under the typeface control, reporting which carried faces this device already holds. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog. The two halves are joined with '・'.
+#: src/components/TypographyForm.tsx
+msgid "{face} is on this device"
+msgstr "{face} is on this device"
+
+#. One half of the line under the typeface control, reporting a carried face this device does not hold. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog. The two halves are joined with '・'.
+#: src/components/TypographyForm.tsx
+msgid "{face} not downloaded yet"
+msgstr "{face} not downloaded yet"
+
+#. Second line under a book being read: how much reading is left, worked out from this reader's own pace. Half hours are common, so the number is 4.5 as often as it is 4.
+#: src/lib/book-status.ts
+msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
+msgstr "{hours, plural, one {About # hour left} other {About # hours left}}"
+
+#. The how-many-times number in the book-details drawer, with its unit. A sitting is one continuous stretch of reading.
+#: src/components/AboutDrawer.tsx
+msgid "{sittings, plural, one {# sitting} other {# sittings}}"
+msgstr "{sittings, plural, one {# sitting} other {# sittings}}"
+
+#. Shown after the code has been sent, above the box it goes in. The value is the address the reader typed. Ten minutes is what the Worker actually enforces, so the number is not a rounding.
+#: src/components/AccountPanel.tsx
+msgid "A code is on its way to {email}. It is good for 10 minutes."
+msgstr "A code is on its way to {email}. It is good for 10 minutes."
+
+#. Tooltip on the disabled columns control. It is disabled because frond cannot lay a vertically-written book out in two columns at all.
+#: src/components/TypographyForm.tsx
+msgid "A vertical book is always one column"
+msgstr "A vertical book is always one column"
+
+#. Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.
+#. Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.
+#: src/components/Library.tsx
+msgid "About {title}"
+msgstr "About {title}"
+
+#. Screen-reader name for the button in the reader's bar that opens the drawer describing the open book.
+#. Title of the book-details drawer, used only in the moment before the book itself has loaded — after that the drawer wears the book's own title. Shares its entry with the reader's bar button that opens it.
+#: src/components/AboutDrawer.tsx
+#: src/components/Reader.tsx
+msgid "About this book"
+msgstr "About this book"
+
+#. 〈設定〉tab holding sign-in, billing and backup.
+#: src/components/SettingsScreen.tsx
+msgid "Account"
+msgstr "Account"
+
+#. Button that registers another passkey on this account — one per device, so this is how a second machine gets a key. 'passkey' is the platform's own term; keep it as the platform spells it in this language.
+#: src/components/AccountPanel.tsx
+msgid "Add a passkey"
+msgstr "Add a passkey"
+
+#. Button under a marked passage with no note yet: opens an empty note box.
+#: src/components/Reader.tsx
+msgid "Add note"
+msgstr "Add note"
+
+#. Heading of the free half of the price list.
+#: src/components/AccountPanel.tsx
+msgid "Always free"
+msgstr "Always free"
+
+#. Shown when the reader arrived here from an agent's authorisation flow rather than by choosing to sign in. It explains why they are looking at a login box, and that they will be sent back afterwards.
+#: src/components/AccountPanel.tsx
+msgid "An app wants to connect to your shelf. You will come back here to confirm after signing in."
+msgstr "An app wants to connect to your shelf. You will come back here to confirm after signing in."
+
+#. One of three column choices for a page: let the line length decide how many columns fit.
+#: src/lib/settings.ts
+msgid "Auto"
+msgstr "Auto"
+
+#. Heading of the backup section in the account pane: one file out, the same file back in.
+#: src/components/AccountPanel.tsx
+msgid "Backup"
+msgstr "Backup"
+
+#. Heading of the billing section in the account pane.
+#: src/components/AccountPanel.tsx
+msgid "Billing"
+msgstr "Billing"
+
+#. Button on the selection bar: drop the selection without marking anything.
+#: src/components/Reader.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
+#. Toast shown when every face the reader picked failed to arrive. Informational rather than an error: the book still renders, in whatever face the machine has.
+#: src/lib/web-font-store.ts
+msgid "Cannot download the font right now — using the system font"
+msgstr "Cannot download the font right now — using the system font"
+
+#. Replaces the line reporting which faces are held, when the store could not be read at all. A full sentence, because it is the whole line.
+#: src/components/TypographyForm.tsx
+msgid "Cannot read this device's fonts."
+msgstr "Cannot read this device's fonts."
+
+#. Button beside the code box that goes back a step, for a reader who typed the wrong address.
+#: src/components/AccountPanel.tsx
+msgid "Change email"
+msgstr "Change email"
+
+#. Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.
+#. Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.
+#: src/components/Drawer.tsx
+#: src/components/Panel.tsx
+msgid "Close"
+msgstr "Close"
+
+#. Label of the control choosing how many columns a page is set in.
+#: src/components/TypographyForm.tsx
+msgid "Columns"
+msgstr "Columns"
+
+#. Bar button raising the panel that lists the book's chapters. Same word as that panel's own title.
+#. Title of the panel listing the book's chapters, and the label of the bar button that raises it.
+#: src/components/Reader.tsx
+msgid "Contents"
+msgstr "Contents"
+
+#. Shown above the shelf when an epub the reader dropped in could not be read. The first value is the file's own name; the second is why, and may be a message from deeper in the importer.
+#: src/components/Library.tsx
+msgid "Could not import {name}: {reason}"
+msgstr "Could not import {name}: {reason}"
+
+#. One of three theme choices: pale text on a dark page.
+#: src/lib/settings.ts
+msgid "Dark"
+msgstr "Dark"
+
+#. Button in the book-details drawer that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
+#. Button under a marked passage: removes the mark and any note on it.
+#. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
+#: src/components/AboutDrawer.tsx
+#: src/components/Reader.tsx
+msgid "Delete"
+msgstr "Delete"
+
+#. Title of the delete confirmation. The value is the book's own title; the quotation marks around it are this language's — Chinese uses 「」.
+#: src/components/AboutDrawer.tsx
+msgid "Delete “{title}”?"
+msgstr "Delete “{title}”?"
+
+#. Stands in for the commit hash in 〈設定〉's footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.
+#: src/lib/version.ts
+msgid "dev build"
+msgstr "dev build"
+
+#. Shown in place of the book when its epub could not be fetched and the failure carried no reason of its own.
+#: src/components/Reader.tsx
+msgid "Download failed"
+msgstr "Download failed"
+
+#. Shown to the reader when the epub file behind a book on the shelf could not be fetched. The value is the HTTP status code, kept because it is the one clue worth reporting.
+#: src/lib/sync.ts
+msgid "Download failed ({status})"
+msgstr "Download failed ({status})"
+
+#. The running line in the typography panel while a CJK face downloads, when the server declared no total size so there is no percentage to show. The character between the words is an ideographic space (U+3000) — keep it, or use whatever spacing this language sets between a phrase and a figure.
+#: src/lib/web-font-store.ts
+msgid "Downloading font　{megabytes} MB"
+msgstr "Downloading font　{megabytes} MB"
+
+#. The running line in the typography panel while a CJK face downloads. The character between the words is an ideographic space (U+3000) — keep it, or use whatever spacing this language sets between a phrase and a figure.
+#: src/lib/web-font-store.ts
+msgid "Downloading font　{percent}%"
+msgstr "Downloading font　{percent}%"
+
+#. Stands in for the book while its epub is being fetched from the server. The ellipsis is one character.
+#: src/components/Reader.tsx
+msgid "Downloading the book…"
+msgstr "Downloading the book…"
+
+#. Button under a marked passage that already carries a note: opens it for changing.
+#: src/components/Reader.tsx
+msgid "Edit note"
+msgstr "Edit note"
+
+#. Button that asks the server to email a one-time sign-in code. It is the first of the two doors in — the other is a passkey.
+#: src/components/AccountPanel.tsx
+msgid "Email me a code"
+msgstr "Email me a code"
+
+#. Button that writes every book, note and position on this device out to one file.
+#: src/components/AccountPanel.tsx
+msgid "Export backup"
+msgstr "Export backup"
+
+#. First line under a book the reader has read to the end.
+#: src/lib/book-status.ts
+msgid "Finished"
+msgstr "Finished"
+
+#. Screen-reader name for the progress bar shown while a CJK face downloads.
+#: src/components/TypographyForm.tsx
+msgid "Font download progress"
+msgstr "Font download progress"
+
+#. The line in the typography panel when the face the book needs has already been downloaded, so choosing it costs nothing.
+#: src/lib/web-font-store.ts
+msgid "Font is on this device"
+msgstr "Font is on this device"
+
+#. Heading of the line explaining what happens if the reader stops paying.
+#: src/components/AccountPanel.tsx
+msgid "If you stop"
+msgstr "If you stop"
+
+#. The shelf's own verb: opens a file picker for epub files. 'epub' stays lower case, as the format spells itself.
+#: src/components/Library.tsx
+msgid "Import epub"
+msgstr "Import epub"
+
+#. What the free half covers. A list of the app's verbs, ending with where they run.
+#: src/components/AccountPanel.tsx
+msgid "Importing, reading, marking, note-taking, typesetting and exporting all run in your browser."
+msgstr "Importing, reading, marking, note-taking, typesetting and exporting all run in your browser."
+
+#. One of four ink colours for marking a passage. A pigment name, not a hue: the dye from the indigo plant (蓼藍).
+#: src/lib/highlights.ts
+msgid "Indigo"
+msgstr "Indigo"
+
+#. Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.
+#: src/components/Reader.tsx
+msgid "Jump to this passage"
+msgstr "Jump to this passage"
+
+#. Second line under a never-opened book. It answers 'so why is it here'.
+#: src/lib/book-status.ts
+msgid "Just added"
+msgstr "Just added"
+
+#. The way out of the delete confirmation: change nothing. Deliberately not 'Cancel' — it says what happens to the book, which is that it stays.
+#: src/components/AboutDrawer.tsx
+msgid "Keep it"
+msgstr "Keep it"
+
+#. The main button on the one book the reader is in the middle of. It reopens that book at the position they left.
+#: src/components/Library.tsx
+msgid "Keep reading"
+msgstr "Keep reading"
+
 #. Label of the only control in 〈設定〉's language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
-#. 〈設定〉tab holding the interface language. One word, sits beside 排版 and 帳號.
+#. 〈設定〉tab holding the interface language. One word, sits beside Type and Account.
 #: src/components/LanguageForm.tsx
 #: src/components/SettingsScreen.tsx
 msgid "Language"
 msgstr "Language"
 
+#. Widest of four margin widths.
+#: src/lib/settings.ts
+msgid "Large"
+msgstr "Large"
+
+#. One of three theme choices: dark text on a pale page.
+#: src/lib/settings.ts
+msgid "Light"
+msgstr "Light"
+
+#. Label of the line-height dropdown in the typography panel.
+#: src/components/TypographyForm.tsx
+msgid "Line height"
+msgstr "Line height"
+
+#. One of six line heights. The number is the multiplier and stays as it is.
+#: src/lib/settings.ts
+msgid "Loose (1.8)"
+msgstr "Loose (1.8)"
+
+#. One of six line heights. The number is the multiplier and stays as it is.
+#: src/lib/settings.ts
+msgid "Looser (2.0)"
+msgstr "Looser (2.0)"
+
+#. Widest of six line heights. The number is the multiplier and stays as it is.
+#: src/lib/settings.ts
+msgid "Loosest (2.2)"
+msgstr "Loosest (2.2)"
+
+#. Label of the margin control. It sets a floor for the whitespace along the line-length axis rather than the final width — see ADR-0012.
+#: src/components/TypographyForm.tsx
+msgid "Margin"
+msgstr "Margin"
+
+#. Button on the selection bar: mark the passage and open a note on it in one action, rather than marking and then reopening it to write.
+#: src/components/Reader.tsx
+msgid "Mark and note"
+msgstr "Mark and note"
+
+#. Name of one of the four ink swatches on the selection bar. The value is a pigment name — Indigo, Ochre, Moss or Soot as translated elsewhere in this catalog.
+#: src/components/Reader.tsx
+msgid "Mark in {ink}"
+msgstr "Mark in {ink}"
+
+#. One of four margin widths, and the default.
+#: src/lib/settings.ts
+msgid "Medium"
+msgstr "Medium"
+
+#. One of four ink colours for marking a passage. A pigment name: the green of moss (苔綠).
+#: src/lib/highlights.ts
+msgid "Moss"
+msgstr "Moss"
+
+#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
+#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
+#: src/components/Reader.tsx
+msgid "Next page"
+msgstr "Next page"
+
+#. Opening line of the account pane, before any mention of signing in. It is the product's own line: reading needs no account at all.
+#: src/components/AccountPanel.tsx
+msgid "No account needed to read. Your books, notes and reading positions never leave this device."
+msgstr "No account needed to read. Your books, notes and reading positions never leave this device."
+
+#. The whole of an empty shelf. Two short sentences: what is true, then what to do about it. It sits under the 'Import epub' button, so it points at that.
+#: src/components/Library.tsx
+msgid "No books yet. Drop an epub in, and start here."
+msgstr "No books yet. Drop an epub in, and start here."
+
+#. Smallest of four margin widths: no margin at all.
+#: src/lib/settings.ts
+msgid "None"
+msgstr "None"
+
+#. Slotted into the import failure message below when the failure carried no reason of its own. Lower case, mid-sentence.
+#: src/components/Library.tsx
+msgid "not a valid epub file"
+msgstr "not a valid epub file"
+
+#. First line under a book on the shelf that has never been opened.
+#: src/lib/book-status.ts
+msgid "Not opened yet"
+msgstr "Not opened yet"
+
+#. Sync status beside the 'Sync' button: there is no account to sync with.
+#: src/components/AccountPanel.tsx
+msgid "Not signed in"
+msgstr "Not signed in"
+
+#. Placeholder in the empty note box under a marked passage. The ellipsis is one character.
+#: src/components/Reader.tsx
+msgid "Note…"
+msgstr "Note…"
+
+#. Title of the panel listing what the reader has marked in this book, and the label of the bar button that raises it.
+#: src/components/Reader.tsx
+msgid "Notes"
+msgstr "Notes"
+
+#. Button that writes this book's marks and notes out as a Markdown file. '.md' is the file extension and stays as it is.
+#: src/components/AboutDrawer.tsx
+msgid "Notes .md"
+msgstr "Notes .md"
+
+#. Bar button raising the panel that lists what the reader has marked. The number in brackets is how many marks this book carries.
+#: src/components/Reader.tsx
+msgid "Notes ({markCount})"
+msgstr "Notes ({markCount})"
+
+#. Toast shown once a downloaded face has been applied to the book. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog.
+#: src/lib/web-font-store.ts
+msgid "Now set in {familyLabel}"
+msgstr "Now set in {familyLabel}"
+
+#. One of four ink colours for marking a passage. A pigment name: red earth (赭石).
+#: src/lib/highlights.ts
+msgid "Ochre"
+msgstr "Ochre"
+
+#. Sync status beside the 'Sync' button: there is no network, which is not an error — reading carries on.
+#: src/components/AccountPanel.tsx
+msgid "Offline"
+msgstr "Offline"
+
+#. One column to a page. The word is a count of columns, not the digit.
+#: src/lib/settings.ts
+msgid "One"
+msgstr "One"
+
+#. Second line under a book opened exactly once, in place of an estimate there is not enough reading to make.
+#: src/lib/book-status.ts
+msgid "Only just started"
+msgstr "Only just started"
+
+#. Tooltip on a book's cover. The value is the book's own title and is never translated.
+#. Tooltip on a book's cover. The value is the book's own title and is never translated.
+#: src/components/Library.tsx
+msgid "Open {title}"
+msgstr "Open {title}"
+
+#. Label in front of the shelf's order dropdown. A noun, not the verb 'to sort'.
+#: src/components/Library.tsx
+msgid "Order"
+msgstr "Order"
+
+#. Heading of the paid half of the price list.
+#: src/components/AccountPanel.tsx
+msgid "Paid"
+msgstr "Paid"
+
+#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
+#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
+#: src/components/Reader.tsx
+msgid "Previous page"
+msgstr "Previous page"
+
+#. First of six line-height choices, and not a height at all: it means 'leave whatever the book asked for'. Same wording as the first typeface choice, which means the same thing — they share one entry deliberately.
+#. One of three typeface choices for the book. It means 'leave the fonts the book itself asked for'. Chinese calls it 書籍預設.
+#: src/lib/settings.ts
+msgid "Publisher's"
+msgstr "Publisher's"
+
+#. Label of the how-far number in the book-details drawer. The value beside it is a percentage.
+#: src/components/AboutDrawer.tsx
+msgid "Read to"
+msgstr "Read to"
+
+#. Where the reader stopped, under a book on the shelf. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. It already carries whatever space this language wants in front of it (`leadingGap` in this file), so do not add one after the last word.
+#: src/lib/book-status.ts
+msgid "Read to {chapter}"
+msgstr "Read to {chapter}"
+
+#. Where the reader stopped, under a book whose position could not be named as a chapter. The value is a whole number.
+#: src/lib/book-status.ts
+msgid "Read to {percent}%"
+msgstr "Read to {percent}%"
+
+#. Screen-reader name for the scrubber, the bar along the edge of the book showing how far in the reader is.
+#: src/components/Scrubber.tsx
+msgid "Reading progress"
+msgstr "Reading progress"
+
+#. One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it 〈最近碰過〉, deliberately not 「最近閱讀」.
+#: src/lib/shelf-order.ts
+msgid "Recently touched"
+msgstr "Recently touched"
+
+#. Button under the typography controls. Puts all six settings back to what Tidemarks ships with. Disabled when they already are.
+#: src/components/TypographyForm.tsx
+msgid "Reset"
+msgstr "Reset"
+
+#. Shown when a backup file could not be read back in. The value is why, and may be a message from deeper in the parser.
+#: src/components/AccountPanel.tsx
+msgid "Restore failed: {reason}"
+msgstr "Restore failed: {reason}"
+
+#. Button that reads a backup file back into this device. Deliberately not 'import' — that word belongs to adding an epub on the shelf.
+#: src/components/AccountPanel.tsx
+msgid "Restore from backup"
+msgstr "Restore from backup"
+
+#. One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.
+#. One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.
+#: src/components/TypographyForm.tsx
+#: src/lib/settings.ts
+msgid "Sans"
+msgstr "Sans"
+
+#. Button that commits the note being typed under a marked passage.
+#: src/components/Reader.tsx
+msgid "Save"
+msgstr "Save"
+
+#. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
+#. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
+#: src/components/TypographyForm.tsx
+#: src/lib/settings.ts
+msgid "Serif"
+msgstr "Serif"
+
+#. The one door out of the shelf, in the header beside the app's name. Opens 〈設定〉.
+#. Title of the settings screen. Shares its entry with the button on the shelf that opens it.
+#: src/components/Library.tsx
+#: src/components/SettingsScreen.tsx
+msgid "Settings"
+msgstr "Settings"
+
+#. Button that submits the code from the email and finishes signing in.
+#. Heading of the sign-in section, shown when there is no account on this device yet.
+#: src/components/AccountPanel.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
+#. Button that signs in with a passkey already on this device. 'passkey' is the platform's own term; keep it as the platform spells it in this language.
+#: src/components/AccountPanel.tsx
+msgid "Sign in with a passkey"
+msgstr "Sign in with a passkey"
+
+#. Button that ends the session on this device. Books already on the device stay; only the account link goes.
+#: src/components/AccountPanel.tsx
+msgid "Sign out"
+msgstr "Sign out"
+
+#. Placeholder in the box the six-digit code from the email goes into.
+#: src/components/AccountPanel.tsx
+msgid "Sign-in code"
+msgstr "Sign-in code"
+
+#. Label of the how-many-times number in the book-details drawer. A sitting is one continuous stretch of reading.
+#: src/components/AboutDrawer.tsx
+msgid "Sittings"
+msgstr "Sittings"
+
+#. Label of the font size slider, with the current value in it. The number is a percentage of the reader's own browser default, not a pixel size.
+#: src/components/TypographyForm.tsx
+msgid "Size {size}%"
+msgstr "Size {size}%"
+
+#. One of four margin widths.
+#: src/lib/settings.ts
+msgid "Small"
+msgstr "Small"
+
+#. One of four ink colours for marking a passage. A pigment name: lampblack ground from pine soot (松煙), the black of an ink stick.
+#: src/lib/highlights.ts
+msgid "Soot"
+msgstr "Soot"
+
+#. One of six line heights. The number is the multiplier and stays as it is.
+#: src/lib/settings.ts
+msgid "Standard (1.6)"
+msgstr "Standard (1.6)"
+
+#. Button that runs a sync round now, rather than waiting for the next one. Same word as the section heading above it, and the same entry.
+#. Heading of the section shown once the reader is signed in. It holds the sync status and the buttons for keys and signing out.
+#: src/components/AccountPanel.tsx
+msgid "Sync"
+msgstr "Sync"
+
+#. What the monthly price is for: the two things that need a server.
+#: src/components/AccountPanel.tsx
+msgid "Sync and agents"
+msgstr "Sync and agents"
+
+#. Sync status beside the 'Sync' button: the attempt reached the server and did not work.
+#: src/components/AccountPanel.tsx
+msgid "Sync failed"
+msgstr "Sync failed"
+
+#. Sync status beside the 'Sync' button: this device and the server agree.
+#: src/components/AccountPanel.tsx
+msgid "Synced"
+msgstr "Synced"
+
+#. What the paid half covers. Both are things that need a server, which is the whole reason they cost anything.
+#: src/components/AccountPanel.tsx
+msgid "Syncing between devices, and letting an agent read your books."
+msgstr "Syncing between devices, and letting an agent read your books."
+
+#. Sync status beside the 'Sync' button. The ellipsis is one character.
+#: src/components/AccountPanel.tsx
+msgid "Syncing…"
+msgstr "Syncing…"
+
+#. One of three theme choices: follow whatever the operating system is set to.
+#: src/lib/settings.ts
+msgid "System"
+msgstr "System"
+
+#. Slotted into the restore failure message below when the failure carried no reason of its own. Lower case, mid-sentence.
+#: src/components/AccountPanel.tsx
+msgid "the file is not in the right format"
+msgstr "the file is not in the right format"
+
+#. The line in the typography panel when the face this book wants is not held and cannot be fetched right now. It is a promise, not an error: the book still renders in the platform's own face.
+#: src/lib/web-font-store.ts
+msgid "The font will download once you are online"
+msgstr "The font will download once you are online"
+
+#. What happens if the reader stops paying. The point of the second sentence is that nothing on the device is held hostage (ADR-0013).
+#: src/components/AccountPanel.tsx
+msgid "The server's copy is kept for 24 months. The books, notes and positions on this device are untouched."
+msgstr "The server's copy is kept for 24 months. The books, notes and positions on this device are untouched."
+
+#. Label of the light/dark control in the typography panel.
+#: src/components/TypographyForm.tsx
+msgid "Theme"
+msgstr "Theme"
+
+#. The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.
+#: src/components/Reader.tsx
+msgid "This book is unmarked. Select a passage to leave a mark."
+msgstr "This book is unmarked. Select a passage to leave a mark."
+
+#. The one thing a reader cannot see from the shelf, and the reason this question is asked at all: deleting takes the marks and notes with it, everywhere.
+#: src/components/AboutDrawer.tsx
+msgid "This book's marks and notes go with it, on your other devices too."
+msgstr "This book's marks and notes go with it, on your other devices too."
+
+#. Tooltip on the build stamp in 〈設定〉's footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.
+#: src/components/SettingsScreen.tsx
+msgid "This build came from a working tree with uncommitted changes"
+msgstr "This build came from a working tree with uncommitted changes"
+
 #. Under the language control in 〈設定〉. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.
 #: src/components/LanguageForm.tsx
 msgid "This device only — the language follows the machine in your hand, not your account. Books are unaffected: each one is laid out in whatever it was written in."
 msgstr "This device only — the language follows the machine in your hand, not your account. Books are unaffected: each one is laid out in whatever it was written in."
+
+#. Shown in place of the book when the epub is on the device but could not be parsed.
+#: src/components/Reader.tsx
+msgid "This file will not open"
+msgstr "This file will not open"
+
+#. Shown when one section of an otherwise readable book fails. The value is the renderer's own message and is not translated.
+#: src/components/Reader.tsx
+msgid "This section will not render: {reason}"
+msgstr "This section will not render: {reason}"
+
+#. One of six line heights. The number is the multiplier and stays as it is.
+#: src/lib/settings.ts
+msgid "Tight (1.4)"
+msgstr "Tight (1.4)"
+
+#. Label of the total-reading-time number in the book-details drawer.
+#: src/components/AboutDrawer.tsx
+msgid "Time spent"
+msgstr "Time spent"
+
+#. The other way to order the shelf: by the book's own title, collated for the interface language.
+#: src/lib/shelf-order.ts
+msgid "Title"
+msgstr "Title"
+
+#. Two columns to a page, turned past together as one page.
+#: src/lib/settings.ts
+msgid "Two"
+msgstr "Two"
+
+#. Bar button raising the panel holding the six typography settings. Same word as that panel's own title.
+#. Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.
+#. 〈設定〉tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.
+#: src/components/Reader.tsx
+#: src/components/SettingsScreen.tsx
+msgid "Type"
+msgstr "Type"
+
+#. Label of the control choosing which face the book is set in.
+#: src/components/TypographyForm.tsx
+msgid "Typeface"
+msgstr "Typeface"
+
+#. The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.
+#: src/components/AccountPanel.tsx
+msgid "US$3 a month (provisional)"
+msgstr "US$3 a month (provisional)"
+
+#. Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.
+#: src/components/AccountPanel.tsx
+msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
+msgstr "Would rather not pay, but want two devices? The syncing half can be self-hosted."
+
+#. Note under the billing section. It says outright that the section describes an intention, not a working checkout.
+#: src/components/AccountPanel.tsx
+msgid "You cannot subscribe yet, and the price is not settled."
+msgstr "You cannot subscribe yet, and the price is not settled."

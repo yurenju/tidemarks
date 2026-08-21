@@ -11,6 +11,9 @@
  * frond lives in this repository now (ADR-0017), so the commit already names it.
  */
 
+import { msg } from "@lingui/core/macro";
+import { i18n } from "./i18n";
+
 export interface BuildInfo {
   /** Short commit hash. Empty when the build did not happen inside a checkout. */
   commit: string;
@@ -52,7 +55,17 @@ export function localStamp(iso: string): string {
 }
 
 export function formatBuild(build: BuildInfo): string {
-  const parts = [build.commit ? `${build.commit}${build.dirty ? "+" : ""}` : "開發版"];
+  const parts = [
+    build.commit
+      ? `${build.commit}${build.dirty ? "+" : ""}`
+      : i18n._(
+          msg({
+            message: "dev build",
+            comment:
+              "Stands in for the commit hash in 〈設定〉's footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.",
+          }),
+        ),
+  ];
   const stamp = localStamp(build.builtAt);
   if (stamp) parts.push(stamp);
   return parts.join(" · ");

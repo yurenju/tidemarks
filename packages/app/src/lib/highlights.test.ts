@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { boxesContain, markVar, visibleBoxes, DEFAULT_MARK, MARKS } from "./highlights";
+import { i18n } from "./i18n";
 
 // The container the reader is looking at. frond reports rectangles in these coordinates, with
 // the margin already added back, and reports them **truthfully** — a position two pages ahead
@@ -107,7 +108,11 @@ describe("markVar", () => {
     expect(markVar("chartreuse")).toBe(`var(--mark-${DEFAULT_MARK})`);
   });
 
-  it("gives every offered ink a Chinese name", () => {
-    expect(MARKS.map((mark) => mark.label)).toEqual(["蓼藍", "赭石", "苔綠", "松煙"]);
+  it("names every offered ink after the pigment, in the reader's language", () => {
+    expect(MARKS.map((mark) => i18n._(mark.label))).toEqual(["Indigo", "Ochre", "Moss", "Soot"]);
+
+    i18n.activate("zh-TW");
+    expect(MARKS.map((mark) => i18n._(mark.label))).toEqual(["蓼藍", "赭石", "苔綠", "松煙"]);
+    i18n.activate("en");
   });
 });
