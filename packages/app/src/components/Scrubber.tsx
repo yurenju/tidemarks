@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useRef, useState } from "react";
 
 import { keyToFraction, pointerToFraction, scrubberGeometry, snapToChapter } from "../lib/scrubber";
@@ -32,6 +33,7 @@ export default function Scrubber({
   chapterStarts,
   onCommit,
 }: ScrubberProps) {
+  const { t } = useLingui();
   const trackRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<number | null>(null);
   const dragging = preview !== null;
@@ -143,7 +145,11 @@ export default function Scrubber({
            Announcing it as one told a screen-reader reader that the one control they had for
            moving through the book was something to look at. */
         role="slider"
-        aria-label="閱讀進度"
+        aria-label={t({
+          message: "Reading progress",
+          comment:
+            "Screen-reader name for the scrubber, the bar along the edge of the book showing how far in the reader is.",
+        })}
         aria-orientation="horizontal"
         aria-valuenow={pct}
         aria-valuemin={0}

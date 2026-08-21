@@ -7,6 +7,9 @@
 // component around it stays thin enough to be uninteresting.
 
 /** A `DOMRect`, narrowed to what this module reads (so a test needs no DOM). */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export interface RectLike {
   readonly x: number;
   readonly y: number;
@@ -83,16 +86,44 @@ export function boxesContain(
  * line pressed along its bottom edge, which is what a nib leaves behind. None of the four is
  * anywhere near moss, so "what I marked" is never read as "what I can press".
  *
- * The labels are Chinese because they are the names of pigments and the reader is reading in
- * Chinese; there is no English original being translated here.
+ * The labels name pigments rather than colours — 蓼藍 rather than 藍色 — so each one carries
+ * the material a scribe would have ground. Translating them is picking that language's name for
+ * the same pigment, not describing the hue.
  */
 export type MarkName = "indigo" | "ochre" | "moss" | "soot";
 
-export const MARKS: readonly { name: MarkName; label: string }[] = [
-  { name: "indigo", label: "蓼藍" },
-  { name: "ochre", label: "赭石" },
-  { name: "moss", label: "苔綠" },
-  { name: "soot", label: "松煙" },
+export const MARKS: readonly { name: MarkName; label: MessageDescriptor }[] = [
+  {
+    name: "indigo",
+    label: msg({
+      message: "Indigo",
+      comment:
+        "One of four ink colours for marking a passage. A pigment name, not a hue: the dye from the indigo plant (蓼藍).",
+    }),
+  },
+  {
+    name: "ochre",
+    label: msg({
+      message: "Ochre",
+      comment: "One of four ink colours for marking a passage. A pigment name: red earth (赭石).",
+    }),
+  },
+  {
+    name: "moss",
+    label: msg({
+      message: "Moss",
+      comment:
+        "One of four ink colours for marking a passage. A pigment name: the green of moss (苔綠).",
+    }),
+  },
+  {
+    name: "soot",
+    label: msg({
+      message: "Soot",
+      comment:
+        "One of four ink colours for marking a passage. A pigment name: lampblack ground from pine soot (松煙), the black of an ink stick.",
+    }),
+  },
 ];
 
 /** What a mark made without picking a colour is made in. */

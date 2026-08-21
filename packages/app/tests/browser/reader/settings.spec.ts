@@ -28,14 +28,14 @@ async function open(page: Page, title: string): Promise<void> {
   await page.locator(`.book-cover[title*="${title}"]`).click();
   await expect(page.locator(".reader")).toBeVisible();
   await settled(page);
-  await openPanel(page, "排版");
+  await openPanel(page, "Type");
 }
 
 async function leave(page: Page): Promise<void> {
   // Escape rather than a press outside: the panel leaves the bar it rose from live underneath,
   // so there is no one backdrop that covers the whole screen to aim at any more.
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "‹ 書架" }).click();
+  await page.getByRole("button", { name: "‹ Shelf" }).click();
   // The shelf's own control, not the wall of covers: the book just read is now the large one at
   // the top, and with two books on the shelf the wall behind it can be down to nothing.
   await expect(page.getByTestId("shelf-order")).toBeVisible();

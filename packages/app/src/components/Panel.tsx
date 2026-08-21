@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react/macro";
+import type { SegmentLabel } from "./Segmented";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactNode } from "react";
 import { HAND_HELD_CHROME, useMediaQuery } from "../lib/media";
@@ -51,7 +53,7 @@ export default function Panel({
 }: {
   open: boolean;
   onClose: () => void;
-  title: string;
+  title: SegmentLabel;
   /** `data-testid` for the popup, so tests stop naming the layout. */
   testId: string;
   /**
@@ -65,6 +67,7 @@ export default function Panel({
   container: React.RefObject<HTMLDivElement | null>;
   children: ReactNode;
 }) {
+  const { t, i18n } = useLingui();
   const handHeld = useMediaQuery(HAND_HELD_CHROME);
   return (
     <BaseDrawer.Root
@@ -101,8 +104,17 @@ export default function Panel({
         <BaseDrawer.Viewport className="panel-viewport">
           <BaseDrawer.Popup className="panel-popup" data-testid={testId}>
             <header className="panel-header">
-              <BaseDrawer.Title className="panel-title">{title}</BaseDrawer.Title>
-              <BaseDrawer.Close className="ghost panel-close" aria-label="關閉">
+              <BaseDrawer.Title className="panel-title">
+                {typeof title === "string" ? title : i18n._(title)}
+              </BaseDrawer.Title>
+              <BaseDrawer.Close
+                className="ghost panel-close"
+                aria-label={t({
+                  message: "Close",
+                  comment:
+                    "Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.",
+                })}
+              >
                 ✕
               </BaseDrawer.Close>
             </header>

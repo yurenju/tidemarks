@@ -1,3 +1,6 @@
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { EpubBook } from "@yurenju/frond/epub";
 import {
@@ -92,10 +95,31 @@ type PanelKind = (typeof PANEL_KINDS)[number];
  * Naming the three ids keeps every existing spec pointing at the panel it was written for; the
  * merge below is a change to the shell, and a shell change should not rewrite five suites.
  */
-const PANEL_FACES: Record<PanelKind, { title: string; testId: string }> = {
-  toc: { title: "目錄", testId: "panel-toc" },
-  notes: { title: "筆記", testId: "panel-notes" },
-  layout: { title: "排版", testId: "panel-layout" },
+const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string }> = {
+  toc: {
+    title: msg({
+      message: "Contents",
+      comment:
+        "Title of the panel listing the book's chapters, and the label of the bar button that raises it.",
+    }),
+    testId: "panel-toc",
+  },
+  notes: {
+    title: msg({
+      message: "Notes",
+      comment:
+        "Title of the panel listing what the reader has marked in this book, and the label of the bar button that raises it.",
+    }),
+    testId: "panel-notes",
+  },
+  layout: {
+    title: msg({
+      message: "Type",
+      comment:
+        "Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.",
+    }),
+    testId: "panel-layout",
+  },
 };
 
 /**
@@ -119,8 +143,10 @@ const VELOCITY_WINDOW_MS = 90;
 
 // The reader-facing name of a font choice, from its one source. The toast names the face the
 // download applied, and the dropdown is where that name is defined.
-const fontFamilyLabel = (choice: FontChoice): string =>
-  FONT_FAMILIES.find((f) => f.value === choice)?.label ?? "";
+const fontFamilyLabel = (i18n: I18n, choice: FontChoice): string => {
+  const found = FONT_FAMILIES.find((f) => f.value === choice);
+  return found ? i18n._(found.label) : "";
+};
 
 export default function Reader({
   bookId,
@@ -141,6 +167,7 @@ export default function Reader({
   onResetSettings: () => void;
   resolvedTheme: "light" | "dark";
 }) {
+  const { t, i18n } = useLingui();
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const navRef = useRef<Navigator | null>(null);
@@ -148,11 +175,15 @@ export default function Reader({
   const [title, setTitle] = useState("");
   const [toc, setToc] = useState<FlatTocItem[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  // Named rather than read inline in the bar button, so the catalog carries `{markCount}`
+  // instead of a bare `{0}` that says nothing to whoever translates it.
+  const markCount = annotations.length;
   const [chrome, setChrome] = useState<Chrome>("down");
   const chromeUp = chrome !== "down";
   /**
-   * Whether the section on screen lays out vertically, which 〈排版〉 needs to take 欄數 away:
-   * frond cannot paginate a 直排 book in more than one column at all. It stays in here because
+   * Whether the section on screen lays out vertically, which the type panel needs in order to
+   * take the column choice away: frond cannot paginate a vertically-written book in more than
+   * one column at all. It stays in here because
    * this is the only place that knows — `resolveLayout` gets the mode from frond itself.
    */
   const [verticalBook, setVerticalBook] = useState(false);
@@ -640,7 +671,16 @@ export default function Reader({
         try {
           file = await downloadBookFile(bookId);
         } catch (e) {
-          if (!cancelled) setLoadError(e instanceof Error ? e.message : "下載失敗");
+          if (!cancelled)
+            setLoadError(
+              e instanceof Error
+                ? e.message
+                : t({
+                    message: "Download failed",
+                    comment:
+                      "Shown in place of the book when its epub could not be fetched and the failure carried no reason of its own.",
+                  }),
+            );
           return;
         } finally {
           if (!cancelled) setDownloading(false);
@@ -652,7 +692,16 @@ export default function Reader({
       try {
         book = await EpubBook.open(file);
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "這個檔案打不開");
+        if (!cancelled)
+          setLoadError(
+            e instanceof Error
+              ? e.message
+              : t({
+                  message: "This file will not open",
+                  comment:
+                    "Shown in place of the book when the epub is on the device but could not be parsed.",
+                }),
+          );
         return;
       }
       if (cancelled || !mountRef.current) return;
@@ -771,7 +820,7 @@ export default function Reader({
               pageRange: at.pageRange ?? null,
               percentage,
               // Named here for the same reason: the shelf would have to open the epub to say
-              // 讀到第七章, and it has twenty of them to draw.
+              // "Read to 第七章", and it has twenty of them to draw.
               chapterLabel: chapterAt(at.sectionIndex, bounds)?.label ?? null,
               lastReadAt: now,
               dirtyAt: now,
@@ -836,7 +885,14 @@ export default function Reader({
                 : { kind: "fragment", id: event.fragment },
             );
           },
-          error: (event) => setLoadError(`這一節讀不出來：${event.message}`),
+          error: (event) =>
+            setLoadError(
+              t({
+                message: `This section will not render: ${{ reason: event.message }}`,
+                comment:
+                  "Shown when one section of an otherwise readable book fails. The value is the renderer's own message and is not translated.",
+              }),
+            ),
         },
       });
 
@@ -854,7 +910,7 @@ export default function Reader({
       if (e.isComposing) return;
 
       // **Unless a control is using them.** Left and right belong to whatever has the focus
-      // first: they move 字級's slider, they open and walk 行距's options, and they choose a
+      // first: they move the size slider, they open and walk the line-height options, and they choose a
       // cell in the segmented settings. Turning a page as well means every adjustment made from
       // the keyboard also moves the reader, and 〈找〉 closing on the way out takes the panel
       // with it — so the reader watches the thing they were adjusting disappear.
@@ -901,6 +957,11 @@ export default function Reader({
         scheduleSync();
       }
     };
+    // `t` is deliberately not a dependency. What it feeds is an error message stored in state,
+    // and re-running this to refresh that wording would re-open the book — a reader who changed
+    // language while looking at a failure would be sent back to page one of one that worked.
+    // The cost of leaving it out is that a message already on screen keeps the language it was
+    // written in until the next attempt, and changing language is a once-ever act.
   }, [bookId]);
 
   // Reader settings after the first layout. The comparison against what frond already has is
@@ -948,7 +1009,8 @@ export default function Reader({
    * for. What applies the result is the settings effect above — `webFonts` is in its
    * dependencies, so a face arriving is a settings change like any other.
    *
-   * It runs again when the reader switches 明體/黑體, because that is when the other face
+   * It runs again when the reader switches serif to sans or back, because that is when the
+   * other face
    * becomes the one they are looking at. A face already on the device comes back from Dexie
    * without touching the network.
    */
@@ -999,15 +1061,18 @@ export default function Reader({
       if (cancelled) return;
       // One toast for the whole job, not one per face. The applied note wins when a downloaded
       // face is on the page — even if Bold then failed, the reader is reading in the face they
-      // picked, so "無法下載" would contradict what is on screen. The failure note is for when
+      // picked, so the failure note would contradict what is on screen. It is for when
       // nothing they picked could be had at all.
-      if (netApplied) setFontToast(webFontAppliedNote(fontFamilyLabel(settings.fontFamily)));
-      else if (failed) setFontToast(WEB_FONT_UNAVAILABLE_NOTE);
+      if (netApplied)
+        setFontToast(webFontAppliedNote(i18n, fontFamilyLabel(i18n, settings.fontFamily)));
+      else if (failed) setFontToast(i18n._(WEB_FONT_UNAVAILABLE_NOTE));
     })();
 
     return () => {
       cancelled = true;
     };
+    // `i18n` is left out for the same reason as above: this effect fetches 16 MB, and the only
+    // thing the locale feeds is the wording of a toast that clears itself after 2.6 seconds.
   }, [wantsWebFont, settings.fontFamily]);
 
   // The toast says its piece and clears itself: it explains the reflow, it is not a control.
@@ -1177,21 +1242,39 @@ export default function Reader({
 
           That asymmetry is the trade ADR-0026 asks for. The six settings apply as they are
           dragged and the book above them is the preview, so a panel that covered the page was
-          hiding the one thing it was opened to show. 目錄 and 筆記 pay for it: open one and the
+          hiding the one thing it was opened to show. Contents and Notes pay for it: open one and the
           page numbers move, close it and they move back. If that reads badly on a real book the
-          retreat is to push for 排版 only — and the cost of the retreat is two layouts, which is
+          retreat is to push for Type only — and the cost of the retreat is two layouts, which is
           two sets of bugs (docs/specs/ux-replan/spec.md). */}
       <div className="reader-body">
         <div className="viewer-wrap">
           <button
             className="page-btn"
             onClick={() => navRef.current?.onSide("left")}
-            aria-label={rtl ? "下一頁" : "上一頁"}
+            aria-label={
+              rtl
+                ? t({
+                    message: "Next page",
+                    comment:
+                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
+                  })
+                : t({
+                    message: "Previous page",
+                    comment:
+                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
+                  })
+            }
           >
             ‹
           </button>
           <div className="viewer">
-            {downloading && <p className="empty">下載書籍中…</p>}
+            {downloading && (
+              <p className="empty">
+                <Trans comment="Stands in for the book while its epub is being fetched from the server. The ellipsis is one character.">
+                  Downloading the book…
+                </Trans>
+              </p>
+            )}
             {loadError && <p className="error">{loadError}</p>}
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
@@ -1200,7 +1283,19 @@ export default function Reader({
           <button
             className="page-btn"
             onClick={() => navRef.current?.onSide("right")}
-            aria-label={rtl ? "上一頁" : "下一頁"}
+            aria-label={
+              rtl
+                ? t({
+                    message: "Previous page",
+                    comment:
+                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
+                  })
+                : t({
+                    message: "Next page",
+                    comment:
+                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
+                  })
+            }
           >
             ›
           </button>
@@ -1224,7 +1319,9 @@ export default function Reader({
             the entries below it can share one line once the window is wide enough. */}
         <header className="chrome-top" data-testid="chrome-top">
           <button className="ghost" onClick={onClose}>
-            ‹ 書架
+            <Trans comment="The way out of the reader, in the top bar. The ‹ is part of the label. 'Shelf' is the screen listing every book — the app's home.">
+              ‹ Shelf
+            </Trans>
           </button>
           <strong className="reader-title">{title}</strong>
         </header>
@@ -1234,13 +1331,17 @@ export default function Reader({
             className={chrome === "toc" ? "ghost active" : "ghost"}
             onClick={() => togglePanel("toc")}
           >
-            目錄
+            <Trans comment="Bar button raising the panel that lists the book's chapters. Same word as that panel's own title.">
+              Contents
+            </Trans>
           </button>
           <button
             className={chrome === "notes" ? "ghost active" : "ghost"}
             onClick={() => togglePanel("notes")}
           >
-            筆記 ({annotations.length})
+            <Trans comment="Bar button raising the panel that lists what the reader has marked. The number in brackets is how many marks this book carries.">
+              Notes ({markCount})
+            </Trans>
           </button>
           <button
             className={`ghost${chrome === "layout" ? " active" : ""}`}
@@ -1253,7 +1354,9 @@ export default function Reader({
                 Under this button rather than around it because what it is busy doing is
                 resetting type, and a line travelling under a word is what that looks like. */}
             <span className={fontBusy && chrome !== "layout" ? "busy-underline" : undefined}>
-              排版
+              <Trans comment="Bar button raising the panel holding the six typography settings. Same word as that panel's own title.">
+                Type
+              </Trans>
             </span>
           </button>
           {/* The same drawer the shelf's ⋯ opens, over the book instead of over the shelf. It
@@ -1266,7 +1369,11 @@ export default function Reader({
           <button
             className="ghost reader-about"
             onClick={onOpenAbout}
-            aria-label="這本書的詳情"
+            aria-label={t({
+              message: "About this book",
+              comment:
+                "Screen-reader name for the button in the reader's bar that opens the drawer describing the open book.",
+            })}
             data-testid="reader-about"
           >
             ⋯
@@ -1291,7 +1398,7 @@ export default function Reader({
 
             **It keeps its place under a panel on a desk and steps aside for one on a phone.**
             Never displacing it was the rule, and the reason still holds where there is room for
-            both — the Scrubber and 目錄 answer "where do I want to be" two ways, and taking one
+            both — the Scrubber and Contents answer "where do I want to be" two ways, and taking one
             away to offer the other makes the reader hold on to a percentage they only glanced
             at. On a hand-held there is no version of "both" that leaves either legible: three
             stacked layers left the book a quarter of the screen and the panel still scrolling
@@ -1308,7 +1415,8 @@ export default function Reader({
             chapterStarts={chapterStarts}
             onCommit={(f) => void renderer?.goToFraction(f)}
           />
-          {/* **The row is always here; the words are not.** "沒話說就不說" still holds — a cover
+          {/* **The row is always here; the words are not.** Saying nothing when there is nothing
+              to say still holds — a cover
               belongs to no chapter and this says nothing there — but it says nothing in a line
               that is already the right height, rather than by taking the line away.
 
@@ -1338,7 +1446,7 @@ export default function Reader({
       <div className="panel-host" ref={panelHostRef} />
 
       {/* **One panel, three faces.** It used to be three `<Panel>`s, and the three were exclusive
-          in `chrome` but not in the DOM: pressing 筆記 while 排版 stood left two drawers changing
+          in `chrome` but not in the DOM: pressing Notes while Type stood left two drawers changing
           state in the same frame, and the outgoing one's `onClose` — which did not ask whether it
           was still the one showing — wrote `"up"` over the panel that had just opened. What the
           reader saw was the whole column closing, and a second press to get where they asked to
@@ -1382,7 +1490,11 @@ export default function Reader({
         {panelKind === "notes" && (
           <div className="panel-list">
             {annotations.length === 0 && (
-              <p className="empty">這本書還乾淨。選一段字，就留下記號。</p>
+              <p className="empty">
+                <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
+                  This book is unmarked. Select a passage to leave a mark.
+                </Trans>
+              </p>
             )}
             {annotations.map((a) => (
               <AnnotationItem
@@ -1431,20 +1543,35 @@ export default function Reader({
               whichever way the bar is laid out. On a phone the bar is two rows and the rule is
               the seam between them; wider, it is one row and the rule stands up (`index.css`). */}
           <div className="mark-inks">
-            {MARKS.map(({ name, label }) => (
-              <button
-                key={name}
-                className="swatch"
-                style={{ "--mark": markVar(name) } as CSSProperties}
-                title={`劃${label}重點`}
-                aria-label={`劃${label}重點`}
-                onClick={() => addAnnotation(name, false)}
-              />
-            ))}
+            {MARKS.map(({ name, label }) => {
+              const inkLabel = t({
+                message: `Mark in ${{ ink: i18n._(label) }}`,
+                comment:
+                  "Name of one of the four ink swatches on the selection bar. The value is a pigment name — Indigo, Ochre, Moss or Soot as translated elsewhere in this catalog.",
+              });
+              return (
+                <button
+                  key={name}
+                  className="swatch"
+                  style={{ "--mark": markVar(name) } as CSSProperties}
+                  title={inkLabel}
+                  aria-label={inkLabel}
+                  onClick={() => addAnnotation(name, false)}
+                />
+              );
+            })}
           </div>
           <div className="mark-actions">
-            <button onClick={() => addAnnotation(DEFAULT_MARK, true)}>重點＋筆記</button>
-            <button onClick={dismissSelection}>取消</button>
+            <button onClick={() => addAnnotation(DEFAULT_MARK, true)}>
+              <Trans comment="Button on the selection bar: mark the passage and open a note on it in one action, rather than marking and then reopening it to write.">
+                Mark and note
+              </Trans>
+            </button>
+            <button onClick={dismissSelection}>
+              <Trans comment="Button on the selection bar: drop the selection without marking anything.">
+                Cancel
+              </Trans>
+            </button>
           </div>
         </div>
       )}
@@ -1474,6 +1601,7 @@ function AnnotationItem({
   onSave: (note: string) => void;
   onRemove: () => void;
 }) {
+  const { t } = useLingui();
   const [draft, setDraft] = useState(annotation.note);
   useEffect(() => {
     if (editing) setDraft(annotation.note);
@@ -1481,7 +1609,14 @@ function AnnotationItem({
 
   return (
     <div className="annotation-item" style={{ borderLeftColor: markVar(annotation.color) }}>
-      <blockquote onClick={onJump} title="跳到書中位置">
+      <blockquote
+        onClick={onJump}
+        title={t({
+          message: "Jump to this passage",
+          comment:
+            "Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.",
+        })}
+      >
         {annotation.text}
       </blockquote>
       {editing ? (
@@ -1489,17 +1624,41 @@ function AnnotationItem({
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="筆記…"
+            placeholder={t({
+              message: "Note…",
+              comment:
+                "Placeholder in the empty note box under a marked passage. The ellipsis is one character.",
+            })}
             autoFocus
           />
-          <button onClick={() => onSave(draft)}>儲存</button>
+          <button onClick={() => onSave(draft)}>
+            <Trans comment="Button that commits the note being typed under a marked passage.">
+              Save
+            </Trans>
+          </button>
         </div>
       ) : (
         annotation.note && <p className="note-text">{annotation.note}</p>
       )}
       <div className="annotation-actions">
-        {!editing && <button onClick={onEdit}>{annotation.note ? "編輯筆記" : "加筆記"}</button>}
-        <button onClick={onRemove}>刪除</button>
+        {!editing && (
+          <button onClick={onEdit}>
+            {annotation.note ? (
+              <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
+                Edit note
+              </Trans>
+            ) : (
+              <Trans comment="Button under a marked passage with no note yet: opens an empty note box.">
+                Add note
+              </Trans>
+            )}
+          </button>
+        )}
+        <button onClick={onRemove}>
+          <Trans comment="Button under a marked passage: removes the mark and any note on it.">
+            Delete
+          </Trans>
+        </button>
       </div>
     </div>
   );

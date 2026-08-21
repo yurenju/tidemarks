@@ -15,6 +15,8 @@ import {
   type SettingsTab,
 } from "./lib/route";
 import { registerUiFonts } from "./lib/ui-font";
+import { activateLocale, i18n } from "./lib/i18n";
+import { saveLocale, type Locale } from "./lib/locale";
 import { beaconPositions, syncNow } from "./lib/sync";
 
 export default function App() {
@@ -33,6 +35,11 @@ export default function App() {
   );
   // Bumped to make the shelf re-read storage after a backup lands on top of it.
   const [reloadToken, setReloadToken] = useState(0);
+  /**
+   * The interface language, already chosen and activated before this component existed
+   * (`main.tsx`). Held here only so that changing it re-renders — Lingui itself is the store.
+   */
+  const [locale, setLocale] = useState<Locale>(() => i18n.locale as Locale);
 
   const resolvedTheme: "light" | "dark" =
     settings.theme === "system" ? (systemDark ? "dark" : "light") : settings.theme;
@@ -131,6 +138,16 @@ export default function App() {
     saveSettings(next);
   }
 
+  /**
+   * Not part of `changeSetting`, because it is not one of the six: those describe how a book
+   * should look and are handed to frond as a set; this one never reaches a book at all.
+   */
+  function changeLocale(next: Locale) {
+    setLocale(next);
+    saveLocale(next);
+    activateLocale(next);
+  }
+
   function resetSettings() {
     setSettings(DEFAULT_SETTINGS);
     saveSettings(DEFAULT_SETTINGS);
@@ -147,6 +164,8 @@ export default function App() {
           onChange={changeSetting}
           onReset={resetSettings}
           onImported={() => setReloadToken((n) => n + 1)}
+          locale={locale}
+          onLocaleChange={changeLocale}
         />
       ) : bookId ? (
         <Reader

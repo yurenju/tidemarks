@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "./i18n";
 import {
   downloadWebFont,
   webFontAppliedNote,
@@ -77,19 +78,19 @@ describe("downloadWebFont", () => {
 
 describe("webFontNote", () => {
   it("says nothing at all until there is something to say", () => {
-    expect(webFontNote(null)).toBeNull();
+    expect(webFontNote(i18n, null)).toBeNull();
   });
 
   it("counts down a percentage against the declared total", () => {
-    expect(webFontNote({ state: "downloading", progress: { received: 8, total: 16 } })).toContain(
-      "50%",
-    );
+    expect(
+      webFontNote(i18n, { state: "downloading", progress: { received: 8, total: 16 } }),
+    ).toContain("50%");
   });
 
   // A percentage invented from an unknown total is a bar that jumps backwards, so the bytes
   // are shown as they are.
   it("shows megabytes when the server declared no total", () => {
-    const note = webFontNote({
+    const note = webFontNote(i18n, {
       state: "downloading",
       progress: { received: 3 * 1024 * 1024, total: null },
     });
@@ -98,14 +99,16 @@ describe("webFontNote", () => {
   });
 
   it("never shows more than 100%, however the totals disagree", () => {
-    expect(webFontNote({ state: "downloading", progress: { received: 20, total: 16 } })).toContain(
-      "100%",
-    );
+    expect(
+      webFontNote(i18n, { state: "downloading", progress: { received: 20, total: 16 } }),
+    ).toContain("100%");
   });
 
   it("tells the reader the device has it, and that being offline is not a failure", () => {
-    expect(webFontNote({ state: "stored" })).toBe("字型已在這台裝置上");
-    expect(webFontNote({ state: "unavailable" })).toBe("連上網路後會下載字型");
+    expect(webFontNote(i18n, { state: "stored" })).toBe("Font is on this device");
+    expect(webFontNote(i18n, { state: "unavailable" })).toBe(
+      "The font will download once you are online",
+    );
   });
 });
 
@@ -146,11 +149,11 @@ describe("webFontFraction", () => {
 
 describe("webFontAppliedNote", () => {
   // The one-off toast that fires when every face the reader picked has arrived. It names the
-  // face so the reflow that just happened has an explanation, and takes the label from its one
-  // source (FONT_FAMILIES) rather than spelling 明體/黑體 a second time here.
+  // face so the reflow that just happened has an explanation, and takes that name from its one
+  // source (FONT_FAMILIES) rather than spelling the faces a second time here.
   it("names the face that was just applied", () => {
-    expect(webFontAppliedNote("明體")).toBe("已套用明體");
-    expect(webFontAppliedNote("黑體")).toBe("已套用黑體");
+    expect(webFontAppliedNote(i18n, "Serif")).toBe("Now set in Serif");
+    expect(webFontAppliedNote(i18n, "Sans")).toBe("Now set in Sans");
   });
 });
 
@@ -158,6 +161,8 @@ describe("WEB_FONT_UNAVAILABLE_NOTE", () => {
   // The one-off toast on a failed fetch: purely informational, asks nothing of the reader, and
   // says what they are looking at instead. The platform stack stands (ADR-0014).
   it("explains that nothing changed and why, without demanding a retry", () => {
-    expect(WEB_FONT_UNAVAILABLE_NOTE).toBe("目前無法下載字型，先用系統字型");
+    expect(i18n._(WEB_FONT_UNAVAILABLE_NOTE)).toBe(
+      "Cannot download the font right now — using the system font",
+    );
   });
 });

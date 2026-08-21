@@ -75,7 +75,7 @@ test.describe("the line-length ceiling", () => {
     // bad and stays the reader's call; two columns on a 直排 book is something frond cannot do
     // at all — and this is the one row in 〈排版〉 that depends on the book underneath it.
     await openBook(page, BOOKS.vertical);
-    await openPanel(page, "排版");
+    await openPanel(page, "Type");
 
     await expect(segment(page, "setting-columns", 2)).toBeDisabled();
   });
@@ -91,7 +91,7 @@ test.describe("the line-length ceiling", () => {
     expect((await columns(page)).count).toBe(1);
 
     // 欄數 is one of the six, and all six are in the reader's own 〈排版〉 panel now (ADR-0026).
-    await openPanel(page, "排版");
+    await openPanel(page, "Type");
     await segment(page, "setting-columns", 2).click();
     await page.keyboard.press("Escape");
     await settled(page);
@@ -122,7 +122,7 @@ test.describe("the typography sheet", () => {
   }
 
   async function chooseMargin(page: Page, value: string): Promise<void> {
-    await openPanel(page, "排版");
+    await openPanel(page, "Type");
     await segment(page, "setting-margin", value).click();
     await page.keyboard.press("Escape");
     await settled(page);

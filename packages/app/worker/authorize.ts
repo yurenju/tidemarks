@@ -6,6 +6,8 @@
 //
 // The passkey layer and OAuth meet in exactly one line — `completeAuthorization({ userId })`.
 // Everything else here is the reader looking at who is asking and pressing a button.
+import type { I18n } from "@lingui/core";
+import { i18nFor } from "./i18n";
 import {
   AuthorizationError,
   type AuthRequest,
@@ -22,16 +24,33 @@ export interface AuthorizeEnv extends Env {
 }
 
 export async function handleAuthorize(request: Request, env: AuthorizeEnv): Promise<Response> {
+  const i18n = i18nFor(request);
   let oauthRequest: AuthRequest;
   try {
     oauthRequest = await env.OAUTH_PROVIDER.parseAuthRequest(request);
   } catch (error) {
     if (!(error instanceof AuthorizationError)) throw error;
-    return authorizationErrorResponse(error);
+    return authorizationErrorResponse(i18n, error);
   }
 
   const client = await env.OAUTH_PROVIDER.lookupClient(oauthRequest.clientId);
-  if (!client) return page(400, "這個應用程式沒有註冊過", "請從你的 agent 重新連線一次。");
+  if (!client)
+    return page(
+      i18n,
+      400,
+      i18n._({
+        id: "authorize.unknownClient.heading",
+        message: "This app is not registered",
+        comment:
+          "Heading of the consent page when the agent's client id is unknown to this deployment.",
+      }),
+      i18n._({
+        id: "authorize.unknownClient.body",
+        message: "Start the connection again from your agent.",
+        comment:
+          "What to do about an unregistered app. The reader cannot fix it here, so it points them back at the thing that sent them.",
+      }),
+    );
 
   const userId = await sessionUserId(env, request);
   if (!userId) {
@@ -65,13 +84,24 @@ export async function handleAuthorize(request: Request, env: AuthorizeEnv): Prom
     return Response.redirect(redirectTo, 302);
   }
 
-  return consentPage(client.clientName ?? oauthRequest.clientId);
+  return consentPage(i18n, client.clientName ?? oauthRequest.clientId);
 }
 
-function authorizationErrorResponse(error: AuthorizationError): Response {
+function authorizationErrorResponse(i18n: I18n, error: AuthorizationError): Response {
   // An error only goes back to the client when the redirect URI has been validated. Otherwise
   // it is shown here — bouncing an unverified URI is how an open redirect is built.
-  if (!error.redirectUri) return page(400, "這個授權請求有問題", escapeHtml(error.description));
+  if (!error.redirectUri)
+    return page(
+      i18n,
+      400,
+      i18n._({
+        id: "authorize.badRequest.heading",
+        message: "There is something wrong with this authorisation request",
+        comment:
+          "Heading of the consent page when the request itself is malformed and there is nowhere safe to redirect to.",
+      }),
+      escapeHtml(error.description),
+    );
   const redirect = new URL(error.redirectUri);
   redirect.searchParams.set("error", error.code);
   redirect.searchParams.set("error_description", error.description);
@@ -97,32 +127,62 @@ function escapeHtml(text: string): string {
   );
 }
 
-function consentPage(clientName: string): Response {
-  // Says what the agent will be able to see, in the words the reader would use. "唯讀" alone
-  // is not enough: the thing worth knowing is that the books themselves are readable, not
-  // just their titles.
+function consentPage(i18n: I18n, clientName: string): Response {
+  // Says what the agent will be able to see, in the words the reader would use. "read-only" on
+  // its own is not enough: the thing worth knowing is that the books themselves are readable,
+  // not just their titles.
   return page(
+    i18n,
     200,
-    `要讓「${clientName}」連上你的書架嗎？`,
-    `連上之後，它讀得到：
+    i18n._({
+      id: "authorize.consent.heading",
+      message: "Let “{clientName}” connect to your shelf?",
+      comment:
+        "The question on the consent page. The value is the name the agent registered under, and is escaped before it reaches the page. The quotation marks are this language's — Chinese uses 「」.",
+      values: { clientName },
+    }),
+    i18n._({
+      id: "authorize.consent.body",
+      message: `Once connected, it can read:
 
-  · 你書架上所有的書，包含內文
-  · 你讀到哪裡、當下看到的那一頁
-  · 你畫的重點與寫的筆記
+  · every book on your shelf, text and all
+  · where you are in each one, and the page in front of you
+  · the passages you marked and the notes you wrote
 
-它<strong>不能</strong>改動任何東西，也不能刪書。你隨時可以在 Tidemarks 裡收回。`,
+It <strong>cannot</strong> change anything, and cannot delete a book. You can take this back in Tidemarks at any time.`,
+      comment:
+        "The whole body of the consent page. It is HTML: keep the <strong> tags around whatever carries the emphasis in this language, and keep the three bullet lines starting with '  · '. The first bullet is the one that matters — an agent reads the books themselves, not merely their titles.",
+    }),
     `<form method="post">
-      <button type="submit" name="decision" value="approve" class="primary">允許</button>
-      <button type="submit" name="decision" value="deny" class="ghost">不要</button>
+      <button type="submit" name="decision" value="approve" class="primary">${escapeHtml(
+        i18n._({
+          id: "authorize.consent.approve",
+          message: "Allow",
+          comment: "The button that grants the agent access to the shelf.",
+        }),
+      )}</button>
+      <button type="submit" name="decision" value="deny" class="ghost">${escapeHtml(
+        i18n._({
+          id: "authorize.consent.deny",
+          message: "No",
+          comment:
+            "The button that refuses the agent. Short and plain — it is the safe answer, not an apology.",
+        }),
+      )}</button>
     </form>`,
   );
 }
 
 // `heading` is plain text and gets escaped here; `body` and `actions` are HTML, so anything
 // that came from a client has to be escaped by the caller before it goes in.
-function page(status: number, heading: string, body: string, actions = ""): Response {
+//
+// `lang` follows the language the page was written in, which is the one the request asked for.
+// It is not decoration: the CJK faces a machine has hold one set of glyphs for the Han
+// characters Chinese and Japanese share, and `lang` is what picks between the regional forms
+// (`src/lib/i18n.ts` has the long version).
+function page(i18n: I18n, status: number, heading: string, body: string, actions = ""): Response {
   const html = `<!doctype html>
-<html lang="zh-Hant">
+<html lang="${i18n.locale}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

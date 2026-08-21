@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { linguiMacros } from "./lingui-babel.ts";
 
 // The app's decision modules, in Node. Direction inversion, TOC flattening, highlight
 // clipping, the settings mapping, the MCP tools against a fake shelf. None of them need a
@@ -12,9 +13,13 @@ import { defineConfig } from "vitest/config";
 // `test.describe() was not expected to be called here` — a confusing error a long way from its
 // cause. That is not hypothetical; it happened on the first run after the browser suite landed.
 export default defineConfig({
+  // The same transform the app is built with — `lingui-babel.ts` has why it is shared, and
+  // what goes wrong without it.
+  plugins: [linguiMacros()],
   test: {
     name: "node",
     include: ["src/**/*.test.ts", "worker/**/*.test.ts"],
+    setupFiles: ["./src/test-setup.ts"],
     exclude: ["**/*.integration.test.ts"],
   },
 });

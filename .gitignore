@@ -34,6 +34,16 @@ dist-ssr
 # build variables on every build. Build output, and it holds the official account's ids.
 packages/app/wrangler.generated.json
 
+# Compiled message catalogs, built from the .po files beside them by `lingui compile`. Build
+# output: the .po files are the source, and a committed copy of them is a second answer to
+# "what does this say in Japanese" that nothing keeps honest.
+#
+# Both extensions on purpose. The compiler writes `.mjs` under `compileNamespace: "es"` and
+# `.js` without it, and a pattern covering only one of them quietly starts committing build
+# output the day that setting changes — which is exactly what happened here.
+packages/app/src/locales/*.js
+packages/app/src/locales/*.mjs
+
 # Playwright output
 playwright-report/
 test-results/

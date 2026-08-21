@@ -16,6 +16,8 @@ export function openSignupFrom(value: string | undefined): boolean {
   return value === "true";
 }
 
+import type { I18n } from "@lingui/core";
+
 export type SignupDecision = { allowed: true } | { allowed: false; message: string };
 
 /**
@@ -27,6 +29,7 @@ export type SignupDecision = { allowed: true } | { allowed: false; message: stri
  * leftover row locks somebody out.
  */
 export async function signupDecision(
+  i18n: I18n,
   { openSignup, hasAccount }: { openSignup: boolean; hasAccount: boolean },
   isAllowlisted: () => Promise<boolean>,
 ): Promise<SignupDecision> {
@@ -36,5 +39,13 @@ export async function signupDecision(
   // somebody the maintainer knows, and vagueness would leave them watching an empty inbox.
   // After launch there is no refusal to word — every address gets the same answer.
   if (await isAllowlisted()) return { allowed: true };
-  return { allowed: false, message: "這個信箱還不能註冊" };
+  return {
+    allowed: false,
+    message: i18n._({
+      id: "signup.notYet",
+      message: "This address cannot sign up yet",
+      comment:
+        "Refusal shown while an allowlist is in force, before this deployment opens signups. Plain rather than vague on purpose: the person reading it is somebody the maintainer knows, and a vague answer would leave them watching an empty inbox.",
+    }),
+  };
 }

@@ -48,7 +48,7 @@ test("the read-only bar says it cannot, and is never moss", async ({ page }) => 
   await openBook(page, BOOKS.horizontal);
   await settled(page);
   await openChrome(page);
-  await openPanel(page, "排版");
+  await openPanel(page, "Type");
 
   // **Neither committed book can summon this bar**, which is why the markup is built here
   // rather than provoked: it appears only while a carried face is on the wire, and

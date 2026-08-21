@@ -21,6 +21,8 @@
  * value. `rpID` arrives from the deployer's own build variable; nothing a request carries
  * reaches it.
  */
+import type { I18n } from "@lingui/core";
+
 export function rpIdCoversHost(rpID: string | undefined, host: string): boolean {
   if (!rpID) return false;
   const scope = normalizeHost(rpID);
@@ -51,17 +53,35 @@ function normalizeHost(value: string): string {
  *
  * Both hostnames are named on purpose. "The configuration does not match" would send the
  * reader back to the dashboard to find out what it was configured with; this way the mismatch
- * and its fix are in the same sentence. In Chinese, like every other message from this Worker
- * that reaches a screen.
+ * and its fix are in the same sentence. In the reader's own language, like every other message
+ * from this Worker that reaches a screen.
  *
  * Without this the same mistake still fails, just illegibly: the browser rejects the ceremony
  * inside `navigator.credentials.create()` with a bare `SecurityError`, hours or months after a
  * deploy that succeeded.
  */
-export function rpIdMismatchMessage(rpID: string | undefined, host: string): string | null {
+export function rpIdMismatchMessage(
+  i18n: I18n,
+  rpID: string | undefined,
+  host: string,
+): string | null {
   if (rpIdCoversHost(rpID, host)) return null;
-  return (
-    `這台的 RP_ID 設成 ${rpID || "（沒有設定）"}，但你現在連的是 ${host}，` +
-    `passkey 在這個網址上不能用。改用 email 登入碼進去，或修正部署設定。`
-  );
+  return i18n._({
+    id: "auth.passkey.rpIdMismatch",
+    message:
+      "This deployment has RP_ID set to {configured}, but you are connected to {host}, so passkeys cannot work at this address. Sign in with an emailed code instead, or fix the deployment settings.",
+    comment:
+      "Shown when a deployment's WebAuthn RP_ID does not cover the hostname the reader arrived on. Both names are in the sentence on purpose, so the mismatch and its fix are in one place. The first value is the configured RP_ID, or the words for 'not set' when there is none.",
+    values: {
+      configured:
+        rpID ||
+        i18n._({
+          id: "auth.passkey.rpIdUnset",
+          message: "(not set)",
+          comment:
+            "Stands in for the configured RP_ID in the message above when the deployment set none. Brackets included.",
+        }),
+      host,
+    },
+  });
 }

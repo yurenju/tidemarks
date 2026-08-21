@@ -76,7 +76,7 @@ test.describe("table of contents", () => {
   });
 
   test("lists the book’s chapters", async ({ page }) => {
-    await openPanel(page, "目錄");
+    await openPanel(page, "Contents");
 
     const items = page.locator(".toc-item");
     await expect(items.first()).toBeVisible();
@@ -88,7 +88,7 @@ test.describe("table of contents", () => {
     // strictness check rather than being averaged away.
     const current = page.locator('.toc-item[aria-current="location"]');
 
-    await openPanel(page, "目錄");
+    await openPanel(page, "Contents");
     await expect(page.locator(".toc-item").first()).toBeVisible();
     // The book opens at its cover, and this book's nav document lists the cover under
     // landmarks rather than as a chapter. Front matter is not a chapter, so nothing is marked
@@ -104,7 +104,7 @@ test.describe("table of contents", () => {
     // is a race the test loses whenever the machine is busy: the mark was always correct, the
     // list holding it had simply gone. Re-opening is also the real question a reader asks —
     // "where am I now" is asked the next time they open the table of contents.
-    await openPanel(page, "目錄");
+    await openPanel(page, "Contents");
 
     // Marked without waiting for the whole-book index: the section is known from the first
     // `relocate`, which is why this rides on `sectionIndex` rather than on the fraction.
@@ -114,7 +114,7 @@ test.describe("table of contents", () => {
   test("clicking an entry moves the reader there", async ({ page }) => {
     const before = await visibleText(page);
 
-    await openPanel(page, "目錄");
+    await openPanel(page, "Contents");
     // A later entry, so the jump has somewhere to go from the very first page.
     await page.locator(".toc-item").nth(2).click();
 

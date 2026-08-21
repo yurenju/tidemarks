@@ -127,13 +127,16 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 翻的時候是**重寫成英文**，不是逐字換。這個 repo 的註解在解釋「為什麼」，直譯出來
 的英文通常兩邊都讀不順。
 
-### 例外：中文是資料或產品文案的時候
+### 例外：中文是資料，或中文本身就是答案的時候
 
-這兩類**原樣保留**，它們不是可以翻譯的文字：
+這幾類**原樣保留**，它們不是可以翻譯的文字：
 
-- **UI 文案**——Tidemarks 是給中文讀者的閱讀 app，畫面上的字就是產品本身
-  （`packages/app/src/lib/settings.ts` 的 `黑體` / `明體` / `書籍預設`）。要不要做 i18n
-  是產品決策，不是這條慣例管的事。
+- **catalog 裡的譯文**——`packages/app/src/locales/*.po`。介面文案走 i18n 了，**程式碼裡寫的是
+  英文原文**，繁中與日文住在 catalog 裡（[ADR-0031](docs/adr/0031-english-is-the-source-and-chinese-becomes-a-translation.md)）。
+  所以 `.tsx` 裡看到中文字串就是漏搬的，不是例外。做法見 `docs/agents/i18n.md`。
+- **語言選單自己的三個名字**——`packages/app/src/lib/locale.ts` 的 `English` / `繁體中文` /
+  `日本語`。每一個都寫成它自己那種語言，所以它們在每個畫面上都一樣，不進 catalog：會來按這個
+  設定的人，正是看不懂當前語言的那一個。
 - **被測對象**——`packages/app/src/lib/chinese.ts` 的簡繁對照表、`epub.test.ts` /
   `toc.test.ts` 的 fixture 文字與章節標題、`lang` 屬性、直排相關測試裡有鑑別力的
   字元。`packages/frond/` 底下同理：fixture 的日文散文、註解裡為了說明字形而引用的
@@ -165,6 +168,18 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 一個 package 一份 `CONTEXT.md` 加自己的 `docs/adr/`：根目錄那組是 Tidemarks 的，`packages/frond/` 那組
 是 frond 的。兩套 ADR **各自編號、不重編**，所以引用時要寫清楚是哪一邊的（「frond ADR-0002」加相對
 路徑）。見 `docs/agents/domain.md`。
+
+### 介面文案與翻譯
+
+介面有三種語言：**英文是原文、寫在程式碼裡**，繁體中文與日文是 catalog 裡的譯文，三種地位相同，
+少一條 CI 就紅。翻譯是寫程式的一部分——加文案的那個 commit 就要把三種補齊。
+
+每一條詞條的 `comment` 是**必填**的，而那是這整件事的重點：翻錯最常見的形式不是翻得爛，是拿
+另一個地方的詞條來用，而從英文字面看不出來的差別只有 comment 講得出來。同一個英文要有兩種
+翻法時加 `context`；⚠️ **只在真的撞到的時候才加**，預設是共用。
+
+⚠️ **`worker/` 底下不能用 macro**（wrangler 走 esbuild，沒有 Babel），Worker 碰得到的 app 模組
+也不行——那份清單就是 `tsconfig.worker.json` 的 `include`。見 `docs/agents/i18n.md`。
 
 ### 測試分層
 

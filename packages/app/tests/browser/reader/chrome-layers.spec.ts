@@ -63,7 +63,7 @@ test("stands the three bars one step off the book, as one layer", async ({ page 
 test("cuts the focus halo out of the bar the button is standing on", async ({ page }) => {
   await openChrome(page);
 
-  const entry = page.getByTestId("chrome-nav").getByRole("button", { name: "目錄" });
+  const entry = page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" });
 
   // Tabbed to rather than `focus()`ed. `:focus-visible` asks how the focus arrived, and a
   // programmatic call is not a keyboard — the ring this test is about would never be drawn, and

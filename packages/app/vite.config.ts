@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { workerNavigationDenylist } from "./src/lib/worker-paths.ts";
+import { linguiMacros } from "./lingui-babel.ts";
 
 // The build stamp the app shows (`src/lib/version.ts`). Read here rather than at runtime
 // because the service worker can be serving a bundle older than the one on the server, and
@@ -15,7 +16,7 @@ function git(...args: string[]): string {
     }).trim();
   } catch {
     // Not a checkout — a tarball, or the test image, which copies sources without .git. The UI
-    // says "開發版" rather than printing a hash that would be a guess.
+    // says "dev build" rather than printing a hash that would be a guess.
     return "";
   }
 }
@@ -31,6 +32,14 @@ export default defineConfig({
   define: { __BUILD__: JSON.stringify(build) },
   plugins: [
     react(),
+    // Lingui's macros, which are the whole point of writing `t` and `<Trans>` rather than
+    // catalog lookups: they leave the English in the code where it is read and reviewed, and
+    // turn it into a message id at build time. The preset filters itself down to files that
+    // import a macro, so this is not a Babel pass over the whole tree.
+    //
+    // The Worker cannot have this — wrangler bundles it with esbuild and there is no Babel in
+    // that path — so it names its messages explicitly instead (`worker/i18n.ts`).
+    linguiMacros(),
     VitePWA({
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache

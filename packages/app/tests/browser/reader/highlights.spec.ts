@@ -87,7 +87,7 @@ test.describe("drawing a highlight", () => {
 
     // Behind the chrome, which is where every control in the reader lives now.
     await openChrome(page);
-    await expect(page.getByRole("button", { name: /筆記 \(1\)/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Notes \(1\)/ })).toBeVisible();
   });
 
   test("it disappears when the page turns away, and comes back", async ({ page }) => {
@@ -99,11 +99,11 @@ test.describe("drawing a highlight", () => {
     await expect(page.locator(".highlight-box").first()).toBeVisible();
 
     const before = await visibleText(page);
-    await page.getByRole("button", { name: "下一頁" }).click();
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect(page.locator(".highlight-box")).toHaveCount(0);
 
-    await page.getByRole("button", { name: "上一頁" }).click();
+    await page.getByRole("button", { name: "Previous page" }).click();
     await expect(page.locator(".highlight-box").first()).toBeVisible();
   });
 
@@ -127,7 +127,7 @@ test.describe("drawing a highlight", () => {
     await page.locator(".highlight-toolbar .swatch").first().click();
     const first = (await page.locator(".highlight-box").first().boundingBox())!;
 
-    await openPanel(page, "排版");
+    await openPanel(page, "Type");
     await page.getByTestId("setting-font-size").fill("160");
     await page.keyboard.press("Escape");
 

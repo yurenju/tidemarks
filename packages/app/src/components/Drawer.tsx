@@ -1,3 +1,5 @@
+import { useLingui } from "@lingui/react/macro";
+import type { SegmentLabel } from "./Segmented";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactNode } from "react";
 
@@ -17,11 +19,12 @@ export default function Drawer({
 }: {
   open: boolean;
   onClose: () => void;
-  title: string;
+  title: SegmentLabel;
   /** `data-testid` for the popup, so tests stop naming the layout. */
   testId: string;
   children: ReactNode;
 }) {
+  const { t, i18n } = useLingui();
   return (
     <BaseDrawer.Root
       open={open}
@@ -40,8 +43,17 @@ export default function Drawer({
         <BaseDrawer.Viewport className="drawer-viewport">
           <BaseDrawer.Popup className="drawer-popup" data-testid={testId}>
             <header className="drawer-header">
-              <BaseDrawer.Title className="drawer-title">{title}</BaseDrawer.Title>
-              <BaseDrawer.Close className="ghost drawer-close" aria-label="關閉">
+              <BaseDrawer.Title className="drawer-title">
+                {typeof title === "string" ? title : i18n._(title)}
+              </BaseDrawer.Title>
+              <BaseDrawer.Close
+                className="ghost drawer-close"
+                aria-label={t({
+                  message: "Close",
+                  comment:
+                    "Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.",
+                })}
+              >
                 ✕
               </BaseDrawer.Close>
             </header>

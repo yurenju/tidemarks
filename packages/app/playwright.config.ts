@@ -63,6 +63,13 @@ export default defineConfig({
     // A book has to be imported before anything can be read, and importing goes through the
     // real file input.
     acceptDownloads: false,
+    // **The interface language, pinned.** Tidemarks picks one from `navigator.languages`
+    // (`src/lib/locale.ts`), so without this the words on screen would depend on the machine
+    // the suite happens to be running on — and every selector below names a word. English
+    // because it is the source language: what these specs look for is then the string written
+    // in the component beside them, so a failure is a difference in behaviour rather than one
+    // in translation. Same reasoning as `src/test-setup.ts` on the Vitest side.
+    locale: "en",
   },
 
   // The dev server rather than a preview of the build: `npm run build` is already its own CI

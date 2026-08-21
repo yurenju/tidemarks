@@ -35,7 +35,7 @@ test("no character in the vertical book is drawn on top of the next", async ({ p
 
   // A chapter rather than the section the book opens at: the cover carries 22 characters,
   // far too few to say anything. 「一」 is 草枕's first chapter of prose.
-  await openPanel(page, "目錄");
+  await openPanel(page, "Contents");
   await page.locator(".toc-item", { hasText: /^一$/ }).click();
   await settled(page);
 
