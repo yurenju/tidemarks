@@ -145,31 +145,19 @@ html[data-drawer="open"] {
   --text-on-inverse: var(--paper-200);
   --line-on-inverse: var(--ink-700);
 
-  /* Shadows never blur: paper resting on paper, lit from one side. A shadow means the thing
-     can be picked up — a book, a panel, a sheet, a toast, the Scrubber's thumb. Anything glued
-     to the screen (a bar, a form, a read-only bar) casts none. */
-  /* Two layers each, and the split is the rule: the hard one at half the alpha keeps the
-     offset — paper on paper, lit from one corner — and a short blur over it takes the edge off
-     the join, the way a real sheet of paper does over the last millimetre.
+  /* **There are no shadows.** Not "subtle ones": none. What a shadow used to say — this thing
+     can be picked up — is said by a step of surface now, and the step runs the same way in
+     both themes: `--surface-raised` above the page, `--surface-sunken` below it.
 
-     **The blur may not exceed twice the offset, and may never take a spread.** Past that ratio
-     the shadow starts spreading evenly around the shape, which is a point light in air: the
-     thing ADR-0022 picked against. So the offset is what makes this a shadow and the blur is
-     only allowed to soften where it lands. */
-  --shadow-lift: 2px 3px 0 rgba(28, 26, 23, 0.05), 2px 3px 4px rgba(28, 26, 23, 0.035);
-  --shadow-panel: 6px 8px 0 rgba(28, 26, 23, 0.07), 6px 8px 12px rgba(28, 26, 23, 0.05);
-  /* The same panel shadow for the panels that do not arrive from that side: a sheet rises from
-     the bottom bar, and a drawer — the shelf's, and the reader's own once the window is wide
-     enough — comes in from the right. Each casts back the way it came. Cast the default way,
-     they would draw their shadow underneath themselves.
+     The old system spent a lot of care on hard offset shadows and it was right about what it
+     wanted from them: a fact that could be checked rather than a decoration, which is why
+     `bar`s were forbidden from casting. What it could never do was work in the dark, where a
+     black offset on a near-black page is nothing at all — so ADR-0028 had already answered
+     that case with a lighter surface. This is that answer, applied to both themes.
 
-     `-left` earns its keep twice over now. The reader's panel used to arrive from the left and
-     take the default, whose downward 8px reached past the book's own box and landed on the
-     Scrubber's bar — a lifted thing casting onto something it is beside rather than above.
-     Coming from the right it casts left, across the book, and there is nothing below it to
-     reach. */
-  --shadow-panel-up: 0 -6px 0 rgba(28, 26, 23, 0.07), 0 -6px 12px rgba(28, 26, 23, 0.05);
-  --shadow-panel-left: -6px 0 0 rgba(28, 26, 23, 0.07), -6px 0 12px rgba(28, 26, 23, 0.05);
+     The only `box-shadow` left in this file draws the focus ring's halo and two inset rules
+     (the current chapter's marker, and — until the wave lands — the highlight's edge). None of
+     them is a drop shadow. */
 
   /* The four inks a reader can mark with. Highlights are ink, not fluorescent marker.
      `--mark-indigo` is the default and it carries the brand's own blue: leave the setting
@@ -233,6 +221,21 @@ html[data-drawer="open"] {
   --space-5: 22px;
   --space-6: 30px;
   --space-7: 44px;
+  /* Four radii, and each one answers "what kind of thing is this" rather than "how round
+     should it look". A fifth means going back to docs/design-system.md first.
+
+     The old system had none of these — square was the default, and the reason given was that
+     a radius left open becomes a knob (the CSS had 6, 8, 12, 14 and 999 at the time, none of
+     them able to say why). The knob is what these four names close: the number is a
+     consequence of which noun the thing is. */
+  /* A piece of paper: cards, popups, the reading surface, covers. */
+  --radius-surface: 6px;
+  /* A control: buttons, fields, tags. */
+  --radius-control: 3px;
+  /* A rail with two ends: switches and progress bars. */
+  --radius-track: 999px;
+  /* A dot — and the one that keeps the old system's test, because it is the same test: a
+     finger pinches it (the Scrubber's thumb and end caps, the ink swatches). */
   --radius-dot: 50%;
   /* What the bottom bar keeps clear beneath itself, and it is a question about the *device*
      rather than about the window — so the coarse block below is where it gets a value, and a
@@ -407,7 +410,7 @@ button {
   background: var(--surface-page);
   color: var(--text-primary);
   min-height: var(--tap-min);
-  padding: 11px var(--space-5);
+  padding: var(--space-2) var(--space-4);
   transition:
     background 0.15s,
     border-color 0.15s;
@@ -416,13 +419,23 @@ button {
   touch-action: manipulation;
 }
 
-/* Lifted, not sunken. In the light theme the two are a hair apart and either reads as "under
-   the pointer"; in the dark, `--surface-sunken` is *darker* than the page, so a hovered button
-   used to recede. A shadow would say this better and the dark theme has none to spend, which is
-   what `--surface-raised` is for. */
+/* A blue wash of the paper, not a step of it. A step is what says which layer a thing is on
+   (ADR-0022), and hover is not a layer — spending a step on it leaves the two questions sharing
+   one signal, and in the dark theme they answered in opposite directions. `--fill-selected` is
+   the same wash in both themes and the border moves with it. */
 button:hover {
-  background: var(--surface-raised);
-  border-color: var(--text-muted);
+  background: var(--fill-selected);
+  border-color: var(--tide);
+}
+
+/* Pressed, which the old system never drew at all: it had a hover, a filled primary, and
+   nothing in between. Only the buttons that own a fill take it — a ghost has no interior to
+   fill, a `.danger` filling with tide would say the wrong thing at the worst moment, and a tab
+   says which one it is with the rule under it. */
+button:not(.ghost, .danger, .settings-tab):active:not(:disabled) {
+  background: var(--tide-pressed);
+  border-color: var(--tide-pressed);
+  color: var(--text-on-tide);
 }
 
 button:disabled {
@@ -449,14 +462,12 @@ button.ghost {
   background: none;
 }
 
-/* A cover's step rather than a sunken one, and it took a screenshot to notice: against the page
-   `--surface-sunken` is one step away, which the general `button:hover` above can afford because
-   it also moves a border. A ghost has no border to move, so that one step was the whole of the
-   answer to "which of these four am I on" — and it was invisible. `--surface-cover` is the next
-   step out, already in the ramp, and it is the darkest a bar can go before it stops reading as
-   the same piece of paper as the bar around it. */
+/* The same wash as every other button, and it took a screenshot to find out why it has to be:
+   a ghost has no border to move, so the fill is the whole of the answer to "which of these four
+   am I on". A step of paper was that answer once and it was very nearly invisible; a blue wash
+   is not, and it does not spend a layer to say something that is not about layers. */
 button.ghost:hover {
-  background: var(--surface-cover);
+  background: var(--fill-selected);
 }
 
 /* The sheet this button opened is standing open. Ink to tide and nothing else: a filled
@@ -477,13 +488,13 @@ textarea {
   padding: 10px var(--space-3);
 }
 
-/* Explicit rather than left to the default: WebKit rounds a `<select>` and a `<textarea>` on
-   its own, so "no radius" has to be said out loud or two controls keep theirs. */
+/* Said out loud rather than left to the default: WebKit rounds a `<select>` and a `<textarea>`
+   to its own taste, and this system has one number for a control. */
 button,
 select,
 input,
 textarea {
-  border-radius: 0;
+  border-radius: var(--radius-control);
 }
 
 /* And saying it is not enough for a `<select>`: WebKit draws a menulist as a native control
@@ -548,6 +559,7 @@ input[type="range"] {
   background: var(--surface-sunken);
   color: var(--text-body);
   border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
   padding: 0.5rem 1rem;
   margin: 0 2rem;
 }
@@ -736,6 +748,9 @@ button.ghost.book-more {
   text-align: center;
   border-left: 1px solid var(--line-firm);
   border-bottom: 1px solid var(--line-firm);
+  /* The cover's own corner, so the chip follows the curve it is cut from rather than standing
+     square inside a rounded edge. The other three stay sharp: it is a notch, not a pill. */
+  border-radius: 0 var(--radius-surface) 0 0;
   background: var(--surface-page);
 }
 
@@ -773,11 +788,11 @@ button.ghost.book-more::after {
      fallback title clips itself. */
   position: relative;
   background: var(--surface-cover);
+  border-radius: var(--radius-surface);
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-lift);
   transition: border-color 0.15s;
 }
 
@@ -798,7 +813,6 @@ button.ghost.book-more::after {
    and have no business in the accessibility tree they would otherwise be added to. */
 .book-cover:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-lift);
 }
 
 .book-cover:focus-visible::before {
@@ -861,8 +875,8 @@ button.ghost.book-more::after {
   max-width: min(24rem, calc(100vw - 2rem));
   padding: 1.25rem;
   border: 1px solid var(--line-firm);
-  background: var(--surface-page);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
 }
 
 .alert-title {
@@ -1280,11 +1294,11 @@ button.danger:hover {
 
    **The right rather than the left**, and that is not symmetry. The book gives up this column
    while a panel is open, and a reader's eye returns to the start of a line: taking the room from
-   the far end leaves the text where the eye already is. It also gets the shadow right for free.
-   From the left the panel took the default down-and-right cast, whose 8px of *down* reached past
-   the book's own box and landed on the Scrubber's bar — a lifted thing casting onto something it
-   is beside. Coming from the right it casts left, across the book, with nothing below it to
-   reach (`--shadow-panel-left`). */
+   the far end leaves the text where the eye already is.
+
+   No radius here, and no cast. A column that runs the full height of the reader and is flush to
+   its right edge has no corner the reader can see, so rounding it would round nothing; the sheet
+   the hand-held query builds out of the same element *does* have two, and takes them there. */
 .panel-popup {
   pointer-events: auto;
   position: absolute;
@@ -1296,7 +1310,6 @@ button.danger:hover {
   flex-direction: column;
   background: var(--surface-sunken);
   border-left: 1px solid var(--line-hair);
-  box-shadow: var(--shadow-panel-left);
   /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
      drag to the left does not pull it off the edge it belongs to. */
   transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
@@ -1455,8 +1468,17 @@ button.danger:hover {
   margin-left: -1px;
 }
 
+.segment {
+  border-radius: 0;
+}
+
 .segment:first-child {
   margin-left: 0;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.segment:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 /* Answered before the fill, so the two never argue over one cell. */
@@ -1563,6 +1585,7 @@ button.danger:hover {
 .font-progress {
   height: 3px;
   margin: var(--space-1) 0 0.15rem;
+  border-radius: var(--radius-track);
   background: var(--surface-sunken);
   overflow: hidden;
   pointer-events: none;
@@ -1639,7 +1662,7 @@ button.danger:hover {
   font-size: var(--type-note);
   line-height: var(--leading-text);
   text-align: center;
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   animation: font-toast-in 0.18s ease-out;
 }
 
@@ -1811,6 +1834,7 @@ button.danger:hover {
   top: 50%;
   height: 3px;
   transform: translateY(-50%);
+  border-radius: var(--radius-track);
   background: var(--line-track);
   transition: height 0.12s ease;
 }
@@ -1825,6 +1849,7 @@ button.danger:hover {
   top: 50%;
   height: 3px;
   transform: translateY(-50%);
+  border-radius: var(--radius-track);
   background: var(--tide);
   transition: height 0.12s ease;
 }
@@ -1850,9 +1875,7 @@ button.danger:hover {
      in ADR-0028: the ring is a hole punched in whatever the thumb sits on, so it has to be the
      bar's colour. Left as the page's, it would draw a pale halo on a darker bar — the one thing
      a ring meant to disappear must not do. */
-  box-shadow:
-    var(--shadow-lift),
-    0 0 0 2px var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--surface-raised);
   opacity: 0;
   transition: opacity 0.12s ease;
 }
@@ -1910,9 +1933,9 @@ button.danger:hover {
   margin-bottom: 8px;
   max-width: 70vw;
   padding: 0.35rem 0.6rem;
-  background: var(--surface-page);
+  background: var(--surface-raised);
   border: 1px solid var(--line-firm);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -1957,7 +1980,7 @@ button.danger:hover {
   background: var(--surface-inverse);
   color: var(--text-on-inverse);
   padding: 9px var(--space-3);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   justify-content: center;
   max-width: calc(100vw - var(--space-5));
 }
@@ -2092,6 +2115,7 @@ button.danger:hover {
    it in, so a note found here is recognisably the passage they marked in the book. */
 .annotation-item {
   border-left: 3px solid var(--mark-indigo);
+  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
   padding: 0.5rem 0.7rem;
   background: var(--surface-sunken);
 }
@@ -2174,9 +2198,8 @@ button.danger:hover {
   width: min(26rem, 100%);
   display: flex;
   flex-direction: column;
-  background: var(--surface-page);
+  background: var(--surface-raised);
   border-left: 1px solid var(--line-hair);
-  box-shadow: var(--shadow-panel-left);
   /* The swipe offset Base UI publishes while a finger is on the panel. */
   transform: translateX(var(--drawer-swipe-movement-x, 0px));
   transition: transform 0.3s ease;
@@ -2560,10 +2583,10 @@ button.danger:hover {
        above it has lost the thing it covers the page for (ADR-0026). */
     max-height: min(70vh, 36rem);
     height: auto;
-    background: var(--surface-page);
+    background: var(--surface-raised);
     border-left: none;
     border-top: 1px solid var(--line-hair);
-    box-shadow: var(--shadow-panel-up);
+    border-radius: var(--radius-surface) var(--radius-surface) 0 0;
     transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
   }
 
