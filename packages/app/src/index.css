@@ -111,9 +111,6 @@ html[data-drawer="open"] {
   /* Darker than `--blue-tide` rather than the handoff's lighter `blue-static`: pressed has to
      hold paper-coloured text, and paper on `#7a93ae` is 2.7:1. */
   --blue-tide-deep: #24395c;
-  /* The handoff's `blue-static` (#7a93ae) measured 2.7:1 against the page and its own job list
-     includes a pressed fill — a state nobody could see outdoors. Two steps down. */
-  --blue-static: #6e88a6;
   --blue-selected: #c7d3e0;
   --clay-600: #a8552f;
   --clay-400: #d08a62;
@@ -167,7 +164,6 @@ html[data-drawer="open"] {
   --tide: var(--blue-tide);
   --tide-pressed: var(--blue-tide-deep);
   --text-on-tide: var(--paper-200);
-  --decor: var(--blue-static);
   --danger: var(--clay-600);
 
   /* The one reversal in the app, for the one thing that sits on top of the reader's own words.
@@ -175,7 +171,7 @@ html[data-drawer="open"] {
      rather than staying dark. */
   --surface-inverse: var(--ink-900);
   --text-on-inverse: var(--paper-200);
-  --line-on-inverse: var(--ink-700);
+  --line-on-inverse: var(--ink-600);
 
   /* **There are no shadows.** Not "subtle ones": none. What a shadow used to say — this thing
      can be picked up — is said by a step of surface now, and the step runs the same way in
@@ -410,7 +406,6 @@ html[data-drawer="open"] {
   --tide: #7ea6ce;
   --tide-pressed: #9fbfe0;
   --text-on-tide: var(--night-800);
-  --decor: #4f6e92;
   --surface-inverse: var(--bone-100);
   --text-on-inverse: var(--night-800);
   --line-on-inverse: var(--bone-300);
