@@ -99,6 +99,16 @@ const harness: FrondHarness = {
     return snapshot();
   },
 
+  async walkNext(times): Promise<readonly Snapshot[]> {
+    const renderer = active();
+    const landings: Snapshot[] = [];
+    for (let index = 0; index < times; index += 1) {
+      await renderer.next();
+      landings.push(snapshot());
+    }
+    return landings;
+  },
+
   async previous(): Promise<Snapshot> {
     await active().previous();
     return snapshot();

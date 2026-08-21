@@ -69,6 +69,30 @@ test.describe("the pages either side stay mounted", () => {
     expect(atStart?.hasPreview).toBe(false);
     await page.evaluate(() => frond.cancelTurn());
   });
+
+  test("a steady run of turns costs one mount, not one per turn", async ({ page }) => {
+    // Mounting a document takes far longer than turning a page, so a reader turning steadily
+    // gets several turns in before the first peek has landed. Every one of those turns used
+    // to start a mount of its own, and each mount built a whole document into the container
+    // before the staleness check could discard it: 100 turns measured 201 frames in the
+    // container at once. That is a memory spike on a phone, ~200 documents' worth of parsing
+    // and layout thrown away, and — because tearing that many frames down is slow in
+    // Chromium — three seconds added to the end of anything that turned a lot of pages.
+    //
+    // Turned from inside the page deliberately. Driven a turn at a time from here, each
+    // round trip gives the mount enough of a gap to land, which is exactly the timing that
+    // kept this from being noticed.
+    await mountFixture(page, "huge-single-section", { settings: { columns: 1 } });
+    await peeksReady(page);
+
+    await page.evaluate(() => frond.walkNext(30));
+
+    // Three is the steady state: the page and the two either side. The fourth allows for one
+    // mount still on its way at the moment the count is taken — what must not happen is a
+    // count that grows with the number of turns.
+    const frames = await page.evaluate(() => frond.frames().length);
+    expect(frames).toBeLessThanOrEqual(4);
+  });
 });
 
 test.describe("dragging a page across", () => {

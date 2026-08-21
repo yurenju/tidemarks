@@ -119,18 +119,38 @@ test("a section's page count matches the pages that can actually be turned to", 
   // The page count is not for comparing across browsers, but within one it has to tell the
   // truth: reporting N pages means page N−1 is exactly reachable, and the section changes
   // after page N−1.
+  //
+  // **The only test here that says how long it is allowed to take**, because it is the only
+  // one whose length is not a constant: it turns every page of the section, and how many
+  // that is belongs to the engine. Against the default 30s it timed out on a busy runner
+  // (#17). The turns moved into the page first — that took away the 80% of the budget going
+  // on the process boundary rather than on turning pages, and what is left is what a turn
+  // actually costs. Naming a budget without having done that would have been the amplifier
+  // dressed up as a fix (docs/agents/flaky.md).
+  test.slow();
+
   const start = await mountFixture(page, "huge-single-section", {
     settings: { columns: 1 },
   });
 
   expect(start.pageCount).toBeGreaterThan(5);
 
-  let current = start;
-  for (let step = 0; step < start.pageCount - 1; step += 1) {
-    current = await page.evaluate(() => window.frond.next());
-    expect(current.sectionIndex).toBe(0);
-  }
+  // The turns are taken **inside the page**, which is the one loop in this file that has to
+  // be: its length is the section's page count rather than a small constant, and the budget
+  // it runs against is a fixed 30s. Driven a turn at a time from here, over 80% of that
+  // budget goes on crossing the process boundary rather than on turning pages — enough to
+  // time out on a machine busy with the rest of the suite (#17, and `walkNext`'s comment).
+  const landings = await page.evaluate(
+    (times) => window.frond.walkNext(times as number),
+    start.pageCount - 1,
+  );
 
+  expect(landings).toHaveLength(start.pageCount - 1);
+  landings.forEach((landing, step) => {
+    expect(landing.sectionIndex, `section at step ${step}`).toBe(0);
+  });
+
+  const current = landings[landings.length - 1]!;
   expect(current.page).toBe(start.pageCount - 1);
   expect(current.atEnd).toBe(true);
 });

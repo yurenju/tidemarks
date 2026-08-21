@@ -324,6 +324,23 @@ export interface FrondHarness {
    */
   mountInline(sections: readonly string[], options: MountOptions): Promise<Snapshot>;
   next(): Promise<Snapshot>;
+  /**
+   * Turns forward `times` pages, awaiting each one, and reports where every turn landed.
+   *
+   * Identical in effect to calling `next()` in a loop, and that is the whole point: what
+   * changes is how often the loop crosses the process boundary. Measured on webkit in the
+   * test image, one turn costs ~45ms driven from the test side against ~9ms driven from
+   * inside the page — and on a machine busy with the rest of the suite, ~400ms against
+   * ~62ms. The protocol, not the turn, is what a loop this long is really spending on, and
+   * it is also the half the load multiplies hardest.
+   *
+   * That matters to any loop whose length is a **page count** rather than a small constant,
+   * because the time budget it runs against is a fixed 30s. #17 is one that crossed it.
+   *
+   * Not `rapidNext`, which fires its turns without awaiting them: that one is measuring the
+   * queue, this one is measuring the pages.
+   */
+  walkNext(times: number): Promise<readonly Snapshot[]>;
   previous(): Promise<Snapshot>;
   goToSection(index: number): Promise<Snapshot>;
   goTo(path: string, fragment?: string): Promise<Snapshot>;
