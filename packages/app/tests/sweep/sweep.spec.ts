@@ -13,6 +13,19 @@ import { BOOKS_DIR, segment, settled } from "../browser/support/library.js";
  * `data-testid`, a drawer that became a dialog, a panel that opens another way. Without
  * something exercising this file, it breaks silently and stays broken until the day it is
  * needed. See docs/adr/0027-the-screen-sweep-runs-in-the-container.md.
+ *
+ * **How things are found here:** a `data-testid` names the screen or the region, and whatever is
+ * inside it is found by role and by name — `getByTestId("panel-toc").getByRole("button", …)`.
+ * The words are the English ones, which is a claim this file can only make because
+ * `playwright.sweep.config.ts` pins the interface language. Both halves were missing at once
+ * (#30): the messages moved to English (ADR-0031) while these steps still named the Chinese
+ * ones, and nothing was pinning the language either, so which of the two was wrong could not
+ * be read off a failure. Ten of the twenty-seven steps photographed the screen before the
+ * click for a day.
+ *
+ * Book titles and chapter names are the exception, and not really one: those are the epub's own
+ * words, not Tidemarks', and finding them by their text is the only way to say a chapter was
+ * chosen rather than that some button was pressed.
  */
 
 // Where the pictures land. The container run sets this to the directory it has mounted;
@@ -185,7 +198,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await settled(page);
 
     if (chapter !== undefined) {
-      await openPanel("目錄", "panel-toc");
+      await openPanel("Contents", "panel-toc");
       await page.getByTestId("panel-toc").getByRole("button", { name: chapter }).first().click();
       await settled(page);
       // Choosing a chapter dismisses the panel, and on a hand-held it slides out from the bottom
@@ -270,15 +283,15 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   });
 
   await step("reader-toc", async () => {
-    await openPanel("目錄", "panel-toc");
+    await openPanel("Contents", "panel-toc");
   });
 
   await step("reader-notes-empty", async () => {
-    await openPanel(/筆記/, "panel-notes");
+    await openPanel(/Notes/, "panel-notes");
   });
 
   await step("reader-layout-panel", async () => {
-    await openPanel("排版", "panel-layout");
+    await openPanel("Type", "panel-layout");
   });
 
   await step("reader-selection-toolbar", async () => {
@@ -304,11 +317,11 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   });
 
   await step("reader-notes-filled", async () => {
-    await openPanel(/筆記/, "panel-notes");
+    await openPanel(/Notes/, "panel-notes");
   });
 
   await step("reader-note-editing", async () => {
-    await page.getByRole("button", { name: "加筆記" }).first().click();
+    await page.getByRole("button", { name: "Add note" }).first().click();
     await page.locator(".note-editor textarea").fill("這一段想再讀一次。");
     await page.waitForTimeout(400);
   });
@@ -348,7 +361,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   });
 
   await step("reader-vertical-toc", async () => {
-    await openPanel("目錄", "panel-toc");
+    await openPanel("Contents", "panel-toc");
   });
 
   // ---- the dark theme -----------------------------------------------------
@@ -357,8 +370,8 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await page.keyboard.press("Escape");
     await page.goto("/#/settings/typography");
     await expect(page.getByTestId("settings-screen")).toBeVisible({ timeout: 15_000 });
-    // A cell to click, not an option to select: 主題 became a segmented control in #167, along
-    // with three of 〈排版〉's other five.
+    // A cell to click, not an option to select: Theme became a segmented control in #167, along
+    // with three of Type's other five.
     await segment(page, "setting-theme", "dark").click();
     await page.waitForTimeout(700);
   });
@@ -374,7 +387,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   });
 
   await step("reader-dark-layout-panel", async () => {
-    await openPanel("排版", "panel-layout");
+    await openPanel("Type", "panel-layout");
   });
 
   // The list is the point of the run: it is what gets pasted alongside the pictures, and it is

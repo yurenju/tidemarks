@@ -215,6 +215,29 @@ arm64）workerd 五個 build 都有。
 個字級下的直排 advance，而 host 的引擎版本又跟映像差一版。在 host 上跑出來的紅綠燈，跟 CI 說的不是
 同一件事。
 
+#### 瀏覽器那層怎麼找東西
+
+只管 `packages/app/tests/browser/` 與 `tests/sweep/`。另外三個 vitest project 沒有 DOM，frond 沒有
+UI（frond ADR-0002），這一段跟它們無關。
+
+**介面語言在設定檔裡釘死 `en`**，兩份 Playwright 設定各一行（`playwright.config.ts`、
+`playwright.sweep.config.ts`）。不釘的話畫面上的字跟著容器的 `Accept-Language` 走，那是機器的性質
+不是 app 的性質：測試那層會找不到自己寫的字串，巡檢那層則是拍出來的圖跨機器跨日期不能比，而可比性
+正是 ADR-0027 買的東西。釘 `en` 是因為英文是原文，**不可能缺詞條**。想看中文或日文的畫面就把那一行
+改掉跑一次，不為此多開一個 project。
+
+**`data-testid` 標的是畫面與區塊，區塊裡面的東西用 role 找**：
+`getByTestId("panel-toc").getByRole("button", { name: "Contents" })`。這樣一次買到兩件事——區塊找得
+到（改文案不會全盤紅），而按鈕仍然必須有可及名稱，那個名稱掉了就會紅。testid 掛到按鈕上只剩前者，
+而可及性壞掉是沒有人會回報的那一類（ADR-0021）。圖示鈕（`book-open`、`about-delete`）是例外，當例外
+看待。
+
+**書名、章節名、筆記內容不套這條**：那些是 epub 與讀者的字，不是 Tidemarks 的文案。用文字找它們正是
+測試要驗的東西，換成 testid 就什麼都沒驗到。
+
+**build 不剝 testid。** 收尾驗證要在真的部署上用同一組 selector 跑（見下），剝掉等於自斷一隻手；省下
+的位元組量不到。
+
 ### 收尾驗證
 
 spec／feature 收尾、宣稱完成前，用 playwright-cli 在 host 上把功能實際跑一遍。範圍限於自動化蓋不到
