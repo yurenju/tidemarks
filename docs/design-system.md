@@ -316,8 +316,16 @@ L 形**裁切標記**，16px 長、2px 粗、離封面 7px（落在格線的 gap
 - `--wave-drop` 是 1px，語意是從矩形尾端往回收的距離（tile 自己的 1px 邊界在 CSS 裡減掉了）。
 - `HighlightLayer` 從 `Reader.tsx` 拿 `verticalBook`，那個狀態本來就有（frond 的 `writingMode`
   事件），不必動 frond。
-- ⚠️ **拉丁文字在行距緊的書上，波浪會壓在基線上穿過 descender**（拉丁襯線的半行距只有約 0.4px，漢字
-  有約 3.8px）。解法還沒定，見 [issue #31](https://github.com/yurenju/tidemarks/issues/31)。
+⚠️ **這一節寫的是現在畫出來的樣子，而它已經被
+[ADR-0032](adr/0032-a-mark-goes-beside-the-text-and-nothing-else.md) 改掉了，實作還沒跟上**
+（[issue #31](https://github.com/yurenju/tidemarks/issues/31)）。四件事會變：波浪從 6px 變 **4px**、
+落點從「行框內側」改成「這一行所有**墨跡**的最外緣之外」、同一行的矩形**合併成一個框**再畫、以及
+ruby 的注音與 `U+3000`／NBSP 的空白**不畫**。行距的「書籍預設」也因此多了一條下限。實作進去之後
+這一節要照 ADR-0032 重寫。
+
+- ⚠️ **拉丁文字在行距緊的書上，波浪會壓在基線上穿過 descender。** 量到的不只是穿過下伸部：Alice
+  的內文半行距是 **0**，波浪的中心線正好落在基線上，所以每一個字母的腳都被穿過。ADR-0032 的
+  4px ＋ 墨跡落點 ＋ 行距下限就是為了這一格。
 
 舊的四個名字（`yellow` / `blue` / `green` / `pink`）在 `markVar()` 裡對到最近的一個新色，
 **沒有 migration，也不需要**。
