@@ -248,6 +248,7 @@ export interface SettingsPatch {
   readonly fontFamily?: string;
   readonly fontSize?: number;
   readonly lineHeight?: number;
+  readonly minimumInkGap?: number;
   readonly margin?: number | { readonly block: number; readonly inline: number };
   readonly columns?: 1 | 2 | "auto";
   readonly theme?: {
@@ -417,6 +418,8 @@ export interface FrondHarness {
   addressEveryCharacter(xml: string, sectionIndex: number): AddressedSection;
   /** A CFI's rectangles in the container's coordinate system. */
   rectsFor(cfi: string): readonly Rect[];
+  /** The same rectangles with what each covers and where its glyphs sit — for mark placement. */
+  markedRectsFor(cfi: string): readonly MarkedRectSnapshot[];
   /** The container's current size — needed to decide whether a rectangle is on screen. */
   containerSize(): { readonly width: number; readonly height: number };
   /** The computed style of a selector inside the current section's iframe. */
@@ -517,6 +520,13 @@ export interface Rect {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+/** A serializable `MarkedRect`: the box, what it covers, and where its glyphs sit inside it. */
+export interface MarkedRectSnapshot {
+  readonly role: "text" | "ruby" | "blank";
+  readonly rect: Rect;
+  readonly ink: Rect;
 }
 
 /** A serializable form of `Renderer.locate()`. */

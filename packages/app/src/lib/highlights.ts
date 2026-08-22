@@ -30,6 +30,37 @@ export interface ContainerSize {
   readonly height: number;
 }
 
+/** One rectangle as frond reports it: the box, what it covers, and where its glyphs sit. */
+export interface MarkedRectLike {
+  readonly role: "text" | "ruby" | "blank";
+  readonly rect: RectLike;
+  readonly ink: RectLike;
+}
+
+/**
+ * How thick the wave is, and how far it stands off the text — ADR-0032.
+ *
+ * 4px was chosen by looking at a prototype at reading size rather than by arithmetic: at 2px
+ * the wave reads as a plain underline, and the wave is the mark this app is named for. It is
+ * one value for every book, not a value per book, so there is one tile and one look — and no
+ * chance of the three things that have to agree (the tile's own geometry, `mask-size`, and
+ * this height) drifting apart, which fails silently by painting nothing.
+ *
+ * **`index.css` repeats these two numbers in `--wave-h` / `--wave-v` and their `mask-size`.**
+ * They have to match; the mask is the only place they can be expressed in CSS and the strip is
+ * the only place they can be expressed here.
+ */
+export const WAVE_THICKNESS = 4;
+
+/**
+ * The gap between the text's ink and the mark, in px.
+ *
+ * Deliberately smaller than the gap left on the far side (ADR-0032 leaves 1.3px there): a mark
+ * equidistant between two lines belongs to neither, and the reader has to work out which line
+ * it is about. Nearer means it is about this one.
+ */
+export const MARK_CLEARANCE = 0.7;
+
 // Which of a range's rectangles are on the page in front of the reader, clipped to it.
 //
 // frond reports **true** geometry: a position two pages ahead comes back at a large
@@ -58,6 +89,134 @@ export function visibleBoxes(rects: readonly RectLike[], container: ContainerSiz
   }
 
   return boxes;
+}
+
+/**
+ * The strips of wave to paint for one marked passage — one per line, and none on a line with
+ * nothing to mark.
+ *
+ * The strip **is** the mark: its box is the 4px band the wave fills, not the text it belongs
+ * to. That is what lets the placement be a decision here rather than a guess in CSS, and it is
+ * the difference between the mark landing beside the glyphs and landing on them.
+ *
+ * Three things happen per line, and each answers one of ADR-0032's requirements:
+ *
+ * - **Everything on the line pushes the mark outwards**, including the ruby annotation and a
+ *   subscript, so the mark never crosses ink.
+ * - **The line's rectangles are merged into one strip.** Not merely aligned: each strip is one
+ *   element and a mask restarts at each element's own edge, so several strips on one line show
+ *   a jump in the wave at every seam. Measured on a line broken by an `<em>`, the three boxes
+ *   started the tile at 3.45, 1.17 and 0.
+ * - **The ruby's own rectangle and any blank stretch are not marked**, though they still count
+ *   towards the outward push and still answer a tap (`hitBoxes`).
+ */
+export function markStrips(
+  marked: readonly MarkedRectLike[],
+  container: ContainerSize,
+  vertical: boolean,
+): HighlightBox[] {
+  const strips: RectLike[] = [];
+
+  for (const line of lines(marked, vertical)) {
+    const paintable = line.filter((one) => one.role === "text");
+    if (paintable.length === 0) continue;
+
+    // The outermost ink on the line, taken over everything on it rather than over what gets
+    // painted: a ruby annotation is never marked and still decides where the mark goes.
+    const outward = Math.max(...line.map((one) => outerEdge(one.ink, vertical)));
+    const from = Math.min(...paintable.map((one) => alongStart(one.rect, vertical)));
+    const to = Math.max(...paintable.map((one) => alongEnd(one.rect, vertical)));
+
+    strips.push(
+      vertical
+        ? { x: outward + MARK_CLEARANCE, y: from, width: WAVE_THICKNESS, height: to - from }
+        : { x: from, y: outward + MARK_CLEARANCE, width: to - from, height: WAVE_THICKNESS },
+    );
+  }
+
+  return visibleBoxes(strips, container);
+}
+
+/** Where a tap counts as landing on this passage: every rectangle of it, whatever it covers. */
+export function hitBoxes(
+  marked: readonly MarkedRectLike[],
+  container: ContainerSize,
+): HighlightBox[] {
+  return visibleBoxes(
+    marked.map((one) => one.rect),
+    container,
+  );
+}
+
+/** The side a mark is drawn beyond: under a horizontal line, to the right of a vertical one. */
+function outerEdge(rect: RectLike, vertical: boolean): number {
+  return vertical ? rect.x + rect.width : rect.y + rect.height;
+}
+
+/** Where a rectangle begins and ends along the direction the text runs. */
+function alongStart(rect: RectLike, vertical: boolean): number {
+  return vertical ? rect.y : rect.x;
+}
+
+function alongEnd(rect: RectLike, vertical: boolean): number {
+  return vertical ? rect.y + rect.height : rect.x + rect.width;
+}
+
+/**
+ * The rectangles grouped into the lines they were laid out on, in document order.
+ *
+ * Neither coordinate settles this alone, which is why the rule has three parts.
+ *
+ * **A ruby annotation joins the line before it, by what it is rather than by where it is.**
+ * `<rt>` sits inside the `<ruby>` whose base characters precede it, so document order says so
+ * outright — and geometry says the opposite: horizontally the annotation's box is above the
+ * line and overlaps the *next* line's by 2px, measured on 18.4px Japanese set solid.
+ *
+ * For everything else, a rectangle starts a new line when it begins **before** the previous one
+ * along the direction the text runs, or when the two do not overlap at all across it. Two
+ * consecutive lines of plain prose begin at the same place, so the first half cannot separate
+ * them; a superscript sits at a different height on the same line, so the second half must not.
+ *
+ * The comparison is against the last rectangle that was **not** a ruby annotation. Comparing
+ * against the annotation instead breaks the vertical case, where it stands a full column-width
+ * away from the characters that continue the same line.
+ */
+function lines(marked: readonly MarkedRectLike[], vertical: boolean): MarkedRectLike[][] {
+  const grouped: MarkedRectLike[][] = [];
+  let anchor: RectLike | undefined;
+
+  for (const one of marked) {
+    if (one.role === "ruby" && grouped.length > 0) {
+      grouped[grouped.length - 1]!.push(one);
+      continue;
+    }
+
+    if (anchor === undefined || startsLine(one.rect, anchor, vertical)) grouped.push([]);
+    grouped[grouped.length - 1]!.push(one);
+    anchor = one.rect;
+  }
+
+  return grouped;
+}
+
+function startsLine(rect: RectLike, anchor: RectLike, vertical: boolean): boolean {
+  if (alongStart(rect, vertical) < alongStart(anchor, vertical)) return true;
+
+  const across = vertical
+    ? {
+        start: rect.x,
+        end: rect.x + rect.width,
+        wasStart: anchor.x,
+        wasEnd: anchor.x + anchor.width,
+      }
+    : {
+        start: rect.y,
+        end: rect.y + rect.height,
+        wasStart: anchor.y,
+        wasEnd: anchor.y + anchor.height,
+      };
+  const overlap = Math.min(across.end, across.wasEnd) - Math.max(across.start, across.wasStart);
+  return overlap <= 0;
 }
 
 // Whether a point landed on one of these boxes.

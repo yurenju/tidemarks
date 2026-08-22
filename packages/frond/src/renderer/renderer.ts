@@ -26,7 +26,7 @@ import { buildSectionDocument, ResourceUrls, SectionParseError } from "./documen
 import { Emitter, type RenderLocation, type RendererEvents, type Unsubscribe } from "./events.ts";
 import { turnPlacement, type TurnEdge, type WritingMode } from "./geometry.ts";
 import { ProgressIndex } from "./progress.ts";
-import { SectionView, type SettingsSource } from "./section-view.ts";
+import { SectionView, type MarkedRect, type SettingsSource } from "./section-view.ts";
 import {
   DEFAULT_SETTINGS,
   withSettings,
@@ -772,7 +772,7 @@ export class Renderer {
    *
    * These numbers go stale on every layout pass. **`layout` is the event that says so.**
    */
-  rectsFor(cfi: string | Cfi): readonly DOMRect[] {
+  rectsFor(cfi: string | Cfi): readonly MarkedRect[] {
     const view = this.view;
     if (view === undefined) return [];
 
@@ -1559,7 +1559,10 @@ export class Renderer {
       text: range.toString(),
       // Measured from the live `Range` rather than from the CFI just serialized: the two
       // answer the same question, and this one has not been through a round trip.
-      rects: view.rectsFor(range),
+      //
+      // Plain rectangles, unlike `rectsFor`: this event feeds the position of a toolbar, and
+      // what a stretch of the selection covers has no bearing on where that toolbar goes.
+      rects: view.rectsFor(range).map((marked) => marked.rect),
     });
   }
 }

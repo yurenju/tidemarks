@@ -63,7 +63,14 @@ import {
   type ChapterBoundary,
   type FlatTocItem,
 } from "../lib/toc";
-import { boxesContain, visibleBoxes, markVar, DEFAULT_MARK, MARKS } from "../lib/highlights";
+import {
+  boxesContain,
+  hitBoxes,
+  markStrips,
+  markVar,
+  DEFAULT_MARK,
+  MARKS,
+} from "../lib/highlights";
 import Panel from "./Panel";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
@@ -507,7 +514,7 @@ export default function Reader({
       // same system.
       if (isTap(dx, dy, ms)) {
         const hit = paintedRef.current.find((entry) =>
-          boxesContain({ x: event.x, y: event.y }, entry.boxes),
+          boxesContain({ x: event.x, y: event.y }, entry.targets),
         );
         if (hit) {
           setChrome("notes");
@@ -1118,15 +1125,27 @@ export default function Reader({
     const size = { width: container.clientWidth, height: container.clientHeight };
     const next: PaintedHighlight[] = [];
     for (const annotation of annotations) {
-      const boxes = visibleBoxes(renderer.rectsFor(annotation.cfiRange), size);
+      const marked = renderer.rectsFor(annotation.cfiRange);
+      // **Two sets of boxes, and they are deliberately different.** What is painted is the
+      // strip of wave beside the text, one per line; what a tap counts against is the text
+      // itself, every rectangle of it — including the ruby annotation and the paragraph
+      // indent, which carry no mark and are still part of the passage the reader marked.
+      //
       // Highlights outside this section come back with no rectangles at all, and ones on
-      // another page fall outside the container — `visibleBoxes` drops both.
-      if (boxes.length > 0) next.push({ annotation, boxes });
+      // another page fall outside the container — both are dropped by the clipping inside.
+      const strips = markStrips(marked, size, verticalBook);
+      const targets = hitBoxes(marked, size);
+      if (strips.length > 0 || targets.length > 0) {
+        next.push({ annotation, boxes: strips, targets });
+      }
     }
 
     setPainted(next);
     paintedRef.current = next;
-  }, [renderer, annotations, geometry]);
+    // `verticalBook` is in here because the placement depends on it now: which edge of the
+    // text a mark runs along is the axis, and a book whose writing mode arrives after the
+    // first paint would otherwise keep its marks on the wrong side of the line.
+  }, [renderer, annotations, geometry, verticalBook]);
 
   // position the highlight toolbar next to the selection once it has rendered
   // (we need its measured size to decide below-vs-above and to clamp on-screen)

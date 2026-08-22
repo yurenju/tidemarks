@@ -213,20 +213,23 @@ html[data-drawer="open"] {
      this to two images: bake the colour into the SVG and it becomes four inks × two themes =
      eight near-identical data URIs, which is the `<select>` chevron's problem multiplied.
 
-     **The tile leaves a pixel at each edge and that is not slack.** The centre line runs 2→4
-     and `stroke-width: 2` puts ink at 1→5 inside a 6px tile. Sized any tighter, the trough
-     lands outside the viewBox and SVG clips it: every wave in the app comes out with a flat
-     bottom, and the vertical one with a flat right side. It is only visible once you know to
-     look, which is why the measurement is written down and not just the value.
+     **The tile leaves an eighth of its height at each edge and that is not slack.** At 4px the
+     centre line runs 1.33→2.67 and `stroke-width: 1.33` puts ink at 0.67→3.33. Sized any
+     tighter, the trough lands outside the viewBox and SVG clips it: every wave in the app comes
+     out with a flat bottom, and the vertical one with a flat right side. It is only visible
+     once you know to look, which is why the measurement is written down and not just the value.
+
+     **4px, and the same 4px in every book** (ADR-0032). It used to be 6px, and 6px does not fit
+     between the lines of a tightly set Latin book without crossing the glyphs. The height was
+     picked by looking at a prototype at reading size: at 2px the wave reads as a plain
+     underline, at 4px it still reads as a wave. `lib/highlights.ts`'s `WAVE_THICKNESS` is the
+     same number — the strip and its mask have to agree or the tile repeats inside the strip and
+     the wave comes out chopped.
 
      The control point sits outside the viewBox on purpose; SVG clips the rendered stroke, not
      the geometry that produces it. */
-  --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 3Q2 1 4 3T8 3' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
-  --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='8'%3E%3Cpath d='M3 0Q1 2 3 4T3 8' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
-  /* The gap between the box's trailing edge and the wave's own, in the direction the text
-     runs. The tile's 1px margin is subtracted where this is used, so the number is the gap a
-     reader sees rather than the gap plus padding. */
-  --wave-drop: 1px;
+  --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5.333' height='4'%3E%3Cpath d='M0 2Q1.333 0.667 2.667 2T5.333 2' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
+  --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5.333'%3E%3Cpath d='M2 0Q0.667 1.333 2 2.667T2 5.333' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
 
   /* Components. The Latin family leads so figures and Western titles are drawn by the face we
      carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
@@ -1838,55 +1841,42 @@ button.danger:hover {
    themes' values for that name live in the token block, so a mark drawn in one theme is
    correct in the other without being redrawn.
 
-   **The box itself paints nothing.** It keeps the rectangle frond reported, exactly, because
-   `highlights.ts` hit-tests a tap against those same numbers — the wave is a child drawn
-   outside it, and moving the box to make room for the wave would move the target with it. */
+   **The box is the mark.** It is the strip of wave itself — not the text it belongs to, and
+   not a rectangle frond reported. `lib/highlights.ts`'s `markStrips` works out where it goes:
+   outside the outermost ink on its line, one strip per line however many rectangles that line
+   was reported as. Both halves of that need facts CSS cannot reach — where the glyphs end
+   inside their box, and which rectangles share a line — so none of it is decided here.
+
+   Two things follow, and both were bugs before:
+
+   - **`bottom` and `right` are gone.** The mark used to be a child drawn at the inside edge of
+     the text's own box, which on a Latin book set solid put its centre line exactly on the
+     baseline (measured on Alice: half-leading 0). Where the mark goes is now arithmetic, done
+     against the ink.
+   - **One element per line, not per rectangle.** A mask repeats from its own element's edge, so
+     a line reported as three rectangles used to show three waves out of phase with each other
+     — measured at 3.45, 1.17 and 0 into the tile on a line broken by an `<em>`. Merging happens
+     before anything gets here.
+
+   Hit-testing does not use these boxes at all; `Reader.tsx` keeps the text's own rectangles for
+   that, so tapping a ruby annotation or a paragraph indent still opens the note. */
 .highlight-box {
-  position: absolute;
-}
-
-/* **The two axes are placed differently, and that is measured rather than chosen.**
-   ---------------------------------------------------------------------------------
-   A horizontal rect from frond is the **line box**: 26px tall for 18.4px type, and consecutive
-   rects touch — the gap between them is exactly 0. Draw the wave below such a box and it is
-   not near the text it marks, it is on top of the next line. So the horizontal wave goes
-   *inside*, in the half-leading the line box already carries under its glyphs.
-
-   A vertical rect is the **em box**: 11px across for 23px type, hugging the glyphs with the
-   inter-column space outside it. Draw the wave inside that and it is on the strokes. So the
-   vertical wave goes *outside*, in the gutter between columns — which is where 傍線 belongs in
-   vertical Chinese and Japanese setting anyway, on the right-hand side of the line.
-
-   Neither of these is what a standalone prototype predicts, and the prototype was wrong in
-   both directions before the running reader was measured. If a future frond changes what
-   `rectsFor` reports, this is the pair of numbers to re-measure.
-
-   The 1px subtracted is the tile's own margin (see `--wave-h`). */
-.highlight-box::after {
-  content: "";
   position: absolute;
   background: var(--mark);
 }
 
-.highlight-box[data-axis="h"]::after {
-  left: 0;
-  right: 0;
-  bottom: calc(var(--wave-drop) - 1px);
-  height: 6px;
+/* `HighlightLayer` is told which axis this is; nothing in the box's geometry says so. The two
+   tiles differ only in which way the wave runs — see `--wave-h` for why 4 and 5.333. */
+.highlight-box[data-axis="h"] {
   mask-image: var(--wave-h);
   mask-repeat: repeat-x;
-  mask-size: 8px 6px;
+  mask-size: 5.333px 4px;
 }
 
-/* `HighlightLayer` is told which of the two this is; nothing in the rectangle says so. */
-.highlight-box[data-axis="v"]::after {
-  top: 0;
-  bottom: 0;
-  left: calc(100% + var(--wave-drop) - 1px);
-  width: 6px;
+.highlight-box[data-axis="v"] {
   mask-image: var(--wave-v);
   mask-repeat: repeat-y;
-  mask-size: 6px 8px;
+  mask-size: 4px 5.333px;
 }
 
 .page-btn {

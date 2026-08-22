@@ -57,7 +57,9 @@ test.describe("drawing a highlight", () => {
     expect(toolbar.y + toolbar.height).toBeLessThanOrEqual(viewport.height);
   });
 
-  test("choosing a colour paints boxes over the selected text", async ({ page }) => {
+  test("choosing a colour paints a mark beside the selected text, never across it", async ({
+    page,
+  }) => {
     const text = await selectPassage(page);
     const paragraph = (await selectedElement(page, text).boundingBox())!;
 
@@ -66,16 +68,24 @@ test.describe("drawing a highlight", () => {
     const boxes = page.locator(".highlight-box");
     await expect(boxes.first()).toBeVisible();
 
-    // Every painted box overlaps the paragraph it came from. This is the assertion that would
-    // have caught a coordinate-system mistake — frond reports rectangles relative to its
-    // container with the margin added back, and getting that wrong shifts the whole layer by
-    // the margin without making anything disappear.
+    // **Beside, and close.** A mark is drawn outside the outermost ink on its line (ADR-0032),
+    // so a box that overlapped the paragraph would be the old bug — the wave crossing the
+    // glyphs. Being near it is the other half, and it is the half that catches a
+    // coordinate-system mistake: frond reports rectangles relative to its container with the
+    // margin added back, and getting that wrong shifts the whole layer by the margin.
+    //
+    // The book here is vertical, so the mark runs down the right of the column and the two
+    // still share a span of y. `NEARBY` is generous on purpose: how far out the mark sits
+    // depends on the ruby on each line, and this is not the test that pins that number.
+    const NEARBY = 60;
     for (const box of await boxes.all()) {
       const rect = (await box.boundingBox())!;
       expect(rect.width).toBeGreaterThan(0);
       expect(rect.height).toBeGreaterThan(0);
-      expect(rect.x + rect.width).toBeGreaterThan(paragraph.x);
-      expect(rect.x).toBeLessThan(paragraph.x + paragraph.width);
+      expect(rect.x, "the mark is outside the text it marks").toBeGreaterThanOrEqual(
+        paragraph.x + paragraph.width - 1,
+      );
+      expect(rect.x, "and not adrift from it").toBeLessThan(paragraph.x + paragraph.width + NEARBY);
       expect(rect.y + rect.height).toBeGreaterThan(paragraph.y);
       expect(rect.y).toBeLessThan(paragraph.y + paragraph.height);
     }
@@ -154,11 +164,12 @@ test.describe("drawing a highlight", () => {
         const paragraph = await selectedElement(page, text).boundingBox();
         const box = await page.locator(".highlight-box").first().boundingBox();
         if (paragraph === null || box === null) return "mid-reflow: one of the two has no box";
-        // Still over the paragraph, and no longer where it was — the text reflowed, and the
-        // layer moved with it rather than staying put.
+        // Still beside the paragraph, and no longer where it was — the text reflowed, and the
+        // layer moved with it rather than staying put. Beside rather than over: the mark is
+        // drawn outside the line's ink now (ADR-0032).
         const overlaps =
           box.x + box.width > paragraph.x &&
-          box.x < paragraph.x + paragraph.width &&
+          box.x < paragraph.x + paragraph.width + 60 &&
           box.y + box.height > paragraph.y &&
           box.y < paragraph.y + paragraph.height;
         const moved = box.y !== first.y || box.x !== first.x || box.height !== first.height;
@@ -170,12 +181,18 @@ test.describe("drawing a highlight", () => {
       .toBe(FOLLOWED);
   });
 
-  test("tapping a highlight opens its note instead of turning the page", async ({ page }) => {
+  test("tapping the marked text opens its note instead of turning the page", async ({ page }) => {
     // The overlay takes no pointer events (it would swallow the taps that turn the page), so
     // this goes through frond's `pointerup` and spine's own hit test.
-    await selectPassage(page);
+    //
+    // **The tap goes on the text, not on the mark.** Those are two different sets of boxes
+    // now: what is painted is the strip of wave beside the line, and what answers a tap is the
+    // text itself — including the ruby annotation and any indent, which carry no mark and are
+    // still part of the passage the reader marked (ADR-0032).
+    const text = await selectPassage(page);
     await page.locator(".highlight-toolbar .swatch").first().click();
-    const box = (await page.locator(".highlight-box").first().boundingBox())!;
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+    const box = (await selectedElement(page, text).boundingBox())!;
 
     const before = await visibleText(page);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);

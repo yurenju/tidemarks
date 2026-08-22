@@ -28,6 +28,7 @@ const REQUIRED_BY_ADR_0003 = [
   "demote-important",
   "gesture-ownership",
   "integer-page-geometry",
+  "minimum-ink-gap",
   "multicol-pagination",
   "reader-stylesheet",
   "relativise-font-size",

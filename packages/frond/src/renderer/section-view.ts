@@ -34,6 +34,7 @@ import {
   type WritingMode,
 } from "./geometry.ts";
 import type { RendererKeyEvent, RendererPointerDownEvent, RendererPointerEvent } from "./events.ts";
+import { blankRuns, inkWithin, minimumLineHeight, type FontInk } from "./ink.ts";
 import { LAYOUT_STYLE_ID, layoutStylesheet } from "./layout.ts";
 import { isElement, isTextLike } from "./node-type.ts";
 import { withLayout, type ReaderSettings, type ResolveLayout } from "./settings.ts";
@@ -55,6 +56,34 @@ export interface SettingsSource {
   readonly reader: ReaderSettings;
   /** Absent means the reader's settings stand as they are. */
   readonly resolveLayout: ResolveLayout | undefined;
+}
+
+/**
+ * What a rectangle covers, so a consumer marking a passage can decide whether to mark it.
+ *
+ * The rectangles come from walking to the text, and the walk knows things the geometry cannot
+ * say: that this stretch is a ruby annotation rather than the words being annotated, or that
+ * it is the two ideographic spaces a Chinese paragraph opens with. Both are inside the range
+ * the reader selected and neither is somewhere a mark belongs, but nothing about a `DOMRect`
+ * distinguishes them — which left the consumer to guess, and there is nothing to guess from.
+ *
+ * frond names them and stops there. Whether an annotation gets its own line, and whether a
+ * blank stretch is still worth hit-testing, are the consumer's calls (ADR-0002).
+ */
+export type RectRole = "text" | "ruby" | "blank";
+
+/** One rectangle of a range, with what it covers and where its glyphs actually sit. */
+export interface MarkedRect {
+  readonly role: RectRole;
+  /** The box the DOM reports: the font's content area, internal leading and all. */
+  readonly rect: DOMRect;
+  /**
+   * The same box shrunk to the glyphs' own extents, along the block axis.
+   *
+   * Equal to `rect` under vertical writing, for a replaced element, and for any font whose
+   * metrics cannot be read — see `measurePart`.
+   */
+  readonly ink: DOMRect;
 }
 
 /** The settings this layout actually runs under. */
@@ -117,6 +146,15 @@ export class SectionView {
   private metrics: PageMetrics;
   /** The reader's margin after landing on the four physical sides. Both coordinate conversion and iframe positioning need it. */
   private insets: Insets;
+
+  /**
+   * The gap the consumer asked to be left between one line's ink and the next, in px, and
+   * whether the reader has already asked for a line height of their own.
+   *
+   * Kept because the floor is applied from `applyLayout`, which runs again on every resize,
+   * while the settings are settled elsewhere.
+   */
+  private inkFloor: { readonly gap: number; readonly readerSet: boolean } | undefined;
   /** The text nodes flattened into document order. Measuring positions binary-searches it, so it is computed once. */
   private textNodes: readonly Text[];
   /**
@@ -249,6 +287,7 @@ export class SectionView {
       metricsFor(frame, settled, reading.writingMode),
       insets,
     );
+    view.inkFloor = inkFloorFrom(settled);
     view.applyLayout();
     view.attachHooks(hooks);
 
@@ -473,6 +512,7 @@ export class SectionView {
     sizeFrame(this.frame, this.host, this.insets);
     this.metrics = metricsFor(this.frame, settled, this.writingMode);
     this.measuredAt = hostSize(this.host);
+    this.inkFloor = inkFloorFrom(settled);
     this.applyLayout();
   }
 
@@ -582,7 +622,7 @@ export class SectionView {
    * Colour, style and animation are the consumer's decision; frond only supplies the
    * geometry (ADR-0002).
    */
-  rectsFor(range: Range): readonly DOMRect[] {
+  rectsFor(range: Range): readonly MarkedRect[] {
     // A zero-length range goes through `measurable` (expanding by one character first)
     // rather than being asked for its own rectangles, for the same reason as when measuring
     // a position: a caret on a column boundary gets drawn at the end of the previous
@@ -590,17 +630,23 @@ export class SectionView {
     // filtered out and the consumer receives an empty array.
     const resolved =
       measurable(range)
-        .map((candidate) => contentRects(candidate))
+        .map((candidate) => contentRects(candidate, this.writingMode))
         .find((rects) => rects.length > 0) ?? [];
 
-    return resolved.map(
-      (rect) =>
-        new DOMRect(
-          rect.left + this.insets.left,
-          rect.top + this.insets.top,
-          rect.width,
-          rect.height,
-        ),
+    return resolved.map((marked) => ({
+      role: marked.role,
+      rect: this.inContainer(marked.rect),
+      ink: this.inContainer(marked.ink),
+    }));
+  }
+
+  /** The iframe is inset by the reader's margin; the consumer draws on the container. */
+  private inContainer(rect: DOMRect): DOMRect {
+    return new DOMRect(
+      rect.left + this.insets.left,
+      rect.top + this.insets.top,
+      rect.width,
+      rect.height,
     );
   }
 
@@ -708,7 +754,46 @@ export class SectionView {
   private applyLayout(): void {
     const style = this.document.getElementById(LAYOUT_STYLE_ID);
     if (style === null) return;
-    style.textContent = layoutStylesheet(this.metrics, this.writingMode);
+    style.textContent = layoutStylesheet(this.metrics, this.writingMode) + this.inkFloorRule();
+  }
+
+  /**
+   * The `minimum-ink-gap` intervention: enough line height for a consumer to draw between the
+   * lines, and not one step more.
+   *
+   * **No `!important`, and on the root alone.** The floor is for the case the book said
+   * nothing — measured on Alice, whose body text is `line-height: normal` and leaves 4px
+   * between the ink of consecutive lines. A book that states a line height has said what it
+   * wants, and states it on a selector that beats this one; a book that says nothing inherits
+   * this. Forcing the value would also *lower* everything a book set looser, which is the
+   * opposite of the requirement.
+   */
+  private inkFloorRule(): string {
+    const floor = this.inkFloor;
+    if (floor === undefined || floor.readerSet) return "";
+    // Vertical setting is skipped for the same reason `measurePart` skips it: a vertical text
+    // rectangle is already tight to the glyphs, so there is no internal leading to recover and
+    // `TextMetrics` cannot measure the cross axis anyway.
+    if (this.writingMode !== "horizontal-tb") return "";
+
+    const body = this.document.body;
+    if (body === null) return "";
+    const style = this.document.defaultView?.getComputedStyle(body);
+    if (style === undefined) return "";
+
+    const fontSize = parseFloat(style.fontSize);
+    const ink = fontInkFor(
+      `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`,
+    );
+    if (ink === undefined || !Number.isFinite(fontSize)) return "";
+
+    const needed = minimumLineHeight(ink, fontSize, floor.gap);
+    const current = parseFloat(style.lineHeight) / fontSize;
+    // `line-height: normal` parses as NaN, and that is exactly the case worth raising: the
+    // book named no height, so there is nothing of the book's to override.
+    if (Number.isFinite(current) && current >= needed) return "";
+
+    return `\n:root { line-height: ${roundUp(needed)}; }`;
   }
 
   private attachHooks(hooks: SectionViewHooks): void {
@@ -1069,47 +1154,173 @@ const REPLACED_ELEMENTS = "img, svg, video, canvas";
  * the deliberate exception: an `<img>` has no text box at all, and dropping it would leave a
  * highlight crossing a picture with a hole in it.
  */
-function contentRects(range: Range): readonly DOMRect[] {
-  const rects = coveredParts(range).flatMap((part) => [...part.getClientRects()]);
-  const own = rects.filter((rect) => rect.width > 0 && rect.height > 0);
+function contentRects(range: Range, writingMode: WritingMode): readonly MarkedRect[] {
+  const marked = coveredParts(range).flatMap((part) => measurePart(part, writingMode));
 
   // Content that is neither text nor a replaced element — a range over a single `<br>`, say
   // — leaves nothing to measure. Falling back to the range's own rectangles keeps such a
   // consumer no worse off than before, and it cannot reintroduce the slabs above: this line
   // is only reached when the range contains no text for them to be wrong about.
-  if (own.length > 0) return own;
-  return [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+  if (marked.length > 0) return marked;
+  return [...range.getClientRects()]
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({ role: "text" as const, rect, ink: rect }));
+}
+
+/** One part's rectangles, each carrying where its ink sits inside it. */
+function measurePart(part: CoveredPart, writingMode: WritingMode): MarkedRect[] {
+  const rects = [...part.node.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+  if (rects.length === 0) return [];
+
+  // **Only the horizontal axis gets an ink measurement.** `TextMetrics` answers about a run
+  // laid out along a horizontal baseline, and there is no counterpart for the cross-axis
+  // extent of vertical setting. It is not needed there either: a vertical text rectangle is
+  // already tight to the glyphs — 15px across for 18.4px type, measured on 草枕 — where a
+  // horizontal one carries the font's internal leading on both sides.
+  const font = writingMode === "horizontal-tb" ? fontInkFor(part.font) : undefined;
+
+  return rects.map((rect) => ({
+    role: part.role,
+    rect,
+    ink:
+      font === undefined
+        ? rect
+        : (() => {
+            const { top, bottom } = inkWithin(rect, font);
+            return new DOMRect(rect.left, top, rect.width, bottom - top);
+          })(),
+  }));
+}
+
+/** A part of a range that carries its own geometry, plus what the consumer needs to know about it. */
+interface CoveredPart {
+  readonly node: Range | Element;
+  readonly role: RectRole;
+  /** The CSS `font` shorthand it is set in, for measuring that font's ink. Empty for a replaced element. */
+  readonly font: string;
 }
 
 /**
  * The parts of a range that carry their own geometry, in document order: one clamped range
- * per text node, and each replaced element as itself.
+ * per stretch of a text node, and each replaced element as itself.
  *
  * The walk starts at `commonAncestorContainer` rather than at the body so that measuring a
  * three-line highlight costs three lines of tree, not the whole section.
+ *
+ * **A text node can produce more than one part**, because a mark is not wanted on every
+ * stretch of it. Chinese and Japanese books commonly open a paragraph with two ideographic
+ * spaces, and those sit in the same text node as the prose after them — so a single rectangle
+ * covers two cells of nothing followed by the words. Cutting at the blank boundaries lets the
+ * consumer drop the blank and keep the rest (`ink.ts`).
  */
-function coveredParts(range: Range): readonly (Range | Element)[] {
-  const parts: (Range | Element)[] = [];
+function coveredParts(range: Range): readonly CoveredPart[] {
+  const parts: CoveredPart[] = [];
   collectCovered(range.commonAncestorContainer, range, parts);
   return parts;
 }
 
-function collectCovered(node: Node, range: Range, parts: (Range | Element)[]): void {
+function collectCovered(node: Node, range: Range, parts: CoveredPart[]): void {
   if (!range.intersectsNode(node)) return;
 
   if (isTextLike(node)) {
-    parts.push(clampedToNode(range, node));
+    collectText(clampedToNode(range, node), node, parts);
     return;
   }
 
   // A replaced element is taken whole and not descended into: an `<svg>`'s own text nodes
   // are inside the box already counted, and adding them would paint that area twice.
   if (isElement(node) && node.matches(REPLACED_ELEMENTS)) {
-    parts.push(node);
+    parts.push({ node, role: "text", font: "" });
     return;
   }
 
   for (const child of node.childNodes) collectCovered(child, range, parts);
+}
+
+/** The clamped part of one text node, cut again wherever it changes between blank and prose. */
+function collectText(clamped: Range, node: Node, parts: CoveredPart[]): void {
+  const covered = clamped.toString();
+  if (covered.length === 0) return;
+
+  const element = node.parentElement;
+  const font = element === null ? "" : fontShorthand(element);
+  // `<rt>` is the annotation over (or beside) the base characters. It is text the reader did
+  // select, but it is not the text they were reading, and marking it draws a second line
+  // alongside the first.
+  const role: RectRole = element?.closest("rt") != null ? "ruby" : "text";
+
+  for (const run of blankRuns(covered)) {
+    const part = clamped.cloneRange();
+    part.setStart(node, clamped.startOffset + run.start);
+    part.setEnd(node, clamped.startOffset + run.end);
+    parts.push({ node: part, role: run.blank ? "blank" : role, font });
+  }
+}
+
+/** The `font` shorthand an element's text is drawn with, as `measureText` wants it. */
+function fontShorthand(element: Element): string {
+  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  if (style === undefined) return "";
+  return `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+}
+
+/**
+ * A font's ink, measured once per `font` shorthand and kept.
+ *
+ * **The probe is fixed, deliberately.** Measuring the text actually covered would make the
+ * mark's height depend on which letters the reader happened to select — marking `mono` and
+ * marking `happy` would put the line at two different distances from the same baseline. Two
+ * constant strings give one answer per font: the letters that reach highest, and the ones that
+ * reach lowest.
+ */
+const ASCENDERS = "bdfhklt";
+const DESCENDERS = "gjpqy";
+
+/** Implausible enough that a book landing on it exactly loses nothing but its ink measurement. */
+const SENTINEL_FONT = "1px monospace";
+
+const inkByFont = new Map<string, FontInk>();
+
+function fontInkFor(font: string): FontInk | undefined {
+  if (font.length === 0) return undefined;
+
+  const remembered = inkByFont.get(font);
+  if (remembered !== undefined) return remembered;
+
+  const context = measuringContext();
+  if (context === undefined) return undefined;
+
+  // **The shorthand does not round-trip, and checking that it does is a trap.** A canvas
+  // normalises what it is given — `normal 400 16px serif` reads back as `16px serif` — so
+  // comparing the two strings rejects every ordinary font and silently leaves every mark
+  // where it was. What has to be caught is the *unparseable* shorthand, which leaves the
+  // context on whatever font it held before and would attribute one book's metrics to
+  // another's text. A sentinel separates the two: it is still there afterwards only if the
+  // assignment was thrown away.
+  context.font = SENTINEL_FONT;
+  context.font = font;
+  if (context.font === SENTINEL_FONT) return undefined;
+
+  const above = context.measureText(ASCENDERS);
+  const below = context.measureText(DESCENDERS);
+  const measured: FontInk = {
+    boxAscent: above.fontBoundingBoxAscent,
+    boxDescent: above.fontBoundingBoxDescent,
+    inkAscent: above.actualBoundingBoxAscent,
+    inkDescent: below.actualBoundingBoxDescent,
+  };
+
+  inkByFont.set(font, measured);
+  return measured;
+}
+
+let measuring: CanvasRenderingContext2D | null | undefined;
+
+function measuringContext(): CanvasRenderingContext2D | undefined {
+  if (measuring === undefined) {
+    measuring = document.createElement("canvas").getContext("2d");
+  }
+  return measuring ?? undefined;
 }
 
 /** The part of a range that falls inside one text node. */
@@ -1235,4 +1446,24 @@ function uncollapse(range: Range): Range | undefined {
 
   expanded.selectNode(container);
   return expanded;
+}
+
+/** What `applyLayout` needs to know about the ink-gap requirement, out of the settled settings. */
+function inkFloorFrom(settled: {
+  readonly minimumInkGap: number | undefined;
+  readonly lineHeight: number | undefined;
+}): { readonly gap: number; readonly readerSet: boolean } | undefined {
+  if (settled.minimumInkGap === undefined || settled.minimumInkGap <= 0) return undefined;
+  return { gap: settled.minimumInkGap, readerSet: settled.lineHeight !== undefined };
+}
+
+/**
+ * Two decimals, and **up**.
+ *
+ * Two because a line height is not perceived finer than that and the rule stays readable. Up
+ * because this is a floor: rounding to nearest delivers a hair less than was asked for half the
+ * time, which is a gap that fails its own requirement by a fraction of a pixel.
+ */
+function roundUp(value: number): number {
+  return Math.ceil(value * 100) / 100;
 }

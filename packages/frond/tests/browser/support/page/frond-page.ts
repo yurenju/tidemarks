@@ -22,6 +22,7 @@ import type {
   FrondHarness,
   LayoutCall,
   MountOptions,
+  MarkedRectSnapshot,
   Rect,
   SectionAtSnapshot,
   SettingsPatch,
@@ -286,7 +287,17 @@ const harness: FrondHarness = {
   rectsFor(cfi): readonly Rect[] {
     return active()
       .rectsFor(cfi)
-      .map((rect) => ({ x: rect.x, y: rect.y, width: rect.width, height: rect.height }));
+      .map((marked) => plainRect(marked.rect));
+  },
+
+  markedRectsFor(cfi): readonly MarkedRectSnapshot[] {
+    return active()
+      .rectsFor(cfi)
+      .map((marked) => ({
+        role: marked.role,
+        rect: plainRect(marked.rect),
+        ink: plainRect(marked.ink),
+      }));
   },
 
   containerSize(): { width: number; height: number } {
@@ -683,4 +694,8 @@ async function loadBook(fixture: string): Promise<RenderableBook> {
   );
 
   return MemoryBook.of({ sections, resources });
+}
+
+function plainRect(rect: DOMRect): Rect {
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
 }

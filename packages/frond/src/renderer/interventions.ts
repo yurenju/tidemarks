@@ -142,6 +142,14 @@ export const INTERVENTIONS: readonly Intervention[] = [
     onlyWhenReaderOverrides: true,
   },
   {
+    id: "minimum-ink-gap",
+    what: "sets line-height on the root element, without !important, when the consumer asked for a minimum gap between the ink of consecutive lines and the book's own line height leaves less than that",
+    reason: "reader-blocked",
+    why: "a consumer drawing beside the text needs a known number of pixels there, and the line height that yields them depends on the font's ink height, which only frond can measure. The rule carries no !important and goes on the root alone, so any line height the book states for itself still wins and nothing is ever made tighter — it fills in where the book said nothing, which is the case this was measured on. It is skipped entirely when the reader has set a line height of their own, and under vertical writing, where the cross-axis extent a text rectangle reports is already tight to the glyphs",
+    where: "src/renderer/section-view.ts",
+    onlyWhenReaderOverrides: true,
+  },
+  {
     id: "reader-stylesheet",
     what: "injects the reader's font-size, font-family, line-height, color, link color and background-color, all with !important; declares an @font-face (font-family, src, font-weight, font-style) for each face the reader supplied as bytes; and sets font-language-override where the reader named an OpenType language system. The colour goes on the root element only, so that the book's own colours are decided one at a time by theme-colors — except where frond cannot read the reader's background, when it goes back onto every element",
     reason: "reader-blocked",
