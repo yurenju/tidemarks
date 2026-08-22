@@ -359,7 +359,7 @@ _Avoid_: annotation layer（`Annotation` 是資料，這是畫出來的那一層
 
 **`Annotation.color` 存的是色名，不是色值**——這是為什麼換一整套顏色不需要 migration，也是為什麼
 `lib/highlights.ts` 的 `markVar()` 回傳 `var(--mark-ochre)` 而不是一個 hex：亮暗兩套值住在
-`index.css`，讀者換主題的時候不必重畫。舊的四個名字（`yellow` / `blue` / `green` / `pink`）在那裡
+`styles/tokens.css`，讀者換主題的時候不必重畫。舊的四個名字（`yellow` / `blue` / `green` / `pink`）在那裡
 對到最近的一個新色。
 
 形態亮暗一致：**只有一條 4px 的波浪線，沒有底色**——潮水退去留下的痕跡，全 app 唯一的裝飾，

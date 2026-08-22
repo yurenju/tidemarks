@@ -1,0 +1,521 @@
+/* The book's own room, and the whole of it in every state. */
+.reader-body {
+  display: flex;
+  height: 100%;
+  position: relative;
+}
+
+.toc-item {
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+}
+
+.toc-item:hover {
+  background: var(--fill-selected);
+  border: none;
+}
+
+/* The chapter being read. The bar carries the mark rather than a background, so a hover still
+   reads as hover while it is on screen. */
+.toc-item.current {
+  color: var(--tide);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--tide);
+}
+
+.viewer-wrap {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  background: var(--surface-page);
+}
+
+.viewer {
+  flex: 1;
+  min-width: 0;
+  /* the highlight layer is positioned against this box, and frond's container fills it, so
+     the two share one coordinate system — the same one frond reports rectangles in */
+  position: relative;
+}
+
+/* frond's container. It sizes its own iframe inside this box and insets it by the reader's
+   margin, so there is no padding of ours to keep in step with the book's writing mode. */
+.viewer-mount {
+  width: 100%;
+  height: 100%;
+  /* The band of margin around the book's own frame is ours, and a finger landing there turns
+     a page like any other (Reader.tsx). Without this the browser claims that finger as a pan
+     before this page hears about it — measured on a touch device, `pointerdown` arrives, one
+     `pointermove` arrives, and then `pointercancel`. frond sets the same thing inside the
+     frame; this is the other half of the same surface. */
+  touch-action: none;
+}
+
+/* The highlight layer. `pointer-events: none` is load-bearing: tapping a highlight is
+   handled from frond's pointerup (which arrives in these coordinates), so the layer must
+   not sit between the reader and the page and swallow the taps that turn it. */
+.highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A wavy line along the edge of the text, and nothing else: no wash, no block of colour.
+   ---------------------------------------------------------------------------------------
+   This is the one place the product's name is drawn — tidemarks are what the water leaves —
+   so it is the only ornament in the interface, and it appears on the one thing that belongs
+   to the reader rather than to us.
+
+   `--mark` is set per box by `HighlightLayer`, which carries the *name* of the ink; both
+   themes' values for that name live in the token block, so a mark drawn in one theme is
+   correct in the other without being redrawn.
+
+   **The box is the mark.** It is the strip of wave itself — not the text it belongs to, and
+   not a rectangle frond reported. `lib/highlights.ts`'s `markStrips` works out where it goes:
+   outside the outermost ink on its line, one strip per line however many rectangles that line
+   was reported as. Both halves of that need facts CSS cannot reach — where the glyphs end
+   inside their box, and which rectangles share a line — so none of it is decided here.
+
+   Two things follow, and both were bugs before:
+
+   - **`bottom` and `right` are gone.** The mark used to be a child drawn at the inside edge of
+     the text's own box, which on a Latin book set solid put its centre line exactly on the
+     baseline (measured on Alice: half-leading 0). Where the mark goes is now arithmetic, done
+     against the ink.
+   - **One element per line, not per rectangle.** A mask repeats from its own element's edge, so
+     a line reported as three rectangles used to show three waves out of phase with each other
+     — measured at 3.45, 1.17 and 0 into the tile on a line broken by an `<em>`. Merging happens
+     before anything gets here.
+
+   Hit-testing does not use these boxes at all; `Reader.tsx` keeps the text's own rectangles for
+   that, so tapping a ruby annotation or a paragraph indent still opens the note. */
+.highlight-box {
+  position: absolute;
+  background: var(--mark);
+}
+
+/* `HighlightLayer` is told which axis this is; nothing in the box's geometry says so. The two
+   tiles differ only in which way the wave runs — see `--wave-h` for why 4 and 5.333. */
+.highlight-box[data-axis="h"] {
+  mask-image: var(--wave-h);
+  mask-repeat: repeat-x;
+  mask-size: 5.333px 4px;
+}
+
+.highlight-box[data-axis="v"] {
+  mask-image: var(--wave-v);
+  mask-repeat: repeat-y;
+  mask-size: 4px 5.333px;
+}
+
+/* Whether these are on screen at all is not decided here: `device.css` hides them below 600 and
+   brings them back above it, and the reasoning for asking the window rather than the pointer is
+   written out there. This rule is only what they look like once they are up. */
+.page-btn {
+  border: none;
+  background: none;
+  font-size: 2rem;
+  color: var(--text-muted);
+  width: 3rem;
+}
+
+/* The whole column lights, not the glyph. The button is 3rem wide and the full height of the
+   book, and a chevron changing shade was the only thing saying so — a target the size of a
+   character advertised by a character. The wash is the tide the arrow turns, at the strength
+   where it separates from the page without competing with the text beside it.
+
+   It does not spend the tide budget (ADR-0022): this is a hover, so it exists only while the
+   pointer is inside it, and never at the same time as the other one. */
+.page-btn:hover {
+  color: var(--tide);
+  background: color-mix(in srgb, var(--tide) 8%, transparent);
+  border: none;
+}
+
+/* Scrubber — draggable position axis pinned to the bottom of the reader. The
+   track is a tall, transparent hit area (easy to tap on touch); the visible rail
+   is a thin ::before centred inside it. Rail thickens and the thumb appears on
+   hover (desktop) or while dragging (touch). See lib/scrubber.ts.
+
+   The touch shape is not written here: `device.css` gives a coarse pointer the thick rail, the
+   permanent thumb and the wider inset all the time, because there is no hover to ask with. The
+   figures below are the pointer's version. */
+.scrubber {
+  flex: none;
+  position: relative;
+  /* The surface and the top border belong to `.chrome-bottom` now: this axis sits inside that
+     bar rather than being a bar of its own. */
+  /* horizontal inset of the rail's coordinate space: the line, fill, thumb and
+     preview all map into [inset, width - inset] so they sit *between* the two end
+     caps. Single source of truth — the component reads this var to convert a
+     pointer x into a fraction. */
+  --scrubber-inset: 10px;
+  /* clip only the horizontal axis: the thumb and the preview bubble can reach the
+     rail ends and would otherwise poke past the viewport and spawn a page-level
+     scrollbar. `clip` (unlike `hidden`) leaves the vertical axis visible, so the
+     bubble still floats up above the bar. */
+  overflow-x: clip;
+}
+
+.scrubber-track {
+  position: relative;
+  height: 22px;
+  cursor: pointer;
+  touch-action: none; /* dragging seeks, never scrolls the page */
+  /* clip the thumb/caps at the very ends so they never poke past the track and
+     trigger a page-level horizontal scrollbar. The preview bubble is a sibling,
+     so it still floats above unclipped. */
+  overflow: hidden;
+}
+
+/* It takes focus now (`role="slider"`), so it has to show that it has it. Inset because the
+   track runs the full width of the screen and an outline drawn on its edge would be a rectangle
+   around the whole bottom of the page. */
+.scrubber-track:focus-visible {
+  outline: 2px solid var(--tide);
+  outline-offset: -2px;
+}
+
+.scrubber-track::before {
+  content: "";
+  position: absolute;
+  left: var(--scrubber-inset);
+  right: var(--scrubber-inset);
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-track);
+  background: var(--line-track);
+  transition: height 0.12s ease;
+}
+
+.scrubber:hover .scrubber-track::before,
+.scrubber.dragging .scrubber-track::before {
+  height: 6px;
+}
+
+.scrubber-fill {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-track);
+  background: var(--tide);
+  transition: height 0.12s ease;
+}
+
+.scrubber:hover .scrubber-fill,
+.scrubber.dragging .scrubber-fill {
+  height: 6px;
+}
+
+.scrubber-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-dot);
+  background: var(--tide);
+  /* The lift, plus a ring of the bar around it. The ring is what makes the thumb readable in
+     the dark theme, where a black offset shadow on a near-black bar says nothing at all; in the
+     light theme it cuts the dot away from the rail it rides, which it needed anyway.
+
+     `--surface-raised` rather than `--surface-page`, and the two stopped being the same value
+     in ADR-0028: the ring is a hole punched in whatever the thumb sits on, so it has to be the
+     bar's colour. Left as the page's, it would draw a pale halo on a darker bar — the one thing
+     a ring meant to disappear must not do. */
+  box-shadow: 0 0 0 2px var(--surface-raised);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.scrubber:hover .scrubber-thumb,
+.scrubber.dragging .scrubber-thumb {
+  opacity: 1;
+}
+
+/* end markers: head (book start) filled, tail (book end) hollow. A left-to-right book
+   reads left→right; a right-to-left one mirrors, so the ends swap. */
+.scrubber-cap {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-dot);
+  pointer-events: none;
+}
+
+/* caps sit exactly at the two ends of the rail's coordinate space, so the line
+   runs between them. The inset keeps them clear of the track edges. */
+.scrubber-cap-head {
+  left: var(--scrubber-inset);
+  background: var(--text-muted);
+}
+
+.scrubber-cap-tail {
+  left: calc(100% - var(--scrubber-inset));
+  border: 1px solid var(--text-muted);
+}
+
+.scrubber-rtl .scrubber-cap-head {
+  left: calc(100% - var(--scrubber-inset));
+}
+
+.scrubber-rtl .scrubber-cap-tail {
+  left: var(--scrubber-inset);
+}
+
+.scrubber.disabled {
+  opacity: 0.45;
+}
+
+.scrubber.disabled .scrubber-track {
+  cursor: default;
+}
+
+/* preview bubble floats above the thumb while dragging (Q2): chapter title + % */
+.scrubber-preview {
+  position: absolute;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  max-width: 70vw;
+  padding: 0.35rem 0.6rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--radius-surface);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  white-space: nowrap;
+}
+
+.scrubber-chapter {
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-ui);
+  color: var(--text-primary);
+}
+
+.scrubber-pct {
+  font-family: var(--font-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The one component allowed to reverse out, and it earns it by being the only thing that sits
+   **on top of the reader's own words**. Everything else in the app is paper the book is printed
+   on; this is a tool held over the page, and the way you tell a tool from the page is that it
+   is the other colour.
+
+   The rule is "the opposite of the paper underneath", not "always dark": in the dark theme the
+   book is near-black, so the toolbar goes bone. Reversing means the shadow is the only edge it
+   needs — a rule as well would be a frame around a shape that is already cut out.
+
+   Position is still `toolbar-position.ts`'s business and nothing here touches it. */
+.highlight-toolbar {
+  /* left/top are set inline: the toolbar floats next to the text selection so it
+     never sits in the bottom strip where Android Chrome shows its native bar */
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  padding: 9px var(--space-3);
+  border-radius: var(--radius-surface);
+  justify-content: center;
+  max-width: calc(100vw - var(--space-5));
+}
+
+/* The two halves of the bar: four inks, then the two words. They are groups rather than six
+   loose children because the rule between them belongs to the seam, and a seam needs two sides
+   to be a seam.
+
+   **This replaced `flex-wrap`,** which was six children finding their own way onto two lines on
+   a phone — and the rule, being the `border-left` of whichever button happened to land first on
+   the second line, went with it: a vertical hairline standing at the start of a row with
+   nothing to its left, pushing 重點＋筆記 off centre. What it divided was gone and it was still
+   being drawn. Two groups and one declared breakpoint say the same thing without asking the
+   layout engine where the line fell. */
+.mark-inks,
+.mark-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mark-actions {
+  border-left: 1px solid var(--line-on-inverse);
+  padding-left: var(--space-3);
+}
+
+/* Where the six stop fitting side by side. Four targets at `--tap-min` plus two words of label
+   come to about 380px, so this is that plus the bar's own padding and a margin for a longer
+   translation — not a device, just the width the contents ask for. Below it the bar is two
+   rows and the seam turns ninety degrees with them. */
+@media (max-width: 30rem) {
+  .highlight-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mark-inks {
+    justify-content: center;
+  }
+
+  .mark-actions {
+    justify-content: center;
+    border-left: none;
+    border-top: 1px solid var(--line-on-inverse);
+    padding-left: 0;
+    padding-top: var(--space-2);
+  }
+}
+
+/* The buttons give up their own paper: inside a reversed bar a bordered control is a box drawn
+   on a box. What says they can be pressed is the bar. */
+.highlight-toolbar button:not(.swatch) {
+  border-color: transparent;
+  background: none;
+  color: inherit;
+  min-height: var(--tap-dense);
+  padding: 0 var(--space-2);
+  font-size: var(--type-body);
+}
+
+/* A wash of the bar's own ink, not tide: on a reversed bar the light theme's tide blue is
+   2.3:1 against the near-black and reads as a word going out rather than lighting up. */
+.highlight-toolbar button:hover {
+  background: color-mix(in srgb, var(--text-on-inverse) 16%, transparent);
+  color: inherit;
+}
+
+/* A ring in the bar's own ink around each dot. The four marks are the colours the reader will
+   actually get, and two of them (soot, indigo) are close enough to a reversed bar to disappear
+   against it; the ring gives every dot an edge without repainting the ink. */
+.highlight-toolbar .swatch::before {
+  border-color: var(--text-on-inverse);
+}
+
+/* The wedge: it points at the passage, so it hangs off whichever edge faces it. `clip-path`
+   rather than the old border trick, because a triangle made of borders cannot take the
+   toolbar's own background as a variable.
+
+   The usual case is the toolbar below the selection, so the wedge is on top, pointing up. */
+.highlight-toolbar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 7px;
+  margin-left: -7px;
+  background: var(--surface-inverse);
+  bottom: 100%;
+  clip-path: polygon(0 100%, 50% 0, 100% 100%);
+}
+
+/* And over it goes when `toolbar-position` had to put the toolbar above the passage, which it
+   does near the bottom of the screen where Android Chrome's own bar comes up. */
+.highlight-toolbar[data-above]::after {
+  bottom: auto;
+  top: 100%;
+  clip-path: polygon(0 0, 50% 100%, 100% 0);
+}
+
+/* The one round thing on the shelf-and-reader side of the app, along with the Scrubber's
+   thumb: a finger pinches these. The box around the dot is `--tap-min`, the same box the five
+   glyph buttons get — the dot is what the reader sees, the square is what they hit. */
+.swatch {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  border: none;
+  background: none;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.swatch::before {
+  content: "";
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--radius-dot);
+  border: 1px solid var(--line-firm);
+  background: var(--mark);
+  transition: transform 0.12s ease;
+}
+
+.swatch:hover {
+  background: none;
+}
+
+.swatch:hover::before {
+  transform: scale(1.1);
+}
+
+/* The reader's own mark, carried into the list: the rule down the side is the ink they made
+   it in, so a note found here is recognisably the passage they marked in the book. */
+.annotation-item {
+  border-left: 3px solid var(--mark-indigo);
+  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-sunken);
+}
+
+.annotation-item blockquote {
+  margin: 0 0 0.3rem;
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+  cursor: pointer;
+}
+
+.annotation-item blockquote:hover {
+  text-decoration: underline;
+}
+
+.note-text {
+  margin: 0.2rem 0;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+}
+
+.note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.note-editor textarea {
+  font-size: var(--type-ui);
+  min-height: 4rem;
+  resize: vertical;
+  background: var(--surface-page);
+  border: 1px solid var(--line-actionable);
+  padding: 0.4rem;
+}
+
+.annotation-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.annotation-actions button {
+  font-size: var(--type-note);
+  padding: 0.15rem 0.45rem;
+  min-height: var(--tap-dense);
+}

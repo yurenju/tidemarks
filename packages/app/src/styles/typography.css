@@ -1,0 +1,302 @@
+/* 〈排版〉's six, in both shells: the reader's panel and 〈設定〉's 排版 tab.
+   ------------------------------------------------------------------------
+   **Label left, control right.** The two-line arrangement this replaced was fine for four rows
+   in a panel that had nothing above it worth seeing; six rows in it push the book off a
+   hand-held entirely, and the book is the preview (ADR-0026). */
+.form-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The vertical padding is what keeps the rule off the control. `min-height` alone did not: a
+   select is taller than `--tap-min` once it carries its own padding, so the row was exactly as
+   tall as the control inside it and every hairline ran along the edge of a box. Six of them
+   stacked read as one grid rather than as six settings.
+
+   **This costs the hand-held panel its no-scroll guarantee**, and that is a debt rather than a
+   trade taken: six rows at a finger's 44px are already 264px of a 410px box (ADR-0023), so the
+   room this asks for is room that was never there. The panel now scrolls 89px on a hand-held
+   and `hand-held.spec.ts` says so. The answer is not to take the padding back off — a form
+   whose rules run along the edges of its controls is the thing being fixed here, on every
+   pointer — but to give the panel the height it needs. Tracked in #160. */
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* The control drops below its label when it will not fit beside it, and only then. A segmented
+     設定 cannot shrink — its cells are words — so in the reader's column (236px at the time,
+     300px at its narrowest now) 主題's three options ran off the edge and 深色 was cut in half.
+     The extra width does not make this rule redundant: the floor still has to hold on the
+     narrowest window that gets a column at all. Wrapping is what makes one arrangement
+     serve both shells: label-beside in 〈設定〉 and on a phone's sheet, label-above in the narrow
+     column, without either being a second layout to keep in step. */
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) 0;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* The last row before the button carries no rule: a line with nothing under it is a line
+   drawn around something.
+
+   Asked by what follows it rather than by `:last-of-type`, which counts per element name — it
+   worked only while every row was a `<label>`, and the segmented rows are `<div>`s (a
+   radiogroup has no single control for a label to point at). With both kinds present it would
+   have unruled the last `<label>` in the middle of the form and left the real last row ruled. */
+.form-row:has(+ .form-actions) {
+  border-bottom: none;
+}
+
+.form-label {
+  flex: none;
+}
+
+.form-row select,
+.form-row input {
+  color: var(--text-primary);
+}
+
+/* A setting whose options all stand on the page at once: one border around the set, one hairline
+   between each pair, and the chosen one filled.
+   -------------------------------------------------------------------------------------------
+   The cells share their borders by pulling one pixel left, so the set reads as a single control
+   with divisions rather than as three buttons that happen to touch. The chosen cell is lifted a
+   layer for the same reason: its own tide edge has to win over both neighbours' hairlines, or
+   the fill would sit inside a box drawn by somebody else. */
+.segmented {
+  display: flex;
+  /* Takes the room the label leaves, and a line of its own when there is not enough of it. The
+     cells share what it gets equally, so a wrapped group reads as one full-width control rather
+     than as three words huddled at one end. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.segment {
+  flex: 1 1 auto;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  font-size: var(--type-ui);
+  color: var(--text-body);
+  white-space: nowrap;
+  border: 1px solid var(--line-actionable);
+  margin-left: -1px;
+}
+
+.segment {
+  border-radius: 0;
+}
+
+.segment:first-child {
+  margin-left: 0;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.segment:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+/* Answered before the fill, so the two never argue over one cell. */
+.segment:hover:not(:disabled) {
+  background: var(--fill-selected);
+  border-color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+}
+
+.segment[aria-checked="true"],
+.segment[aria-checked="true"]:hover {
+  background: var(--tide);
+  border-color: var(--tide);
+  color: var(--text-on-tide);
+  position: relative;
+  z-index: 2;
+}
+
+/* A chosen cell in a group nobody can press — 欄數 over a 直排 book, where frond cannot honour
+   two columns at all. It still has to say which value is standing, and it must not say it in
+   tide: that blue is the colour for what can be acted on (ADR-0022), and a tide-filled cell
+   that refuses the press is the one thing that rule exists to prevent. A step of paper says it
+   instead. */
+.segment:disabled[aria-checked="true"] {
+  background: var(--surface-sunken);
+  border-color: var(--line-firm);
+  color: var(--text-muted);
+}
+
+/* The slider is the one control that wants the room the labels do not use. */
+.form-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  max-width: 11rem;
+}
+
+/* The line under 字型: what this device is holding, or what a fetch is doing. Full width and
+   under the row rather than beside it, because the download bar needs somewhere to lie.
+   ------------------------------------------------------------------------------------
+   **It is the tail of 字型, not a row of its own**, so the row above gives up its rule and
+   this one closes the pair. With both rules drawn the note sat in a box between two hairlines,
+   which reads as a seventh setting — one that says something rather than doing anything. The
+   note keeps its own top padding at nothing, so it sits under the words it belongs to rather
+   than midway between two settings. */
+.form-row:has(+ .form-note) {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.form-note {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* Bordered rather than `.ghost`: the bar's ghost buttons read as buttons because a bar
+   surrounds them, but here they sit under a column of bordered selects, and a borderless
+   control in that company reads as a caption. */
+.form-actions button {
+  font-size: var(--type-note);
+  padding: 0.3rem 0.6rem;
+  min-height: var(--tap-dense);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-popup,
+  .panel-backdrop {
+    transition: none;
+  }
+
+  .panel-popup[data-starting-style],
+  .panel-popup[data-ending-style] {
+    transform: none;
+  }
+}
+
+/* The bar under the download line in the typography sheet.
+   The percentage alone is not enough on a slow connection: 16 MB over a weak signal can sit on
+   one number for a minute, and a number that does not move is indistinguishable from one that
+   has stopped. The bar answers "is this alive" — its sheen travels continuously whatever the
+   percentage does — while the width answers "how far". */
+/* A bar nobody can drag, and it has to be impossible to mistake for the one they can. The
+   Scrubber a few centimetres below it is tide, is 22px of hit area, carries a thumb and end
+   caps, and answers the keyboard. This is grey, is 3px of nothing, has no thumb, no caps and
+   no pointer events at all — the two appear in the same panel, and a reader who drags this
+   one because it looked like the other lands somewhere else in their book with no way back.
+
+   **The tide blue is the whole of that signature**, which is why this bar never gets it: it means
+   "you can act on this", and the one thing to do with a download is wait.
+
+   It also does not take a row of its own. Pressed against the line it explains (4px), it
+   reads as part of that sentence rather than as a second thing happening. */
+.font-progress {
+  height: 3px;
+  margin: var(--space-1) 0 0.15rem;
+  border-radius: var(--radius-track);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.font-progress-fill {
+  height: 100%;
+  background: var(--text-muted);
+  /* The width is set inline from the measured bytes; the transition keeps it from stepping. */
+  transition: width 0.25s ease-out;
+  position: relative;
+}
+
+/* The travelling sheen — the part that says "still running" when the width is not moving. */
+.font-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--surface-page), transparent);
+  opacity: 0.55;
+  animation: font-progress-sheen 1.4s ease-in-out infinite;
+}
+
+@keyframes font-progress-sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* No declared total, so there is no width to draw: a short segment slides the track instead.
+   Inventing a percentage here would be a bar that jumps backwards when the total arrives. */
+/* The same walk a busy button does (`busy-shuttle`), because it is the same statement: something
+   is running and nobody can say how far along. */
+.font-progress.indeterminate .font-progress-fill {
+  width: 40%;
+  transition: none;
+  animation: busy-shuttle 1.6s ease-in-out infinite;
+}
+
+.font-progress.indeterminate .font-progress-fill::after {
+  animation: none;
+}
+
+/* Motion is the whole point of the sheen, so with it off the bar falls back to what it can
+   still say honestly: the width. */
+@media (prefers-reduced-motion: reduce) {
+  .font-progress-fill::after,
+  .font-progress.indeterminate .font-progress-fill {
+    animation: none;
+  }
+
+  .font-progress.indeterminate .font-progress-fill {
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* The one-off note after a font job — applied, or could not be had. A pill low on the page,
+   clear of the header controls and the text; it fades in, sits long enough to read, and clears
+   itself. It explains the reflow, so it is deliberately not a control the reader can act on. */
+.font-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 12;
+  max-width: min(20rem, calc(100% - 2rem));
+  padding: 0.5rem 0.9rem;
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  font-size: var(--type-note);
+  line-height: var(--leading-text);
+  text-align: center;
+  border-radius: var(--radius-surface);
+  animation: font-toast-in 0.18s ease-out;
+}
+
+@keyframes font-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .font-toast {
+    animation: none;
+  }
+}

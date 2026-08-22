@@ -1,0 +1,280 @@
+/* The two questions about the device, and the last file `index.css` imports.
+   ==========================================================================
+   **Being last is what makes this file work.** Every selector restated here is already set by
+   one of the seven files before it, at the same specificity — a media query adds none — so
+   these win by arriving after. Move a block of this file next to the component it overrides and
+   the component starts winning instead.
+
+   The other seven are written for the narrowest window and the finest pointer, which is why so
+   little of them needs undoing here.
+
+   The hand
+   --------
+   These two ask about the hand, and only about the hand: what has to be bigger because a finger
+   is blunt, and where the tools go because a thumb can only reach so far. Widths come after,
+   and they never stand in for either question (ADR-0023). */
+
+/* No hover to ask a question with, so the shapes have to answer it up front: the Scrubber wears
+   its thick rail and its thumb all the time rather than growing them under a pointer that will
+   never arrive. The inset grows with the thumb — a 22px dot centred on the rail's end would
+   hang half of itself off the track. */
+@media (any-pointer: coarse) {
+  .scrubber {
+    --scrubber-inset: 14px;
+  }
+
+  .scrubber-track::before,
+  .scrubber-fill {
+    height: 6px;
+  }
+
+  .scrubber-thumb {
+    width: 22px;
+    height: 22px;
+    opacity: 1;
+  }
+
+  /* The entries are what a thumb aims at here, so they take the full target back. */
+  .chrome-nav button {
+    min-height: var(--tap-min);
+    font-size: var(--type-ui);
+  }
+
+  /* A row in a drawer is a target as much as it is a line of text. */
+  .drawer-section label,
+  .drawer-list li {
+    min-height: 48px;
+  }
+}
+
+/* A hand-held: a coarse pointer **and** a window small enough that the top of it is a stretch.
+   Then, and only then, the entries drop to the bottom edge where the thumb already is, and the
+   panel they raise comes up from that edge rather than in from the side.
+
+   The pair of conditions is the whole point. A desktop window dragged narrow is not a phone —
+   the hand is on a mouse — and a tablet in landscape is not one either, because at 1024px the
+   bottom edge is a long way from the text. `Panel.tsx` names the same query for the one thing
+   CSS cannot decide there, which is the direction a finger dismisses the panel. */
+@media (any-pointer: coarse) and (max-width: 819px) {
+  /* One column, and the entries drop below the book so the thumb can reach them. Same markup,
+     same component; only the template changes. */
+  .chrome {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "gap"
+      "nav"
+      "bottom";
+    grid-template-rows: auto 1fr auto auto;
+  }
+
+  .chrome-nav {
+    justify-content: flex-start;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: none;
+    border-top: 1px solid var(--line-hair);
+    /* The entries belong to the bottom edge here, so that is the edge they come back from. The
+       one line of the slide that has to move with them. */
+    transform: translateY(var(--chrome-slide));
+  }
+
+  .chrome-bottom {
+    border-top: none;
+  }
+
+  .chrome-nav button.active {
+    border-color: transparent;
+  }
+
+  /* The panel spans the full width here, so there is no right end for the bars to give up and
+     nothing for a shortened bar to stay clear of. The one undo left in this query: the book's
+     column is not in here any more because the rule that takes it only exists above 1024px. */
+  .reader[data-panel] .chrome {
+    right: 0;
+  }
+
+  /* **The entries and the Scrubber step aside for a panel.** Three layers stacked on a 390px
+     screen left the book a quarter of the height and the form still scrolling (#160), and the
+     top quarter is the thing the panel is open for — 〈排版〉 applies as it is dragged and the
+     page above it is the preview. So 〈找〉's "the Scrubber is always there" is the desk's rule
+     now (docs/specs/ux-replan/spec.md): here it holds only while nothing is standing on it.
+
+     Sent back the way they came, so closing the panel brings them in from the edge they belong
+     to rather than fading them in on the spot. */
+  .reader[data-panel] .chrome-nav,
+  .reader[data-panel] .chrome-bottom {
+    transform: translateY(var(--chrome-slide));
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Up from the bottom edge and across the full width: there is no room here to give a panel a
+     column of its own, and a 300px strip on a 390px screen would leave the book in a gutter. */
+  .panel-popup {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    /* 36rem, up from 29 — and the room came from the two bars, not from the book.
+       ------------------------------------------------------------------------
+       **What the cap protects is the book**, and what it was fighting was the entries and the
+       Scrubber standing under the panel: the panel had to stop above them, so the form's last
+       two rows fell below the fold (#160) while a third of the screen went to two bars nobody
+       was using. Now they step aside, and the same 30% of book costs 7rem less.
+
+       The numbers on a 390×844 screen, as `hand-held.spec.ts` prints them: the form comes to
+       549px, under the 576 this allows, so the panel stands at its content and leaves 295px of
+       book — 35% of the reader, over the 30% that spec holds it to, and nothing below the fold.
+       **The cap is a ceiling, not the height**, which is why 844 − 576 is not the figure.
+
+       `70vh` is the half that bites on a shorter phone, where the form goes back to scrolling.
+       That is the right way round: a form that scrolls has lost a scroll, a panel with no book
+       above it has lost the thing it covers the page for (ADR-0026). */
+    max-height: min(70vh, 36rem);
+    height: auto;
+    background: var(--surface-raised);
+    border-left: none;
+    border-top: 1px solid var(--line-hair);
+    border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+    transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
+  }
+
+  /* A press on the book above the sheet puts it away. Only here: everywhere else the bars are
+     still standing and a full-box target would sit on them (see `.panel-backdrop`). */
+  .panel-backdrop {
+    pointer-events: auto;
+  }
+
+  .panel-popup[data-starting-style],
+  .panel-popup[data-ending-style] {
+    transform: translateY(100%);
+  }
+}
+
+/* The window
+   ----------
+   Where things sit, and nothing about how big a finger is. Written narrow-first, so each of
+   these adds rather than undoes. 390 is the floor rather than a breakpoint, and 1680 needs no
+   rule at all: the large book's `clamp` has already stopped growing by then, which is exactly
+   what "more space buys columns, not size" means. */
+
+/* ≥ 600 — a narrow window on a desktop, a phone in landscape, a split screen. */
+@media (min-width: 600px) {
+  .cover-wall {
+    gap: var(--space-5) var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .reading-now-actions .primary {
+    flex: 0 0 auto;
+  }
+
+  .error {
+    margin: 0 var(--space-5);
+  }
+}
+
+/* ≥ 820 — tablet width. Room to breathe, still one column. */
+@media (min-width: 820px) {
+  .library-header {
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .shelf-actions {
+    padding: var(--space-5) var(--space-6) 0;
+  }
+
+  .reading-now {
+    gap: var(--space-6);
+    padding: var(--space-6) var(--space-6) 0;
+  }
+
+  .cover-wall {
+    gap: var(--space-6) var(--space-4);
+    padding: var(--space-6);
+  }
+}
+
+/* ≥ 1024 — wide enough that the book can give up a column and still be a book.
+   ---------------------------------------------------------------------------
+   **This is where the panel stops covering the page and starts standing beside it.** ADR-0026
+   asks for that: 〈排版〉 applies as it is dragged, so the page has to stay visible, and a panel
+   over it hides the one surface it was opened to change. What the ADR does not say — because
+   until the panel took a real share of the window it never came up — is that the trade only
+   pays while there is a book left afterwards. Below this line there is not: a 900px window
+   handing over 300px leaves 600px, which is one column of text and two-thirds of a page.
+
+   So the narrow window keeps the preview by covering less of the page rather than by pushing
+   what is left into a gutter, and the reader gets back what the wide window's arrangement was
+   spending: nothing repaginates at all down here.
+
+   Written as an addition rather than as an undo — the file is narrow-first, and covering is
+   what the panel does everywhere else, hand-held sheet included. */
+@media (min-width: 1024px) {
+  /* The column the panel takes **from the book**. The bars gave up their right end at every
+     width (`.reader[data-panel] .chrome`); this is the half that costs a repagination, and it
+     is the price ADR-0026 asks for a preview the reader can actually see.
+
+     **The book's share is given up in one step**, and the panel then slides across a gap that
+     is already empty. `padding-right` used to be animated, and animating it meant animating
+     the book's box: frond repaginates on its `ResizeObserver`, so every frame of a 180ms slide
+     was another full pagination and the reader watched the text squeeze in rather than the
+     panel arrive. Now it is one reflow on open, one on close, and none at all when switching
+     between the three, because the column does not move for that (`Reader.tsx`).
+
+     The bars still slide their right edge (`.chrome`'s own `transition: right`) — nothing
+     repaginates for that, and it is what makes the panel look like it is pushing them rather
+     than landing on a bar that has already jumped out of the way.
+
+     Written on `.reader` rather than on the panel because the two things that have to move are
+     the panel's *siblings* — a popup cannot push what it is portalled beside. */
+  .reader[data-panel] .reader-body {
+    padding-right: var(--panel-width);
+  }
+}
+
+/* ≥ 1280 — two columns, and the book in progress stays put while the wall scrolls past it.
+   `:has()`, so a shelf with nothing in progress is not a 500px empty column beside a squeezed
+   wall: with no `.reading-now` inside, the grid never switches on. */
+@media (min-width: 1280px) {
+  .shelf:has(.reading-now) {
+    display: grid;
+    grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-4);
+  }
+
+  /* Sticky rather than fixed, and only at this width: the block is shorter than any window
+     this wide, so it can never cover the wall it is beside. Below 1280 the two are stacked and
+     sticking one to the top would just park it on the covers — and a phone's height is the
+     scarce thing there, not its width. */
+  .shelf:has(.reading-now) .reading-now {
+    position: sticky;
+    top: var(--space-6);
+    padding-right: 0;
+  }
+
+  .shelf:has(.reading-now) .cover-wall {
+    padding-left: 0;
+  }
+}
+
+/* The page-turn arrows, and this one stays a question about the **window** even though it looks
+   like a question about the hand. They cost two 3rem columns of the book's own width, which is
+   what a narrow window has least of; a finger that has them still turns the page by tapping the
+   band it is already over (`lib/touch.ts`), so nothing is lost by leaving them up on a wide
+   screen that happens to be touched.
+
+   Asking the pointer instead was tried and reverted: under emulation the engines report a
+   touch-only machine at any window size, so the rule took the arrows away from the desktop case
+   `tap.spec.ts` exists to pin — a branch nobody could see going wrong until the suite said so. */
+.page-btn {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .page-btn {
+    display: block;
+  }
+}

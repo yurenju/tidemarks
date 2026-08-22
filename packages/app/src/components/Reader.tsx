@@ -1226,7 +1226,7 @@ export default function Reader({
 
   /** Raises a panel, or drops it back to the bare bar if it was already the one showing. */
   const togglePanel = (panel: PanelKind) => setChrome((now) => (now === panel ? "up" : panel));
-  // `index.css` draws both arrangements; this only says which state the reader is in.
+  // `styles/reader.css` draws both arrangements; this only says which state the reader is in.
   const panelOpen = isPanel(chrome);
 
   // Which face the one panel is wearing. It has to outlive `chrome` falling back to `"up"`,
@@ -1331,7 +1331,7 @@ export default function Reader({
           a state that is unmounted cannot leave: the bars would blink out mid-slide. `data-up`
           is the whole of the state as CSS reads it — down, they are outside the reader's box and
           `visibility: hidden`, so nothing on this layer is reachable by a pointer, by the
-          keyboard or by a screen reader (`index.css`). */}
+          keyboard or by a screen reader (`styles/reader.css`). */}
       <div className="chrome" data-up={chromeUp || undefined}>
         {/* Which book, and the way back to the shelf. **Not which chapter** — that went down to
             the Scrubber's row, where "where am I" is already being answered by a rail; the two
@@ -1562,7 +1562,7 @@ export default function Reader({
         >
           {/* Two groups rather than six children, so the rule between them has a side to sit on
               whichever way the bar is laid out. On a phone the bar is two rows and the rule is
-              the seam between them; wider, it is one row and the rule stands up (`index.css`). */}
+              the seam between them; wider, it is one row and the rule stands up (`styles/book.css`). */}
           <div className="mark-inks">
             {MARKS.map(({ name, label }) => {
               const inkLabel = t({

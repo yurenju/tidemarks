@@ -1,8 +1,12 @@
 # Design system
 
 怎麼分，加上值。**為什麼**長這樣在 [ADR-0022](adr/0022-the-interface-is-a-print-shop.md)，
-**值本身**的正本在 [`packages/app/src/index.css`](../packages/app/src/index.css) 的 `:root`
-（這份文件會過期，那個檔案不會）。詞的定義在 [CONTEXT.md](../CONTEXT.md)。
+**值本身**的正本在 [`packages/app/src/styles/tokens.css`](../packages/app/src/styles/tokens.css)
+的 `:root`（這份文件會過期，那個檔案不會）。詞的定義在 [CONTEXT.md](../CONTEXT.md)。
+
+樣式分成八個檔案放在 [`packages/app/src/styles/`](../packages/app/src/styles/)，
+[`index.css`](../packages/app/src/index.css) 只剩一份 `@import` 清單——**那份清單就是 cascade**，
+哪個檔案管什麼也寫在那裡。要加規則就從那份清單找檔案。
 
 視覺方向叫 **Indigo Dye**，2026-08-22 換上。它取代的那一套（紙、墨、葉綠）的縮減脈絡留在
 ADR-0022 裡。**handoff 不是逐值照抄的**，偏離的地方在下面各節標出來，理由都在 ADR-0022。
@@ -114,7 +118,7 @@ debt（亮色的 `bg-sunken` 與 `bg-skeleton` 都是 `#ede5d6`）。既然階�
 
 **沒有。** 一個都沒有。「浮起來」由表面階數說（ADR-0022〈影子換成階數〉）。
 
-`index.css` 裡還留著三個 `box-shadow`，**沒有一個是投影**：focus 環的暈（見〈focus〉）、Scrubber
+整份樣式裡還留著三個 `box-shadow`，**沒有一個是投影**：focus 環的暈（見〈focus〉）、Scrubber
 thumb 外面那一圈（那是在它所騎的軌上挖一個洞）、以及目錄裡標示「正在讀這一章」的 inset 線。
 
 ### 字
@@ -176,7 +180,7 @@ Indigo Dye 的 15px/300 內文：300 字重的宋體在高 DPI 手機上會發�
 `hand-held.spec.ts` 斷言的幾何全部要重驗。採用的是它指名的**固定組合**：按鈕一律 `8px 16px`、
 內卡與列 `12px 16px`。
 
-`index.css` 裡還有一批 rem 寫的 padding 沒有換過來，**那是刻意的**：rem 跟著讀者的根字級走，
+樣式裡還有一批 rem 寫的 padding 沒有換過來，**那是刻意的**：rem 跟著讀者的根字級走，
 px 不會，整批換掉是在改一件無障礙行為，不是在整理格式。新寫的規則用 token。
 
 ## 元件的規則

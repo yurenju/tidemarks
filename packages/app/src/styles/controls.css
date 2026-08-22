@@ -1,0 +1,183 @@
+/* Buttons come in three, and the plain one is the middle: a rule around a piece of paper.
+   Tide is the scarce thing on this screen, so it is opted into by `.primary` and never
+   arrives by default; `.ghost` gives up the rule as well, which only reads as a button when
+   something else says it is one — a bar around it, or a single glyph in a 44px square.
+   `.danger` is its own step and not a variant of primary: it is the one place a colour is
+   used to slow the reader down rather than invite them.
+
+   `--tap-min` on every one of them, and that number is a question about the machine rather
+   than about the window: 44px wherever a coarse pointer exists at all — phones, tablets, and
+   the touch laptop whose owner is using its trackpad right now — and 32px where none does.
+
+   The rule is `--line-actionable` rather than `--line-firm`. In the light theme the two are
+   the same value; in the dark they are not, because a border at `--line-firm` there is 1.2:1
+   against the page and a button with an invisible edge is a caption. */
+button {
+  cursor: pointer;
+  font-family: var(--font-control);
+  border: 1px solid var(--line-actionable);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+  /* labels must never wrap into vertical text when flex squeezes them */
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+/* A blue wash of the paper, not a step of it. A step is what says which layer a thing is on
+   (ADR-0022), and hover is not a layer — spending a step on it leaves the two questions sharing
+   one signal, and in the dark theme they answered in opposite directions. `--fill-selected` is
+   the same wash in both themes and the border moves with it. */
+button:hover {
+  background: var(--fill-selected);
+  border-color: var(--tide);
+}
+
+/* Pressed, which the old system never drew at all: it had a hover, a filled primary, and
+   nothing in between. Only the buttons that own a fill take it — a ghost has no interior to
+   fill, a `.danger` filling with tide would say the wrong thing at the worst moment, and a tab
+   says which one it is with the rule under it. */
+button:not(.ghost, .danger, .settings-tab):active:not(:disabled) {
+  background: var(--tide-pressed);
+  border-color: var(--tide-pressed);
+  color: var(--text-on-tide);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* One per screen, at most: the single thing the reader most likely came to do. */
+button.primary {
+  background: var(--tide);
+  border-color: var(--tide);
+  color: var(--text-on-tide);
+}
+
+button.primary:hover {
+  background: var(--tide-pressed);
+  border-color: var(--tide-pressed);
+}
+
+/* Only inside the reader's bars and on the ✕ that closes a panel. Anywhere else a borderless
+   control sits among bordered ones and reads as a caption rather than as something to press. */
+button.ghost {
+  border-color: transparent;
+  background: none;
+}
+
+/* The same wash as every other button, and it took a screenshot to find out why it has to be:
+   a ghost has no border to move, so the fill is the whole of the answer to "which of these four
+   am I on". A step of paper was that answer once and it was very nearly invisible; a blue wash
+   is not, and it does not spend a layer to say something that is not about layers. */
+button.ghost:hover {
+  background: var(--fill-selected);
+}
+
+/* The sheet this button opened is standing open. Ink to tide and nothing else: a filled
+   background here would be a second surface inside a bar that is already one. */
+button.ghost.active {
+  color: var(--tide);
+}
+
+/* A field is a piece of paper with a rule around it, like a button but without the pointer.
+   The range inputs are left out of the box entirely: a slider has no interior to fill, and a
+   rule around one draws a frame around a track that is already a line. */
+select,
+input:not([type="range"]),
+textarea {
+  border: 1px solid var(--line-actionable);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  padding: 10px var(--space-3);
+}
+
+/* Said out loud rather than left to the default: WebKit rounds a `<select>` and a `<textarea>`
+   to its own taste, and this system has one number for a control. */
+button,
+select,
+input,
+textarea {
+  border-radius: var(--radius-control);
+}
+
+/* And saying it is not enough for a `<select>`: WebKit draws a menulist as a native control
+   and ignores the border, the background and the radius alike, so on that engine alone the
+   sort control kept rounded corners and a grey fill. `appearance: none` hands the box back,
+   which means drawing the chevron ourselves — the `⌄` the icon set already allows. Two rules
+   rather than `currentColor`, which a `background-image` URL cannot see. */
+select {
+  appearance: none;
+  padding-right: var(--space-6);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23585d64' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 10px 7px;
+}
+
+:root[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23a3aeb6' stroke-width='1.5'/%3E%3C/svg%3E");
+}
+
+/* The faintest ink, and the only place it carries anything word-shaped — a placeholder is a
+   label for something that is not there yet, so it is the one text that should not read as
+   text. Everywhere else this step draws rules and disabled glyphs. */
+::placeholder {
+  color: var(--text-faint);
+  opacity: 1;
+}
+
+select,
+input {
+  min-height: var(--tap-min);
+}
+
+/* The one control the browser draws itself, and it draws it in its own blue. A slider is
+   something the reader can act on, so it is tide like everything else that is. */
+input[type="range"] {
+  accent-color: var(--tide);
+}
+
+/* One ring for everything the keyboard can reach, and a paper-coloured halo outside it so the
+   ring survives landing on a control that is already sitting on a rule. The cover has its own
+   answer to this — its background belongs to a publisher, not to us (see `.book-cover`).
+
+   **The halo is a hole, not a colour**: it works by being whatever is already behind the
+   control, so the ring reads as a ring and not as a second shape around it. That was one value
+   while every surface in the app was `--surface-page`; ADR-0028 ended it. So the surface names
+   itself in `--halo` where it is not the page — the rule below is the only place that is true
+   so far, and it covers the four most keyboard-reachable buttons in the app. Left as the page's
+   colour there, every focused entry would wear a pale loop: the same artefact the Scrubber's
+   thumb ring changed surfaces to avoid, on the controls a keyboard actually visits. */
+:where(button, select, input, textarea, .toc-item):focus-visible {
+  outline: 2px solid var(--tide);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
+}
+
+/* A rule down the side rather than a red panel. What went wrong is one sentence of ink like
+   any other; the colour says which sentence to read first, and does not have to shout to do
+   it. Red as a fill is a colour the reader cannot look away from, and most of these are
+   recoverable.
+
+   Its margin is restated at 600 in `device.css`: full-bleed on a phone, indented once there is
+   a margin worth indenting into. */
+.error {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+  border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  padding: 0.5rem 1rem;
+  margin: 0 2rem;
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 3rem 1rem;
+}

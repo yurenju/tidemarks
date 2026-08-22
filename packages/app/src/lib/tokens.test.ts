@@ -30,17 +30,30 @@ import { fileURLToPath } from "node:url";
 // The triple-slash reference is what lets `node:fs` type-check here. `tsconfig.app.json` gives
 // `src` Vite's client types and no Node ones, deliberately, because everything else under it
 // runs in a browser; widening the whole project for one test would be the wrong trade.
-const CSS = readFileSync(fileURLToPath(new URL("../index.css", import.meta.url)), "utf8");
+const ENTRY = new URL("../index.css", import.meta.url);
+const read = (url: URL) => readFileSync(fileURLToPath(url), "utf8");
+
+// **Follow `index.css`'s own import list rather than globbing `styles/`.** A glob would read a
+// file that nothing imports and report it as checked, which is the one way a stylesheet can be
+// wrong that no browser would ever show you. Going through the list means a file only gets
+// checked once it is actually part of the sheet.
+//
+// Concatenating in import order also keeps the second test below honest: it asks what the
+// light theme declared *before* the dark block, and that "before" is the cascade's order.
+const IMPORTED = [...read(ENTRY).matchAll(/@import\s+["']([^"']+)["']/g)].flatMap(
+  (match) => match[1] ?? [],
+);
+const CSS = IMPORTED.map((path) => read(new URL(path, ENTRY))).join("\n");
 
 /**
  * Properties a component sets from TypeScript, which the stylesheet reads without ever
  * declaring. Each is a real contract with a component, which is why they are listed by hand.
  *
  * **Only names the stylesheet never declares belong here.** `--halo` and `--scrubber-inset`
- * were on this list and should not have been: both are declared in `index.css` as well as set
- * from a component, so exempting them told the check to skip the two names most worth
- * following — exactly the mistake this file exists to catch, made inside the file that catches
- * it.
+ * were on this list and should not have been: both are declared in the sheet (`reader.css` and
+ * `book.css`) as well as set from a component, so exempting them told the check to skip the two
+ * names most worth following — exactly the mistake this file exists to catch, made inside the
+ * file that catches it.
  */
 const SET_ONLY_AT_RUNTIME = new Set([
   // `HighlightLayer` — which of the four inks this mark was made in.
@@ -79,7 +92,17 @@ function darkRootBlock(css: string): string {
   return "";
 }
 
-describe("index.css custom properties", () => {
+describe("the stylesheet's custom properties", () => {
+  // The guard on everything below it. Both of the other tests pass against an empty string —
+  // no `var()` dangles when there are none — so a change that quietly stops the sheet being
+  // read would leave two green tests asserting nothing. That has happened here once already,
+  // when `?raw` returned "". The floor is far under the real figure (~110 KB) and far over
+  // anything a broken read could produce.
+  test("the whole sheet was read, not just the import list", () => {
+    expect(IMPORTED.length).toBeGreaterThan(1);
+    expect(CSS.length).toBeGreaterThan(50_000);
+  });
+
   test("every var() names a property that exists", () => {
     const names = declared(CSS);
     const dangling = [...referenced(CSS)]

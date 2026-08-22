@@ -23,8 +23,9 @@ Closes #25
 ## 跟畫面有關的變更，三家都要跑過，並由 agent 判讀
 
 **適用範圍**：動到 reader（`Reader.tsx`、`HighlightLayer.tsx`、`lib/highlights.ts`、
-`lib/toolbar-position.ts`、`lib/scrubber.ts`）、傳給 frond 的 settings、或 `index.css` 裡 reader 那
-一段。純 logic／sync／worker 的變更不適用——那些 `npm test` 就蓋掉了。
+`lib/toolbar-position.ts`、`lib/scrubber.ts`）、傳給 frond 的 settings、或 `src/styles/` 底下的
+`reader.css`、`book.css`、`typography.css`、`device.css`。純 logic／sync／worker 的變更不適用
+——那些 `npm test` 就蓋掉了。
 
 開 PR 之前有兩件事，各屬不同層：跑 `npm run test:container`（三家，自動化那一層，在容器裡），以及在
 host 上用 playwright-cli 把畫面截出來判讀（見〈截圖怎麼產〉）。**判讀由開 PR 的 agent 自己做**，

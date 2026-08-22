@@ -1,0 +1,336 @@
+/* Library */
+.library {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The shelf is written for the narrowest window first and widened by the four queries in
+   `device.css`. Written the other way round, every phone rule is an undo of a desktop one, and
+   the undo is what gets forgotten.
+
+   So most of what follows is the phone's version of itself, and `device.css` has the rest.
+   Padding and gaps here are the ones this screen is *narrowest* at. */
+.library-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+  background: var(--surface-page);
+}
+
+/* The wordmark. It used to be the one coloured thing on the shelf, which spent the
+   colour that means "you can press this" on the one word nobody can. */
+.library-header h1 {
+  margin: 0;
+  margin-right: auto;
+  font-family: var(--font-display);
+  font-size: var(--type-display);
+  font-weight: 400;
+  /* The handoff's own figure for the wordmark, and it is negative: a display serif at this
+     size sets loose, so the tracking pulls it back to one word rather than nine letters. */
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.library-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* The shelf's own two verbs, over the covers they act on. */
+.shelf-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.shelf-order {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* The book the reader is in the middle of, at a size that makes choosing it unnecessary. */
+.reading-now {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5) var(--space-4) 0;
+}
+
+/* Both classes, so this width wins over `.book-cover`'s 100% wherever the two rules end up
+   sitting in the file. The cover is the one thing on this screen worth looking at, and 100% of
+   a flex row is the whole shelf.
+
+   132px on a phone, 272px on a wide desktop, and 26vw in between. Before this the large book
+   was a fixed 196px while the wall grew with the window, and at 1680 the two were 22px apart —
+   the shelf had a main character nobody could pick out.
+
+   **26vw and not the 16vw the design gives**, and the difference was found by measuring: at
+   16vw the slope is so shallow that 600 and 820 both sit on the 132px floor, where a wall cover
+   is 126px. The invariant — *the large book is at least twice the area of one on the wall* —
+   was broken at exactly the two widths nobody looks at, by the change that exists to keep it.
+   It holds from 820 up now. Below that the two are not competing anyway: the large book has a
+   row of its own, its title, and the only action on the screen. */
+.book-cover.reading-now-cover {
+  flex: 0 0 auto;
+  width: clamp(8.25rem, 26vw, 17rem);
+}
+
+.reading-now-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+/* The one title on the shelf that scales with the window rather than with the type scale: it
+   is a picture of the book as much as it is a label, and it has to hold its own next to a
+   cover that is now three times the size it was. */
+.reading-now-info h2 {
+  margin: 0;
+  font-size: clamp(1.3125rem, 3.4vw, 2.25rem);
+  line-height: var(--leading-title);
+}
+
+.reading-now-author {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-ui);
+}
+
+.reading-now-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* On a phone this is the only action on the screen, so it takes the width to say so — and 48px
+   rather than 44, because a target that is the whole point of the screen can afford to be the
+   most comfortable thing on it. From 600 up it goes back to being a button beside a `⋯`. */
+.reading-now-actions .primary {
+  flex: 1;
+  min-height: 48px;
+}
+
+/* Covers, at the size a cover is for. **A wider window buys more columns, not bigger covers**:
+   the track has a ceiling, and past it the space goes into another column. Growing them
+   instead is how the large book stopped being the large book.
+
+   `auto-fill` rather than a count per breakpoint, and that is a reversal — the wall used to be
+   a fixed five because "a grid that reflows puts a book in a different place on every window".
+   It does, and the price is worth paying now that the counts would otherwise be five numbers
+   to keep in step with five paddings. The order is unchanged and it is the order that makes a
+   book findable; which row it lands on was never stable across devices anyway.
+
+   `gap` and `padding` are restated at 600 and 820 in `device.css`, and at 1280 the wall is
+   given a column of its own beside 〈繼續讀〉. Change them here and the wide window keeps the
+   old figures. */
+.cover-wall {
+  display: grid;
+  /* `1fr` as the ceiling and the real ceiling — 132px — moved onto the card, which looks like
+     a detour and is not. `auto-fill` counts how many tracks fit using each track's **maximum**,
+     so `minmax(108px, 132px)` asks for as many 132px tracks as fit: at 390 that is two, and the
+     phone's three covers were impossible to reach that way. With `1fr` the count comes from the
+     108px floor and the tracks then share what is there, which is the rule this wall wants
+     stated anyway — more room buys another column, and `max-width` stops the covers growing
+     into it. */
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  /* Left-aligned rather than stretched: the leftover strip at the right edge is the honest
+     shape of a wall whose covers have a maximum size. */
+  justify-content: start;
+  gap: var(--space-5) var(--space-3);
+  padding: var(--space-3);
+}
+
+.book-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  /* Where a cover stops growing. On the card rather than on the track, for the reason given
+     over `grid-template-columns`. */
+  max-width: 132px;
+}
+
+/* The one door to 〈書的詳情〉, over the cover's top corner: it is not part of choosing a book,
+   so it does not take a row of its own under every one of them.
+
+   Selected as `button.ghost` and not by the class alone, because the ghost rule clears the
+   background and this one has to keep a chip of surface under it — the corner it sits in
+   belongs to the cover art, which is whatever colour a publisher chose. */
+button.ghost.book-more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* A square notch cut out of the cover's corner rather than a pill floating over it: the
+     cover is a printed surface, and nothing on this screen is round unless a finger pinches
+     it. The two rules are the cut, so the chip reads as taken out of the paper rather than
+     laid on top; the other two edges are the cover's own. */
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  line-height: 26px;
+  text-align: center;
+  border-left: 1px solid var(--line-firm);
+  border-bottom: 1px solid var(--line-firm);
+  /* The cover's own corner, so the chip follows the curve it is cut from rather than standing
+     square inside a rounded edge. The other three stay sharp: it is a notch, not a pill. */
+  border-radius: 0 var(--radius-surface) 0 0;
+  background: var(--surface-page);
+}
+
+/* The one control whose face cannot be the size of its target: it has to sit in the cover's
+   corner, and a 44px chip there would take a quarter of a phone's cover. So the face stays 26px
+   and the target is `--tap-min`, reaching down and left over artwork it does not have to paint
+   on. The carve-out is the *shape* — a face smaller than what can be pressed — and the target
+   itself follows the hand like every other one (ADR-0023). */
+button.ghost.book-more::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+}
+
+/* One line per thing there is to say. Nothing is reserved for a line that is not there. */
+.book-status {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+/* The proportions of a printed book rather than of a poster. */
+.book-cover {
+  aspect-ratio: 1 / 1.42;
+  width: 100%;
+  border: 1px solid var(--line-firm);
+  /* The focus marks are drawn outside this box (below), and `overflow: hidden` would cut them
+     off. Nothing needs clipping here anyway: the image is sized to the box exactly, and the
+     fallback title clips itself. */
+  position: relative;
+  background: var(--surface-cover);
+  border-radius: var(--radius-surface);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+
+/* Under the pointer the cover does not move. A book lifting off the shelf on hover is the
+   interface performing rather than answering; what changes is the one thing hover has to say,
+   which is "this one". That it can be picked up at all is said by its own surface, a step off
+   the shelf's — there are no shadows to say it with now (ADR-0022). */
+.book-cover:hover {
+  border-color: var(--tide);
+}
+
+/* Keyboard focus, drawn **outside** the cover: what colour the artwork is belongs to a
+   publisher, and a tide-blue ring lands invisibly on a dark one often enough to matter. Crop
+   marks are the printer's own way of saying "this is the piece" from off the edge of it —
+   the same stock this whole interface is cut from. The 7px offset keeps them inside the
+   grid's gap, so a focused cover never touches its neighbour.
+
+   Eight gradients on one pseudo-element rather than eight elements: the marks are decoration
+   and have no business in the accessibility tree they would otherwise be added to. */
+.book-cover:focus-visible {
+  outline: none;
+}
+
+.book-cover:focus-visible::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--tide), var(--tide)) left top / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left top / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right top / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right top / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left bottom / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left bottom / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right bottom / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right bottom / 2px 16px no-repeat;
+}
+
+.book-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The title, for a book whose cover is missing. The top padding is the notch's height: the
+   ⋯ is cut out of that corner, and a title running under it would be read through a button. */
+.book-cover span {
+  padding: 0.5rem;
+  padding-top: 26px;
+  font-weight: 600;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.book-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.book-info strong {
+  font-size: var(--type-ui);
+  line-height: var(--leading-title);
+}
+
+.book-info small {
+  color: var(--text-muted);
+}
+
+/* The confirmation before a deletion — Tidemarks' words, not the browser's (`AboutDrawer`). */
+.alert-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--line-firm);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+}
+
+.alert-title {
+  margin: 0;
+  font-size: var(--type-lede);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.danger:hover {
+  background: var(--danger);
+  color: var(--surface-page);
+}

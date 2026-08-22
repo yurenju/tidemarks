@@ -109,8 +109,8 @@ export async function settled(page: Page): Promise<void> {
   // And last, for the box itself to stop moving.
   //
   // Opening or closing a panel takes a column from the book and gives it back over
-  // `--chrome-motion` (index.css, `.reader[data-panel] .reader-body`), and frond relays out from
-  // whatever width its container has at the frame it is asked. Every one of those frames is a
+  // `--chrome-motion` (`styles/device.css`, `.reader[data-panel] .reader-body`), and frond relays
+  // out from whatever width its container has at the frame it is asked. Every one of those frames is a
   // real, correct layout — of a width the reader sees for 180ms and never again. A spec that
   // measures inside that window is measuring the transition, and whether it lands inside it is a
   // question of wall-clock, which is the one thing a shared image cannot pin.
@@ -586,8 +586,8 @@ export async function openChrome(page: Page): Promise<void> {
  * suite wants the second one. The wait lives here rather than in each test because reaching for
  * a rectangle is what a test does *after* calling `openChrome`.
  *
- * Identity, read off the bar itself, rather than a timer: whatever the duration in
- * `index.css` becomes, this asks the same question.
+ * Identity, read off the bar itself, rather than a timer: whatever `--chrome-motion`
+ * (`styles/tokens.css`) becomes, this asks the same question.
  */
 export async function chromeSettled(page: Page): Promise<void> {
   await page.waitForFunction(() =>
