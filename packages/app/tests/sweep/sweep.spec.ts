@@ -131,7 +131,36 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await closePanel();
     const box = (await page.locator(".viewer").boundingBox())!;
     const x = box.x + box.width / 2;
-    const y = box.y + box.height * 0.45;
+
+    // **Where to press: on the book, and not on a mark.**
+    //
+    // A press on a marked passage opens that note — which is what it is for, and what makes a
+    // fixed press point wrong here. Once a mark is on the page it parks the nav bar behind a
+    // panel and the wait below never sees three bars at home; worse, the note it opens stays
+    // expanded, so a later step looking for "Add note" finds an editor already open. Both were
+    // real: the marks moved under the old point when line heights changed (ADR-0032) and took
+    // two steps of this sweep with them.
+    //
+    // The marks are on screen as `.highlight-box`, so the point is chosen rather than guessed:
+    // the first of these heights that clears every one of them by a line or so. The list starts
+    // where this always pressed, so a page with no marks presses exactly where it used to.
+    const clearOfMarks = async (): Promise<number> => {
+      const marks = await page.locator(".highlight-box").evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { top: rect.top, bottom: rect.bottom };
+        }),
+      );
+      const CLEARANCE = 28;
+      for (const fraction of [0.45, 0.72, 0.2, 0.33, 0.6]) {
+        const candidate = box.y + box.height * fraction;
+        const clear = marks.every(
+          (mark) => candidate < mark.top - CLEARANCE || candidate > mark.bottom + CLEARANCE,
+        );
+        if (clear) return candidate;
+      }
+      return box.y + box.height * 0.45;
+    };
 
     // Pressed until it is up **and standing still**, not once, and the two are one condition
     // rather than two steps. A press that finds a selection standing is spent putting that
@@ -144,7 +173,9 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     // Each round checks before pressing, or a press meant to raise the chrome would put an
     // already-raised one back down.
     await expect(async () => {
+      await closePanel();
       if ((await page.locator(".chrome[data-up]").count()) === 0) {
+        const y = await clearOfMarks();
         if (touch) await page.touchscreen.tap(x, y);
         else await page.mouse.click(x, y);
         await page.waitForTimeout(400);
