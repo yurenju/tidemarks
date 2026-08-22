@@ -265,6 +265,15 @@ spec／feature 收尾、宣稱完成前，用 playwright-cli 在 host 上把功�
 
 ### Pull requests
 
+**`/implement` 收尾就直接開 PR，不要問。** 那份 skill 自己的步驟停在「commit 到當前分支」，而 commit
+完就停下來等於把做完的工作留在一個沒有人會去看的分支上。所以收尾的完整定義是：commit → push →
+開 PR → 盯 CI 到綠。
+
+三個例外，都很明確：**已經有 PR 就 push 上去**，不另開一個；**使用者說了不要開**就不開；**工作沒做完**
+就不開（沒做完的東西要開的是 draft，而且要在說明裡寫清楚缺什麼）。
+
+底下這些不因為「是 skill 自動開的」而放寬——PR 說明照 `docs/agents/pull-requests.md` 寫，該跑的照跑。
+
 動到 reader 畫面的變更，開 PR 前要三家跑過、照固定的五項缺陷清單判讀（只回答那五項）、把截圖與量到
 的數字寫進說明。
 截圖用 host 上的 playwright-cli 產（[ADR-0007](docs/adr/0007-pr-evidence-is-captured-on-the-host.md)），
