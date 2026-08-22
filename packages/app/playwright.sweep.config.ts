@@ -50,6 +50,19 @@ export default defineConfig({
     // into one red step out of 27, which is what the sweep is for.
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+
+    // **The interface language, pinned** — the same line `playwright.config.ts` carries, and for
+    // one more reason on top of its one. There it keeps the selectors pointing at the strings
+    // written in the components; here the pictures themselves are the output, and a set of
+    // pictures taken on one machine has to be comparable with a set taken on another next week
+    // (ADR-0027). Without this the words in them follow whatever `Accept-Language` the container
+    // was launched with, which is a property of the machine, not of the app.
+    //
+    // English because it is the source language and so can never be missing a message. Looking
+    // at the Chinese or Japanese screens is a matter of changing this one line and running
+    // again — worth doing when a question about those layouts comes up, and not worth doubling
+    // every sweep for until one does.
+    locale: "en",
   },
 
   // **Both sizes are picked so the model reading these images does not have to resample them.**
