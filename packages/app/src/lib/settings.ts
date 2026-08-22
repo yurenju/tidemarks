@@ -6,6 +6,7 @@ import type {
   ReaderSettings as FrondSettings,
 } from "@yurenju/frond/renderer";
 import { fontStack } from "./chinese";
+import { MARK_CLEARANCE, WAVE_THICKNESS } from "./highlights";
 import { fontLanguageFor, weightRange } from "./web-font";
 import type { LoadedWebFont } from "./web-font-store";
 import { layoutFor, type ColumnChoice, type Script } from "./line-length";
@@ -407,6 +408,14 @@ export function frondSettings(
     fontSize: frondFontSize(settings, rootFontSize),
     fontFamily: settings.fontFamily === "publisher" ? undefined : stack(settings.fontFamily),
     lineHeight: settings.lineHeight === 0 ? undefined : settings.lineHeight,
+    // The room a mark needs between one line's ink and the next: 4px of wave, 0.7 clear of
+    // this line and 1.3 clear of the next (ADR-0032). frond turns it into a line height,
+    // because the arithmetic needs the book's font metrics and only frond can read them.
+    //
+    // Sent unconditionally, and it costs nothing to. It has no effect at all unless the book
+    // is set tighter than that, and frond skips it outright when the reader has chosen a line
+    // height — every rung the panel offers already leaves more than 6px.
+    minimumInkGap: MARK_CLEARANCE + WAVE_THICKNESS + 1.3,
     theme: theme === "dark" ? DARK_THEME : undefined,
     genericFamilies: {
       serif: stack("serif"),

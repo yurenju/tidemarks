@@ -39,7 +39,15 @@ export type InterventionReason =
   /** CSS belonging to the pagination mechanism itself, a layer books have never declared. */
   | "frond-own-layer"
   /** The book's intent is unchanged; only the notation is swapped for one the browser recognises. */
-  | "syntax-translation";
+  | "syntax-translation"
+  /**
+   * A consumer drawing beside the text needs room the book did not leave.
+   *
+   * The fifth, and the only one that is neither about the book's own failure nor about the
+   * reader's settings — see ADR-0003's revision. It overrides the book, so it is held to the
+   * threshold like the first two.
+   */
+  | "consumer-needs-room";
 
 export interface Intervention {
   readonly id: string;
@@ -140,6 +148,16 @@ export const INTERVENTIONS: readonly Intervention[] = [
     why: "removing !important alone is not enough: an absolute value by itself detaches that stretch from the inheritance chain, so the reader's font size adjustment has no effect on it. Converting preserves the book's own **proportions** of font size and gives up the absolute values — an intent that conflicts directly with user story 42, which ADR-0003 has already resolved in the reader's favour",
     where: "src/renderer/css.ts",
     onlyWhenReaderOverrides: true,
+  },
+  {
+    id: "minimum-ink-gap",
+    what: "sets line-height on the root element, without !important, when the consumer asked for a minimum gap between the ink of consecutive lines and the book's own line height leaves less than that",
+    reason: "consumer-needs-room",
+    why: "a consumer drawing beside the text needs a known number of pixels there, and the line height that yields them depends on the font's ink height, which only frond can measure. The rule carries no !important and goes on the root alone, so any line height the book states for itself still wins and nothing is ever made tighter — it fills in where the book said nothing, which is the case this was measured on. It is skipped entirely when the reader has set a line height of their own, and under vertical writing, where the cross-axis extent a text rectangle reports is already tight to the glyphs",
+    where: "src/renderer/section-view.ts",
+    // The inverse of every `reader-blocked` entry: this one is skipped **because** the reader
+    // set a line height, and only fires when they have not.
+    onlyWhenReaderOverrides: false,
   },
   {
     id: "reader-stylesheet",

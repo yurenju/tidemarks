@@ -28,6 +28,10 @@ export type {
   TurnInProgress,
 } from "./renderer.ts";
 
+// The rectangles `rectsFor` answers with. `section-view.ts` is implementation, but the shape
+// of what it hands back is not — a consumer drawing marks needs the names.
+export type { MarkedRect, RectRole } from "./section-view.ts";
+
 export { MemoryBook } from "./book.ts";
 export type {
   MemoryBookSpec,

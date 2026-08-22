@@ -4,7 +4,10 @@ import type { Annotation } from "../lib/types";
 
 export interface PaintedHighlight {
   annotation: Annotation;
-  boxes: HighlightBox[];
+  /** The strips of wave to draw — one per line of the passage. */
+  strips: HighlightBox[];
+  /** Where a tap counts as landing on this passage. Not the same boxes: see `Reader.tsx`. */
+  targets: HighlightBox[];
 }
 
 // The highlight layer, drawn over the book.
@@ -22,11 +25,16 @@ export interface PaintedHighlight {
 // that ink looks like on a light page and on a dark one. A highlight drawn before the reader
 // switched themes redraws in the right one without this component hearing about it.
 //
-// **The writing mode is a prop, because CSS cannot see it from here.** A mark is a wavy line
-// along the edge of the text, and which edge that is depends on how the book is set: under the
-// baseline in a horizontal book, down the right-hand side in a vertical one — where a Chinese
-// reader expects 傍線. The box itself is axis-aligned either way, so nothing about its geometry
-// says which. `Reader.tsx` already holds the answer, from frond's `writingMode` event.
+// **Each box *is* a mark, not the text a mark belongs to.** `markStrips` has already decided
+// where the wave goes — outside the outermost ink on its line, one strip per line — because
+// that placement needs the ink extents and the line grouping, and CSS can see neither. All
+// that is left here is which of the two tiles to fill it with.
+//
+// **The writing mode is a prop, because CSS cannot see it from here either.** Which edge of
+// the text a mark runs along depends on how the book is set: under the line in a horizontal
+// book, down the right-hand side in a vertical one, where a Chinese reader expects 傍線. A
+// strip is axis-aligned either way, so nothing about its geometry says which. `Reader.tsx`
+// already holds the answer, from frond's `writingMode` event.
 export default function HighlightLayer({
   painted,
   vertical = false,
@@ -36,18 +44,18 @@ export default function HighlightLayer({
 }) {
   return (
     <div className="highlight-layer" aria-hidden>
-      {painted.map(({ annotation, boxes }) =>
-        boxes.map((box, index) => (
+      {painted.map(({ annotation, strips }) =>
+        strips.map((strip, index) => (
           <div
             key={`${annotation.id}-${index}`}
             className="highlight-box"
             data-axis={vertical ? "v" : "h"}
             style={
               {
-                left: box.left,
-                top: box.top,
-                width: box.width,
-                height: box.height,
+                left: strip.left,
+                top: strip.top,
+                width: strip.width,
+                height: strip.height,
                 "--mark": markVar(annotation.color),
               } as CSSProperties
             }

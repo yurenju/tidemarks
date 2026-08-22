@@ -63,6 +63,27 @@ export interface ReaderSettings {
   /** Line height, as a multiplier (unitless). */
   readonly lineHeight: number | undefined;
   /**
+   * The smallest gap to leave between the ink of one line and the ink of the next, in px.
+   * Where the book's own line height leaves less, frond raises it to leave exactly this much.
+   *
+   * ## Why a gap and not a line height
+   *
+   * A consumer drawing beside the text — a mark, a ruler, a comment thread's spine — knows how
+   * many pixels its own drawing needs, and knows nothing about the book's font. The line height
+   * that yields those pixels is not a constant: it falls out of the font's ink height, which
+   * only frond can measure, and it changes with the type size because the requirement is
+   * absolute while a line height is a ratio (`ink.ts`).
+   *
+   * So the consumer states the requirement and frond does the arithmetic. Asking the consumer
+   * for a line height instead would mean handing it the metrics and having it hand back a
+   * number computed from them, with a layout pass in between.
+   *
+   * **It never lowers anything, and it never overrides a line height that was asked for** —
+   * neither the reader's `lineHeight` above nor a rule in the book. It fills in where nothing
+   * was said, which is the only case it was measured to be needed for (Tidemarks' ADR-0032).
+   */
+  readonly minimumInkGap: number | undefined;
+  /**
    * The layout margin, in px. A scalar means all four sides equally; the object form
    * splits by axis according to the writing mode (`geometry.ts`'s `Margin`).
    *
@@ -216,6 +237,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   fontFamily: undefined,
   fontSize: undefined,
   lineHeight: undefined,
+  minimumInkGap: undefined,
   margin: 24,
   columns: "auto",
   theme: undefined,
