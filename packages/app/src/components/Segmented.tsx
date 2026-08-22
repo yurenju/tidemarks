@@ -22,10 +22,10 @@ export type SegmentLabel = string | MessageDescriptor;
  * three or four of them, each a word or two. 行距 has six and they read 「更寬鬆（2.0）」,
  * so it stays a `<select>`; that is the line, and it is about what fits.
  *
- * The chosen cell is filled with moss rather than underlined with it. Fill survives being
- * glanced at, and it survives the dark theme, where `--accent` flips to a light green on a
+ * The chosen cell is filled with tide rather than underlined with it. Fill survives being
+ * glanced at, and it survives the dark theme, where `--tide` flips to a light blue on a
  * near-black panel and a 2px rule under a Song face would be a rule nobody can see. ADR-0022's
- * green budget counts this as one green with its control, not one per cell.
+ * tide budget counts this as one with its control, not one per cell.
  */
 export default function Segmented<T extends string | number>({
   label,

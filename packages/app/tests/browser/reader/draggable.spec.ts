@@ -17,7 +17,7 @@ import {
  * progress bar costs nothing. The other confusion is the one that hurts — dragging what looked
  * like a Scrubber and landing somewhere else in the book, with no "back to where I was".
  *
- * So the two carry opposite signatures, and these pin them: moss, a thumb, end caps, a
+ * So the two carry opposite signatures, and these pin them: tide, a thumb, end caps, a
  * keyboard role and pointer events on one; grey, 3px and none of the rest on the other. Type
  * checking cannot see any of this, and the unit tests are on the wrong side of the DOM for it.
  */
@@ -35,8 +35,8 @@ test("the Scrubber says it can be dragged", async ({ page }) => {
   // The two end caps say where the book starts and ends; a read-only bar has neither.
   await expect(page.locator(".scrubber-cap")).toHaveCount(2);
 
-  // Filled in moss, the colour kept for what the reader can act on.
-  expect(await colourOf(page, ".scrubber-fill")).toBe(await tokenColour(page, "--accent"));
+  // Filled in tide, the colour kept for what the reader can act on.
+  expect(await colourOf(page, ".scrubber-fill")).toBe(await tokenColour(page, "--tide"));
 
   // The keyboard reaches it, which is the whole of what "draggable" means to a reader who has
   // no pointer at all.
@@ -44,7 +44,7 @@ test("the Scrubber says it can be dragged", async ({ page }) => {
   await expect(track).toBeFocused();
 });
 
-test("the read-only bar says it cannot, and is never moss", async ({ page }) => {
+test("the read-only bar says it cannot, and is never tide", async ({ page }) => {
   await openBook(page, BOOKS.horizontal);
   await settled(page);
   await openChrome(page);
@@ -59,7 +59,7 @@ test("the read-only bar says it cannot, and is never moss", async ({ page }) => 
   // So this pins the stylesheet's half of the signature, in the sheet the bar appears in and
   // against the same tokens the Scrubber above resolves. What it does **not** cover is
   // `Reader.tsx` still putting these classes and `role="progressbar"` on the element — renaming
-  // them there would leave this green. That half is held by the rule in docs/design-system.md
+  // them there would leave this passing. That half is held by the rule in docs/design-system.md
   // 〈能拖與不能拖〉 and by CONTEXT.md 〈唯讀進度條〉.
   await page.evaluate(() => {
     const bar = document.createElement("div");
@@ -80,7 +80,7 @@ test("the read-only bar says it cannot, and is never moss", async ({ page }) => 
   await expect(bar.locator(".scrubber-thumb, .scrubber-cap")).toHaveCount(0);
 
   const fill = await colourOf(page, ".font-progress-fill");
-  expect(fill).not.toBe(await tokenColour(page, "--accent"));
+  expect(fill).not.toBe(await tokenColour(page, "--tide"));
   expect(fill).toBe(await tokenColour(page, "--text-muted"));
 });
 

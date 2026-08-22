@@ -1278,7 +1278,7 @@ export default function Reader({
             {loadError && <p className="error">{loadError}</p>}
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
-            <HighlightLayer painted={painted} />
+            <HighlightLayer painted={painted} vertical={verticalBook} />
           </div>
           <button
             className="page-btn"

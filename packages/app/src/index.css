@@ -26,6 +26,38 @@
     U+A720-A7FF;
 }
 
+/* The wordmark's face, and only the wordmark's. One weight, Basic Latin, 21 KB — because
+   "Tidemarks" is the only string it ever draws, and a display face earning its keep on one
+   word should not cost more than that.
+
+   It is not let near running text on purpose. The design system asks for four families with
+   strict jobs, and a second Latin serif in prose is exactly the collision that rule exists to
+   prevent: Source Serif 4 already covers every weight the interface asks for out of one
+   variable file. */
+@font-face {
+  font-family: "Spectral";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/spectral-latin-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122;
+}
+
+/* The one monospace, for the micro-labels that say the system is talking — uppercase, tracked
+   out, never a sentence. Basic Latin only and no CJK fallback of its own: a mono label is
+   Latin by construction (`NOTE`, `SYNCED`, a timestamp), and where a translation puts Han
+   characters in one the stack behind it catches them in the interface's own serif. */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -48,84 +80,98 @@ html[data-drawer="open"] {
    Why the interface looks like this: ADR-0022. What follows from it: docs/design-system.md.
 
    The short of it is three materials. **Paper** is the container the reader cannot change:
-   the page, the covers, the bars, the panels. **Ink** is what the reader leaves behind: text,
-   notes, highlights, the date a book was finished — four steps of density, and hierarchy is
-   made of density alone rather than of weight or of boxes. **Moss** is what can be acted on.
-   The green places on a screen should be countable; a fifth one means something ought to
-   have been ink. */
-:root {
-  /* Primitives */
-  --paper-100: #faf7ef;
-  --paper-200: #f5f2ea;
-  /* Between the two above it, and the only reason it exists is `--surface-raised`: a lifted
-     surface has to be a step off the page without being the cover's step. */
-  --paper-250: #f0efe6;
-  --paper-300: #ece7dc;
-  --paper-400: #e4dfd2;
-  --paper-500: #ddd6c7;
-  --ink-900: #1c1a17;
-  --ink-700: #4d463e;
-  /* Two steps darker than the design's #8a8278, which measured 3.54:1 against the page and
-     would have put every caption and every read-only bar under AA. This one is 5.2:1. */
-  --ink-500: #6f675d;
-  --ink-400: #a09788;
-  --moss-600: #3f5c46;
-  --moss-700: #2c4132;
-  --moss-300: #8fae94;
-  --moss-200: #a9c3ad;
-  --clay-600: #8f2f24;
-  --clay-400: #d98b7f;
-  --night-900: #14120f;
-  --night-800: #1a1815;
-  /* The dark theme has no shadow to spend — a black offset on a near-black page is nothing —
-     so "lifted" is said with a lighter surface instead. This is that step. */
-  --night-700: #211f1a;
-  --night-600: #2a2721;
-  /* Between the cover surface and the firm line, so a hairline drawn on a cover is still a
-     line in the dark. Without it both ends of that pair are #2a2721. */
-  --night-550: #2f2c26;
-  --night-500: #35322b;
-  /* Two greys the dark theme needs and the light one does not, because in the dark the three
-     signals that say "you can press this" — colour, edge, shadow — all thin out at once.
-     `-400` is the Scrubber's rail (`--line-firm` is 1.9:1 against the page there, which is a
-     line nobody can see); `-300` is `--line-actionable`, 2.9:1, the edge on a control that
-     stands on its own. */
-  --night-400: #4a4740;
-  --night-300: #6f695d;
-  --bone-100: #e8e3d7;
-  --bone-200: #c9c2b4;
-  --bone-300: #9c948a;
-  --bone-400: #7d766c;
+   the page, the covers, the bars, the panels. Three steps, and the step is how this system
+   says "lifted" — there are no shadows at all. **Ink** is what the reader leaves behind:
+   highlights and notes. **Tide** is what can be acted on. The tide-coloured places on a
+   screen should be countable; a fourth one means something ought to have been paper.
 
-  /* Semantics — paper */
-  --surface-page: var(--paper-100);
-  --surface-sunken: var(--paper-200);
-  --surface-cover: var(--paper-300);
-  --surface-raised: var(--paper-250);
+   Running text keeps its own four steps of density below, and that is a separate thing from
+   the material called ink: hierarchy in prose is made of density alone rather than of weight
+   or of boxes. */
+:root {
+  /* Primitives — paper. Warm, and never grey: every ground here is either paper or a blue
+     wash of it. */
+  --paper-100: #fbf7ed;
+  --paper-200: #f4eee2;
+  --paper-300: #ede5d6;
+  /* Between sunken and the hairline, and it exists for `--surface-cover` alone: a book with no
+     art has to read as an object lying on the shelf, which means a step the shelf does not
+     already use. */
+  --paper-350: #e9e0d1;
+  --paper-400: #e4ddce;
+  --paper-500: #d9d1be;
+  --paper-600: #c6c1b4;
+  --ink-900: #14171c;
+  --ink-800: #232833;
+  --ink-600: #585d64;
+  /* 2.25:1 against the page, which is why the semantic name it answers to does not carry
+     words. The handoff limits it the same way and calls it out as debt. */
+  --ink-400: #9aa1ac;
+  /* The three blues, and they are not interchangeable. `-mark` belongs to the reader and is
+     spent under `--mark-indigo` alone; `-tide` is everything that can be pressed; `-static`
+     is decoration that cannot. */
+  --blue-mark: #1b2e4d;
+  --blue-tide: #2e4a75;
+  /* Darker than `--blue-tide` rather than the handoff's lighter `blue-static`: pressed has to
+     hold paper-coloured text, and paper on `#7a93ae` is 2.7:1. */
+  --blue-tide-deep: #24395c;
+  --blue-selected: #c7d3e0;
+  --clay-600: #a8552f;
+  --clay-400: #d08a62;
+  --night-900: #101a24;
+  --night-800: #16202b;
+  /* A step *above* the page: with no shadows anywhere, this is the whole of how the interface
+     says a thing is on top of another thing. */
+  --night-700: #1b2733;
+  /* The handoff's fourth dark surface, which it spends on skeletons; here it is the cover.
+     **Lighter than the page, not darker** — in the dark theme a cover that steps down
+     disappears into the shelf, which is what happens if this shares `--surface-sunken`. */
+  --night-650: #1f2c39;
+  --night-600: #223040;
+  --night-500: #27343f;
+  --night-400: #35424e;
+  --bone-100: #f2f1e9;
+  --bone-200: #e4e9ec;
+  --bone-300: #a3aeb6;
+  --bone-400: #6e7c88;
+
+  /* Semantics — paper. Three surfaces, and their order is the message: raised is lighter than
+     the page and sunken is darker, in both themes. A fourth layer has to be given a fourth
+     value rather than doubling up on one of these, because that is what "lifted" is said with
+     now (ADR-0022). */
+  --surface-page: var(--paper-200);
+  --surface-raised: var(--paper-100);
+  --surface-sunken: var(--paper-300);
+  --surface-cover: var(--paper-350);
   --line-hair: var(--paper-400);
   --line-firm: var(--paper-500);
   /* The edge on something that stands on its own, kept apart from `--line-hair`'s job of
-     dividing things. In the light theme they can be the same value; in the dark they cannot,
-     which is the whole reason this name exists (ADR-0023). */
-  --line-actionable: var(--paper-500);
+     dividing things. In the light theme they can be a step apart; in the dark they cannot be
+     the same, which is the whole reason this name exists (ADR-0023). */
+  --line-actionable: var(--paper-600);
   /* The line a thumb runs along. Its own name because the Scrubber is the one control whose
-     rail has to stay legible under a fill and a thumb, and in the dark `--line-firm` is 1.9:1
-     against the page — the unread half of the book would be a rail nobody can see. */
-  --line-track: var(--paper-500);
-  --backdrop: rgba(20, 18, 14, 0.28);
+     rail has to stay legible under a fill and a thumb. */
+  --line-track: var(--paper-600);
+  /* Hover and selection, and the one fill that is not a surface step: it says "this one",
+     which is a different question from "which layer is this". */
+  --fill-selected: var(--blue-selected);
+  --backdrop: rgba(20, 23, 28, 0.55);
 
-  /* Semantics — ink. The four steps are not four text colours: `--text-faint` is the one that
-     does not carry words. It is for rules, disabled glyphs and placeholders, because at 2.7:1
-     against the page anything it spells cannot be read by everyone who has to read it. */
+  /* Semantics — running text. The four steps are not four text colours: `--text-faint` is the
+     one that does not carry words. It is for rules, disabled glyphs and placeholders, because
+     at 2.25:1 against the page anything it spells cannot be read by everyone who has to. */
   --text-primary: var(--ink-900);
-  --text-body: var(--ink-700);
-  --text-muted: var(--ink-500);
+  --text-body: var(--ink-800);
+  --text-muted: var(--ink-600);
   --text-faint: var(--ink-400);
 
-  /* Semantics — moss, and the one red */
-  --accent: var(--moss-600);
-  --accent-pressed: var(--moss-700);
-  --text-on-accent: var(--paper-100);
+  /* Semantics — tide, the one decoration blue, and the one red.
+     `--tide` is the handoff's `blue-interactive` and not its `blue-mark`, deliberately: the
+     handoff gives `blue-mark` both the reader's marks and the primary button, which
+     contradicts its own first rule. The button is the half that moves (ADR-0022). */
+  --tide: var(--blue-tide);
+  --tide-pressed: var(--blue-tide-deep);
+  --text-on-tide: var(--paper-200);
   --danger: var(--clay-600);
 
   /* The one reversal in the app, for the one thing that sits on top of the reader's own words.
@@ -133,43 +179,54 @@ html[data-drawer="open"] {
      rather than staying dark. */
   --surface-inverse: var(--ink-900);
   --text-on-inverse: var(--paper-200);
-  --line-on-inverse: var(--ink-700);
+  --line-on-inverse: var(--ink-600);
 
-  /* Shadows never blur: paper resting on paper, lit from one side. A shadow means the thing
-     can be picked up — a book, a panel, a sheet, a toast, the Scrubber's thumb. Anything glued
-     to the screen (a bar, a form, a read-only bar) casts none. */
-  /* Two layers each, and the split is the rule: the hard one at half the alpha keeps the
-     offset — paper on paper, lit from one corner — and a short blur over it takes the edge off
-     the join, the way a real sheet of paper does over the last millimetre.
+  /* **There are no shadows.** Not "subtle ones": none. What a shadow used to say — this thing
+     can be picked up — is said by a step of surface now, and the step runs the same way in
+     both themes: `--surface-raised` above the page, `--surface-sunken` below it.
 
-     **The blur may not exceed twice the offset, and may never take a spread.** Past that ratio
-     the shadow starts spreading evenly around the shape, which is a point light in air: the
-     thing ADR-0022 picked against. So the offset is what makes this a shadow and the blur is
-     only allowed to soften where it lands. */
-  --shadow-lift: 2px 3px 0 rgba(28, 26, 23, 0.05), 2px 3px 4px rgba(28, 26, 23, 0.035);
-  --shadow-panel: 6px 8px 0 rgba(28, 26, 23, 0.07), 6px 8px 12px rgba(28, 26, 23, 0.05);
-  /* The same panel shadow for the panels that do not arrive from that side: a sheet rises from
-     the bottom bar, and a drawer — the shelf's, and the reader's own once the window is wide
-     enough — comes in from the right. Each casts back the way it came. Cast the default way,
-     they would draw their shadow underneath themselves.
+     The old system spent a lot of care on hard offset shadows and it was right about what it
+     wanted from them: a fact that could be checked rather than a decoration, which is why
+     `bar`s were forbidden from casting. What it could never do was work in the dark, where a
+     black offset on a near-black page is nothing at all — so ADR-0028 had already answered
+     that case with a lighter surface. This is that answer, applied to both themes.
 
-     `-left` earns its keep twice over now. The reader's panel used to arrive from the left and
-     take the default, whose downward 8px reached past the book's own box and landed on the
-     Scrubber's bar — a lifted thing casting onto something it is beside rather than above.
-     Coming from the right it casts left, across the book, and there is nothing below it to
-     reach. */
-  --shadow-panel-up: 0 -6px 0 rgba(28, 26, 23, 0.07), 0 -6px 12px rgba(28, 26, 23, 0.05);
-  --shadow-panel-left: -6px 0 0 rgba(28, 26, 23, 0.07), -6px 0 12px rgba(28, 26, 23, 0.05);
+     The only `box-shadow` left in this file is not a drop shadow anywhere: the focus ring's
+     halo, the Scrubber thumb's ring (a hole punched in the bar it rides), and one inset rule
+     marking the chapter being read. */
 
-  /* Highlights are ink, not fluorescent marker: a wash of colour with a firmer line pressed
-     along its bottom edge, the way a nib leaves the paper. None of the four collides with
-     moss, so "what I marked" never reads as "what I can press". */
-  --mark-indigo: #4a6d94;
+  /* The four inks a reader can mark with. Highlights are ink, not fluorescent marker.
+     `--mark-indigo` is the default and it carries the brand's own blue: leave the setting
+     alone and the line you draw *is* the mark this app is named for.
+
+     Moss is a green in a system whose interface has none, and that is not a contradiction:
+     rule 3 of the palette governs what the *interface* may say (chiefly that "synced" is
+     never green), and these four are colours on the book, which belong to the reader. */
+  --mark-indigo: var(--blue-mark);
   --mark-ochre: #a4622f;
   --mark-moss: #5f7a4e;
   --mark-soot: #3d4348;
-  --mark-wash: 0.22;
-  --mark-edge: 0.4;
+
+  /* The wave the tide leaves — the brand's own mark, and the shape every highlight takes.
+     ------------------------------------------------------------------------------------
+     **The colour comes from the background and the shape from a mask.** That is what keeps
+     this to two images: bake the colour into the SVG and it becomes four inks × two themes =
+     eight near-identical data URIs, which is the `<select>` chevron's problem multiplied.
+
+     **The tile leaves a pixel at each edge and that is not slack.** The centre line runs 2→4
+     and `stroke-width: 2` puts ink at 1→5 inside a 6px tile. Sized any tighter, the trough
+     lands outside the viewBox and SVG clips it: every wave in the app comes out with a flat
+     bottom, and the vertical one with a flat right side. It is only visible once you know to
+     look, which is why the measurement is written down and not just the value.
+
+     The control point sits outside the viewBox on purpose; SVG clips the rendered stroke, not
+     the geometry that produces it. */
+  --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 3Q2 1 4 3T8 3' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+  --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='8'%3E%3Cpath d='M3 0Q1 2 3 4T3 8' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+  /* The gap between the box's trailing edge and the wave's own, in the direction the text
+     runs. The tile's 1px margin is subtracted where this is used, so the number is the gap a
+     reader sees rather than the gap plus padding. */
+  --wave-drop: 1px;
 
   /* Components. The Latin family leads so figures and Western titles are drawn by the face we
      carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
@@ -180,6 +237,25 @@ html[data-drawer="open"] {
   --font-ui:
     "Source Serif 4", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", "Songti TC",
     "PMingLiU", serif;
+  /* Four families with strict jobs, and crossing between them is an error (ADR-0022). Two of
+     them are carried Latin faces; the other two name what the machine has.
+
+     **The Han half is never carried.** `NotoSerifCJKtc-Regular` is 16 MB and
+     `NotoSansCJKtc-Regular` is 11 MB, and ADR-0014 only pays that when the reader opens a book
+     with Han in it. Putting the second one behind "the buttons" would mean a shelf with no
+     words on it until 11 MB arrived. So the control face names a platform sans stack, and what
+     a Chinese button looks like still depends on the machine — that is the half of the
+     handoff's promise this cannot buy.
+
+     Both carried faces fall back into `--font-ui` rather than into a generic keyword, because
+     neither has a single Han glyph: the wordmark is Latin so it reaches Spectral, a mono label
+     is Latin so it reaches Plex, and anything else lands in the interface's own serif rather
+     than on whatever `sans-serif` happens to be. */
+  --font-display: "Spectral", var(--font-ui);
+  --font-control:
+    system-ui, "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC", "PingFang TC",
+    "Microsoft JhengHei", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   /* Every step in `rem`, and that is not tidiness. The reader's own font size is a percentage
      of their root (ADR-0006), so when they turn the browser's text up the *book* grows —
      and the interface only grows with it if it is measured in the same unit. In px the result
@@ -207,11 +283,12 @@ html[data-drawer="open"] {
   --type-ui: 0.9375rem;
   --type-note: 0.875rem;
   --type-eyebrow: 0.75rem;
-  /* Tracking travels with the eyebrow: at the larger coarse size the same 0.16em reads as
-     gappy rather than as a label. */
-  --type-eyebrow-tracking: 0.16em;
-  --leading-text: 1.68;
-  --leading-title: 1.3;
+  /* One value, and the handoff is strict about it: every mono label in the system is tracked
+     0.18em. It no longer moves with the coarse size — that adjustment existed because the
+     eyebrow was set in the serif, and a monospace at 0.18em reads as a label at both sizes. */
+  --type-eyebrow-tracking: 0.18em;
+  --leading-text: 1.8;
+  --leading-title: 1.4;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -219,6 +296,21 @@ html[data-drawer="open"] {
   --space-5: 22px;
   --space-6: 30px;
   --space-7: 44px;
+  /* Four radii, and each one answers "what kind of thing is this" rather than "how round
+     should it look". A fifth means going back to docs/design-system.md first.
+
+     The old system had none of these — square was the default, and the reason given was that
+     a radius left open becomes a knob (the CSS had 6, 8, 12, 14 and 999 at the time, none of
+     them able to say why). The knob is what these four names close: the number is a
+     consequence of which noun the thing is. */
+  /* A piece of paper: cards, popups, the reading surface, covers. */
+  --radius-surface: 6px;
+  /* A control: buttons, fields, tags. */
+  --radius-control: 3px;
+  /* A rail with two ends: switches and progress bars. */
+  --radius-track: 999px;
+  /* A dot — and the one that keeps the old system's test, because it is the same test: a
+     finger pinches it (the Scrubber's thumb and end caps, the ink swatches). */
   --radius-dot: 50%;
   /* What the bottom bar keeps clear beneath itself, and it is a question about the *device*
      rather than about the window — so the coarse block below is where it gets a value, and a
@@ -300,48 +392,40 @@ html[data-drawer="open"] {
     --type-ui: 1rem;
     --type-note: 0.9375rem;
     --type-eyebrow: 0.8125rem;
-    --type-eyebrow-tracking: 0.14em;
   }
 }
 
 :root[data-theme="dark"] {
   --surface-page: var(--night-800);
-  --surface-sunken: var(--night-900);
-  --surface-cover: var(--night-600);
   --surface-raised: var(--night-700);
-  --line-hair: var(--night-550);
+  --surface-sunken: var(--night-900);
+  --surface-cover: var(--night-650);
+  --line-hair: var(--night-600);
   --line-firm: var(--night-500);
-  --line-actionable: var(--night-300);
+  --line-actionable: var(--night-400);
   --line-track: var(--night-400);
+  --fill-selected: #2c3f55;
   --text-primary: var(--bone-100);
   --text-body: var(--bone-200);
   --text-muted: var(--bone-300);
   --text-faint: var(--bone-400);
-  --accent: var(--moss-300);
-  --accent-pressed: var(--moss-200);
-  --text-on-accent: var(--night-900);
+  /* Every blue flips to the light end of its own ramp, and the pair keeps its order: pressed
+     is still the further step from the page, which here means lighter rather than darker. */
+  --tide: #7ea6ce;
+  --tide-pressed: #9fbfe0;
+  --text-on-tide: var(--night-800);
   --surface-inverse: var(--bone-100);
-  --text-on-inverse: var(--night-900);
+  --text-on-inverse: var(--night-800);
   --line-on-inverse: var(--bone-300);
   /* Lighter than the light theme's: the same red on a near-black surface reads as brown. */
   --danger: var(--clay-400);
-  --backdrop: rgba(0, 0, 0, 0.5);
-  /* Split the same way as the light theme's, and mostly out of consistency rather than for the
-     effect: black offset against a near-black page is barely a shadow at all, which is why
-     "lifted" is said with `--night-700` here instead. One set of rules for both themes is worth
-     more than tuning a thing nobody can see. */
-  --shadow-lift: 2px 3px 0 rgba(0, 0, 0, 0.3), 2px 3px 4px rgba(0, 0, 0, 0.22);
-  --shadow-panel: 6px 8px 0 rgba(0, 0, 0, 0.35), 6px 8px 12px rgba(0, 0, 0, 0.25);
-  --shadow-panel-up: 0 -6px 0 rgba(0, 0, 0, 0.35), 0 -6px 12px rgba(0, 0, 0, 0.25);
-  --shadow-panel-left: -6px 0 0 rgba(0, 0, 0, 0.35), -6px 0 12px rgba(0, 0, 0, 0.25);
-  /* Same shape as the light theme, lifted: a wash and a pressed edge, never a different
-     treatment. The wash carries further here because the page underneath is dark. */
-  --mark-indigo: #7aa3cf;
+  --backdrop: rgba(6, 10, 14, 0.65);
+  /* The same four names, lifted. `--mark-indigo` is still the brand's blue — it is the dark
+     theme's value for it, not a different colour. */
+  --mark-indigo: #a9c4de;
   --mark-ochre: #cf8b4e;
   --mark-moss: #8aab72;
   --mark-soot: #9aa4ab;
-  --mark-wash: 0.3;
-  --mark-edge: 0.75;
 }
 
 body {
@@ -378,7 +462,7 @@ textarea {
 }
 
 /* Buttons come in three, and the plain one is the middle: a rule around a piece of paper.
-   Green is the scarce thing on this screen, so it is opted into by `.primary` and never
+   Tide is the scarce thing on this screen, so it is opted into by `.primary` and never
    arrives by default; `.ghost` gives up the rule as well, which only reads as a button when
    something else says it is one — a bar around it, or a single glyph in a 44px square.
    `.danger` is its own step and not a variant of primary: it is the one place a colour is
@@ -393,11 +477,12 @@ textarea {
    against the page and a button with an invisible edge is a caption. */
 button {
   cursor: pointer;
+  font-family: var(--font-control);
   border: 1px solid var(--line-actionable);
   background: var(--surface-page);
   color: var(--text-primary);
   min-height: var(--tap-min);
-  padding: 11px var(--space-5);
+  padding: var(--space-2) var(--space-4);
   transition:
     background 0.15s,
     border-color 0.15s;
@@ -406,13 +491,23 @@ button {
   touch-action: manipulation;
 }
 
-/* Lifted, not sunken. In the light theme the two are a hair apart and either reads as "under
-   the pointer"; in the dark, `--surface-sunken` is *darker* than the page, so a hovered button
-   used to recede. A shadow would say this better and the dark theme has none to spend, which is
-   what `--surface-raised` is for. */
+/* A blue wash of the paper, not a step of it. A step is what says which layer a thing is on
+   (ADR-0022), and hover is not a layer — spending a step on it leaves the two questions sharing
+   one signal, and in the dark theme they answered in opposite directions. `--fill-selected` is
+   the same wash in both themes and the border moves with it. */
 button:hover {
-  background: var(--surface-raised);
-  border-color: var(--text-muted);
+  background: var(--fill-selected);
+  border-color: var(--tide);
+}
+
+/* Pressed, which the old system never drew at all: it had a hover, a filled primary, and
+   nothing in between. Only the buttons that own a fill take it — a ghost has no interior to
+   fill, a `.danger` filling with tide would say the wrong thing at the worst moment, and a tab
+   says which one it is with the rule under it. */
+button:not(.ghost, .danger, .settings-tab):active:not(:disabled) {
+  background: var(--tide-pressed);
+  border-color: var(--tide-pressed);
+  color: var(--text-on-tide);
 }
 
 button:disabled {
@@ -422,14 +517,14 @@ button:disabled {
 
 /* One per screen, at most: the single thing the reader most likely came to do. */
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--tide);
+  border-color: var(--tide);
+  color: var(--text-on-tide);
 }
 
 button.primary:hover {
-  background: var(--accent-pressed);
-  border-color: var(--accent-pressed);
+  background: var(--tide-pressed);
+  border-color: var(--tide-pressed);
 }
 
 /* Only inside the reader's bars and on the ✕ that closes a panel. Anywhere else a borderless
@@ -439,20 +534,18 @@ button.ghost {
   background: none;
 }
 
-/* A cover's step rather than a sunken one, and it took a screenshot to notice: against the page
-   `--surface-sunken` is one step away, which the general `button:hover` above can afford because
-   it also moves a border. A ghost has no border to move, so that one step was the whole of the
-   answer to "which of these four am I on" — and it was invisible. `--surface-cover` is the next
-   step out, already in the ramp, and it is the darkest a bar can go before it stops reading as
-   the same piece of paper as the bar around it. */
+/* The same wash as every other button, and it took a screenshot to find out why it has to be:
+   a ghost has no border to move, so the fill is the whole of the answer to "which of these four
+   am I on". A step of paper was that answer once and it was very nearly invisible; a blue wash
+   is not, and it does not spend a layer to say something that is not about layers. */
 button.ghost:hover {
-  background: var(--surface-cover);
+  background: var(--fill-selected);
 }
 
-/* The sheet this button opened is standing open. Ink to green and nothing else: a filled
+/* The sheet this button opened is standing open. Ink to tide and nothing else: a filled
    background here would be a second surface inside a bar that is already one. */
 button.ghost.active {
-  color: var(--accent);
+  color: var(--tide);
 }
 
 /* A field is a piece of paper with a rule around it, like a button but without the pointer.
@@ -467,13 +560,13 @@ textarea {
   padding: 10px var(--space-3);
 }
 
-/* Explicit rather than left to the default: WebKit rounds a `<select>` and a `<textarea>` on
-   its own, so "no radius" has to be said out loud or two controls keep theirs. */
+/* Said out loud rather than left to the default: WebKit rounds a `<select>` and a `<textarea>`
+   to its own taste, and this system has one number for a control. */
 button,
 select,
 input,
 textarea {
-  border-radius: 0;
+  border-radius: var(--radius-control);
 }
 
 /* And saying it is not enough for a `<select>`: WebKit draws a menulist as a native control
@@ -484,14 +577,14 @@ textarea {
 select {
   appearance: none;
   padding-right: var(--space-6);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236f675d' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23585d64' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   background-size: 10px 7px;
 }
 
 :root[data-theme="dark"] select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239c948a' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23a3aeb6' stroke-width='1.5'/%3E%3C/svg%3E");
 }
 
 /* The faintest ink, and the only place it carries anything word-shaped — a placeholder is a
@@ -508,9 +601,9 @@ input {
 }
 
 /* The one control the browser draws itself, and it draws it in its own blue. A slider is
-   something the reader can act on, so it is moss like everything else that is. */
+   something the reader can act on, so it is tide like everything else that is. */
 input[type="range"] {
-  accent-color: var(--accent);
+  accent-color: var(--tide);
 }
 
 /* One ring for everything the keyboard can reach, and a paper-coloured halo outside it so the
@@ -525,7 +618,7 @@ input[type="range"] {
    colour there, every focused entry would wear a pale loop: the same artefact the Scrubber's
    thumb ring changed surfaces to avoid, on the controls a keyboard actually visits. */
 :where(button, select, input, textarea, .toc-item):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--tide);
   outline-offset: 1px;
   box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
 }
@@ -538,6 +631,7 @@ input[type="range"] {
   background: var(--surface-sunken);
   color: var(--text-body);
   border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
   padding: 0.5rem 1rem;
   margin: 0 2rem;
 }
@@ -570,14 +664,18 @@ input[type="range"] {
   background: var(--surface-page);
 }
 
-/* The wordmark, in ink. It used to be the one green thing on the shelf, which spent the
+/* The wordmark. It used to be the one coloured thing on the shelf, which spent the
    colour that means "you can press this" on the one word nobody can. */
 .library-header h1 {
   margin: 0;
   margin-right: auto;
-  font-size: var(--type-title);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: var(--type-display);
+  font-weight: 400;
+  /* The handoff's own figure for the wordmark, and it is negative: a display serif at this
+     size sets loose, so the tracking pulls it back to one word rather than nine letters. */
+  letter-spacing: -0.015em;
+  line-height: 1;
   color: var(--text-primary);
 }
 
@@ -726,6 +824,9 @@ button.ghost.book-more {
   text-align: center;
   border-left: 1px solid var(--line-firm);
   border-bottom: 1px solid var(--line-firm);
+  /* The cover's own corner, so the chip follows the curve it is cut from rather than standing
+     square inside a rounded edge. The other three stay sharp: it is a notch, not a pill. */
+  border-radius: 0 var(--radius-surface) 0 0;
   background: var(--surface-page);
 }
 
@@ -748,6 +849,7 @@ button.ghost.book-more::after {
   margin: 0;
   display: flex;
   flex-direction: column;
+  font-family: var(--font-control);
   font-size: var(--type-note);
   color: var(--text-muted);
   line-height: var(--leading-text);
@@ -763,23 +865,24 @@ button.ghost.book-more::after {
      fallback title clips itself. */
   position: relative;
   background: var(--surface-cover);
+  border-radius: var(--radius-surface);
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-lift);
   transition: border-color 0.15s;
 }
 
 /* Under the pointer the cover does not move. A book lifting off the shelf on hover is the
-   interface performing rather than answering, and the shadow already says it can be picked
-   up; what changes is the one thing hover has to say, which is "this one". */
+   interface performing rather than answering; what changes is the one thing hover has to say,
+   which is "this one". That it can be picked up at all is said by its own surface, a step off
+   the shelf's — there are no shadows to say it with now (ADR-0022). */
 .book-cover:hover {
-  border-color: var(--accent);
+  border-color: var(--tide);
 }
 
 /* Keyboard focus, drawn **outside** the cover: what colour the artwork is belongs to a
-   publisher, and a green ring lands invisibly on a dark one often enough to matter. Crop
+   publisher, and a tide-blue ring lands invisibly on a dark one often enough to matter. Crop
    marks are the printer's own way of saying "this is the piece" from off the edge of it —
    the same stock this whole interface is cut from. The 7px offset keeps them inside the
    grid's gap, so a focused cover never touches its neighbour.
@@ -788,7 +891,6 @@ button.ghost.book-more::after {
    and have no business in the accessibility tree they would otherwise be added to. */
 .book-cover:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-lift);
 }
 
 .book-cover:focus-visible::before {
@@ -797,14 +899,14 @@ button.ghost.book-more::after {
   inset: -7px;
   pointer-events: none;
   background:
-    linear-gradient(var(--accent), var(--accent)) left top / 16px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left top / 2px 16px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right top / 16px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right top / 2px 16px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 16px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 2px 16px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right bottom / 16px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right bottom / 2px 16px no-repeat;
+    linear-gradient(var(--tide), var(--tide)) left top / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left top / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right top / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right top / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left bottom / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) left bottom / 2px 16px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right bottom / 16px 2px no-repeat,
+    linear-gradient(var(--tide), var(--tide)) right bottom / 2px 16px no-repeat;
 }
 
 .book-cover img {
@@ -851,8 +953,8 @@ button.ghost.book-more::after {
   max-width: min(24rem, calc(100vw - 2rem));
   padding: 1.25rem;
   border: 1px solid var(--line-firm);
-  background: var(--surface-page);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
 }
 
 .alert-title {
@@ -1035,13 +1137,13 @@ button.danger:hover {
   padding: 0 var(--space-3);
 }
 
-/* Which panel is standing open. A rule as well as the green, because up here the four entries
+/* Which panel is standing open. A rule as well as the colour, because up here the four entries
    are shoulder to shoulder and a colour on one word among four does not read as "this one is
    open" — but still no fill: the bar is already a surface, and a second surface inside it is a
    box drawn in a box. The hand-held row undoes the rule (below), where three widely spaced
    entries make the colour enough on its own. */
 .chrome-nav button.active {
-  border-color: var(--accent);
+  border-color: var(--tide);
 }
 
 /* The book, between the two bars. It catches nothing, so a press on the page reaches frond. */
@@ -1110,9 +1212,9 @@ button.danger:hover {
 
 /* Busy, on a button.
    ------------------
-   Two shapes, both in `--text-muted` and neither in moss: a button that is working is a button
-   that cannot be pressed, and moss is the colour that says the opposite. What was here before
-   was a green dashed line walking the button's own border — a frame inside a frame, in the one
+   Two shapes, both in `--text-muted` and neither in tide: a button that is working is a button
+   that cannot be pressed, and tide is the colour that says the opposite. What was here before
+   was a dashed accent line walking the button's own border — a frame inside a frame, in the one
    colour that promised the reader something the state could not give.
 
    Neither says how far. The percentage is inside the sheet, where a number can be read; from
@@ -1270,11 +1372,11 @@ button.danger:hover {
 
    **The right rather than the left**, and that is not symmetry. The book gives up this column
    while a panel is open, and a reader's eye returns to the start of a line: taking the room from
-   the far end leaves the text where the eye already is. It also gets the shadow right for free.
-   From the left the panel took the default down-and-right cast, whose 8px of *down* reached past
-   the book's own box and landed on the Scrubber's bar — a lifted thing casting onto something it
-   is beside. Coming from the right it casts left, across the book, with nothing below it to
-   reach (`--shadow-panel-left`). */
+   the far end leaves the text where the eye already is.
+
+   No radius here, and no cast. A column that runs the full height of the reader and is flush to
+   its right edge has no corner the reader can see, so rounding it would round nothing; the sheet
+   the hand-held query builds out of the same element *does* have two, and takes them there. */
 .panel-popup {
   pointer-events: auto;
   position: absolute;
@@ -1286,7 +1388,6 @@ button.danger:hover {
   flex-direction: column;
   background: var(--surface-sunken);
   border-left: 1px solid var(--line-hair);
-  box-shadow: var(--shadow-panel-left);
   /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
      drag to the left does not pull it off the edge it belongs to. */
   transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
@@ -1423,7 +1524,7 @@ button.danger:hover {
    -------------------------------------------------------------------------------------------
    The cells share their borders by pulling one pixel left, so the set reads as a single control
    with divisions rather than as three buttons that happen to touch. The chosen cell is lifted a
-   layer for the same reason: its own moss edge has to win over both neighbours' hairlines, or
+   layer for the same reason: its own tide edge has to win over both neighbours' hairlines, or
    the fill would sit inside a box drawn by somebody else. */
 .segmented {
   display: flex;
@@ -1445,13 +1546,22 @@ button.danger:hover {
   margin-left: -1px;
 }
 
+.segment {
+  border-radius: 0;
+}
+
 .segment:first-child {
   margin-left: 0;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.segment:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 /* Answered before the fill, so the two never argue over one cell. */
 .segment:hover:not(:disabled) {
-  background: var(--surface-cover);
+  background: var(--fill-selected);
   border-color: var(--text-muted);
   position: relative;
   z-index: 1;
@@ -1459,19 +1569,20 @@ button.danger:hover {
 
 .segment[aria-checked="true"],
 .segment[aria-checked="true"]:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--tide);
+  border-color: var(--tide);
+  color: var(--text-on-tide);
   position: relative;
   z-index: 2;
 }
 
 /* A chosen cell in a group nobody can press — 欄數 over a 直排 book, where frond cannot honour
    two columns at all. It still has to say which value is standing, and it must not say it in
-   moss: green is the colour for what can be acted on (ADR-0022), and a green cell that refuses
-   the press is the one thing that rule exists to prevent. A step of paper says it instead. */
+   tide: that blue is the colour for what can be acted on (ADR-0022), and a tide-filled cell
+   that refuses the press is the one thing that rule exists to prevent. A step of paper says it
+   instead. */
 .segment:disabled[aria-checked="true"] {
-  background: var(--surface-cover);
+  background: var(--surface-sunken);
   border-color: var(--line-firm);
   color: var(--text-muted);
 }
@@ -1539,12 +1650,12 @@ button.danger:hover {
    has stopped. The bar answers "is this alive" — its sheen travels continuously whatever the
    percentage does — while the width answers "how far". */
 /* A bar nobody can drag, and it has to be impossible to mistake for the one they can. The
-   Scrubber a few centimetres below it is green, is 22px of hit area, carries a thumb and end
+   Scrubber a few centimetres below it is tide, is 22px of hit area, carries a thumb and end
    caps, and answers the keyboard. This is grey, is 3px of nothing, has no thumb, no caps and
    no pointer events at all — the two appear in the same panel, and a reader who drags this
    one because it looked like the other lands somewhere else in their book with no way back.
 
-   **Green is the whole of that signature**, which is why this bar never gets it: moss means
+   **The tide blue is the whole of that signature**, which is why this bar never gets it: it means
    "you can act on this", and the one thing to do with a download is wait.
 
    It also does not take a row of its own. Pressed against the line it explains (4px), it
@@ -1552,6 +1663,7 @@ button.danger:hover {
 .font-progress {
   height: 3px;
   margin: var(--space-1) 0 0.15rem;
+  border-radius: var(--radius-track);
   background: var(--surface-sunken);
   overflow: hidden;
   pointer-events: none;
@@ -1623,12 +1735,12 @@ button.danger:hover {
   z-index: 12;
   max-width: min(20rem, calc(100% - 2rem));
   padding: 0.5rem 0.9rem;
-  background: var(--text-primary);
-  color: var(--surface-page);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
   font-size: var(--type-note);
   line-height: var(--leading-text);
   text-align: center;
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   animation: font-toast-in 0.18s ease-out;
 }
 
@@ -1666,16 +1778,16 @@ button.danger:hover {
 }
 
 .toc-item:hover {
-  background: var(--surface-sunken);
+  background: var(--fill-selected);
   border: none;
 }
 
 /* The chapter being read. The bar carries the mark rather than a background, so a hover still
    reads as hover while it is on screen. */
 .toc-item.current {
-  color: var(--accent);
+  color: var(--tide);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 3px 0 0 var(--tide);
 }
 
 .viewer-wrap {
@@ -1716,19 +1828,65 @@ button.danger:hover {
   pointer-events: none;
 }
 
-/* A wash of ink with a firmer line pressed along its bottom edge. The line is not decoration:
-   it is what keeps a mark legible on a dark page, where a wash alone thins out to nothing, and
-   it is the shape a nib leaves when it comes off the paper.
+/* A wavy line along the edge of the text, and nothing else: no wash, no block of colour.
+   ---------------------------------------------------------------------------------------
+   This is the one place the product's name is drawn — tidemarks are what the water leaves —
+   so it is the only ornament in the interface, and it appears on the one thing that belongs
+   to the reader rather than to us.
 
    `--mark` is set per box by `HighlightLayer`, which carries the *name* of the ink; both
    themes' values for that name live in the token block, so a mark drawn in one theme is
-   correct in the other without being redrawn. `color-mix` rather than `opacity` because
-   opacity would fade the text underneath along with the wash. */
+   correct in the other without being redrawn.
+
+   **The box itself paints nothing.** It keeps the rectangle frond reported, exactly, because
+   `highlights.ts` hit-tests a tap against those same numbers — the wave is a child drawn
+   outside it, and moving the box to make room for the wave would move the target with it. */
 .highlight-box {
   position: absolute;
-  background: color-mix(in srgb, var(--mark) calc(var(--mark-wash) * 100%), transparent);
-  box-shadow: inset 0 -2px 0
-    color-mix(in srgb, var(--mark) calc(var(--mark-edge) * 100%), transparent);
+}
+
+/* **The two axes are placed differently, and that is measured rather than chosen.**
+   ---------------------------------------------------------------------------------
+   A horizontal rect from frond is the **line box**: 26px tall for 18.4px type, and consecutive
+   rects touch — the gap between them is exactly 0. Draw the wave below such a box and it is
+   not near the text it marks, it is on top of the next line. So the horizontal wave goes
+   *inside*, in the half-leading the line box already carries under its glyphs.
+
+   A vertical rect is the **em box**: 11px across for 23px type, hugging the glyphs with the
+   inter-column space outside it. Draw the wave inside that and it is on the strokes. So the
+   vertical wave goes *outside*, in the gutter between columns — which is where 傍線 belongs in
+   vertical Chinese and Japanese setting anyway, on the right-hand side of the line.
+
+   Neither of these is what a standalone prototype predicts, and the prototype was wrong in
+   both directions before the running reader was measured. If a future frond changes what
+   `rectsFor` reports, this is the pair of numbers to re-measure.
+
+   The 1px subtracted is the tile's own margin (see `--wave-h`). */
+.highlight-box::after {
+  content: "";
+  position: absolute;
+  background: var(--mark);
+}
+
+.highlight-box[data-axis="h"]::after {
+  left: 0;
+  right: 0;
+  bottom: calc(var(--wave-drop) - 1px);
+  height: 6px;
+  mask-image: var(--wave-h);
+  mask-repeat: repeat-x;
+  mask-size: 8px 6px;
+}
+
+/* `HighlightLayer` is told which of the two this is; nothing in the rectangle says so. */
+.highlight-box[data-axis="v"]::after {
+  top: 0;
+  bottom: 0;
+  left: calc(100% + var(--wave-drop) - 1px);
+  width: 6px;
+  mask-image: var(--wave-v);
+  mask-repeat: repeat-y;
+  mask-size: 6px 8px;
 }
 
 .page-btn {
@@ -1741,14 +1899,14 @@ button.danger:hover {
 
 /* The whole column lights, not the glyph. The button is 3rem wide and the full height of the
    book, and a chevron changing shade was the only thing saying so — a target the size of a
-   character advertised by a character. The wash is the moss the arrow turns, at the strength
+   character advertised by a character. The wash is the tide the arrow turns, at the strength
    where it separates from the page without competing with the text beside it.
 
-   It does not spend the green budget (ADR-0022): this is a hover, so it exists only while the
+   It does not spend the tide budget (ADR-0022): this is a hover, so it exists only while the
    pointer is inside it, and never at the same time as the other one. */
 .page-btn:hover {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--tide);
+  background: color-mix(in srgb, var(--tide) 8%, transparent);
   border: none;
 }
 
@@ -1788,7 +1946,7 @@ button.danger:hover {
    track runs the full width of the screen and an outline drawn on its edge would be a rectangle
    around the whole bottom of the page. */
 .scrubber-track:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--tide);
   outline-offset: -2px;
 }
 
@@ -1800,6 +1958,7 @@ button.danger:hover {
   top: 50%;
   height: 3px;
   transform: translateY(-50%);
+  border-radius: var(--radius-track);
   background: var(--line-track);
   transition: height 0.12s ease;
 }
@@ -1814,7 +1973,8 @@ button.danger:hover {
   top: 50%;
   height: 3px;
   transform: translateY(-50%);
-  background: var(--accent);
+  border-radius: var(--radius-track);
+  background: var(--tide);
   transition: height 0.12s ease;
 }
 
@@ -1830,7 +1990,7 @@ button.danger:hover {
   height: 14px;
   transform: translate(-50%, -50%);
   border-radius: var(--radius-dot);
-  background: var(--accent);
+  background: var(--tide);
   /* The lift, plus a ring of the bar around it. The ring is what makes the thumb readable in
      the dark theme, where a black offset shadow on a near-black bar says nothing at all; in the
      light theme it cuts the dot away from the rail it rides, which it needed anyway.
@@ -1839,9 +1999,7 @@ button.danger:hover {
      in ADR-0028: the ring is a hole punched in whatever the thumb sits on, so it has to be the
      bar's colour. Left as the page's, it would draw a pale halo on a darker bar — the one thing
      a ring meant to disappear must not do. */
-  box-shadow:
-    var(--shadow-lift),
-    0 0 0 2px var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--surface-raised);
   opacity: 0;
   transition: opacity 0.12s ease;
 }
@@ -1899,9 +2057,9 @@ button.danger:hover {
   margin-bottom: 8px;
   max-width: 70vw;
   padding: 0.35rem 0.6rem;
-  background: var(--surface-page);
+  background: var(--surface-raised);
   border: 1px solid var(--line-firm);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -1919,6 +2077,7 @@ button.danger:hover {
 }
 
 .scrubber-pct {
+  font-family: var(--font-control);
   font-size: var(--type-note);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -1946,7 +2105,7 @@ button.danger:hover {
   background: var(--surface-inverse);
   color: var(--text-on-inverse);
   padding: 9px var(--space-3);
-  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-surface);
   justify-content: center;
   max-width: calc(100vw - var(--space-5));
 }
@@ -2007,8 +2166,8 @@ button.danger:hover {
   font-size: var(--type-body);
 }
 
-/* A wash of the bar's own ink, not moss: on a reversed bar the light theme's green is 1.9:1
-   against the black and reads as a word going out rather than lighting up. */
+/* A wash of the bar's own ink, not tide: on a reversed bar the light theme's tide blue is
+   2.3:1 against the near-black and reads as a word going out rather than lighting up. */
 .highlight-toolbar button:hover {
   background: color-mix(in srgb, var(--text-on-inverse) 16%, transparent);
   color: inherit;
@@ -2081,6 +2240,7 @@ button.danger:hover {
    it in, so a note found here is recognisably the passage they marked in the book. */
 .annotation-item {
   border-left: 3px solid var(--mark-indigo);
+  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
   padding: 0.5rem 0.7rem;
   background: var(--surface-sunken);
 }
@@ -2163,9 +2323,8 @@ button.danger:hover {
   width: min(26rem, 100%);
   display: flex;
   flex-direction: column;
-  background: var(--surface-page);
+  background: var(--surface-raised);
   border-left: 1px solid var(--line-hair);
-  box-shadow: var(--shadow-panel-left);
   /* The swipe offset Base UI publishes while a finger is on the panel. */
   transform: translateX(var(--drawer-swipe-movement-x, 0px));
   transition: transform 0.3s ease;
@@ -2227,9 +2386,11 @@ button.danger:hover {
 .drawer-section-title,
 .settings-section-title {
   margin: 0;
+  font-family: var(--font-mono);
   font-size: var(--type-eyebrow);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: var(--type-eyebrow-tracking);
+  text-transform: uppercase;
   color: var(--text-muted);
   padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--line-hair);
@@ -2359,8 +2520,8 @@ button.danger:hover {
 }
 
 .settings-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--tide);
+  border-bottom-color: var(--tide);
 }
 
 .settings-pane {
@@ -2405,7 +2566,7 @@ button.danger:hover {
 /* Says why the reader is looking at their shelf when they asked to connect an agent. */
 .auth-pending {
   margin: 0;
-  color: var(--accent);
+  color: var(--tide);
   font-size: var(--type-ui);
   line-height: var(--leading-text);
 }
@@ -2549,10 +2710,10 @@ button.danger:hover {
        above it has lost the thing it covers the page for (ADR-0026). */
     max-height: min(70vh, 36rem);
     height: auto;
-    background: var(--surface-page);
+    background: var(--surface-raised);
     border-left: none;
     border-top: 1px solid var(--line-hair);
-    box-shadow: var(--shadow-panel-up);
+    border-radius: var(--radius-surface) var(--radius-surface) 0 0;
     transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
   }
 

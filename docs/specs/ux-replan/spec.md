@@ -5,6 +5,11 @@
 > 一層、把〈設定〉從抽屜改成一層樓（`#/settings/typography`、`#/settings/account` 兩個 tab），
 > 所以底下的路由表、「閱讀器留四項覆寫」、「以後每本書都這樣排」與〈裝置預設〉這個詞都已經過期。
 > 其餘各段（書架、chrome 的三個狀態、Scrubber）不受影響。
+>
+> **2026-08-22 再補一條：顏色與陰影也不算數了。** 視覺方向換成 Indigo Dye，所以「選中＝實心
+> 綠底」現在是實心 `--tide`（藍），而 `--shadow-panel-left` 那一段連同整組陰影都移除了——面板
+> 不再投影，它靠自己的表面比書頁暗一階說自己是一個凹進去的欄。理由見
+> [ADR-0022](../../adr/0022-the-interface-is-a-print-shop.md)。
 
 
 狀態：已對齊，未實作。對齊日期 2026-08-12。基準：`main`（`Library.tsx`、`Reader.tsx`、`Scrubber.tsx`、
