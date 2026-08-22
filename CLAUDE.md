@@ -104,6 +104,26 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 
 `@yurenju/frond` 停在 0.4.15 且不再發布。要接回 npm 得從 0.4.16 起續號，理由與代價見 ADR-0017。
 
+## 樣式：原生 CSS，八個檔案，一份清單
+
+樣式在 `packages/app/src/styles/`，八個檔案；`packages/app/src/index.css` 只剩一份 `@import` 清單，
+每一行旁邊寫著那個檔案管什麼。**要加規則就先讀那份清單挑檔案**，它同時也是唯一寫得出「哪個檔案管
+哪一塊」的地方（另開一份文件會過期，那份清單跟著檔案一起改）。
+
+**那份 `@import` 清單就是 cascade。** 沒有 `@layer`，也沒有靠 specificity 分勝負，所以規則靠「排在
+後面」取勝。最吃這件事的是 `device.css`：它裡面有 29 個選擇器在前七個檔案就設過了，同樣的
+specificity（media query 不加分），純粹因為 import 在最後才贏。**把它的內容搬去跟元件作伴就會壞。**
+
+反過來說，改元件的時候要記得 `device.css` 可能在覆寫同一條規則——真的有覆寫的地方，元件檔案裡留了
+一行指路的註解。
+
+**不引入 CSS Modules／Tailwind／CSS-in-JS**，理由見
+[ADR-0033](docs/adr/0033-styles-stay-plain-css-in-eight-files.md)。那份 ADR 存在的用途就是擋掉
+「這個該模組化吧」的第二次討論。
+
+`lib/tokens.test.ts` 會照著 `index.css` 的 `@import` 清單把八個檔案讀起來，檢查有沒有指向不存在的
+custom property。**新增樣式檔就要加進清單**，不然它既不進 bundle、也不會被檢查。
+
 ## 程式碼用英文，文件用中文
 
 界線切在**檔案類型**上，不切在內容上：

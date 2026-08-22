@@ -13,7 +13,7 @@ import { BOOKS, openBook, pageOffset, visibleText } from "../support/library.js"
  * with real touch, the sequence measured here was `pointerdown`, **one** `pointermove`, then
  * `pointercancel`, with the `touchmove`s carrying on without a pointer stream to go with them.
  * The page moved by nothing at all. The fix is `touch-action: none` on both surfaces (frond's
- * `layout.ts` inside the frame, `index.css` on the container), and this is what holds it.
+ * `layout.ts` inside the frame, `styles/book.css` on the container), and this is what holds it.
  *
  * CDP's `Input.dispatchTouchEvent` goes in ahead of the browser's decision, so this is the only
  * test here that can be wrong in the way a phone is wrong. **Chromium only**: the other two

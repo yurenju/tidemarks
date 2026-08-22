@@ -306,11 +306,20 @@ describe("hitBoxes", () => {
 });
 
 describe("the wave's two numbers, which live in two languages", () => {
-  // `markStrips` sizes the strip and `index.css` sizes the mask that fills it. They have to
+  // `markStrips` sizes the strip and the stylesheet sizes the mask that fills it. They have to
   // agree: a mask larger than its box repeats inside it and the wave comes out chopped, a
   // smaller one leaves a gap — and neither raises anything. The ADR names this as the failure
   // mode that argued for one wave height everywhere, so it is worth a line of test.
-  const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
+  //
+  // **Two files, because the two halves of the wave live apart**: `mask-size` is on the strip
+  // in `book.css`, while the tile it repeats is a token — `--wave-h` and `--wave-v` in
+  // `tokens.css` — since the four inks all draw the same wave. Naming them rather than
+  // reassembling the whole sheet (which is `tokens.test.ts`'s job) is what makes a failure here
+  // say which of the two drifted, and reading the wrong file cannot pass quietly: `toContain`
+  // would simply find nothing.
+  const css = ["../styles/tokens.css", "../styles/book.css"]
+    .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+    .join("\n");
 
   it("the mask is exactly as thick as the strip, on both axes", () => {
     expect(css).toContain(`mask-size: ${WAVELENGTH}px ${WAVE_THICKNESS}px`);

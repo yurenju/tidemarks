@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 /**
  * Where the reader's entries live, in the words CSS asks the question in.
  *
- * `index.css` asks it too, for the bars themselves, and the rule that does names this file.
+ * `styles/device.css` asks it too, for the bars themselves, and the rule that does names
+ * this file.
  * Two copies of one string, because CSS cannot read a constant — and this copy decides only
  * which way a finger dismisses a panel, so a frame of disagreement costs nothing.
  *

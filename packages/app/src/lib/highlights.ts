@@ -46,9 +46,10 @@ export interface MarkedRectLike {
  * chance of the three things that have to agree (the tile's own geometry, `mask-size`, and
  * this height) drifting apart, which fails silently by painting nothing.
  *
- * **`index.css` repeats these two numbers in `--wave-h` / `--wave-v` and their `mask-size`.**
- * They have to match; the mask is the only place they can be expressed in CSS and the strip is
- * the only place they can be expressed here.
+ * **The stylesheet repeats these two numbers, and now in two files**: in `--wave-h` / `--wave-v`
+ * (`styles/tokens.css`) and in their `mask-size` (`styles/book.css`). They have to match; the
+ * mask is the only place they can be expressed in CSS and the strip is the only place they can
+ * be expressed here.
  */
 export const WAVE_THICKNESS = 4;
 
@@ -57,7 +58,7 @@ export const WAVE_THICKNESS = 4;
  *
  * Kept in the same proportion to the thickness as the 8×6 tile it replaces, because that ratio
  * is what makes it read as a wave rather than as a fuzzy line. Exported so a test can hold the
- * CSS to it — `index.css` writes both numbers twice more, in each tile's viewBox and in its
+ * CSS to it — the sheet writes both numbers twice more, in each tile's viewBox and in its
  * `mask-size`, and a mask that disagrees with its box paints a chopped wave with no error.
  */
 export const WAVELENGTH = 5.333;
@@ -326,7 +327,7 @@ const RETIRED_NAMES: Record<string, MarkName> = {
  * A hex here would be a third place the light and dark palettes have to agree, and it would be
  * read once at render — so a mark drawn before the reader switched themes would keep the other
  * theme's colour until the next layout. Handing back `var(--mark-ochre)` leaves the value in
- * `index.css` where both themes are already written down, and the browser re-resolves it.
+ * `styles/tokens.css` where both themes are already written down, and the browser re-resolves it.
  *
  * A name from neither table (a newer version of the app synced a fifth ink down) gets the
  * default rather than nothing: an invisible highlight is a passage the reader marked and

@@ -1,0 +1,465 @@
+/* The Latin half of the interface's typeface, carried rather than borrowed for the same
+   reason the CJK faces are (ADR-0014): a third party's CDN is a dependency the reader cannot
+   see and cannot survive being offline. One variable file per subset covers every weight the
+   interface asks for, and `unicode-range` means a reader whose books and names never leave
+   Basic Latin never fetches the extended one. */
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+/* The wordmark's face, and only the wordmark's. One weight, Basic Latin, 21 KB — because
+   "Tidemarks" is the only string it ever draws, and a display face earning its keep on one
+   word should not cost more than that.
+
+   It is not let near running text on purpose. The design system asks for four families with
+   strict jobs, and a second Latin serif in prose is exactly the collision that rule exists to
+   prevent: Source Serif 4 already covers every weight the interface asks for out of one
+   variable file. */
+@font-face {
+  font-family: "Spectral";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/spectral-latin-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122;
+}
+
+/* The one monospace, for the micro-labels that say the system is talking — uppercase, tracked
+   out, never a sentence. Basic Latin only and no CJK fallback of its own: a mono label is
+   Latin by construction (`NOTE`, `SYNCED`, a timestamp), and where a translation puts Han
+   characters in one the stack behind it catches them in the interface's own serif. */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* One scrollbar for the page and a permanent gutter for it. Without the gutter, opening a
+   drawer (which locks the page) takes the scrollbar away and the whole shelf jumps sideways by
+   its width — a layout shift the reader reads as the interface flinching. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Set by `App.tsx` while a drawer is up. */
+html[data-drawer="open"] {
+  overflow: hidden;
+}
+
+/* Design tokens, in three layers: primitives, then what they mean, then what a component
+   takes. Only the semantic layer is quoted below this block — a rule naming `--paper-300`
+   directly is a rule that has decided what a colour is *for* without saying so.
+   Why the interface looks like this: ADR-0022. What follows from it: docs/design-system.md.
+
+   The short of it is three materials. **Paper** is the container the reader cannot change:
+   the page, the covers, the bars, the panels. Three steps, and the step is how this system
+   says "lifted" — there are no shadows at all. **Ink** is what the reader leaves behind:
+   highlights and notes. **Tide** is what can be acted on. The tide-coloured places on a
+   screen should be countable; a fourth one means something ought to have been paper.
+
+   Running text keeps its own four steps of density below, and that is a separate thing from
+   the material called ink: hierarchy in prose is made of density alone rather than of weight
+   or of boxes. */
+:root {
+  /* Primitives — paper. Warm, and never grey: every ground here is either paper or a blue
+     wash of it. */
+  --paper-100: #fbf7ed;
+  --paper-200: #f4eee2;
+  --paper-300: #ede5d6;
+  /* Between sunken and the hairline, and it exists for `--surface-cover` alone: a book with no
+     art has to read as an object lying on the shelf, which means a step the shelf does not
+     already use. */
+  --paper-350: #e9e0d1;
+  --paper-400: #e4ddce;
+  --paper-500: #d9d1be;
+  --paper-600: #c6c1b4;
+  --ink-900: #14171c;
+  --ink-800: #232833;
+  --ink-600: #585d64;
+  /* 2.25:1 against the page, which is why the semantic name it answers to does not carry
+     words. The handoff limits it the same way and calls it out as debt. */
+  --ink-400: #9aa1ac;
+  /* The three blues, and they are not interchangeable. `-mark` belongs to the reader and is
+     spent under `--mark-indigo` alone; `-tide` is everything that can be pressed; `-static`
+     is decoration that cannot. */
+  --blue-mark: #1b2e4d;
+  --blue-tide: #2e4a75;
+  /* Darker than `--blue-tide` rather than the handoff's lighter `blue-static`: pressed has to
+     hold paper-coloured text, and paper on `#7a93ae` is 2.7:1. */
+  --blue-tide-deep: #24395c;
+  --blue-selected: #c7d3e0;
+  --clay-600: #a8552f;
+  --clay-400: #d08a62;
+  --night-900: #101a24;
+  --night-800: #16202b;
+  /* A step *above* the page: with no shadows anywhere, this is the whole of how the interface
+     says a thing is on top of another thing. */
+  --night-700: #1b2733;
+  /* The handoff's fourth dark surface, which it spends on skeletons; here it is the cover.
+     **Lighter than the page, not darker** — in the dark theme a cover that steps down
+     disappears into the shelf, which is what happens if this shares `--surface-sunken`. */
+  --night-650: #1f2c39;
+  --night-600: #223040;
+  --night-500: #27343f;
+  --night-400: #35424e;
+  --bone-100: #f2f1e9;
+  --bone-200: #e4e9ec;
+  --bone-300: #a3aeb6;
+  --bone-400: #6e7c88;
+
+  /* Semantics — paper. Three surfaces, and their order is the message: raised is lighter than
+     the page and sunken is darker, in both themes. A fourth layer has to be given a fourth
+     value rather than doubling up on one of these, because that is what "lifted" is said with
+     now (ADR-0022). */
+  --surface-page: var(--paper-200);
+  --surface-raised: var(--paper-100);
+  --surface-sunken: var(--paper-300);
+  --surface-cover: var(--paper-350);
+  --line-hair: var(--paper-400);
+  --line-firm: var(--paper-500);
+  /* The edge on something that stands on its own, kept apart from `--line-hair`'s job of
+     dividing things. In the light theme they can be a step apart; in the dark they cannot be
+     the same, which is the whole reason this name exists (ADR-0023). */
+  --line-actionable: var(--paper-600);
+  /* The line a thumb runs along. Its own name because the Scrubber is the one control whose
+     rail has to stay legible under a fill and a thumb. */
+  --line-track: var(--paper-600);
+  /* Hover and selection, and the one fill that is not a surface step: it says "this one",
+     which is a different question from "which layer is this". */
+  --fill-selected: var(--blue-selected);
+  --backdrop: rgba(20, 23, 28, 0.55);
+
+  /* Semantics — running text. The four steps are not four text colours: `--text-faint` is the
+     one that does not carry words. It is for rules, disabled glyphs and placeholders, because
+     at 2.25:1 against the page anything it spells cannot be read by everyone who has to. */
+  --text-primary: var(--ink-900);
+  --text-body: var(--ink-800);
+  --text-muted: var(--ink-600);
+  --text-faint: var(--ink-400);
+
+  /* Semantics — tide, the one decoration blue, and the one red.
+     `--tide` is the handoff's `blue-interactive` and not its `blue-mark`, deliberately: the
+     handoff gives `blue-mark` both the reader's marks and the primary button, which
+     contradicts its own first rule. The button is the half that moves (ADR-0022). */
+  --tide: var(--blue-tide);
+  --tide-pressed: var(--blue-tide-deep);
+  --text-on-tide: var(--paper-200);
+  --danger: var(--clay-600);
+
+  /* The one reversal in the app, for the one thing that sits on top of the reader's own words.
+     "The opposite of the paper underneath" is the rule, so both values swap with the theme
+     rather than staying dark. */
+  --surface-inverse: var(--ink-900);
+  --text-on-inverse: var(--paper-200);
+  --line-on-inverse: var(--ink-600);
+
+  /* **There are no shadows.** Not "subtle ones": none. What a shadow used to say — this thing
+     can be picked up — is said by a step of surface now, and the step runs the same way in
+     both themes: `--surface-raised` above the page, `--surface-sunken` below it.
+
+     The old system spent a lot of care on hard offset shadows and it was right about what it
+     wanted from them: a fact that could be checked rather than a decoration, which is why
+     `bar`s were forbidden from casting. What it could never do was work in the dark, where a
+     black offset on a near-black page is nothing at all — so ADR-0028 had already answered
+     that case with a lighter surface. This is that answer, applied to both themes.
+
+     The only three `box-shadow`s left in the sheet are not drop shadows anywhere: the focus
+     ring's halo (`controls.css`), the Scrubber thumb's ring — a hole punched in the bar it
+     rides — and one inset rule marking the chapter being read (both `book.css`). */
+
+  /* The four inks a reader can mark with. Highlights are ink, not fluorescent marker.
+     `--mark-indigo` is the default and it carries the brand's own blue: leave the setting
+     alone and the line you draw *is* the mark this app is named for.
+
+     Moss is a green in a system whose interface has none, and that is not a contradiction:
+     rule 3 of the palette governs what the *interface* may say (chiefly that "synced" is
+     never green), and these four are colours on the book, which belong to the reader. */
+  --mark-indigo: var(--blue-mark);
+  --mark-ochre: #a4622f;
+  --mark-moss: #5f7a4e;
+  --mark-soot: #3d4348;
+
+  /* The wave the tide leaves — the brand's own mark, and the shape every highlight takes.
+     ------------------------------------------------------------------------------------
+     **The colour comes from the background and the shape from a mask.** That is what keeps
+     this to two images: bake the colour into the SVG and it becomes four inks × two themes =
+     eight near-identical data URIs, which is the `<select>` chevron's problem multiplied.
+
+     **The tile leaves an eighth of its height at each edge and that is not slack.** At 4px the
+     centre line runs 1.33→2.67 and `stroke-width: 1.33` puts ink at 0.67→3.33. Sized any
+     tighter, the trough lands outside the viewBox and SVG clips it: every wave in the app comes
+     out with a flat bottom, and the vertical one with a flat right side. It is only visible
+     once you know to look, which is why the measurement is written down and not just the value.
+
+     **4px, and the same 4px in every book** (ADR-0032). It used to be 6px, and 6px does not fit
+     between the lines of a tightly set Latin book without crossing the glyphs. The height was
+     picked by looking at a prototype at reading size: at 2px the wave reads as a plain
+     underline, at 4px it still reads as a wave. `lib/highlights.ts`'s `WAVE_THICKNESS` is the
+     same number — the strip and its mask have to agree or the tile repeats inside the strip and
+     the wave comes out chopped.
+
+     The control point sits outside the viewBox on purpose; SVG clips the rendered stroke, not
+     the geometry that produces it. */
+  --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5.333' height='4'%3E%3Cpath d='M0 2Q1.333 0.667 2.667 2T5.333 2' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
+  --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5.333'%3E%3Cpath d='M2 0Q0.667 1.333 2 2.667T2 5.333' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
+
+  /* Components. The Latin family leads so figures and Western titles are drawn by the face we
+     carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
+     same reasons given there — chiefly that a bare `serif` keyword lands on PingFang, a sans,
+     on Apple platforms. The pan-CJK name goes first because one family covers Traditional,
+     Simplified, Japanese and Korean interface strings, and because `lib/ui-font.ts` registers
+     our own copy under exactly that name when this device has it. */
+  --font-ui:
+    "Source Serif 4", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", "Songti TC",
+    "PMingLiU", serif;
+  /* Four families with strict jobs, and crossing between them is an error (ADR-0022). Two of
+     them are carried Latin faces; the other two name what the machine has.
+
+     **The Han half is never carried.** `NotoSerifCJKtc-Regular` is 16 MB and
+     `NotoSansCJKtc-Regular` is 11 MB, and ADR-0014 only pays that when the reader opens a book
+     with Han in it. Putting the second one behind "the buttons" would mean a shelf with no
+     words on it until 11 MB arrived. So the control face names a platform sans stack, and what
+     a Chinese button looks like still depends on the machine — that is the half of the
+     handoff's promise this cannot buy.
+
+     Both carried faces fall back into `--font-ui` rather than into a generic keyword, because
+     neither has a single Han glyph: the wordmark is Latin so it reaches Spectral, a mono label
+     is Latin so it reaches Plex, and anything else lands in the interface's own serif rather
+     than on whatever `sans-serif` happens to be. */
+  --font-display: "Spectral", var(--font-ui);
+  --font-control:
+    system-ui, "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC", "PingFang TC",
+    "Microsoft JhengHei", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* Every step in `rem`, and that is not tidiness. The reader's own font size is a percentage
+     of their root (ADR-0006), so when they turn the browser's text up the *book* grows —
+     and the interface only grows with it if it is measured in the same unit. In px the result
+     of asking for larger text was a larger book inside a smaller-looking interface.
+
+     The `pointer: coarse` block below raises five of these. That is not "small screen so make
+     it bigger": it is how a serif Han face has to be measured. A Han glyph has no x-height and
+     fills its em box, so the gaps between strokes are tighter than a Latin face's at the same
+     size; a Song face's horizontals are hairlines, which on a DPR 3 phone are held up by
+     greyscale antialiasing and go grey as the size drops. What is being sized is the em box,
+     not a number of pixels. Why `pointer` here and `any-pointer` for hit areas: ADR-0023.
+
+     **The whole scale sits a step higher than a Latin interface's would**, and the desktop
+     numbers here are the ones the coarse block used to hold. The reason is the face rather
+     than the screen: this interface is set in a Song face because the book is, and the size a
+     Latin sans reads comfortably at is a size the same measurement leaves Han strokes merging
+     at. Chinese practice puts body text at 16–18px and treats 12px as the floor for anything
+     at all — so body starts at 16 and the smallest step, the eyebrow over a settings group,
+     lands on 12 rather than under it. 〈設定〉's 帳號 tab is where the old numbers showed
+     worst, being the one screen that is mostly prose at `--type-note` and `--type-eyebrow`. */
+  --type-display: 2rem;
+  --type-title: 1.375rem;
+  --type-lede: 1.125rem;
+  --type-body: 1rem;
+  --type-ui: 0.9375rem;
+  --type-note: 0.875rem;
+  --type-eyebrow: 0.75rem;
+  /* One value, and the handoff is strict about it: every mono label in the system is tracked
+     0.18em. It no longer moves with the coarse size — that adjustment existed because the
+     eyebrow was set in the serif, and a monospace at 0.18em reads as a label at both sizes. */
+  --type-eyebrow-tracking: 0.18em;
+  --leading-text: 1.8;
+  --leading-title: 1.4;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 30px;
+  --space-7: 44px;
+  /* Four radii, and each one answers "what kind of thing is this" rather than "how round
+     should it look". A fifth means going back to docs/design-system.md first.
+
+     The old system had none of these — square was the default, and the reason given was that
+     a radius left open becomes a knob (the CSS had 6, 8, 12, 14 and 999 at the time, none of
+     them able to say why). The knob is what these four names close: the number is a
+     consequence of which noun the thing is. */
+  /* A piece of paper: cards, popups, the reading surface, covers. */
+  --radius-surface: 6px;
+  /* A control: buttons, fields, tags. */
+  --radius-control: 3px;
+  /* A rail with two ends: switches and progress bars. */
+  --radius-track: 999px;
+  /* A dot — and the one that keeps the old system's test, because it is the same test: a
+     finger pinches it (the Scrubber's thumb and end caps, the ink swatches). */
+  --radius-dot: 50%;
+  /* What the bottom bar keeps clear beneath itself, and it is a question about the *device*
+     rather than about the window — so the coarse block below is where it gets a value, and a
+     mouse never pays for it. Both hand-held platforms own the bottom edge of the screen for
+     their own gestures (switch app, go home), and **Android cannot be asked to give it back**:
+     `setSystemGestureExclusionRects` takes the left and right edges only. So the only fix is to
+     stop putting a draggable control there.
+
+     Not `env(safe-area-inset-bottom)`, deliberately. Reading that would mean
+     `viewport-fit=cover`, and cover also stops iOS insetting the *top* — the title bar would go
+     under the notch, and one bar's problem would become three. Without cover, iOS insets the
+     bottom itself and this is the visual breathing room left over; Android never had the
+     gesture strip inside the viewport to begin with, and needs exactly the same thing. One
+     constant covers both (docs/specs/reader-chrome-layers/spec.md). */
+  --chrome-bottom-safe: 0px;
+  /* The floor for anything that can be pressed, and it asks **`any-pointer`**: the question is
+     whether this machine has a coarse pointer at all, not whether that is the one being used.
+     A touch laptop has one, and a finger on that screen is the same finger as on a phone. So
+     the coarse branch below puts both of these back to 44px, and the desktop keeps the denser
+     numbers. Getting this wrong in the tight direction means a control nobody can hit, which
+     is why the safe side is chosen here and not in the type scale (ADR-0023).
+
+     `--tap-dense` is for rows of small buttons that sit inside a panel the reader is already
+     aiming at — a sheet's actions, a note's edit/delete pair. */
+  --tap-min: 32px;
+  --tap-dense: 28px;
+  /* How far a bar of the chrome travels to get off the edge it came from, and how long it takes.
+
+     **One distance for every bar, not each bar's own height.** The entries stand against the
+     title bar rather than against the edge of the screen, so a bar that travelled its own height
+     would still be on the page — and two bars given two distances slide apart, opening a strip
+     of book between them on the way in. One number, and each group moves as one piece.
+
+     Over-shooting is free: the extra is spent past the edge, where nothing is drawn. Falling
+     short is not — a bar that stops before the edge is left standing over the book in 〈讀〉 — so
+     this is generous, and `chrome-motion.spec.ts` measures that it clears both stacks in both
+     arrangements. `rem`, because the bars are built out of text and grow with it.
+
+     **8rem was not generous enough, and the way that showed is worth keeping.** The bottom bar
+     grew by `--chrome-bottom-safe` and the entries above it, which travel the same distance from
+     the same stack, stopped 6px short of the edge — visible only as a sliver of bar over the
+     book in 〈讀〉, and only on a hand-held. Two engines' worth of `hand-held.spec.ts` said so
+     before any human could have. Raised past what the current stack needs rather than to fit
+     it: the number that matters is the one still clearing when the next line is added to a bar.
+
+     The duration is the page turn's (`Reader.tsx`'s `TURN_SETTLE_MS`), and for the same reason:
+     this is not an animation anyone is meant to watch. */
+  --chrome-slide: 10rem;
+  --chrome-motion: 180ms;
+  /* The reader's panel, when it comes in from the side rather than up from the bottom. Its
+     other three edges are not numbers at all — it is rendered into the box between the bars,
+     so they are that box's (`Panel`).
+
+     **A share of the window, floored and capped**, rather than the 236px it used to be. One
+     number cannot serve both ends of the range: 236px is a fifth of a 1280px laptop and a
+     tenth of a 2560px display, so the same strip that crowds the book on the small screen
+     reads as a bookmark on the large one. The floor is where a chapter title stops wrapping to
+     three lines; the ceiling is where a list of chapters stops being a list and starts being a
+     second column of prose. Both are judgement, not measurement — if a real book's 目錄 says
+     otherwise, they are the two numbers to move. */
+  --panel-width: clamp(300px, 24vw, 420px);
+}
+
+/* The interface, measured for a finger rather than for a cursor.
+   Split deliberately from the width queries: how big a thing has to be is a fact about the
+   hand, and how the screen is laid out is a fact about the window (ADR-0023). */
+@media (any-pointer: coarse) {
+  :root {
+    --tap-min: 44px;
+    --tap-dense: 44px;
+    --chrome-bottom-safe: 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --type-lede: 1.1875rem;
+    --type-body: 1.0625rem;
+    --type-ui: 1rem;
+    --type-note: 0.9375rem;
+    --type-eyebrow: 0.8125rem;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-page: var(--night-800);
+  --surface-raised: var(--night-700);
+  --surface-sunken: var(--night-900);
+  --surface-cover: var(--night-650);
+  --line-hair: var(--night-600);
+  --line-firm: var(--night-500);
+  --line-actionable: var(--night-400);
+  --line-track: var(--night-400);
+  --fill-selected: #2c3f55;
+  --text-primary: var(--bone-100);
+  --text-body: var(--bone-200);
+  --text-muted: var(--bone-300);
+  --text-faint: var(--bone-400);
+  /* Every blue flips to the light end of its own ramp, and the pair keeps its order: pressed
+     is still the further step from the page, which here means lighter rather than darker. */
+  --tide: #7ea6ce;
+  --tide-pressed: #9fbfe0;
+  --text-on-tide: var(--night-800);
+  --surface-inverse: var(--bone-100);
+  --text-on-inverse: var(--night-800);
+  --line-on-inverse: var(--bone-300);
+  /* Lighter than the light theme's: the same red on a near-black surface reads as brown. */
+  --danger: var(--clay-400);
+  --backdrop: rgba(6, 10, 14, 0.65);
+  /* The same four names, lifted. `--mark-indigo` is still the brand's blue — it is the dark
+     theme's value for it, not a different colour. */
+  --mark-indigo: #a9c4de;
+  --mark-ochre: #cf8b4e;
+  --mark-moss: #8aab72;
+  --mark-soot: #9aa4ab;
+}
+
+body {
+  margin: 0;
+  /* Not cosmetic: iOS 26+ Safari resolves a `position: absolute` backdrop against the nearest
+     positioned ancestor, and without this one a drawer's backdrop stops short of the visual
+     viewport — a strip of live shelf along the bottom edge of a panel that is meant to be over
+     everything. */
+  position: relative;
+  font-family: var(--font-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+  /* Anything that counts up or down is read as a column, not as a word. */
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-page);
+  color: var(--text-body);
+}
+
+#root {
+  height: 100vh;
+  /* mobile browsers: exclude the collapsing address bar */
+  height: 100dvh;
+  /* A stacking context of its own, so a portalled overlay's z-index is answered here rather
+     than against whatever the page happens to have stacked. */
+  isolation: isolate;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}

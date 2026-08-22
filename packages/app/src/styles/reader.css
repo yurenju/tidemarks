@@ -1,0 +1,489 @@
+/* Reader
+   ------
+   Three states, one at a time (CONTEXT.md 〈chrome〉). 〈讀〉 is the book alone; 〈找〉 lays the two
+   bars **over** it rather than beside it. Over, because a bar that took its own room would
+   shrink the page and repaginate the book — asking where you are would move you. */
+.reader {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  /* No rubber band here. The reader is a fixed box with a book paginated inside it, so an
+     overscroll bounce moves the whole page away from a page turn that is already in progress.
+     The shelf keeps its bounce: there, a bounce is the end of a list. */
+  overscroll-behavior: none;
+}
+
+/* 〈找〉, in one box: a column the height of the reader, laid over the book. The box itself
+   catches nothing and each bar takes its pointer events back while it is up (`[data-up]`
+   below), so a press on the page between them still reaches frond and still puts the chrome
+   away. `data-up` is the whole of the state as CSS reads it; the box is here in 〈讀〉 too, with
+   the bars parked off the edges.
+
+   A grid, because that is what lets the entries change *ends* on a phone and change *rows* on a
+   desk without changing components. Three areas, one template per arrangement, same markup:
+   here the title and the entries share the top row, and the hand-held query below drops the
+   entries to a row of their own above the Scrubber.
+
+   `right` is the column a panel takes on a desk. Not `width`, so the bars stay pinned to the
+   left edge and only give up their right end — and `0` the rest of the time, so nothing about
+   〈讀〉 or a bare 〈找〉 depends on this rule at all. */
+.chrome {
+  position: absolute;
+  inset: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top nav"
+    "gap gap"
+    "bottom bottom";
+  grid-template-rows: auto 1fr auto;
+  pointer-events: none;
+  transition: right var(--chrome-motion) ease-out;
+}
+
+.chrome-top {
+  grid-area: top;
+}
+
+.chrome-nav {
+  grid-area: nav;
+}
+
+.chrome-gap {
+  grid-area: gap;
+}
+
+.chrome-bottom {
+  grid-area: bottom;
+}
+
+/* The three bars, in the state 〈讀〉 leaves them: parked past the edge they came from, hidden,
+   and catching nothing. **The layer stays in the tree the whole time** — a state that is
+   unmounted cannot leave, and the bars would blink out half-way through going away.
+
+   **One step off the page, and no shadow** (ADR-0028). These used to take `--surface-page`
+   itself — the same token as the book, not a value near it — which left a hairline carrying two
+   jobs at once: dividing the two planes, and saying which of them is on top. It can do the
+   first. 〈找〉 lays these bars *over* the book rather than beside it, so the second has to be
+   said by the surface. A shadow would say it too, and is not allowed to: a bar is glued to the
+   screen, and only what can be picked up casts (ADR-0022). The hairline stays — in the dark the
+   step is 1.08:1, and under a low backlight the line is the only half of the pair left.
+
+   `visibility` is what makes staying cost nothing: hidden, a bar is not a pointer target, not a
+   tab stop and not a line a screen reader reads out. It is transitioned rather than switched
+   because an in-between `visibility` is always `visible` — so it holds until the slide is over
+   on the way out, and gives way at once on the way in, which is exactly the order wanted.
+
+   `ease-in` is the leaving curve, since this state is the one being left for; `[data-up]` below
+   trades it for the arriving one. A transition takes the timing of the state it is going to. */
+.chrome-top,
+.chrome-nav,
+.chrome-bottom {
+  background: var(--surface-raised);
+  /* What a focus ring's halo is cut out of here — see the `:focus-visible` rule in
+     `controls.css`. */
+  --halo: var(--surface-raised);
+  visibility: hidden;
+  transition:
+    transform var(--chrome-motion) ease-in,
+    visibility var(--chrome-motion);
+}
+
+.chrome-top,
+.chrome-nav {
+  transform: translateY(calc(-1 * var(--chrome-slide)));
+}
+
+.chrome-bottom {
+  transform: translateY(var(--chrome-slide));
+}
+
+/* 〈找〉: home, and live. The pointer is granted here rather than above so that a bar on its way
+   out cannot be pressed half-way — the tap that sent it away must not be able to catch it. */
+.chrome[data-up] .chrome-top,
+.chrome[data-up] .chrome-nav,
+.chrome[data-up] .chrome-bottom {
+  pointer-events: auto;
+  visibility: visible;
+  transform: none;
+  transition-timing-function: ease-out;
+}
+
+/* No slide for a reader who asked for less motion. The bars still arrive and still leave, they
+   just stop travelling to do it. Named through `.chrome` so they outrank the hand-held rule in
+   `device.css`, which parks the entries against the other edge. */
+@media (prefers-reduced-motion: reduce) {
+  .chrome .chrome-top,
+  .chrome .chrome-nav,
+  .chrome .chrome-bottom {
+    transform: none;
+    transition: none;
+  }
+}
+
+.chrome-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+  /* Two bars sharing one row have to agree where the line under them is, and they only do if
+     they are the same height. `stretch` is the grid default; saying it is a reminder that the
+     entries below set this row's height and the title rides it. */
+  align-self: stretch;
+}
+
+/* 目錄／筆記／排版, and the door to 〈書的詳情〉. The right end of the top row by default; on a
+   hand-held it drops to a row of its own above the Scrubber, where a thumb is.
+
+   **One row, not two.** They were stacked — a title bar half empty and an entry bar half empty,
+   92px of chrome to say four words and offer four doors. The left padding goes because the row
+   it now ends is already padded at its left; only the right end is this bar's. */
+.chrome-nav {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-2) 0;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* The fourth door, kept at the far end so the three that raise a panel stay together. */
+.reader-about {
+  margin-left: var(--space-2);
+}
+
+/* Shorter than a general button, and deliberately: these four are in a row of their own inside
+   a bar that is already a surface, and at 44px each the bar becomes the page. On a hand-held
+   `--tap-min` wins it back (the `any-pointer: coarse` rule in `device.css`), because there the
+   row is what a thumb aims at. */
+.chrome-nav button {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+}
+
+/* Which panel is standing open. A rule as well as the colour, because up here the four entries
+   are shoulder to shoulder and a colour on one word among four does not read as "this one is
+   open" — but still no fill: the bar is already a surface, and a second surface inside it is a
+   box drawn in a box. The hand-held row undoes the rule (`device.css`), where three widely
+   spaced entries make the colour enough on its own. */
+.chrome-nav button.active {
+  border-color: var(--tide);
+}
+
+/* The book, between the two bars. It catches nothing, so a press on the page reaches frond. */
+.chrome-gap {
+  min-height: 0;
+  position: relative;
+}
+
+/* Where the reader is: the chapter in words, the rail under it.
+   -----------------------------------------------------------
+   The padding is what the row used to be given as a fixed height — 22px of track inside 34px of
+   bar — written as padding now because the bar has a second line to hold when there is a chapter
+   to name. In `rem` rather than px, so a reader who turns their root text up gets a bar that
+   grows with the words in it; off the spacing scale rather than on it, because these two are
+   what is left over around a control whose own height is not on that scale either. */
+.chrome-bottom {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.375rem 0 calc(0.375rem + var(--chrome-bottom-safe));
+  border-top: 1px solid var(--line-hair);
+}
+
+.reader-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-ui);
+}
+
+/* The chapter, **under** the rail that says the same thing as a fraction. It was up in the top
+   bar, at the other end of the screen from the axis it belongs to — and there it competed with
+   the title for one line, which on a phone meant both of them were cut ("Alice's Ad… I: Do…").
+   Down here it has the width of the screen and nothing to share it with.
+
+   Under rather than over, and that is what buys the phone its clearance: the rail is what a
+   thumb drags, so the rail is the one that has to leave the system's own gesture strip at the
+   bottom edge. Swapping the two costs nothing and lifts the rail by a whole line
+   (docs/specs/reader-chrome-layers/spec.md). It reads as well or better this way round — the
+   axis is the thing, and the chapter is a note on where it currently points.
+
+   Centred, for a reason that is not symmetry: the Scrubber mirrors for a vertical or RTL book
+   (ADR-0001), so the rail's head and tail swap ends. Text flush to one edge under a rail that
+   turns around is text arguing with the rail; centred has no side to be on. It is a running
+   head now rather than a heading, and a running head is centred in print anyway.
+
+   `ellipsis` and centring only meet in the short case — once the label fills the line there is
+   nothing left to centre. So the alignment moves with the chapter's length, which is accepted:
+   both states are legible and there is no third one. */
+.reader-chapter {
+  padding: 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--type-note);
+  text-align: center;
+  /* Its line, held whether or not there are words in it. A cover is in no chapter, and this
+     used to be absent there — which took a line off the bar and let the rail slide back down
+     towards the gesture strip, at the one moment the reader is turning off the cover and
+     reaching for it. Arithmetic on the two tokens that decide the height rather than `1lh`, so
+     the reserved line and a filled one are the same number by construction. */
+  min-height: calc(var(--type-note) * var(--leading-text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Busy, on a button.
+   ------------------
+   Two shapes, both in `--text-muted` and neither in tide: a button that is working is a button
+   that cannot be pressed, and tide is the colour that says the opposite. What was here before
+   was a dashed accent line walking the button's own border — a frame inside a frame, in the one
+   colour that promised the reader something the state could not give.
+
+   Neither says how far. The percentage is inside the sheet, where a number can be read; from
+   across a page what is wanted is "still going".
+
+   The sweep, for 〈排版〉: a rule travelling under the word, because what the button is busy
+   doing is resetting type. It wraps the label rather than the button, so the line is the width
+   of the word and not of the padding. */
+.busy-underline {
+  position: relative;
+}
+
+.busy-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  height: 2px;
+  background: var(--text-muted);
+  animation: busy-wipe 1.5s ease-in-out infinite;
+}
+
+@keyframes busy-wipe {
+  0% {
+    left: 0;
+    right: 100%;
+  }
+  45% {
+    left: 0;
+    right: 0;
+  }
+  55% {
+    left: 0;
+    right: 0;
+  }
+  100% {
+    left: 100%;
+    right: 0;
+  }
+}
+
+/* And the default for every other button: a short line shuttling along the bottom edge. It is
+   indeterminate on purpose, and the day one of these jobs can report a real percentage the
+   same 3px can be given a width instead of a walk. */
+.busy-edge {
+  position: relative;
+  overflow: hidden;
+}
+
+.busy-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  height: 3px;
+  background: var(--text-muted);
+  animation: busy-shuttle 1.6s ease-in-out infinite;
+}
+
+@keyframes busy-shuttle {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(250%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* No travel for a reader who asked for less motion. The state is still shown — a still line is
+   as much of a fact as a moving one — it just stops being an animation. */
+@media (prefers-reduced-motion: reduce) {
+  .busy-underline::after {
+    animation: none;
+    left: 0;
+    right: 0;
+    opacity: 0.6;
+  }
+
+  .busy-edge::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* The panel — 目錄, 筆記, 排版.
+   ---------------------------------
+   **One shell wearing three faces**, and one instance of it: `Reader.tsx` swaps the contents
+   rather than raising a second drawer, so moving between the three closes nothing, remounts
+   nothing, and moves no column.
+
+   It arrives from the right by default and up from the bottom bar on a hand-held (the query in
+   `device.css`, which is also where the sheet gets its two corners and its own arrival). Which
+   edge is settled in CSS; the only thing JavaScript decides is the direction a finger dismisses
+   it (`Panel.tsx`).
+
+   **It covers the book, except when the window is wide enough to give it a column of its own**
+   — that is the `min-width: 1024px` block, and the reason it is a block rather than the
+   default is that pushing costs the book a repagination, which only pays when there is a book
+   left over (ADR-0026).
+
+   This is not the sidebar ADR-0020 removed. That one was permanent and beside the book; this
+   one is 〈找〉 wearing a different shape, and a press on the page puts the whole state away. */
+/* The reader's whole box, and a layer above the chrome so a column can stand beside the bars
+   rather than inside the room between them. It catches nothing itself. */
+.panel-host {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
+   page 〈排版〉 is applied to — the reader dragging 字級 was watching the one surface the panel
+   exists to change, through a scrim (ADR-0026). What is left is the press target: a press
+   outside the panel still closes it, it just no longer says so by dimming the book.
+
+   On a desk it does not even do that, **and that is true of the narrow window too, where the
+   panel covers the book**. It is tempting to give the cover arrangement the hand-held's
+   press-to-dismiss, and it would be wrong for the same reason it was always wrong here: this
+   box spans the whole reader, so a full-box target sits on the bars, and the Scrubber going
+   dead under a panel is exactly what "the panel stops short of it" was for. The hand-held can
+   afford it because there the entries and the Scrubber have stepped aside; here they are still
+   standing.
+
+   Nothing is lost by that. A press on the page already puts the panel away — not through this
+   element but through frond, which reports the tap as unclaimed and drops the chrome to 〈讀〉
+   (`Reader.tsx`). Making this catch the press would take that path away, not add one. */
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  transition: opacity 0.25s ease;
+}
+
+.panel-backdrop[data-starting-style],
+.panel-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+/* Covers the screen so the panel can be positioned against it, but catches nothing: the
+   backdrop underneath is what a press outside the panel lands on. */
+.panel-viewport {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A column down the right side, the full height of the reader — beside the bars, not under
+   them. Sunken rather than page-coloured: it is a recess in the page the book is printed on,
+   not another sheet of paper laid on top.
+
+   **The right rather than the left**, and that is not symmetry. The book gives up this column
+   while a panel is open, and a reader's eye returns to the start of a line: taking the room from
+   the far end leaves the text where the eye already is.
+
+   No radius here, and no cast. A column that runs the full height of the reader and is flush to
+   its right edge has no corner the reader can see, so rounding it would round nothing; the sheet
+   the hand-held query builds out of the same element *does* have two, and takes them there. */
+.panel-popup {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border-left: 1px solid var(--line-hair);
+  /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
+     drag to the left does not pull it off the edge it belongs to. */
+  transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
+  /* The chrome's own timing, not a slower one of its own. Since the room is now given up in a
+     single step (below), the slide is what fills a gap that is already empty — and the longer
+     it takes, the longer that empty recess is on screen. */
+  transition: transform var(--chrome-motion) ease-out;
+}
+
+.panel-popup[data-starting-style],
+.panel-popup[data-ending-style] {
+  transform: translateX(100%);
+}
+
+/* **The bars end where the panel begins, at every width the panel is a column at.** Not only in
+   the wide window that also gives up book: the bars are laid over the page, so shortening them
+   costs no pagination, and it is what keeps the Scrubber out from under the panel — which is
+   the whole of "the panel stops short of it" (docs/specs/ux-replan/spec.md). The hand-held is
+   the one arrangement that takes this back, because there the panel spans the full width and
+   the bars have gone (`device.css`). The book giving up its own width to the panel is a
+   separate question and a wider one — it starts at 1024, also in `device.css`. */
+.reader[data-panel] .chrome {
+  right: var(--panel-width);
+}
+
+/* The bars' right edge is the one piece of the panel's arrival that is still animated, so it is
+   the one piece a reader who asked for less motion has to be spared. The book's column is not
+   in here any more: it changes in a single step for everyone now, which is a stronger version
+   of what this query was buying it. */
+@media (prefers-reduced-motion: reduce) {
+  .chrome {
+    transition: none;
+  }
+}
+
+/* Under a finger the panel is the finger's, not the transition's. */
+.panel-popup[data-swiping] {
+  transition: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.panel-title {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--type-ui);
+}
+
+.panel-close {
+  font-size: var(--type-lede);
+  line-height: 1;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

@@ -21,7 +21,8 @@ export interface PaintedHighlight {
 // frond's `pointerup`, which arrives in these very coordinates, so the layer can stay
 // `pointer-events: none` — otherwise it would sit between the reader and the page, swallowing
 // the taps that turn it.
-// The theme is not a prop: each box carries the name of its ink and `index.css` decides what
+// The theme is not a prop: each box carries the name of its ink and `styles/tokens.css` decides
+// what
 // that ink looks like on a light page and on a dark one. A highlight drawn before the reader
 // switched themes redraws in the right one without this component hearing about it.
 //
