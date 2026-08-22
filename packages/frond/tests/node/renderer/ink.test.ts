@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { blankRuns, inkWithin, isAllBlank, minimumLineHeight } from "../../../src/renderer/ink.ts";
+import { blankRuns, inkWithin, minimumLineHeight } from "../../../src/renderer/ink.ts";
 
 /**
  * The arithmetic behind "a mark goes beside the ink, not beside the box".
@@ -71,19 +71,9 @@ describe("cutting a text node into blank and non-blank runs", () => {
   test("empty text has nothing to measure", () => {
     expect(blankRuns("")).toEqual([]);
   });
-});
 
-describe("a paragraph that is nothing but blank", () => {
-  test("a spacer paragraph is all blank", () => {
-    expect(isAllBlank("　")).toBe(true);
-  });
-
-  test("an empty string is not blank, it is nothing", () => {
-    expect(isAllBlank("")).toBe(false);
-  });
-
-  test("one character of prose is enough to make it prose", () => {
-    expect(isAllBlank("　x　")).toBe(false);
+  test("a spacer paragraph is one blank run, which is how a whole line goes unmarked", () => {
+    expect(blankRuns("　")).toEqual([{ start: 0, end: 1, blank: true }]);
   });
 });
 

@@ -53,6 +53,16 @@ export interface MarkedRectLike {
 export const WAVE_THICKNESS = 4;
 
 /**
+ * One period of the wave, along the direction it runs.
+ *
+ * Kept in the same proportion to the thickness as the 8×6 tile it replaces, because that ratio
+ * is what makes it read as a wave rather than as a fuzzy line. Exported so a test can hold the
+ * CSS to it — `index.css` writes both numbers twice more, in each tile's viewBox and in its
+ * `mask-size`, and a mask that disagrees with its box paints a chopped wave with no error.
+ */
+export const WAVELENGTH = 5.333;
+
+/**
  * The gap between the text's ink and the mark, in px.
  *
  * Deliberately smaller than the gap left on the far side (ADR-0032 leaves 1.3px there): a mark

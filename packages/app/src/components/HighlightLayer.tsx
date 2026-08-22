@@ -5,7 +5,7 @@ import type { Annotation } from "../lib/types";
 export interface PaintedHighlight {
   annotation: Annotation;
   /** The strips of wave to draw — one per line of the passage. */
-  boxes: HighlightBox[];
+  strips: HighlightBox[];
   /** Where a tap counts as landing on this passage. Not the same boxes: see `Reader.tsx`. */
   targets: HighlightBox[];
 }
@@ -44,18 +44,18 @@ export default function HighlightLayer({
 }) {
   return (
     <div className="highlight-layer" aria-hidden>
-      {painted.map(({ annotation, boxes }) =>
-        boxes.map((box, index) => (
+      {painted.map(({ annotation, strips }) =>
+        strips.map((strip, index) => (
           <div
             key={`${annotation.id}-${index}`}
             className="highlight-box"
             data-axis={vertical ? "v" : "h"}
             style={
               {
-                left: box.left,
-                top: box.top,
-                width: box.width,
-                height: box.height,
+                left: strip.left,
+                top: strip.top,
+                width: strip.width,
+                height: strip.height,
                 "--mark": markVar(annotation.color),
               } as CSSProperties
             }

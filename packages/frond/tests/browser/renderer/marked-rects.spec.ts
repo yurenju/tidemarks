@@ -217,6 +217,22 @@ test.describe("the minimum ink gap", () => {
     ).toBeCloseTo(16 * 1.1, 1);
   });
 
+  test("survives a relayout, rather than raising and dropping on alternate passes", async ({
+    page,
+  }) => {
+    // The floor is applied by rewriting the layout stylesheet, and that runs again on every
+    // resize. Deciding each time by reading the *current* line height is self-cancelling: the
+    // second pass sees the height frond itself raised, concludes there is room, and drops the
+    // rule. What the reader sees is a mark back across the glyphs after turning the phone.
+    await mountWith(page, SAYS_NOTHING, { minimumInkGap: GAP });
+    const first = await inkGap(page);
+
+    await page.evaluate(() => window.frond.relayout());
+
+    expect(await inkGap(page)).toBeCloseTo(first, 0);
+    expect(await inkGap(page)).toBeGreaterThanOrEqual(GAP - 0.01);
+  });
+
   test("stands aside for a line height the book itself declared, which is a known limit", async ({
     page,
   }) => {

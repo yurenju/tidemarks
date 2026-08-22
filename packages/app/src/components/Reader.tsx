@@ -1133,10 +1133,12 @@ export default function Reader({
       //
       // Highlights outside this section come back with no rectangles at all, and ones on
       // another page fall outside the container — both are dropped by the clipping inside.
-      const strips = markStrips(marked, size, verticalBook);
+      // Keyed on the targets, not the strips: a passage whose text has all been clipped away
+      // is on another page, and a mark drawn beside text that is not there is the floating
+      // highlight the clipping exists to prevent.
       const targets = hitBoxes(marked, size);
-      if (strips.length > 0 || targets.length > 0) {
-        next.push({ annotation, boxes: strips, targets });
+      if (targets.length > 0) {
+        next.push({ annotation, strips: markStrips(marked, size, verticalBook), targets });
       }
     }
 

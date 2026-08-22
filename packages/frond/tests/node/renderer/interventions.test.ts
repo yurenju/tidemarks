@@ -59,21 +59,40 @@ describe("the closed list of interventions", () => {
     }
   });
 
-  test("the entries that really override the book have only two reasons — the two in ADR-0003's body", () => {
+  test("the entries that really override the book have only three reasons", () => {
     // frond-own-layer and syntax-translation do not count as overriding (see the table in
     // interventions.ts). This case blocks the slope of "add one more reason that sounds
-    // perfectly sensible".
+    // perfectly sensible" — `consumer-needs-room` is the one that got through it, and the
+    // argument it had to make is in ADR-0003's revision.
     const overriding = INTERVENTIONS.filter(
       (intervention) =>
-        intervention.reason === "content-unreadable" || intervention.reason === "reader-blocked",
+        intervention.reason === "content-unreadable" ||
+        intervention.reason === "reader-blocked" ||
+        intervention.reason === "consumer-needs-room",
     );
 
     expect(overriding.length).toBeGreaterThan(0);
     for (const intervention of INTERVENTIONS) {
       expect(
-        ["content-unreadable", "reader-blocked", "frond-own-layer", "syntax-translation"],
+        [
+          "content-unreadable",
+          "reader-blocked",
+          "frond-own-layer",
+          "syntax-translation",
+          "consumer-needs-room",
+        ],
         intervention.id,
       ).toContain(intervention.reason);
+    }
+  });
+
+  test("the one consumer-needs-room entry is the inverse, and says so", () => {
+    // It fires when the reader has set **nothing** — that is what makes it a fifth reason
+    // rather than a stretched `reader-blocked`. Pinned so the two can never be conflated.
+    for (const intervention of INTERVENTIONS) {
+      if (intervention.reason === "consumer-needs-room") {
+        expect(intervention.onlyWhenReaderOverrides, intervention.id).toBe(false);
+      }
     }
   });
 

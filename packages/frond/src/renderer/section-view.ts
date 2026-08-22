@@ -155,6 +155,22 @@ export class SectionView {
    * while the settings are settled elsewhere.
    */
   private inkFloor: { readonly gap: number; readonly readerSet: boolean } | undefined;
+
+  /**
+   * The line height **the book itself asks for**, as a ratio, or `null` where it names none.
+   *
+   * Measured once, on the first layout, and never again — because after that the answer would
+   * include frond's own floor. Reading it fresh each time is self-cancelling: the second pass
+   * sees the raised value, concludes there is already enough room, drops the rule, and the
+   * third pass raises it again. A resize is enough to set that off, and the symptom is a mark
+   * back across the glyphs on a book that was fine a moment earlier.
+   */
+  private ownLineHeight: number | null | undefined;
+
+  /** Per view, not per process: two books can both be set in `16px serif` and carry different bytes. */
+  private readonly inkByFont = new Map<string, FontInk>();
+
+  private measuring: CanvasRenderingContext2D | null | undefined;
   /** The text nodes flattened into document order. Measuring positions binary-searches it, so it is computed once. */
   private textNodes: readonly Text[];
   /**
@@ -630,7 +646,9 @@ export class SectionView {
     // filtered out and the consumer receives an empty array.
     const resolved =
       measurable(range)
-        .map((candidate) => contentRects(candidate, this.writingMode))
+        .map((candidate) =>
+          contentRects(candidate, this.writingMode, (font) => this.fontInkFor(font)),
+        )
         .find((rects) => rects.length > 0) ?? [];
 
     return resolved.map((marked) => ({
@@ -751,6 +769,55 @@ export class SectionView {
     return maxScrollOffsetFor(this.scrollExtent, this.clientExtent);
   }
 
+  /**
+   * A font's ink, measured once per `font` shorthand and kept for this view.
+   *
+   * **The canvas belongs to the book's document, not to the page around it.** A face the
+   * consumer handed over arrives as an `@font-face` inside the iframe (ADR-0006), and a canvas
+   * in the outer realm cannot see it — `measureText` would quietly fall back and report some
+   * other face's metrics for this book's text, which is the very mistake the guard below
+   * exists to catch.
+   *
+   * **The probe is fixed, deliberately.** Measuring the text actually covered would make a
+   * mark's height depend on which letters the reader happened to select — marking `mono` and
+   * marking `happy` would put the line at two different distances from the same baseline. Two
+   * constant strings give one answer per font.
+   */
+  private fontInkFor(font: string): FontInk | undefined {
+    if (font.length === 0) return undefined;
+
+    const remembered = this.inkByFont.get(font);
+    if (remembered !== undefined) return remembered;
+
+    if (this.measuring === undefined) {
+      this.measuring = this.document.createElement("canvas").getContext("2d");
+    }
+    const context = this.measuring;
+    if (context === null) return undefined;
+
+    // **The shorthand does not round-trip, and checking that it does is a trap.** A canvas
+    // normalises what it is given — `normal 400 16px serif` reads back as `16px serif` — so
+    // comparing the two strings rejects every ordinary font and silently leaves every mark
+    // where it was. What has to be caught is the *unparseable* shorthand, which leaves the
+    // context on whatever font it held before. A sentinel separates the two: it survives only
+    // if the assignment was thrown away.
+    context.font = SENTINEL_FONT;
+    context.font = font;
+    if (context.font === SENTINEL_FONT) return undefined;
+
+    const above = context.measureText(ASCENDERS);
+    const below = context.measureText(DESCENDERS);
+    const measured: FontInk = {
+      boxAscent: above.fontBoundingBoxAscent,
+      boxDescent: above.fontBoundingBoxDescent,
+      inkAscent: above.actualBoundingBoxAscent,
+      inkDescent: below.actualBoundingBoxDescent,
+    };
+
+    this.inkByFont.set(font, measured);
+    return measured;
+  }
+
   private applyLayout(): void {
     const style = this.document.getElementById(LAYOUT_STYLE_ID);
     if (style === null) return;
@@ -782,16 +849,18 @@ export class SectionView {
     if (style === undefined) return "";
 
     const fontSize = parseFloat(style.fontSize);
-    const ink = fontInkFor(
-      `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`,
-    );
+    const ink = this.fontInkFor(fontShorthand(style));
     if (ink === undefined || !Number.isFinite(fontSize)) return "";
 
+    if (this.ownLineHeight === undefined) {
+      // `line-height: normal` parses as NaN, and that is the case the floor is for: the book
+      // named no height, so there is nothing of the book's to override.
+      const ratio = parseFloat(style.lineHeight) / fontSize;
+      this.ownLineHeight = Number.isFinite(ratio) ? ratio : null;
+    }
+
     const needed = minimumLineHeight(ink, fontSize, floor.gap);
-    const current = parseFloat(style.lineHeight) / fontSize;
-    // `line-height: normal` parses as NaN, and that is exactly the case worth raising: the
-    // book named no height, so there is nothing of the book's to override.
-    if (Number.isFinite(current) && current >= needed) return "";
+    if (this.ownLineHeight !== null && this.ownLineHeight >= needed) return "";
 
     return `\n:root { line-height: ${roundUp(needed)}; }`;
   }
@@ -1154,8 +1223,12 @@ const REPLACED_ELEMENTS = "img, svg, video, canvas";
  * the deliberate exception: an `<img>` has no text box at all, and dropping it would leave a
  * highlight crossing a picture with a hole in it.
  */
-function contentRects(range: Range, writingMode: WritingMode): readonly MarkedRect[] {
-  const marked = coveredParts(range).flatMap((part) => measurePart(part, writingMode));
+function contentRects(
+  range: Range,
+  writingMode: WritingMode,
+  inkFor: (font: string) => FontInk | undefined,
+): readonly MarkedRect[] {
+  const marked = coveredParts(range).flatMap((part) => measurePart(part, writingMode, inkFor));
 
   // Content that is neither text nor a replaced element — a range over a single `<br>`, say
   // — leaves nothing to measure. Falling back to the range's own rectangles keeps such a
@@ -1168,7 +1241,11 @@ function contentRects(range: Range, writingMode: WritingMode): readonly MarkedRe
 }
 
 /** One part's rectangles, each carrying where its ink sits inside it. */
-function measurePart(part: CoveredPart, writingMode: WritingMode): MarkedRect[] {
+function measurePart(
+  part: CoveredPart,
+  writingMode: WritingMode,
+  inkFor: (font: string) => FontInk | undefined,
+): MarkedRect[] {
   const rects = [...part.node.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
   if (rects.length === 0) return [];
 
@@ -1177,7 +1254,7 @@ function measurePart(part: CoveredPart, writingMode: WritingMode): MarkedRect[] 
   // extent of vertical setting. It is not needed there either: a vertical text rectangle is
   // already tight to the glyphs — 15px across for 18.4px type, measured on 草枕 — where a
   // horizontal one carries the font's internal leading on both sides.
-  const font = writingMode === "horizontal-tb" ? fontInkFor(part.font) : undefined;
+  const font = writingMode === "horizontal-tb" ? inkFor(part.font) : undefined;
 
   return rects.map((rect) => ({
     role: part.role,
@@ -1243,7 +1320,7 @@ function collectText(clamped: Range, node: Node, parts: CoveredPart[]): void {
   if (covered.length === 0) return;
 
   const element = node.parentElement;
-  const font = element === null ? "" : fontShorthand(element);
+  const font = element === null ? "" : fontShorthandOf(element);
   // `<rt>` is the annotation over (or beside) the base characters. It is text the reader did
   // select, but it is not the text they were reading, and marking it draws a second line
   // alongside the first.
@@ -1257,71 +1334,23 @@ function collectText(clamped: Range, node: Node, parts: CoveredPart[]): void {
   }
 }
 
-/** The `font` shorthand an element's text is drawn with, as `measureText` wants it. */
-function fontShorthand(element: Element): string {
-  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
-  if (style === undefined) return "";
+/** The `font` shorthand a computed style describes, in the form `measureText` wants. */
+function fontShorthand(style: CSSStyleDeclaration): string {
   return `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
 }
 
-/**
- * A font's ink, measured once per `font` shorthand and kept.
- *
- * **The probe is fixed, deliberately.** Measuring the text actually covered would make the
- * mark's height depend on which letters the reader happened to select — marking `mono` and
- * marking `happy` would put the line at two different distances from the same baseline. Two
- * constant strings give one answer per font: the letters that reach highest, and the ones that
- * reach lowest.
- */
-const ASCENDERS = "bdfhklt";
-const DESCENDERS = "gjpqy";
+/** The same for an element. Empty where the style cannot be read at all. */
+function fontShorthandOf(element: Element): string {
+  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  return style === undefined ? "" : fontShorthand(style);
+}
 
 /** Implausible enough that a book landing on it exactly loses nothing but its ink measurement. */
 const SENTINEL_FONT = "1px monospace";
 
-const inkByFont = new Map<string, FontInk>();
-
-function fontInkFor(font: string): FontInk | undefined {
-  if (font.length === 0) return undefined;
-
-  const remembered = inkByFont.get(font);
-  if (remembered !== undefined) return remembered;
-
-  const context = measuringContext();
-  if (context === undefined) return undefined;
-
-  // **The shorthand does not round-trip, and checking that it does is a trap.** A canvas
-  // normalises what it is given — `normal 400 16px serif` reads back as `16px serif` — so
-  // comparing the two strings rejects every ordinary font and silently leaves every mark
-  // where it was. What has to be caught is the *unparseable* shorthand, which leaves the
-  // context on whatever font it held before and would attribute one book's metrics to
-  // another's text. A sentinel separates the two: it is still there afterwards only if the
-  // assignment was thrown away.
-  context.font = SENTINEL_FONT;
-  context.font = font;
-  if (context.font === SENTINEL_FONT) return undefined;
-
-  const above = context.measureText(ASCENDERS);
-  const below = context.measureText(DESCENDERS);
-  const measured: FontInk = {
-    boxAscent: above.fontBoundingBoxAscent,
-    boxDescent: above.fontBoundingBoxDescent,
-    inkAscent: above.actualBoundingBoxAscent,
-    inkDescent: below.actualBoundingBoxDescent,
-  };
-
-  inkByFont.set(font, measured);
-  return measured;
-}
-
-let measuring: CanvasRenderingContext2D | null | undefined;
-
-function measuringContext(): CanvasRenderingContext2D | undefined {
-  if (measuring === undefined) {
-    measuring = document.createElement("canvas").getContext("2d");
-  }
-  return measuring ?? undefined;
-}
+/** The letters that reach highest, and the ones that reach lowest. */
+const ASCENDERS = "bdfhklt";
+const DESCENDERS = "gjpqy";
 
 /** The part of a range that falls inside one text node. */
 function clampedToNode(range: Range, node: Node): Range {

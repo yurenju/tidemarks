@@ -32,8 +32,6 @@
  */
 const BLANK = /^[　 ]+$/;
 
-const NOT_BLANK = /[^　 ]/;
-
 /** A stretch of one text node, and whether it is all blank. */
 export interface Run {
   readonly start: number;
@@ -71,11 +69,6 @@ export function blankRuns(text: string): readonly Run[] {
 
 function isBlank(character: string): boolean {
   return BLANK.test(character);
-}
-
-/** Whether a whole string paints nothing but empty cells. Empty text is not blank; it is nothing. */
-export function isAllBlank(text: string): boolean {
-  return text.length > 0 && !NOT_BLANK.test(text);
 }
 
 /** A font's vertical metrics, in px, all measured from the baseline. */
