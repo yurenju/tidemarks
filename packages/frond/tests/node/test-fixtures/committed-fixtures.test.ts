@@ -1,3 +1,8 @@
+// Whether the fixture files in the repo still agree with the generator — the one question
+// nothing else can answer, because every other layer reads the committed bytes and never
+// runs the generator at all. That the generator's output does not move on its own is
+// determinism.test.ts's; that each fixture still carries its ailment is
+// single-ailment.test.ts's.
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -6,8 +11,6 @@ import { sha256 } from "../support/hash.ts";
 import { buildFixture, syntheticFixtures } from "../../../src/test-fixtures/index.ts";
 
 /**
- * Whether the fixture files in the repo still agree with the generator.
- *
  * The fixtures live in the repo (synthetic content raises no copyright question,
  * ADR-0007), which creates two sources of truth: the generator and those bytes. This
  * test gives them no chance to drift apart — change the generator and forget

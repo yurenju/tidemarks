@@ -1,3 +1,9 @@
+// The structural invariants every generated book has to hold, whatever ailment it plays:
+// manifest and archive agree, the readingOrder is reachable, every XML document is
+// well-formed. Broken here, a fixture fails somewhere far away with a message about
+// rendering — so this is where "the generator produced a conforming book" is asserted, one
+// property at a time. The packaging around it is epub-container.test.ts's; what each
+// fixture is ill with is single-ailment.test.ts's.
 import { describe, expect, test } from "vitest";
 import { assertWellFormedXml, openEpub, type EpubArchive } from "../support/epub-archive.ts";
 import {
