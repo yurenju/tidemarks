@@ -1,14 +1,15 @@
+// The CFI grammar as string in, structure out and back again — hand-written against the spec,
+// which is where the deliberately chosen edge cases live. The independently written reading of
+// the same spec is next door in foliate-acceptance.test.ts, and turning a CFI into a place in
+// a rendered document needs a DOM and belongs to Renderer, in tests/browser/.
 import { describe, expect, test } from "vitest";
 import { CfiParseError, parseCfi, serializeCfi } from "../../../src/epub/index.ts";
 
 /**
- * The CFI grammar: the round trip between string and structure.
- *
  * The oracle is the EPUB CFI spec itself (layer 1 of ADR-0001's test pyramid).
- * foliate's acceptance table is in the file next door; what is asked here is the two
- * things that table does not: **what happens to a broken string**, and **the round
- * trip's normalization rules** — the latter cannot be left to chance, or a saved
- * reading position comes back looking different on every read.
+ * What is asked here is the two things foliate's table does not: **what happens to a
+ * broken string**, and **the round trip's normalization rules** — the latter cannot be
+ * left to chance, or a saved reading position comes back looking different on every read.
  */
 
 describe("the structure parse reads out", () => {

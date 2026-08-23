@@ -1,3 +1,6 @@
+// The bottom of the stack: a hash whose only caller is the obfuscated-font path, checked here
+// against an outside implementation because its own callers cannot check it. The callers are in
+// epub-book/resources.test.ts, and they would stay green on a wrong hash — see below.
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { sha1 } from "../../src/sha1.ts";
@@ -49,12 +52,5 @@ describe("checked entry by entry against node:crypto", () => {
 
   test.for(INPUTS)("length %#", (input: string) => {
     expect(digest(input)).toBe(expected(input));
-  });
-});
-
-describe("the shape of what is returned", () => {
-  test("always 20 bytes", () => {
-    expect(sha1(new Uint8Array(0))).toHaveLength(20);
-    expect(sha1(new Uint8Array(1000))).toHaveLength(20);
   });
 });

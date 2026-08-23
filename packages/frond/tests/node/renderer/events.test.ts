@@ -1,3 +1,6 @@
+// The emitter every frond event travels through, on its own and with no renderer around it:
+// delivery, listener order, and unsubscribing from inside a callback. Which events actually fire
+// while a book is laid out is tests/browser/renderer/layout-events.spec.ts.
 import { describe, expect, test } from "vitest";
 import { Emitter } from "../../../src/renderer/events.ts";
 

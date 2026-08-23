@@ -1,3 +1,8 @@
+// The hand-written XML parser: what it accepts, what it reads out of a tree, and where it is
+// deliberately stricter than a reference implementation. It never touches a DOMParser — that is
+// the whole reason one parser can serve Node and the browser alike — so whether the browsers
+// agree that the same documents parse is asked separately, in
+// tests/browser/smoke/fixture-parsing.spec.ts.
 import { XMLValidator } from "fast-xml-parser";
 import { unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";
@@ -6,9 +11,6 @@ import { parseXml, type XmlElement } from "../../../src/epub/xml.ts";
 import { buildFixture, syntheticFixtures } from "../../../src/test-fixtures/index.ts";
 
 /**
- * The hand-written XML parser: its well-formedness verdict is compared against
- * `fast-xml-parser`, and the tree's behaviour is asserted on its own.
- *
  * `fast-xml-parser` is a **reference implementation** (CONTEXT.md) and appears only in
  * tests. The only thing comparable here is **a fact both sides ought to agree on** —
  * the "is this document well-formed" boolean. Error messages and tree shapes are

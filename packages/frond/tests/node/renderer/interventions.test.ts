@@ -1,3 +1,6 @@
+// The closed list of interventions (frond ADR-0003), held against the stylesheets frond actually
+// emits: a declaration named by no entry on the list goes red right here. It asks nothing about
+// what any intervention does to a page — that is measured per engine, in tests/browser/renderer/.
 import { describe, expect, test } from "vitest";
 import { mapStylesheet } from "../../../src/renderer/css.ts";
 import { pageMetrics } from "../../../src/renderer/geometry.ts";

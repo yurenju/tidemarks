@@ -1,3 +1,7 @@
+// The colour rule as arithmetic: reading whatever notation a book wrote, measuring it against
+// the reader's page, and moving it no further than legibility needs (ADR-0014). Every case a
+// book can present is exhausted here, cheaply; that the chosen colour reaches the element at all
+// is the one thing only an engine can say, in tests/browser/renderer/reader-settings.spec.ts.
 import { describe, expect, test } from "vitest";
 import {
   adaptColor,

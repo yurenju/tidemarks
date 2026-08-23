@@ -1,15 +1,15 @@
+// One section's text and the CFIs that address it, walked out of XHTML with no DOM anywhere:
+// character offsets, the nodes the walk skips, what happens to a CFI written by someone else.
+// That this walk numbers the tree the same way a browser does is the claim the whole layer
+// rests on, and only a browser can settle it — tests/browser/renderer/cfi-cross-implementation.spec.ts.
 import { describe, expect, test } from "vitest";
 import { ContentDocument } from "../../../src/epub/content-document.ts";
 import { parseCfi, serializeCfi } from "../../../src/epub/cfi.ts";
 import { EpubOpenError } from "../../../src/epub/errors.ts";
 
 /**
- * Reading a section, and pointing back into it, with no browser.
- *
- * These pin the tree layer through the interface a consumer actually holds. The equivalence
- * with what a browser writes is pinned separately and against a browser
- * (`tests/browser/renderer/cfi-cross-implementation.spec.ts`) — that is the claim this whole
- * layer rests on, and only a browser can settle it.
+ * These pin the tree layer through the interface a consumer actually holds, rather than
+ * through the traversal underneath it.
  */
 
 function xhtml(body: string): string {

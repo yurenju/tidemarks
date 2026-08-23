@@ -1,3 +1,6 @@
+// The refusal side of opening a book: which `reason` comes back for each way the container and
+// the package document can be broken. Every verdict is reached before anything is rendered, so
+// none of it needs a browser; what a consumer tells the reader for each reason is app policy.
 import { describe, expect, test } from "vitest";
 import { EpubBook, EpubOpenError, type EpubOpenFailure } from "../../../src/epub/index.ts";
 import { handmadeBook, pack, packageDocument, HEALTHY_ENTRIES } from "./support/handmade.ts";

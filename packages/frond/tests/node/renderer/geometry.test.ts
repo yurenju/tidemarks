@@ -1,3 +1,7 @@
+// The arithmetic that follows once a browser's behaviour is taken as given: strides, page counts,
+// margins landing on physical edges, where a turn in progress puts its two pages. The premise
+// itself — that columns overflow along the inline axis — is engine behaviour, pinned once per
+// engine in tests/browser/renderer/multicol-geometry.spec.ts.
 import { describe, expect, test } from "vitest";
 import {
   blockExtentOf,
@@ -19,11 +23,6 @@ import {
  * Unit tests for the pagination arithmetic. This layer is pure functions, so it sits at
  * the bottom of the test pyramid (ADR-0009) — a boundary condition can be answered
  * without opening three browsers.
- *
- * The premise that "columns overflow along the inline axis" is not verified here; that
- * is browser behaviour, and `tests/browser/renderer/multicol-geometry.spec.ts` pins it
- * once per engine. What is verified here is **the arithmetic that follows from
- * accepting that premise**.
  */
 
 const VIEWPORT = { width: 800, height: 600 };

@@ -1,3 +1,7 @@
+// The front door: handing over a book's bytes in whichever of the three shapes a consumer
+// happens to hold, and getting a book back — through the published entry point as well as the
+// relative one. It also pins the environment as DOM-free, which is the premise every other file
+// in tests/node/ silently rests on.
 import { existsSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { EpubBook } from "../../../src/epub/index.ts";
