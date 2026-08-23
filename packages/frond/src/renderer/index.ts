@@ -76,7 +76,15 @@ export type {
 // the container may the text have, for lines of at most N ems — cannot be written without
 // it (`geometry.ts`).
 export { COLUMN_GAP } from "./geometry.ts";
-export type { ColumnChoice, Insets, Margin, TurnEdge, Viewport, WritingMode } from "./geometry.ts";
+export type {
+  ColumnChoice,
+  Insets,
+  Margin,
+  PageBox,
+  TurnEdge,
+  Viewport,
+  WritingMode,
+} from "./geometry.ts";
 
 // Which of the three frames in the container is the page the reader is reading. A consumer's
 // own browser tests have to be able to say so, and "the iframe" stopped being an answer the

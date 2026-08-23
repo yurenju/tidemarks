@@ -24,12 +24,14 @@ import {
   marginInsets,
   maxScrollOffsetFor,
   pageAtScroll,
+  pageBoxFor,
   pageContaining,
   pageCountFor,
   pageMetrics,
   pageOffsetFor,
   resolveColumns,
   type Insets,
+  type PageBox,
   type PageMetrics,
   type WritingMode,
 } from "./geometry.ts";
@@ -656,6 +658,11 @@ export class SectionView {
       rect: this.inContainer(marked.rect),
       ink: this.inContainer(marked.ink),
     }));
+  }
+
+  /** Where the page sits in the container the consumer draws on. See `pageBoxFor`. */
+  get pageBox(): PageBox {
+    return pageBoxFor(this.metrics, this.insets);
   }
 
   /** The iframe is inset by the reader's margin; the consumer draws on the container. */

@@ -6,6 +6,7 @@
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
+  PAGE_FRAME,
   dragPage,
   farEnoughToTurn,
   openBook,
@@ -14,6 +15,7 @@ import {
   pageOffset,
   readerFrame,
   releaseDrag,
+  segment,
   selectVisibleText,
   settled,
   visibleText,
@@ -267,5 +269,89 @@ test.describe("drawing a highlight", () => {
     await expect(page.getByTestId("panel-notes")).toBeVisible();
     await expect(page.locator(".note-editor textarea")).toBeVisible();
     expect(await visibleText(page)).toBe(before);
+  });
+});
+
+test.describe("a wide margin, where the page and the container part company", () => {
+  // The margin is what separates the two boxes, and one column at this viewport is what makes
+  // it wide: the line-length ceiling (ADR-0012) hands the leftover to the margin, and the
+  // leftover is large once a 1000px-wide screen carries a single 30-em line.
+  //
+  // Below that margin, the whole defect: pages are `COLUMN_GAP` (40px) apart, so everything in
+  // the first `margin - gap` px of the next page sits **inside the container** while the reader
+  // is still on this one. Clipping the highlight layer to the container therefore paints the
+  // next page's marks in this page's margin, cut in half at the container's edge (#41).
+  //
+  // Only a real layout produces those two boxes at once, which is why this is here and not in
+  // src/lib/highlights.test.ts — that one has the arithmetic, on the numbers measured here.
+  test.beforeEach(async ({ page }) => {
+    await openBook(page, BOOKS.horizontal);
+    await openPanel(page, "Type");
+    await segment(page, "setting-columns", 1).click();
+    await page.keyboard.press("Escape");
+    await settled(page);
+
+    // **Into a chapter first, because the two pages have to be in one section.** The book
+    // opens on its front matter, which is a single page — turning off it crosses into the next
+    // section, and a highlight in a section that is not mounted comes back with no rectangles
+    // at all. The clipping would then never be asked the question this test is about, and the
+    // test would pass while proving nothing (it did, once).
+    await openPanel(page, "Contents");
+    await page
+      .locator(".toc-item")
+      .filter({ hasText: /Rabbit-Hole/ })
+      .first()
+      .click();
+    await settled(page);
+  });
+
+  test("a mark on the next page is not painted in this page's margin", async ({ page }) => {
+    const mount = (await page.locator(".viewer-mount").boundingBox())!;
+    const frame = (await page.locator(PAGE_FRAME).last().boundingBox())!;
+    const margin = mount.x + mount.width - (frame.x + frame.width);
+
+    // The premise, asserted rather than assumed: with a margin no wider than the gap there is
+    // nowhere for the next page to leak into, and this test would pass while saying nothing.
+    expect(
+      margin,
+      "the margin has to be wider than frond's column gap for this to mean anything",
+    ).toBeGreaterThan(40);
+
+    // Forward to the first page of this chapter carrying prose, which is not always the second:
+    // Alice's chapters open with a plate, and a page of picture has nothing to select. `before`
+    // is the page immediately in front of it — the one the mark must not appear on.
+    let before = await visibleText(page);
+    for (let step = 0; step < 4; step++) {
+      const previous = await visibleText(page);
+      await page.getByRole("button", { name: "Next page" }).click();
+      await expect.poll(async () => await visibleText(page)).not.toBe(previous);
+      await settled(page);
+      if ((await visibleText(page)).trim().length > 8) {
+        before = previous;
+        break;
+      }
+    }
+
+    await selectVisibleText(page);
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Previous page" }).click();
+    await expect.poll(async () => await visibleText(page)).toBe(before);
+
+    // **Every mark inside the page, and not "no marks at all".** A selection is a whole text
+    // node, and a paragraph that has prose on the next page usually began on this one — so some
+    // of it is legitimately still marked here, and how much differs per engine. What is never
+    // legitimate is a mark outside the page: that stretch of container is margin, and the only
+    // thing over there is the next page showing through the gap.
+    const page1 = (await page.locator(PAGE_FRAME).last().boundingBox())!;
+    for (const box of await page.locator(".highlight-box").all()) {
+      const at = (await box.boundingBox())!;
+      expect(at.x, `a mark at ${Math.round(at.x)} is past the page's right edge`).toBeLessThan(
+        page1.x + page1.width,
+      );
+      expect(at.x + at.width, "and none starts before its left edge").toBeGreaterThan(page1.x);
+    }
   });
 });

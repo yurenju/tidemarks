@@ -24,7 +24,7 @@ import type { RenderableBook } from "./book.ts";
 import { cfiForRange, rangeForCfi, sectionIndexOf, spineSegment } from "./cfi-dom.ts";
 import { buildSectionDocument, ResourceUrls, SectionParseError } from "./document-source.ts";
 import { Emitter, type RenderLocation, type RendererEvents, type Unsubscribe } from "./events.ts";
-import { turnPlacement, type TurnEdge, type WritingMode } from "./geometry.ts";
+import { turnPlacement, type PageBox, type TurnEdge, type WritingMode } from "./geometry.ts";
 import { ProgressIndex } from "./progress.ts";
 import { SectionView, type MarkedRect, type SettingsSource } from "./section-view.ts";
 import {
@@ -801,6 +801,26 @@ export class Renderer {
 
     const range = rangeForCfi(view.document, parsed);
     return range === undefined ? [] : view.rectsFor(range);
+  }
+
+  /**
+   * Where the page sits inside the container, in the same coordinates as `rectsFor()`.
+   *
+   * This is the companion `rectsFor()` needs to be **clipped** against, and clipping against
+   * the container instead is wrong in a way that only shows on a wide screen. The container
+   * includes the reader's margin; the page does not. Adjacent pages are `COLUMN_GAP` apart,
+   * so as soon as the margin is wider than that gap, the head of the next page falls inside
+   * the container — and a consumer clipping to the container paints it in this page's margin,
+   * cut off at the container's edge (Tidemarks #41).
+   *
+   * `undefined` when no section is mounted, which is also when `rectsFor()` has nothing to
+   * report.
+   *
+   * **Stale on the next `layout`**, exactly as rectangles are: a margin change moves this box
+   * and every rectangle in it.
+   */
+  pageBox(): PageBox | undefined {
+    return this.view?.pageBox;
   }
 
   /**

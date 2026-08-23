@@ -1185,14 +1185,19 @@ export default function Reader({
   // A layout effect because it measures: it runs after the DOM is in its new shape and
   // before the browser paints, so a page turn never shows a highlight at its old position.
   useLayoutEffect(() => {
-    const container = mountRef.current;
-    if (!renderer || !container) {
+    // **The page, not the container this layer is drawn on.** frond reports rectangles in the
+    // container's coordinates, but the page is inset within it by the reader's margin, and
+    // two pages are only `COLUMN_GAP` apart — so on a wide screen the head of the next page
+    // lands inside the container and would be painted in this page's margin (#41). Only frond
+    // can say where the page is: it is the one that turns a margin into insets and floors the
+    // sizes. No page box means no section is mounted, which is also when `rectsFor` is empty.
+    const page = renderer?.pageBox();
+    if (!renderer || !page) {
       setPainted([]);
       paintedRef.current = [];
       return;
     }
 
-    const size = { width: container.clientWidth, height: container.clientHeight };
     const next: PaintedHighlight[] = [];
     for (const annotation of annotations) {
       const marked = renderer.rectsFor(annotation.cfiRange);
@@ -1202,13 +1207,13 @@ export default function Reader({
       // indent, which carry no mark and are still part of the passage the reader marked.
       //
       // Highlights outside this section come back with no rectangles at all, and ones on
-      // another page fall outside the container — both are dropped by the clipping inside.
+      // another page fall outside the page box — both are dropped by the clipping inside.
       // Keyed on the targets, not the strips: a passage whose text has all been clipped away
       // is on another page, and a mark drawn beside text that is not there is the floating
       // highlight the clipping exists to prevent.
-      const targets = hitBoxes(marked, size);
+      const targets = hitBoxes(marked, page);
       if (targets.length > 0) {
-        next.push({ annotation, strips: markStrips(marked, size, verticalBook), targets });
+        next.push({ annotation, strips: markStrips(marked, page, verticalBook), targets });
       }
     }
 

@@ -283,6 +283,42 @@ export function pageMetrics(request: ColumnRequest): PageMetrics {
  *
  * @param scrollExtent the document's total length along the pagination axis (`scrollWidth` or `scrollHeight`)
  */
+/**
+ * Where the page sits inside the container, in the container's own coordinates.
+ *
+ * **The page is not the container**, and the difference is the reader's margin: the frame is
+ * inset within the container, so a consumer clipping to the container is clipping to a box
+ * wider than the page by that margin on each side. Two adjacent pages are only `columnGap`
+ * apart — 40px, and the margin on a wide screen is several times that — so the head of the
+ * next page lands **inside the container** whenever the margin is wider than the gap, at
+ * `left + width + columnGap`. Measured at a container of 1273 with a margin of 157: the next
+ * page starts at 1156, which is 117px inside the container's own right edge.
+ *
+ * That is why this is a fact frond owes the consumer rather than one it can work out for
+ * itself. Only frond turns a `Margin` into insets by writing mode and floors the sizes to
+ * whole pixels, and a consumer re-deriving either would be re-deriving it slightly wrong.
+ */
+export interface PageBox {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The page's box, from the two things that decide it: where the frame is, and how big. */
+export function pageBoxFor(metrics: PageMetrics, insets: Insets): PageBox {
+  const horizontal = metrics.axis === "x";
+
+  return {
+    left: insets.left,
+    top: insets.top,
+    // `inlineSize` measures along the inline axis, which is vertical in a vertical book
+    // (the file header's table) — so which of the two it is depends on the writing mode.
+    width: horizontal ? metrics.inlineSize : metrics.blockSize,
+    height: horizontal ? metrics.blockSize : metrics.inlineSize,
+  };
+}
+
 export function pageCountFor(metrics: PageMetrics, scrollExtent: number): number {
   return Math.max(1, Math.ceil((scrollExtent - SUBPIXEL_TOLERANCE) / metrics.stride));
 }

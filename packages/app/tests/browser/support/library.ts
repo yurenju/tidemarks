@@ -249,7 +249,7 @@ export function readerFrame(page: Page) {
 }
 
 /** The one frame among the three that is the page the reader is reading. */
-const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
+export const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
 
 /**
  * Drags a finger across the book, the way a reader turns a page (ADR-0024).
