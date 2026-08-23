@@ -1,7 +1,7 @@
 // oxlint-disable react/rules-of-hooks -- the `use` a fixture is handed is Playwright's, not
 // React's. The lint config turns React's rules on for everything under `packages/app`, and this
 // file is the one place in the suite where that name collides.
-import { test as base } from "@playwright/test";
+import { test as base, type BrowserContext } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,22 +57,23 @@ export const test = base.extend({
     // every resolved context option (viewport, `hasTouch`, `isMobile`, `baseURL`, and whatever
     // a spec set with `test.use`) as a context is created, for a persistent one as well — so
     // naming them here would be a second, staler copy of that list.
-    if (browserName === "webkit") {
-      // A temporary directory rather than `testInfo.outputPath()`, whose name is built from the
-      // test's title: WebKit's launcher parses its own arguments through GLib and dies on a
-      // non-ASCII `--user-data-dir` with "Invalid byte sequence in conversion input". Plenty of
-      // titles in this suite are written in Chinese.
-      const profile = await mkdtemp(join(tmpdir(), "tidemarks-webkit-"));
-      const context = await playwright.webkit.launchPersistentContext(profile);
-      await use(context);
-      await context.close();
-      await rm(profile, { recursive: true, force: true });
-      return;
-    }
+    //
+    // A temporary directory rather than `testInfo.outputPath()`, whose name is built from the
+    // test's title: WebKit's launcher parses its own arguments through GLib and dies on a
+    // non-ASCII `--user-data-dir` with "Invalid byte sequence in conversion input". Plenty of
+    // titles in this suite are written in Chinese.
+    const profile =
+      browserName === "webkit" ? await mkdtemp(join(tmpdir(), "tidemarks-webkit-")) : null;
+    const context =
+      profile === null
+        ? await browser.newContext()
+        : await playwright.webkit.launchPersistentContext(profile);
 
-    const context = await browser.newContext();
+    await refuseAuth(context);
     await use(context);
+
     await context.close();
+    if (profile !== null) await rm(profile, { recursive: true, force: true });
   },
 
   page: async ({ context }, use) => {
@@ -82,5 +83,33 @@ export const test = base.extend({
     await use(opened ?? (await context.newPage()));
   },
 });
+
+/**
+ * Answers `/auth/*` with the 401 a logged-out reader would really get.
+ *
+ * No Worker runs beside this suite — Vite forwards `/api` and `/auth` to port 5002 and nothing
+ * is listening — so every such request used to end as a red `ECONNREFUSED` line in the run's
+ * output. The account panel asks `/auth/me` on mount and offers a passkey from the email field,
+ * which was a dozen of them; sync's own share is gone now that it refuses to run signed out
+ * (`src/lib/session.ts`). Green runs printing red lines is how a real failure gets missed.
+ *
+ * **Fulfilled rather than aborted.** 401 is what the server says to a browser with no session,
+ * so the app takes exactly the path it takes in production; an abort would make `fetch` throw
+ * and put it on a different one.
+ *
+ * **`/auth` only.** A signed-out app makes no `/api` request at all now, so stubbing that too
+ * would be insurance against nothing — and it would quietly absorb the day someone adds a sync
+ * trigger that skips the check, which is precisely what `library/signed-out.spec.ts` is there to
+ * turn red.
+ */
+async function refuseAuth(context: BrowserContext): Promise<void> {
+  await context.route("**/auth/**", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "unauthenticated" }),
+    }),
+  );
+}
 
 export { expect } from "@playwright/test";

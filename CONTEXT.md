@@ -591,6 +591,12 @@ _Avoid_: 部署、deploy、release、production（**這四件事都已經成立�
 不離開這台裝置**。舊寫法是「不註冊就完全不上傳」，那句字面上不成立——app shell 本身就是從 Worker
 抓下來的——而一句經不起追問的承諾，被戳破一次比從來沒講過還糟。
 
+**守著它的是 `packages/app/src/lib/session.ts`**：同步靠一個本機的旗標決定要不要發請求，沒登入
+就一個都不發——不能靠讀 cookie 判斷（session 是 HttpOnly），也不能先打了再看 401，那時候東西已經
+送出去了。查得證的那一半是
+`packages/app/tests/browser/library/signed-out.spec.ts`：不註冊、匯入一本書、翻頁、切走再切回來，
+斷言對 Worker 的請求數是零。
+
 它同時是唯一擋著「在免費路徑上放個分析看看轉換率」的東西：**沒註冊的那段路上不放任何分析與錯誤
 回報**。
 
