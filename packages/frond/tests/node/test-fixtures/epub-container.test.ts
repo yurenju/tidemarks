@@ -1,3 +1,8 @@
+// Whether the generator's output is a real OCF container at the byte level: it unzips with
+// somebody else's unzipper, and the mimetype entry sits where readers sniff for it. Nothing
+// above ever looks at those bytes — frond reads the archive through its own reader, which
+// would agree with our writer even about a shared misunderstanding. What is inside the
+// container is epub-structure.test.ts's.
 import { describe, expect, test } from "vitest";
 import { unzipSync } from "fflate";
 import {

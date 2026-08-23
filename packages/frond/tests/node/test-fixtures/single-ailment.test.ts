@@ -1,19 +1,12 @@
+// Which fixtures carry which symptom — asserted as **set equality**, so it goes red both
+// when an ailment disappears and when it spreads to a second book. Neither direction is
+// visible above: a fixture quietly carrying two ailments still renders, and a red test up
+// there would then point at two possible causes instead of one. What an ailment does to a
+// reader is the browser layer's (tests/browser/renderer/); the ways a fixture can lose its
+// teeth without any probe seeing it are ailments.test.ts's.
 import { describe, expect, test } from "vitest";
 import { openEpub, type EpubArchive } from "../support/epub-archive.ts";
 import { buildFixture, syntheticFixtures } from "../../../src/test-fixtures/index.ts";
-
-/**
- * The enforcer of "one fixture carries one ailment, and everything else stays healthy".
- *
- * `ailments.test.ts` asks "is the ailment there"; this asks "has the ailment spilled into
- * other files". Without this group, a generator writing every ailment into one stylesheet
- * would come out green over there, and the whole value of a fixture — a red test pointing
- * straight at one single cause — would be gone.
- *
- * The method is to write each ailment as a probe and assert that **the set of files it
- * hits is exactly** that list. "Exactly" is the point: asserting only "it hits something"
- * would leave nobody to notice when an ailment spreads to a second file.
- */
 
 /**
  * The code version of ADR-0007's fixture table.
