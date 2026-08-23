@@ -67,9 +67,21 @@ fi
 # They are not free: 23s, of which only 7 is running assertions and the rest is transform,
 # imports and workerd starting up. On a local machine that is worth paying for the ordering
 # alone. Under CI it is not, because the `test` job has already paid it — see the header.
+#
+# **`npm test` rather than `vitest` directly, and the difference is not stylistic.** The root
+# script compiles the message catalogs before it runs anything, and a bare `vitest` skips that:
+# `worker/i18n.ts` imports `../src/locales/en.mjs`, which is compiled output and is not in the
+# image — the image builds the renderer, not the catalogs. So every app and worker test file
+# died on a missing module, 37 of them, while the header above was claiming this entry point is
+# what makes "the tests are green" mean the same thing in both places. It did not: CI skips this
+# half, so the one place the gap could show was a local run, pointing the wrong way round from
+# the "green locally, red in CI" hazard the Dockerfile's header is written about.
+#
+# Naming the same script CI's `test` job runs is what closes it. The renderer build it repeats
+# costs 0.6s against an image that already has one.
 if [[ -z "${CI:-}" ]]; then
     echo "==> running the Node tests (Vitest, every package)"
-    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npx vitest run
+    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm test
 else
     echo "==> skipping the Node tests (CI runs them in the 'test' job)"
 fi
