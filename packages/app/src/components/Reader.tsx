@@ -1630,7 +1630,20 @@ function AnnotationItem({
 
   return (
     <div className="annotation-item" style={{ borderLeftColor: markVar(annotation.color) }}>
-      <blockquote
+      {/* **A real button, and the panel it sits in is why.** Base UI's drawer claims a press
+          that does not land on something interactive, so that a swipe anywhere on the panel
+          dismisses it — and claiming it means capturing the pointer, which retargets the
+          `click` to the panel. A quote that was only a styled `<blockquote>` therefore never
+          heard its own click on a desk. It still worked under a finger, because the swipe
+          takes no pointer capture there, and that is the shape the report had: jumping works
+          on a phone and does nothing on a desktop.
+
+          `button` is one of the elements the drawer stands aside for
+          (`button,a,input,select,textarea,label,[role="button"]`), so this is the fix and the
+          keyboard route in one — the quote was not reachable by tab either. */}
+      <button
+        type="button"
+        className="annotation-quote"
         onClick={onJump}
         title={t({
           message: "Jump to this passage",
@@ -1639,7 +1652,7 @@ function AnnotationItem({
         })}
       >
         {annotation.text}
-      </blockquote>
+      </button>
       {editing ? (
         <div className="note-editor">
           <textarea

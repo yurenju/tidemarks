@@ -476,14 +476,25 @@
   background: var(--surface-sunken);
 }
 
-.annotation-item blockquote {
+/* Prose in a control, so the button rules that suit a label are undone here: it wraps, it fills
+   the row, and it carries no border or fill of its own. */
+.annotation-quote {
+  display: block;
+  width: 100%;
   margin: 0 0 0.3rem;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+  font-family: inherit;
   font-size: var(--type-body);
   line-height: var(--leading-text);
-  cursor: pointer;
 }
 
-.annotation-item blockquote:hover {
+.annotation-quote:hover {
+  background: none;
+  border: none;
   text-decoration: underline;
 }
 
