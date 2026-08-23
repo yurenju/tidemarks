@@ -350,11 +350,18 @@ export default function Reader({
     /**
      * A turn from frond, with the highlight layer tied to the page it is drawn over.
      *
-     * **Wrapped once here rather than at each call site**, because the layer has to be put back
-     * on *every* way a turn ends and there are five of them — released, landed, bounced,
-     * swapped for the other page, cancelled by a press going somewhere else. A route added
-     * later gets this without knowing it exists; a reset written at each ending would be one
-     * `cancel()` away from leaving the marks adrift over a page that has stopped moving.
+     * **Wrapped here rather than at each call site**, because a turn is put back by several
+     * routes — released, bounced, swapped for the other page, cancelled by a press going
+     * somewhere else — and every one of them ends at `cancel()`. A route added later gets this
+     * without knowing it exists.
+     *
+     * **Committing is the one ending that does not put the layer back, and that is deliberate.**
+     * The boxes on it were measured against the page that has just left; frond swaps the frames
+     * at once, while the repaint that replaces those boxes waits for `relocate` to come back
+     * through React. Snapping the layer home in between would draw the old page's marks over
+     * the new page for a frame — the mark slides off the edge, blinks back at its old spot on
+     * the wrong page, and then goes. Left where the turn carried them, the stale boxes are off
+     * the side of the book and clipped until the repaint drops them.
      */
     const beginTurn = (
       towards: TurnDirection,
@@ -376,10 +383,7 @@ export default function Reader({
           slideMarks(marksRef.current, at);
           return at;
         },
-        commit: () => {
-          turn.commit();
-          slideMarks(marksRef.current, AT_REST);
-        },
+        commit: turn.commit,
         cancel: () => {
           turn.cancel();
           slideMarks(marksRef.current, AT_REST);

@@ -1,7 +1,8 @@
 // Highlights against a real layout: whether the boxes land beside the text they were drawn from,
-// and whether they survive the three things that move that text — a page turn, a reload, a
-// reflow. The clipping and the strip geometry are exhausted in src/lib/highlights.test.ts; what
-// no pure function has is rectangles frond measured and a CFI resolved against a fresh document.
+// whether they travel with that text while a turn is carrying it, and whether they survive the
+// three things that move it — a page turn, a reload, a reflow. The clipping and the strip
+// geometry are exhausted in src/lib/highlights.test.ts; what no pure function has is rectangles
+// frond measured and a CFI resolved against a fresh document.
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
