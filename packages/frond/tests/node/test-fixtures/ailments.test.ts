@@ -264,6 +264,17 @@ describe("content hidden inside a content document", () => {
     expect(book.stylesheet).toMatch(/\.note\s*\{[^}]*display:\s*none/);
   });
 
+  test("hidden-trailing-notes: the body text is long enough to lay out over several pages", () => {
+    const book = open("hidden-trailing-notes");
+    const body = bodyOf(book.text(book.readingOrder.at(-1)!.archivePath));
+    const paragraphs = [...body.matchAll(/<p>/g)].length;
+
+    // The length is not a second ailment but the precondition for the symptom: in a one-page
+    // section, "the page count collapses to 1" is the same number as the right answer, so the
+    // browser suite would pass on a fixture that had stopped proving anything.
+    expect(paragraphs).toBeGreaterThan(40);
+  });
+
   test("hidden-trailing-notes: only the last section is touched; the earlier ones stay healthy", () => {
     const book = open("hidden-trailing-notes");
     const healthy = open("vertical-japanese");
