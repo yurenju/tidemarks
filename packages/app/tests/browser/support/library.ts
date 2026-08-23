@@ -200,14 +200,31 @@ async function settledBox(page: Page): Promise<void> {
  * that genuinely never loads, would turn a real break into a green run — which is the whole
  * value of this wait. `reader/settled.spec.ts` pins both halves.
  */
-async function fontsReady(page: Page): Promise<void> {
+function fontsReady(page: Page): Promise<void> {
+  return throughThePage(page, () => waitForFonts(page));
+}
+
+/**
+ * Runs a read against the page frame, and runs it again if the frame it resolved went away
+ * underneath it.
+ *
+ * The window is the one `fontsReady` above is written about: frond drops and re-mounts its
+ * SectionViews, and a call that resolved the frame a moment earlier then fails in Playwright
+ * rather than in an assertion — the spec dies before it has said anything about the app. Waiting
+ * for the steady state and asking again is what closes it, and the second attempt is against
+ * whichever frame is the page *now*.
+ *
+ * **Only this failure, and only once.** Anything else is rethrown, and a second detach fails the
+ * spec — a blanket retry would launder a real break into a green run.
+ */
+async function throughThePage<T>(page: Page, read: () => Promise<T>): Promise<T> {
   try {
-    await waitForFonts(page);
+    return await read();
   } catch (error) {
     if (!frameWentAway(error)) throw error;
 
     await expect(page.locator(PAGE_FRAME)).toHaveCount(1, { timeout: 30_000 });
-    await waitForFonts(page);
+    return read();
   }
 }
 
@@ -668,8 +685,17 @@ export async function waitForIndex(page: Page): Promise<void> {
  * Used as the "did the page turn" signal. It reads from the iframe's own selection API rather
  * than from `textContent`: the whole section is in the document and only one page of it is
  * visible, so `textContent` would be identical before and after a turn.
+ *
+ * Through `throughThePage` for the same reason `fontsReady` is: every caller here is asking
+ * across a turn, which is precisely when frond is re-mounting the frame this reads from. The
+ * poll around this in most specs does not cover it — a detached frame fails the call rather than
+ * returning a value the poll could reject.
  */
-export async function visibleText(page: Page): Promise<string> {
+export function visibleText(page: Page): Promise<string> {
+  return throughThePage(page, () => readVisibleText(page));
+}
+
+function readVisibleText(page: Page): Promise<string> {
   return readerFrame(page)
     .locator("body")
     .evaluate((body) => {
