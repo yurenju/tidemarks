@@ -183,6 +183,32 @@ test.describe("drawing a highlight", () => {
       .toBe(FOLLOWED);
   });
 
+  test("the quote in the notes panel takes the reader back to the passage", async ({ page }) => {
+    // **The click has to survive the panel it is made in.** Base UI's drawer captures the
+    // pointer for any press that does not land on something interactive, and a captured
+    // pointer retargets the `click` to the panel itself — so a quote that was not a control
+    // heard nothing, on a desk. Under a finger the same swipe takes no capture, which is why
+    // this only ever failed with a mouse and why the spec drives one here.
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+    const marked = await visibleText(page);
+
+    // Away from the marked page first, or landing on it would prove nothing.
+    const before = await visibleText(page);
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect.poll(async () => await visibleText(page)).not.toBe(before);
+    await expect(page.locator(".highlight-box")).toHaveCount(0);
+
+    await openPanel(page, /Notes/);
+    await page
+      .getByTestId("panel-notes")
+      .getByRole("button", { name: text.slice(0, 12), exact: false })
+      .click();
+
+    await expect.poll(async () => await visibleText(page)).toBe(marked);
+  });
+
   test("tapping the marked text opens its note instead of turning the page", async ({ page }) => {
     // The overlay takes no pointer events (it would swallow the taps that turn the page), so
     // this goes through frond's `pointerup` and spine's own hit test.
