@@ -257,8 +257,7 @@ body {
       ...base,
       stylesheet: `${base.stylesheet}
 body {
-  color: #000000;
-  background-color: #ffffff;
+  color: #eeeeee;
 }
 `,
     }),

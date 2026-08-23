@@ -41,13 +41,13 @@
 - `caps a latin line at 30 ems`
 - `is single column whatever the reader asked for`
 
-然後瀏覽器層的
+而在這份準則訂出來之前，瀏覽器層的
 [line-length.spec.ts](../../packages/app/tests/browser/reader/line-length.spec.ts) 把同樣三個命題
-**再證一次**：
-
-- `stops a latin line at 30 ems however wide the window gets`
-- `stops a vertical line at 40 ems, measured down the page`
-- `does not split into two columns that would each be too short`
+**又各證了一次**（`stops a latin line at 30 ems however wide the window gets`、
+`stops a vertical line at 40 ems...`、`does not split into two columns...`）。那三條已經在
+[#37](https://github.com/yurenju/tidemarks/issues/37) 收成一條，現在那個檔裡的是
+`carries the computed ceiling onto the page, down the axis a vertical line runs`——**它就是這條
+原則長出來的樣子**，要看實例就看它。
 
 **規則：同一個命題在上層最多留一條接線測試。** 接線測試只回答一件事——「下層算出來的那個數字，
 真的到了畫面上」。餵一個已知輸入，量一次，比對。它不再逐個情境重跑，因為那些情境下層已經走完了。
@@ -96,8 +96,12 @@ frond 的合成 fixture 是程式產生的，所以「產生器對不對」是�
 **這個問題要真的去試，不要用讀的。** 把產生器改壞、跑一次、看誰紅、還原。兩個地方會出錯：
 
 ⚠️ **fixture 要重新產。** 產品層讀的是 repo 裡 committed 的 `.epub`，**不是產生器**。只改產生器就跑
-測試，一條都不會紅，而那個答案跟事實完全相反。順序是：改壞 → `npm run fixtures` → 跑測試 → 還原
-→ 再 `npm run fixtures`。
+測試，一條都不會紅，而那個答案跟事實完全相反。順序是：改壞 → 重新產 fixture → 跑測試 → 還原 →
+再產一次。重新產的指令**根目錄沒有這支 script**，要指定 package：
+
+```bash
+npm run fixtures -w @yurenju/frond
+```
 
 ⚠️ **「跟著紅」跟「無聲通過」要分開。** fixture 失去症狀之後，上層那條測試是**變紅**，還是**變成
 一條空過的測試**？空過的才是真正危險的——它還在那裡、還是綠的，但已經什麼都沒有驗到。舉例：
@@ -183,10 +187,11 @@ frond 的合成 fixture 是程式產生的，所以「產生器對不對」是�
 不用逐條想，看到就是候選：
 
 1. **下層已經證明過的同一個命題，在上層第二次以後出現的。** 第一條算接線，之後的是副本。
-2. **只斷言型別或欄位存在，不斷言值。** 例如
-   [protocol.test.ts](../../packages/app/worker/mcp/protocol.test.ts) 的
-   `gives every tool a name, a description and a schema`，那個 `for` 迴圈裡的三個
-   `toBeTruthy()`——它擋不住任何一種真的會發生的錯，型別已經擋掉了。
+2. **只斷言型別或欄位存在，不斷言值。** #37 刪掉的一條是這樣的：它在
+   [protocol.test.ts](../../packages/app/worker/mcp/protocol.test.ts) 裡跑一個 `for` 迴圈，對每個
+   工具問三次 `toBeTruthy()`——名字在不在、說明在不在、schema 在不在。三個都擋不住任何一種真的會
+   發生的錯，因為型別已經擋掉了。留下來的那條改成斷言**是哪三個工具**，所以少一個、多一個、或名字
+   換掉都會紅。
 3. **只斷言 mock 被呼叫過，不斷言呼叫造成的結果。** 「有叫到」不是使用者碰得到的東西。
 4. **快照。** 這個 repo 目前一個都沒有，維持這樣。快照沒有命題，所以永遠回答不出「它測到什麼角度」，
    而更新它的動作是按一個鍵。

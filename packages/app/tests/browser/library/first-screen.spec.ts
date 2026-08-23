@@ -1,5 +1,5 @@
 // The shape the shelf takes around real IndexedDB rows — one large book or none — and the two
-// doors into 〈書的詳情〉, from the shelf and from over the book. Which book leads and what the
+// doors into a book's details, from the shelf and from over the book. Which book leads and what the
 // two lines under it say are pure functions, exhausted in src/lib/book-status.test.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";

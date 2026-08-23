@@ -1,7 +1,7 @@
 // Which of the reader's two bars says it can be dragged, read off the pixels: role, cursor, end
 // caps and the tide ink against the read-only bar's grey 3px. It is all resolved CSS and computed
 // colour — type checking cannot see any of it, and the unit tests are on the wrong side of the
-// DOM. The rule the two signatures come from is docs/design-system.md 〈能拖與不能拖〉.
+// DOM. The rule the two signatures come from is the draggable-or-not section of docs/design-system.md.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {

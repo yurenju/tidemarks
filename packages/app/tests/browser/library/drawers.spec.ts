@@ -1,17 +1,14 @@
 // The shelf's screens are hash routes rather than pieces of React state, and this is where that
-// shows: back leaves 〈設定〉 instead of the app, a reload comes back to the same tab, a drawer
+// shows: back leaves the settings screen instead of the app, a reload comes back to the same tab, a drawer
 // leaves the shelf standing behind it. Reading and writing the hash itself is pure and lives in
 // src/lib/route.test.ts; real history and a real reload are only here.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, segment } from "../support/library.js";
 
 /**
- * 〈設定〉 the floor and 〈書的詳情〉 the drawer, and the things that only hold because both live
- * in the hash.
- *
- * Back leaves the settings screen rather than the app, a refresh comes back to the same tab,
- * and the shelf is still under the drawer. None of those is true of a screen held in a piece of
- * React state, and none can be checked without a real browser history.
+ * Two different things share the hash: settings is a floor of its own, a book's details is a
+ * drawer over the shelf. CONTEXT.md draws that line, and it is why the assertions below differ
+ * — a floor replaces what was under it, a drawer does not.
  */
 
 test("opens 〈設定〉 from the shelf and comes back to the same tab after a reload", async ({

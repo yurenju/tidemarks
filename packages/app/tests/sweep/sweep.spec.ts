@@ -1,4 +1,4 @@
-// Not a test: this is the screen sweep (CONTEXT.md 〈畫面巡檢〉), which walks every screen the app
+// Not a test: this is the screen sweep (defined in CONTEXT.md), which walks every screen the app
 // has and photographs it for a person to look at. It compares nothing — no baselines, no pixel
 // comparison — so green means only that all 27 steps still run, and a screen can break without a
 // red light anywhere. What it guards is the walk itself; the assertions live in tests/browser/.

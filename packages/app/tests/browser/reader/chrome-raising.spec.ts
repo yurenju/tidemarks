@@ -1,4 +1,4 @@
-// Raising the chrome off a page that is not idle, which is the one entry into 〈找〉 the rest of
+// Raising the chrome off a page that is not idle, which is the one way into the raised state the rest of
 // the suite never takes. "Is something selected" is the browser's answer rather than ours, so the
 // branch has no pure-function form at all — it needs a real selection standing inside frond's own
 // frame.
