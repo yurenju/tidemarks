@@ -2,6 +2,11 @@
 // declares or reveals, the edge a page arrives from, and what is left of a release. Arithmetic
 // over a fake pager — the same turns made by a real finger are
 // packages/app/tests/browser/reader/drag.spec.ts and tap.spec.ts.
+//
+// The `pager.next` / `pager.prev` spies below are not the mock-was-called shape that
+// docs/agents/testing.md says to delete: the pager is this module's output boundary, so which
+// of the two was called is the result, not the path taken to it. Deciding between them is the
+// whole job.
 import { describe, it, expect, vi } from "vitest";
 import { createDirection, createNavigator } from "./navigator";
 import type { Pager } from "./navigator";
