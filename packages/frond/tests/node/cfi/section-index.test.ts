@@ -1,9 +1,10 @@
+// Reading a section number back out of a stored CFI — the step that happens before any document
+// is opened, so it is nothing but the path's own structure. Addressing inside that section once
+// it is parsed is content-document.test.ts.
 import { describe, expect, test } from "vitest";
 import { parseCfi, sectionIndexOf } from "../../../src/epub/index.ts";
 
 /**
- * Which readingOrder item a CFI belongs to.
- *
  * Imported through `src/epub/index.ts` rather than from `cfi-tree.ts` on purpose: the point
  * of this function for a consumer is that it is **on the public face**, and importing the
  * implementation directly would let the export be removed without a test noticing.

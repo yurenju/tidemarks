@@ -1,3 +1,6 @@
+// The order sections are read in, and which archive entry each one points at — taken from the
+// package document, before a single section is opened. Whether those sections then paginate and
+// turn is the renderer's, in tests/browser/renderer/pagination.spec.ts.
 import { describe, expect, test } from "vitest";
 import { EpubBook } from "../../../src/epub/index.ts";
 import { readFixture } from "../support/fixtures.ts";

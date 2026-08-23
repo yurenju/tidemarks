@@ -1,3 +1,7 @@
+// The hand-written ZIP reader, with an independently written decoder supplying the answers
+// rather than hand-written expected bytes. The one thing it cannot settle is whether the engine
+// underneath actually inflates: that is a platform assumption, and it gets its own red light in
+// tests/browser/smoke/decompression-stream.spec.ts.
 import { unzipSync, zipSync } from "fflate";
 import { describe, expect, test } from "vitest";
 import { EpubOpenError } from "../../../src/epub/errors.ts";
@@ -5,8 +9,6 @@ import { readZip } from "../../../src/epub/zip.ts";
 import { buildFixture, syntheticFixtures } from "../../../src/test-fixtures/index.ts";
 
 /**
- * The hand-written ZIP reader, compared byte for byte against `fflate`.
- *
  * `fflate` is a **reference implementation** (CONTEXT.md): it appears only in tests, and
  * frond ships with zero runtime dependencies. It is the source of answers rather than
  * hand-written expected values because hand-written expectations only verify "the ZIP

@@ -1,3 +1,7 @@
+// Getting a resource's actual bytes back out of a book — sections, images, stylesheets, and the
+// two obfuscation schemes. This is the only route Renderer has to a book, so the assertions are
+// about bytes rather than about anything visible; what Renderer then puts on a page is
+// tests/browser/renderer/.
 import { createHash } from "node:crypto";
 import { unzipSync } from "fflate";
 import { describe, expect, test } from "vitest";

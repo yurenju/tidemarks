@@ -1,3 +1,6 @@
+// Which of the two ways a book can declare a cover gets honoured, and what "this book has no
+// cover" means — all of it decided from the packaging plus the bytes, with no image ever drawn.
+// What a shelf does with the image it gets back is the consumer's policy (frond ADR-0002).
 import { describe, expect, test } from "vitest";
 import { PNG } from "pngjs";
 import { EpubBook } from "../../../src/epub/index.ts";
