@@ -1,3 +1,7 @@
+// The line-length rule itself: how the script is read, how the ceiling and the column floor
+// are computed, and what is left over as margin. All pure arithmetic, no layout — that the
+// numbers computed here actually land on the element is one wiring test in
+// tests/browser/reader/line-length.spec.ts.
 import { describe, expect, it } from "vitest";
 import { detectScript, layoutFor, type LayoutFacts } from "./line-length";
 import { COLUMN_GAP } from "@yurenju/frond/renderer";

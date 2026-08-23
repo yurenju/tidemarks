@@ -1,3 +1,8 @@
+// Every rewrite frond makes to a book's stylesheet, as a string in and a string out: which
+// declarations are found, what is added, and — half of this file — what is left untouched
+// character for character. Whether the engines actually behave the way a rewrite assumes is a
+// separate claim, measured in tests/browser/smoke/ (writing-mode-declaration.spec.ts for the
+// prefixes below).
 import { describe, expect, test } from "vitest";
 import {
   adaptColors,
