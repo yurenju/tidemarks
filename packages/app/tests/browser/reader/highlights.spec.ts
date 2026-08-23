@@ -5,10 +5,14 @@
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
+  dragPage,
+  farEnoughToTurn,
   openBook,
   openChrome,
   openPanel,
+  pageOffset,
   readerFrame,
+  releaseDrag,
   selectVisibleText,
   settled,
   visibleText,
@@ -207,6 +211,40 @@ test.describe("drawing a highlight", () => {
       .click();
 
     await expect.poll(async () => await visibleText(page)).toBe(marked);
+  });
+
+  test("the mark travels with its text while the page is being dragged", async ({ page }) => {
+    // frond reports rectangles against the frame's *resting* place, and the layer is repainted
+    // on `relocate`/`layout` — both of which arrive after the turn has landed. A mark left
+    // sitting still over a page that is sliding away is the reader's whole complaint.
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+
+    const paragraphBefore = (await selectedElement(page, text).boundingBox())!;
+    const markBefore = (await page.locator(".highlight-box").first().boundingBox())!;
+
+    // Rightwards, because this book opens right-to-left: that is the direction that goes
+    // forward, and the direction with a page on the other side to come in.
+    await dragPage(page, { dx: await farEnoughToTurn(page), hold: true });
+
+    const travelled = await pageOffset(page);
+    expect(Math.abs(travelled), "the page is mid-turn").toBeGreaterThan(50);
+
+    const paragraph = (await selectedElement(page, text).boundingBox())!;
+    const mark = (await page.locator(".highlight-box").first().boundingBox())!;
+    expect(paragraph.x - paragraphBefore.x, "the text moved with the finger").toBeCloseTo(
+      travelled,
+      0,
+    );
+    // Within a pixel of the text it belongs to: the mark is a fact about that passage, not a
+    // decoration pinned to the viewer.
+    expect(mark.x - markBefore.x, `mark=${rect(mark)} was=${rect(markBefore)}`).toBeCloseTo(
+      travelled,
+      0,
+    );
+
+    await releaseDrag(page);
   });
 
   test("tapping the marked text opens its note instead of turning the page", async ({ page }) => {

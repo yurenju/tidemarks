@@ -63,6 +63,11 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* A turn slides this layer with the page (Reader.tsx's `slideMarks`), which carries the marks
+     on the outgoing page off the side of the book. frond clips its own frames against the
+     container; this is the same clip for the layer drawn over them, and without it a mark
+     travels out over the margin and the page buttons. */
+  overflow: hidden;
 }
 
 /* A wavy line along the edge of the text, and nothing else: no wash, no block of colour.
