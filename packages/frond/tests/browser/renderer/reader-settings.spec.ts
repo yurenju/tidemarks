@@ -13,7 +13,18 @@
  * families included) and `tests/node/renderer/color.test.ts` (ADR-0014's colour
  * adaptation). Where a reader's choice in Tidemarks turns into these settings is
  * `packages/app/src/lib/settings.test.ts`.
- *
+ */
+
+import { type Page } from "@playwright/test";
+import { expect, test } from "../support/fixtures.js";
+import {
+  mountFixture,
+  openHarness,
+  supplyFontToPage,
+  type SettingsPatch,
+} from "../support/harness.js";
+
+/**
  * ADR-0003 sets the order of authority as `reader settings > frond's corrections > the
  * book's declarations`, and names the fact that this **is not free**:
  *
@@ -27,15 +38,6 @@
  * by one character (user story 45). Those cases are the gatekeepers stopping the
  * intervention list from growing quietly.
  */
-
-import { type Page } from "@playwright/test";
-import { expect, test } from "../support/fixtures.js";
-import {
-  mountFixture,
-  openHarness,
-  supplyFontToPage,
-  type SettingsPatch,
-} from "../support/harness.js";
 
 test.beforeEach(async ({ page }) => {
   await openHarness(page);
