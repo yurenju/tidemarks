@@ -1,9 +1,11 @@
+// A platform assumption, standing on its own so that it fails by name: all three engines
+// really do decompress `deflate-raw`. None of frond's code runs here — the ZIP reader that
+// leans on the assumption is exercised without a browser in tests/node/epub-book/zip.test.ts.
 import { expect, test } from "../support/fixtures.js";
 
 /**
- * All three browsers recognize `DecompressionStream('deflate-raw')`.
- *
- * frond's decompression goes through it (`src/epub/zip.ts`), and without it no book opens
+ * frond's decompression goes through `DecompressionStream('deflate-raw')`
+ * (`src/epub/zip.ts`), and without it no book opens
  * at all — an EPUB's container is a ZIP, and 3308 of the sample's 3309 entries are
  * deflated. This is frond's one platform assumption outside the ES standard, so it
  * deserves a test of its own: when the assumption fails, this is what should go red,

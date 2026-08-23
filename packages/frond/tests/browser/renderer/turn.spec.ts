@@ -1,16 +1,9 @@
+// A turn in progress (frond ADR-0013): three documents mounted at once, the frames really where
+// the arithmetic says, and roles changing hands without anything being rebuilt. The arithmetic
+// itself is pure — `turnPlacement`, in tests/node/renderer/geometry.test.ts — and what needs an
+// engine is that the frames exist and move.
 import { expect, test, type Page } from "@playwright/test";
 import { mountFixture, openHarness, peeksReady } from "../support/harness.ts";
-
-/**
- * A turn in progress: the page the reader is dragging, and the one coming in behind it
- * (frond ADR-0013).
- *
- * Everything here is geometry that only exists once three documents are laid out in a real
- * engine, which is why none of it can be answered in Node. The arithmetic underneath it can
- * (`turnPlacement`, in `tests/node/renderer/geometry.test.ts`); what these add is that the
- * frames really are mounted, really are where the arithmetic says, and really do change roles
- * without anything being rebuilt.
- */
 
 test.beforeEach(async ({ page }) => {
   await openHarness(page);

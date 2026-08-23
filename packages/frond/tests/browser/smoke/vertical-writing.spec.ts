@@ -1,3 +1,7 @@
+// A platform assumption, pinned on its own: this container's engines and font can lay out
+// vertically at all — the advance axis runs down the page and punctuation picks up its vertical
+// glyph. It measures the environment, not frond; that Renderer asks for those glyphs is
+// measured next door, in renderer/rendering.spec.ts.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { documentWith } from "../support/document.js";
@@ -5,8 +9,6 @@ import { screenshotGlyph } from "../support/glyph.js";
 import { analyseInk, type InkAnalysis } from "../support/ink.js";
 
 /**
- * Whether this environment can lay out vertically at all.
- *
  * A smoke test's purpose is not to test frond — frond had no code yet — but to prove the
  * premise that "all three browsers can lay out vertically, correctly, inside this
  * container". Without that premise, every invariant and cross-browser diff that follows is

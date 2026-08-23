@@ -1,11 +1,11 @@
+// A platform assumption, pinned on its own: which axis multicol overflows along in each writing
+// mode, which direction `column-width` measures, and where scroll coordinates start. Every
+// formula in the pagination arithmetic assumes these, and that arithmetic is tested without a
+// browser in tests/node/renderer/geometry.test.ts — where the assumptions cannot be checked.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 
 /**
- * Pagination's foundation: under vertical and horizontal writing modes, which axis the
- * columns overflow along, which direction `column-width` measures, and what the sign
- * convention for scroll coordinates is.
- *
  * **No frond code takes part in this spec** ("who laid this number out" in
  * `docs/browser-quirks.md`): `page.setContent` feeds hand-written HTML/CSS, and what is
  * measured is the browser's own behaviour, which still holds with a different renderer. It

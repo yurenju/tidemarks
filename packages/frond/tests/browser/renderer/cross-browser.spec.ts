@@ -1,3 +1,7 @@
+// Which quantities the three engines have to agree on, and which are excluded by construction
+// (ADR-0004's #7 revision). Nothing below can be asked outside a browser, and nothing here can
+// be asked of one browser alone; the self-consistency each engine owes on its own terms is in
+// invariants.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 // The prose that generates the fixture is taken directly, rather than going through
 // `test-fixtures/index.ts`'s public surface: what is wanted here is **the generator's
@@ -8,8 +12,6 @@ import { PROSE } from "../../../src/test-fixtures/prose.ts";
 import { mountFixture, openHarness } from "../support/harness.js";
 
 /**
- * Cross-browser self-diffing — **comparing only quantities unrelated to pagination**.
- *
  * ADR-0004 has been narrowed twice by measurement, so first, plainly, what this compares
  * and what it does not:
  *

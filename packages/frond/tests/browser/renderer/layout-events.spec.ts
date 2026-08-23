@@ -1,3 +1,6 @@
+// Each of the three routes that move every rectangle, and whether `layout` is emitted on it.
+// The measurement is that the rectangles really moved, which needs a laid-out document; the
+// emitter that carries the event is pure and is tested in tests/node/renderer/events.test.ts.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, type EventRecord } from "../support/harness.js";
