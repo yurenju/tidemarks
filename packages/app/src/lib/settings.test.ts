@@ -1,3 +1,15 @@
+/**
+ * Tidemarks' half of reader settings: what survives in localStorage (including the two font
+ * size migrations, where dropping a choice the reader made is the worse failure), and which
+ * frond parameter each choice becomes — a percentage resolved against the reader's own root
+ * size, the CJK stacks, dark mode's ink, and the margin and column count that can only be
+ * answered once frond has read the writing mode.
+ *
+ * Nothing here produces CSS or measures a layout. What frond does with these parameters is
+ * `packages/frond/tests/node/renderer/settings.test.ts` (the CSS it emits) and
+ * `packages/frond/tests/browser/renderer/reader-settings.spec.ts` (that it reaches the page).
+ */
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
