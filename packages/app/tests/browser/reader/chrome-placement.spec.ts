@@ -1,3 +1,7 @@
+// The desk arrangement, measured as boxes: one bar across the top, the chapter under the rail, a
+// panel that covers the book at 1000px and buys a column from it at 1440, and one reflow per
+// open. Every claim is a relation between elements three separate components put on screen, so
+// nothing below the DOM can state it. The hand-held half of the same rules is hand-held.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,

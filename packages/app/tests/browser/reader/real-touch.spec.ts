@@ -1,3 +1,7 @@
+// The one gesture in this suite made of real touch input rather than of events the page
+// dispatches to itself, and so the only one that can be wrong the way a phone was wrong: the
+// browser's own recognizer decides whether a sideways finger belongs to the page before any
+// script hears about it. What a drag does once the events do arrive is drag.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, pageOffset, visibleText } from "../support/library.js";
 

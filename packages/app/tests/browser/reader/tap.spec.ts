@@ -1,3 +1,7 @@
+// A tap on the book: it raises the interface, turns no page, and gives up the browser's own tap
+// so that Chrome for Android cannot take a word out of it. Whose tap it is, and when, is policy
+// and is exhausted in src/lib/navigator.test.ts; what only a browser has is a selection appearing
+// during the press and a `defaultPrevented` to read off the touch afterwards.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, readerFrame, visibleText } from "../support/library.js";
@@ -136,22 +140,13 @@ test.describe("tapping the page", () => {
       await expect(page.getByTestId("chrome-bottom")).toBeVisible();
       expect(await visibleText(page)).toBe(before);
 
-      // Put it away again for the next point: the same tap is the toggle.
+      // Put it away again for the next point: the same tap is the toggle, and it is the only way
+      // out apart from turning a page. A chrome that withdrew on a timer of its own would take
+      // the table of contents away from a reader who was still reading it, and the misfire it
+      // would be saving them costs one extra tap (ADR-0020) — so nothing waits here either.
       await page.touchscreen.tap(point.x, point.y);
       await expect(page.getByTestId("chrome-bottom")).toBeHidden();
     }
-  });
-
-  test("and tapping again puts it away, with no timer in between", async ({ page }) => {
-    // The only two ways out are this one and turning a page. A chrome that withdrew on its own
-    // would take the table of contents away from a reader who was still reading it, and the
-    // cost of the misfire it would be saving them is one extra tap (ADR-0020).
-    const at = await pointInViewer(page, 0.6, 0.4);
-    await page.touchscreen.tap(at.x, at.y);
-    await expect(page.getByTestId("chrome-bottom")).toBeVisible();
-
-    await page.touchscreen.tap(at.x, at.y);
-    await expect(page.getByTestId("chrome-bottom")).toBeHidden();
   });
 
   test("the word the browser selected under a tap is dropped, toolbar and all", async ({

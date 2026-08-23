@@ -1,3 +1,7 @@
+// Where the bars are while 〈找〉 is down, and where they land when it stands. Both are one CSS
+// distance compared against a height a stack of bars ended up with, and nothing below a real
+// layout knows either number. What the bars look like once they are home is
+// chrome-placement.spec.ts.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openChrome } from "../support/library.js";

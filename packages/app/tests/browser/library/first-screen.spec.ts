@@ -1,3 +1,6 @@
+// The shape the shelf takes around real IndexedDB rows — one large book or none — and the two
+// doors into 〈書的詳情〉, from the shelf and from over the book. Which book leads and what the
+// two lines under it say are pure functions, exhausted in src/lib/book-status.test.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, openChrome, settled } from "../support/library.js";
@@ -5,10 +8,9 @@ import { BOOKS, bookCards, importBook, openChrome, settled } from "../support/li
 /**
  * The shelf's first screen: one large book, or none.
  *
- * Which book that is, and what the two lines under it say, are pure functions covered in Node
- * (`src/lib/book-status.test.ts`). What only a browser can answer is the shape of the screen —
- * that the large book is really absent in the three cases where there is nobody to lead with,
- * and that reading a book really does put it there.
+ * What only a browser can answer is the shape of the screen — that the large book is really
+ * absent in the three cases where there is nobody to lead with, and that reading a book really
+ * does put it there.
  */
 
 /**

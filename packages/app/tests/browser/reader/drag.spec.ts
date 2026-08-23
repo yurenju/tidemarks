@@ -1,3 +1,7 @@
+// The drag as a gesture: the page travelling under the finger, the next one waiting behind it,
+// and what letting go means either side of the threshold. The thresholds, the damping and the
+// slop are arithmetic, exhausted in src/lib/touch.test.ts, and which page a direction asks for is
+// src/lib/navigator.test.ts. Neither of them can say that anything moved.
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
