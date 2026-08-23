@@ -1,14 +1,18 @@
-import { type Page } from "@playwright/test";
-import { expect, test } from "../support/fixtures.js";
-import {
-  mountFixture,
-  openHarness,
-  supplyFontToPage,
-  type SettingsPatch,
-} from "../support/harness.js";
-
 /**
  * Reader settings, and their fight with the book's cascade.
+ *
+ * What three real engines resolve once the rules have fought the book's declarations, plus
+ * the things no string assertion reaches: geometry (the frame box, a column's width, where
+ * the highlight rectangles land) and platform facts (the UA stylesheet colours `a` and
+ * `mark`; `blob:` font bytes decode inside a `blob:` iframe; WebKit has no
+ * `font-language-override`).
+ *
+ * **One wiring case per proposition.** What each rule *says* is proved exhaustively one
+ * layer down: `tests/node/renderer/settings.test.ts` (the CSS this layer injects),
+ * `tests/node/renderer/css.test.ts` (the rewrites of the book's own declarations, generic
+ * families included) and `tests/node/renderer/color.test.ts` (ADR-0014's colour
+ * adaptation). Where a reader's choice in Tidemarks turns into these settings is
+ * `packages/app/src/lib/settings.test.ts`.
  *
  * ADR-0003 sets the order of authority as `reader settings > frond's corrections > the
  * book's declarations`, and names the fact that this **is not free**:
@@ -24,6 +28,15 @@ import {
  * intervention list from growing quietly.
  */
 
+import { type Page } from "@playwright/test";
+import { expect, test } from "../support/fixtures.js";
+import {
+  mountFixture,
+  openHarness,
+  supplyFontToPage,
+  type SettingsPatch,
+} from "../support/harness.js";
+
 test.beforeEach(async ({ page }) => {
   await openHarness(page);
 });
@@ -35,20 +48,6 @@ test.describe("with no reader setting, the book decides", () => {
     await mountFixture(page, "font-size-important");
 
     expect(await computed(page, "p", "font-size")).toBe("12px");
-  });
-
-  test("colours the book pins still take effect", async ({ page }) => {
-    await mountFixture(page, "hardcoded-colors");
-
-    expect(await computed(page, "body", "color")).toBe("rgb(0, 0, 0)");
-    expect(await computed(page, "body", "background-color")).toBe("rgb(255, 255, 255)");
-  });
-
-  test("the injected reader stylesheet is empty", async ({ page }) => {
-    await mountFixture(page, "vertical-japanese");
-
-    const html = await page.evaluate(() => window.frond.html());
-    expect(html).toMatch(/<style[^>]*id="frond-reader"[^>]*>\s*<\/style>/);
   });
 });
 
@@ -75,17 +74,6 @@ test.describe("font size", () => {
     await page.evaluate(() => window.frond.applySettings({ fontSize: 32 }));
 
     expect(await computed(page, "p", "font-size")).toBe("24px");
-  });
-
-  test("the book's own size hierarchy is kept — headings are still larger than body text", async ({
-    page,
-  }) => {
-    await mountFixture(page, "font-size-important", { settings: { fontSize: 24 } });
-
-    const heading = parseFloat(await computed(page, "h1", "font-size"));
-    const paragraph = parseFloat(await computed(page, "p", "font-size"));
-
-    expect(heading).toBeGreaterThan(paragraph);
   });
 });
 
@@ -205,19 +193,6 @@ test.describe("the book's own colours under a theme", () => {
     );
   });
 
-  test("a heading colour that reads on the reader's page is untouched", async ({ page }) => {
-    // Contrast 5.53. **This is the case the whole rule exists for**: before ADR-0014 this
-    // came out `rgb(238, 238, 238)` along with everything else, and a reader in dark mode
-    // could not tell a chapter heading from the paragraph under it.
-    expect(await computed(page, "#heading", "color")).toBe("rgb(81, 143, 204)");
-  });
-
-  test("a grey the book dimmed on purpose is untouched", async ({ page }) => {
-    // Contrast 5.33. The same defect one size smaller: a caption that reads is information
-    // the book put there, and flattening it to the reader's ink erases it.
-    expect(await computed(page, "#caption", "color")).toBe("rgb(136, 136, 136)");
-  });
-
   test("the book's body ink becomes the reader's, in a stylesheet and in a style attribute", async ({
     page,
   }) => {
@@ -226,22 +201,6 @@ test.describe("the book's own colours under a theme", () => {
     // `!important` written there, so it is reached by rewriting rather than by the cascade.
     expect(await computed(page, "#body", "color")).toBe("rgb(238, 238, 238)");
     expect(await computed(page, "#attribute", "color")).toBe("rgb(238, 238, 238)");
-  });
-
-  test("a colour that cannot be read keeps its hue and only moves in lightness", async ({
-    page,
-  }) => {
-    // Contrast 2.20, the shape kusamakura uses for its sesame dots. Replacing it with the
-    // reader's ink would trade "cannot see it" for "cannot tell it apart".
-    expect(await computed(page, "#emphasis", "color")).toBe("rgb(104, 104, 255)");
-  });
-
-  test("where the book chose no colour, the reader's ink is inherited from the root", async ({
-    page,
-  }) => {
-    // The other half of moving the reader's colour off `:root *` and onto `:root`: it still
-    // has to reach everything the book left alone.
-    expect(await computed(page, "#undeclared", "color")).toBe("rgb(238, 238, 238)");
   });
 
   test("it reaches the elements the browser colours itself, which inheritance does not", async ({
@@ -487,9 +446,11 @@ test.describe("margins", () => {
  * The generic families the book delegated to the platform (`settings.genericFamilies`).
  *
  * ADR-0003's table used to answer this case with "the book wins", and that verdict still
- * holds for frond acting on its own — which is what the first case here measures. The rest
- * measure the reader's route: a bare `serif` names no face, and for CJK the three engines
- * resolve that delegation to different ones (#4).
+ * holds for frond acting on its own. What the reader's route buys is the rest: a bare
+ * `serif` names no face, and for CJK the three engines resolve that delegation to different
+ * ones (#4) — so what this case measures is that the substituted stack is what an engine
+ * really ends up shaping the text with. Which stretches the substitution reaches, and that
+ * the keyword survives, is settled in `tests/node/renderer/css.test.ts`.
  *
  * The content is hand-written through `mountInline` rather than made a committed fixture:
  * ADR-0007's discipline is one file per layout **ailment**, and "the book delegates its face
@@ -518,14 +479,6 @@ test.describe("generic families", () => {
     );
   };
 
-  test("with no preference from the reader, the book's serif stands", async ({ page }) => {
-    // user story 45, and the half of ADR-0003 this setting does not touch: unset, frond
-    // substitutes nothing and the platform decides, exactly as before.
-    await mount(page, {});
-
-    expect(await computed(page, "p", "font-family")).toBe("serif");
-  });
-
   test("the reader's stack fills in the delegation, with the keyword still last", async ({
     page,
   }) => {
@@ -539,23 +492,6 @@ test.describe("generic families", () => {
     // The keyword survives as the last resort — a stack whose faces are not installed would
     // otherwise leave this stretch with no fallback at all.
     expect(family).toContain("serif");
-  });
-
-  test("a face the book actually named is left alone", async ({ page }) => {
-    // **The whole difference from `fontFamily`.** This setting reaches only the stretches
-    // the book declined to decide; a reader who wants the publisher's typography has
-    // nowhere else to go.
-    await mount(page, { genericFamilies: { serif: '"Noto Serif CJK JP"' } });
-
-    const family = await computed(page, ".named", "font-family");
-    expect(family).toContain("Noto Sans CJK JP");
-    expect(family).not.toContain("Noto Serif CJK JP");
-  });
-
-  test("the keyword the reader said nothing about is untouched", async ({ page }) => {
-    await mount(page, { genericFamilies: { sansSerif: '"Noto Sans CJK JP"' } });
-
-    expect(await computed(page, "p", "font-family")).toBe("serif");
   });
 });
 
@@ -589,12 +525,6 @@ test.describe("faces supplied as bytes", () => {
     );
   };
 
-  test("with no face from the reader, the book's document declares none", async ({ page }) => {
-    await mount(page, {});
-
-    expect(await page.evaluate(() => window.frond.html())).not.toContain("@font-face");
-  });
-
   test("the bytes the reader supplied are loaded inside the book's document", async ({ page }) => {
     // The measurement the whole setting rests on: a `blob:` address minted by the consuming
     // page is reachable from the book's own document, which is itself a `blob:` (ADR-0006).
@@ -604,17 +534,6 @@ test.describe("faces supplied as bytes", () => {
     await mount(page, { fontFaces: [{ family: FAMILY, src }], fontFamily: FAMILY });
 
     expect(await page.evaluate((family) => window.frond.faceLoads(family), FAMILY)).toBe(true);
-  });
-
-  test("supplying a face does not by itself change what anything is set in", async ({ page }) => {
-    // The division of labour the API rests on: `fontFaces` says where a name's bytes come
-    // from, `fontFamily` and `genericFamilies` say where the name is used. Without this, a
-    // consumer could not self-host the very face the book asks for by name without also
-    // overriding every face the book named.
-    const src = await supplyFontToPage(page);
-    await mount(page, { fontFaces: [{ family: FAMILY, src }] });
-
-    expect(await computed(page, "p", "font-family")).not.toContain("Reader Supplied");
   });
 });
 
@@ -644,12 +563,6 @@ test.describe("the glyph variant", () => {
       [SECTION, settings] as const,
     );
   };
-
-  test("unset, the book's own language declaration is all there is", async ({ page }) => {
-    await mount(page, {});
-
-    expect(await page.evaluate(() => window.frond.html())).not.toContain("font-language-override");
-  });
 
   test("the reader's tag reaches the book's text", async ({ page, browserName }) => {
     test.skip(
@@ -723,25 +636,5 @@ p { font-family: "Yu Mincho", serif }`;
     expect(substitutions, "the stack appears once per declaration").toBe(1);
     // And the keyword is where it belongs: at the end of the list, not stranded mid-way.
     expect(html).toContain('"Noto Serif CJK JP", serif');
-  });
-
-  test("the prefix rule adds the unprefixed writing-mode once", async ({ page }) => {
-    // The same double pass, in the form it took before anything depended on it.
-    await page.evaluate(
-      ([section, css]) =>
-        window.frond.mountInline([section as string], {
-          resources: { "book.css": css as string },
-        }),
-      [LINKED_SECTION, BOOK_CSS] as const,
-    );
-
-    // Counted **inside the book's own style block**, not over the whole document: frond appends
-    // its layout stylesheet to the same `<head>`, and that one legitimately declares
-    // `writing-mode` too.
-    const bookCss = await page.evaluate(() => window.frond.bookStylesheets().join("\n"));
-    const added = bookCss.split("writing-mode: vertical-rl").length - 1;
-    // One inside the prefixed declaration the book wrote (it contains the unprefixed spelling as
-    // a substring), one for the declaration frond adds beside it.
-    expect(added).toBe(2);
   });
 });
