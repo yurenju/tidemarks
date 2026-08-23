@@ -1,9 +1,10 @@
+// Turning pages, running on into the next section, and the events a turn emits — over pages a
+// real engine fragmented, since pages exist nowhere else. The arithmetic that turns measured
+// extents into a page count is pure, and lives in tests/node/renderer/geometry.test.ts.
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, type EventRecord } from "../support/harness.js";
 
 /**
- * Turning pages, continuing across Sections, page counts, and typed events.
- *
  * Not one case here compares a page count against another browser. ADR-0004's #7 revision
  * ruled that out: **page counts and break positions when vertical are excluded from
  * cross-browser comparison**, because the three engines' multicol fragmentation does not

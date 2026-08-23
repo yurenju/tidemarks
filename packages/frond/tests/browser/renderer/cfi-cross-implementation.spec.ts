@@ -1,3 +1,7 @@
+// One section addressed twice — by a real engine's XML tree and by `xml.ts`'s — and compared
+// character for character. The addressing rules themselves are pure and are exercised in
+// tests/node/cfi/; what needs a browser is that the tree a browser builds, comments and split
+// text nodes and all, yields the same CFIs.
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,8 +13,7 @@ import { EpubBook } from "../../../src/epub/index.ts";
 import { openHarness, type AddressedSection } from "../support/harness.js";
 
 /**
- * **The claim the whole tree layer rests on**: a browser and a Worker, handed the same
- * section, write the same CFI.
+ * **The claim the whole tree layer rests on**, and why reasoning cannot settle it.
  *
  * `src/epub/tree.ts` argues that addressing is a rule about trees, so one walk can serve
  * both. The walk being shared is not enough on its own, because the **trees** are not: one

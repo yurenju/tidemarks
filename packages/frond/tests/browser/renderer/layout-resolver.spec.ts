@@ -1,3 +1,7 @@
+// `resolveLayout` asked with facts that only exist once a document is displayed — the writing
+// mode the engine settled on, and the container it settled it in — and answered in time for the
+// **first** layout. How many layouts happened is the assertion, so there is nothing here for a
+// lower layer to hold: no document is ever displayed in tests/node/.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
@@ -11,9 +15,7 @@ import {
 } from "../support/harness.js";
 
 /**
- * `resolveLayout` — the layout settings answered from the facts of the layout itself.
- *
- * ## The gap it closes
+ * ## The gap `resolveLayout` closes
  *
  * The writing mode is declared in the book's stylesheet and settled by the browser, so
  * frond has no answer for it until the document is displayed (`writing-mode.ts`). A

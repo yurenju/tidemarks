@@ -1,3 +1,7 @@
+// Whether the three engines' own XML parsers accept every document the fixture generator
+// writes — a question only these engines can answer, since XHTML is refused whole rather than
+// repaired. The same bytes are checked for structure without a browser in
+// tests/node/test-fixtures/epub-structure.test.ts.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -7,8 +11,6 @@ import { unzipSync } from "fflate";
 import { syntheticFixtures, type AilmentName } from "../../../src/test-fixtures/index.ts";
 
 /**
- * Every XML document in the synthetic fixtures really does parse in all three browsers.
- *
  * The fixture generator assembles its output from string templates, and **XHTML is not
  * HTML**: one missing end tag, one unquoted attribute, one unescaped `&`, and a browser
  * does not forgivingly repair it the way it would for HTML — it refuses to render the

@@ -1,10 +1,12 @@
+// The outlet through which pointer and key events get out of the iframe. An iframe boundary,
+// a focus that has really moved inside it and a touch that can really be cancelled exist
+// nowhere but in an engine, so no lower layer can be asked any of this. What frond must not do
+// with the events is policy (ADR-0002), and the last group guards that line.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, type EventRecord } from "../support/harness.js";
 
 /**
- * The outlet for pointer and key events inside the iframe.
- *
  * ## Why this is indispensable
  *
  * A section renders inside an iframe (ADR-0006), and an iframe's boundary blocks event

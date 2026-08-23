@@ -1,10 +1,11 @@
+// What happens when the consumer does not wait: page turns accumulate, setting changes replace.
+// The race being raced is a real mount — an iframe attaching and fonts loading — so the window
+// it opens exists only here; no pure test has an await long enough to lose anything in.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { openHarness, type EventRecord, type SettingsPatch } from "../support/harness.js";
 
 /**
- * The semantics of rapid operations: page turns accumulate, setting changes replace.
- *
  * ## Why this layer is needed
  *
  * A cross-section operation has an await in the middle (attaching the iframe, waiting for
