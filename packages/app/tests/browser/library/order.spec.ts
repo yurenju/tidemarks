@@ -1,3 +1,7 @@
+// One wiring test for the shelf's order — the sorted list reaching the grid, and the choice
+// surviving a reload out of localStorage — plus the collation, which follows the interface
+// language and so needs an interface really running in that language. `sortShelf`'s own rules,
+// stroke collation included, are exhausted in src/lib/shelf-order.test.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, importBook } from "../support/library.js";
@@ -5,10 +9,9 @@ import { BOOKS, importBook } from "../support/library.js";
 /**
  * The shelf's order, end to end.
  *
- * `sortShelf` itself is covered in Node (`src/lib/shelf-order.test.ts`), including the stroke
- * collation and the max that puts a fresh import at the front. What only a browser can answer
- * is the wiring: that the select reaches the grid at all, and that the choice is still there
- * after a reload — which is the one part living in localStorage rather than in a pure function.
+ * What only a browser can answer is the wiring: that the select reaches the grid at all, and
+ * that the choice is still there after a reload — which is the one part living in localStorage
+ * rather than in a pure function.
  */
 
 async function titles(page: Page): Promise<string[]> {

@@ -1,12 +1,14 @@
+// Turning pages without a finger — a button, an arrow key, the slide they run — and the position
+// coming back after a reload. Direction inversion is pure logic and is exhausted in
+// src/lib/navigator.test.ts; "the page actually moved", "it slid the way the book opens" and "the
+// same page came back" all need a real book laid out. The finger's version is drag.spec.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
   openBook,
-  openChrome,
   openPanel,
   pageOffset,
-  progressPercent,
   readerFrame,
   settled,
   traceTurn,
@@ -19,8 +21,7 @@ import {
  * Opening a book and turning pages, in all three engines.
  *
  * This is the migration's floor: every claim here was true on epub.js and has to still be true
- * on frond, and none of it is provable from a unit test — direction inversion is pure logic and
- * is tested in Node, but "the page actually moved" is not.
+ * on frond.
  */
 
 test.describe("vertical book (直排)", () => {
@@ -227,18 +228,6 @@ async function turnForward(page: Page, count: number): Promise<void> {
 }
 
 test.describe("progress", () => {
-  test("reports a position once the whole-book index is built", async ({ page }) => {
-    // frond builds the index in the background after the first page is on screen, and reports
-    // `fraction` as undefined until then. Drawing a 0% would be a lie about where the reader is,
-    // which is what the Scrubber stays disabled for.
-    await openBook(page, BOOKS.vertical);
-    await waitForIndex(page);
-    await openChrome(page);
-
-    await expect(page.getByTestId("scrubber-track")).toHaveAttribute("aria-disabled", "false");
-    expect(await progressPercent(page)).toBeGreaterThanOrEqual(0);
-  });
-
   test("restores the reading position after a reload", async ({ page }) => {
     // The bug this replaces (#29): the position was restored
     // and then a settings effect reflowed the book, dropping the reader at the section start.

@@ -1,3 +1,7 @@
+// Whether the prose is legible at all — no character laid out on top of the next one. A
+// deliberate exception to frond owning the typographic claims (frond ADR-0002), because the
+// defect was in this app's own container image and no suite running in frond's image can see it.
+// The measurement is per-character advance, which needs the real face and the real engine.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openPanel, readerFrame, settled } from "../support/library.js";
 

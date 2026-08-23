@@ -1,3 +1,7 @@
+// The shelf's screens are hash routes rather than pieces of React state, and this is where that
+// shows: back leaves 〈設定〉 instead of the app, a reload comes back to the same tab, a drawer
+// leaves the shelf standing behind it. Reading and writing the hash itself is pure and lives in
+// src/lib/route.test.ts; real history and a real reload are only here.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, segment } from "../support/library.js";
 

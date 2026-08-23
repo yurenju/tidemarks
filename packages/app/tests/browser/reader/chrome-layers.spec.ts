@@ -1,3 +1,7 @@
+// The chrome's colours as an engine finally resolved them: three bars on one surface, a step off
+// the book, a focus halo cut out of the bar it stands on, and that same colour handed to the
+// platform. Only a browser substitutes a `var()` chain and paints it; that the tokens the chain
+// names exist at all is checked statically in src/lib/tokens.test.ts.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openChrome } from "../support/library.js";
 

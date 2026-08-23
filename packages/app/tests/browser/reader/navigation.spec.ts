@@ -1,3 +1,7 @@
+// The two ways of asking to be somewhere else in the book — the table of contents and the
+// Scrubber — and whether the jump lands. Where a fraction or an arrow key points is pure and
+// exhausted in src/lib/scrubber.test.ts; this layer owns what needs a book on screen: the
+// whole-book index appearing, the chapter mark following the reader, and the reader moving.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
