@@ -1,3 +1,7 @@
+// Highlights against a real layout: whether the boxes land beside the text they were drawn from,
+// and whether they survive the three things that move that text — a page turn, a reload, a
+// reflow. The clipping and the strip geometry are exhausted in src/lib/highlights.test.ts; what
+// no pure function has is rectangles frond measured and a CFI resolved against a fresh document.
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
@@ -15,9 +19,7 @@ import {
  *
  * This is the part of the migration with the most new code: frond draws no highlights, so the
  * overlay is spine's — `rectsFor()` for the geometry, the `layout` event for when it goes
- * stale, and a hit test against `pointerup` for tapping one open. The clipping arithmetic is
- * unit-tested in Node; what only a browser can answer is whether the boxes land **on the text
- * they were drawn from**, and whether they survive the things that move the text.
+ * stale, and a hit test against `pointerup` for tapping one open.
  */
 
 /** Selects a run of visible prose and waits for the toolbar that selection raises. */

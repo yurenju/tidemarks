@@ -1,9 +1,13 @@
+// What each engine owes on its own terms once a real fragmentation has decided where the pages
+// fall: turn out and back, adjacent pages in order, CFI → page → CFI, a CFI outliving a
+// relayout. None of it can be asked of arithmetic, and none of it asks the three to produce the
+// same number — that half is cross-browser.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 import { compareCfi, parseCfi } from "../../../src/epub/cfi.ts";
 import { mountFixture, openHarness, type Snapshot } from "../support/harness.js";
 
 /**
- * Self-consistency invariants within one browser — the slot ADR-0004's #7 revision names.
+ * The slot ADR-0004's #7 revision names:
  *
  * > When vertical, page counts, break positions and anything derived from them (page
  * > numbers, characters per page) are excluded from cross-browser comparison. That slot is

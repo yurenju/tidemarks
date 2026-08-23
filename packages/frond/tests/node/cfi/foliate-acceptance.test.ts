@@ -1,3 +1,7 @@
+// The reference-implementation angle on the CFI grammar (CONTEXT.md): the cases come from a
+// reading of the spec written by someone else, so a misunderstanding shared by frond and its
+// own hand-written expectations cannot stay green here. Those hand-written cases are next door
+// in grammar.test.ts; anything wanting a DOM position is Renderer's, in tests/browser/.
 import { describe, expect, test } from "vitest";
 import { compareCfi, parseCfi, serializeCfi, type CfiComparison } from "../../../src/epub/index.ts";
 

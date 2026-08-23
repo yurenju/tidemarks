@@ -1,3 +1,7 @@
+// Typography as one record shared by every book, and the keyboard contract of the controls that
+// set it. The record's own shape, its migrations and what frond is handed are exhausted in
+// src/lib/settings.test.ts; leaving one book and opening another, and a `radiogroup` really
+// answering the arrow keys, are things a pure function has no form for.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openPanel, segment, settled } from "../support/library.js";

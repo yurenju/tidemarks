@@ -1,3 +1,7 @@
+// One wiring test for the line-length ceiling — the computed number reaching frond's own
+// pagination — plus the angles no pure function has: the margin control, and the column
+// choice being taken away over a vertical book. The rule's own arithmetic is exhausted in
+// src/lib/line-length.test.ts and is not re-run here.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openPanel, readerFrame, segment, settled } from "../support/library.js";
@@ -15,6 +19,10 @@ import { BOOKS, openBook, openPanel, readerFrame, segment, settled } from "../su
  * The sizes below are picked to sit either side of a threshold, and the assertions are
  * against the column box rather than against pixels of text, so they do not depend on the
  * font the container happens to have.
+ *
+ * The kept case is the vertical one because it carries the axis with it: the number and the
+ * axis it lies along are the two things that can be lost on the way to the page, and a
+ * horizontal case would only carry the first.
  */
 /** The column geometry frond settled on, read from the document it laid out. */
 async function columns(page: Page): Promise<{ count: number; emsPerColumn: number }> {
@@ -32,40 +40,17 @@ async function columns(page: Page): Promise<{ count: number; emsPerColumn: numbe
 }
 
 test.describe("the line-length ceiling", () => {
-  test("stops a latin line at 30 ems however wide the window gets", async ({ page }) => {
-    await openBook(page, BOOKS.horizontal);
-
-    await page.setViewportSize({ width: 1800, height: 900 });
-    await settled(page);
-    expect(await columns(page)).toEqual({ count: 2, emsPerColumn: 30 });
-
-    // Nearly half as wide again, and the line does not grow with it — the extra goes to margin.
-    await page.setViewportSize({ width: 2560, height: 900 });
-    await settled(page);
-    expect(await columns(page)).toEqual({ count: 2, emsPerColumn: 30 });
-  });
-
-  test("stops a vertical line at 40 ems, measured down the page", async ({ page }) => {
-    // The axis is the whole point: a vertical line runs down, so the ceiling is a height and
-    // the margin lands top and bottom. Getting this backwards widens the gutter instead.
+  test("carries the computed ceiling onto the page, down the axis a vertical line runs", async ({
+    page,
+  }) => {
+    // The wiring test for the whole rule. The axis is why this is the case worth keeping: a
+    // vertical line runs down, so the ceiling is a height and the margin lands top and bottom.
+    // Getting this backwards widens the gutter instead, with both layers still green.
     await openBook(page, BOOKS.vertical);
 
     await page.setViewportSize({ width: 1200, height: 1600 });
     await settled(page);
     expect(await columns(page)).toEqual({ count: 1, emsPerColumn: 40 });
-  });
-
-  test("does not split into two columns that would each be too short", async ({ page }) => {
-    // 900px wide is the case the floor exists for: frond's own threshold splits as soon as
-    // 700px is available, and here that would be two columns of 19 ems — under the 20 a
-    // latin book is allowed. The same shape, one step further along, is what puts 22
-    // ideographs in a column on a tablet held landscape; that one cannot be written with
-    // these fixtures, because neither is horizontal CJK (`tests/books/README.md`).
-    await openBook(page, BOOKS.horizontal);
-
-    await page.setViewportSize({ width: 900, height: 800 });
-    await settled(page);
-    expect(await columns(page)).toEqual({ count: 1, emsPerColumn: 30 });
   });
 
   test("takes the choice away over a vertical book, where frond cannot honour it", async ({

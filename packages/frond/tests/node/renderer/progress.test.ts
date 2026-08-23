@@ -1,3 +1,7 @@
+// fraction (CONTEXT.md): turning a place in a book into a number between 0 and 1 and back, out of
+// character counts alone. It needs no layout — which is what lets a reader drag across a whole
+// book without paginating it — and where the position that comes back actually lands is
+// tests/browser/renderer/location.spec.ts.
 import { describe, expect, test } from "vitest";
 import { ProgressIndex } from "../../../src/renderer/progress.ts";
 

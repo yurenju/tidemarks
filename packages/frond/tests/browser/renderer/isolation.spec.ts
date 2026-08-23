@@ -1,10 +1,13 @@
+// Isolation, asked of an engine that could actually be caught out: nothing the book carries may
+// be left able to run, and the book's CSS may not reach the consumer's page (ADR-0006). "Did a
+// script run" and "did that stylesheet escape" have no answer outside a browser; the CFI
+// ordinals that emptying-in-place preserves are counted without one in tests/node/cfi/.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness } from "../support/harness.js";
 
 /**
- * Isolation: nothing in the book can run, and the book's CSS cannot pollute the consumer
- * (ADR-0006, user stories 52 and 53).
+ * User stories 52 and 53.
  *
  * > Because of WebKit bug 218086, an iframe has to carry `allow-scripts` to emit events at
  * > all, and once it does, the sandbox loses most of its isolation value. frond therefore

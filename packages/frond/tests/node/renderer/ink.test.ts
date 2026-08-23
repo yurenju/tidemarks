@@ -1,9 +1,11 @@
+// The arithmetic behind "a mark goes beside the ink, not beside the box": where the ink sits
+// inside a text rectangle, which runs of a text node are blank, and the line height a mark needs
+// to clear. The glyph metrics it is fed can only be measured by an engine, and the rectangles
+// that come out are checked against one in tests/browser/renderer/marked-rects.spec.ts.
 import { describe, expect, test } from "vitest";
 import { blankRuns, inkWithin, minimumLineHeight } from "../../../src/renderer/ink.ts";
 
 /**
- * The arithmetic behind "a mark goes beside the ink, not beside the box".
- *
  * The numbers in the line-height cases are the ones measured on Alice in chromium and written
  * down in Tidemarks' ADR-0032, so a change to this file's behaviour shows up as a change to a
  * documented figure rather than as an unexplained diff.

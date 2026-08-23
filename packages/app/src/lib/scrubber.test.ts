@@ -1,3 +1,6 @@
+// The scrubber's arithmetic and the mirror a right-to-left book puts on it: pointer x to a
+// fraction, fraction to thumb and fill, and what each key means. Dragging the real control
+// through a real book is packages/app/tests/browser/reader/navigation.spec.ts.
 import { describe, it, expect } from "vitest";
 import { keyToFraction, pointerToFraction, scrubberGeometry, snapToChapter } from "./scrubber";
 

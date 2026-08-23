@@ -1,3 +1,7 @@
+// A turn's pacing rather than its outcome: frame intervals and repaint counts, both of them
+// properties of a real compositor with no form anywhere below the browser. drag.spec.ts and
+// paging.spec.ts pin what the two kinds of turn do; this is the baseline for how they feel, and
+// the numbers it prints on every run are the thing to compare a change against.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook } from "../support/library.js";
 import {

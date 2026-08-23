@@ -1,3 +1,6 @@
+// The rules a mailed code lives by, before there is a database: what an address normalises to,
+// what a generated code looks like, when the next send is allowed, and the verdict on a stored
+// row. The same rules against real D1 rows are auth.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import {
   CODE_TTL_MS,

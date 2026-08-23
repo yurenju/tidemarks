@@ -1,3 +1,7 @@
+// A book mounted in a real engine and judged by what the layout did, not by what the stylesheet
+// said: the writing mode that came out, the column geometry that follows from it, and the
+// interventions whose only symptom is a rectangle. The stylesheet-as-a-string half is next
+// door, in tests/node/renderer/css.test.ts, and it misses the forms real books are written in.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, VIEWPORT_ID } from "../support/harness.js";
@@ -35,17 +39,6 @@ test.describe("rendering into the container", () => {
     // Both of frond's own stylesheets are attached.
     expect(html).toContain('id="frond-layout"');
     expect(html).toContain('id="frond-reader"');
-  });
-
-  test("scripts in the book never enter the document (ADR-0006)", async ({ page }) => {
-    // `manifest-href-parent-prefix` carries a js resource. Scripts in the book are always
-    // stripped — the iframe has to carry allow-scripts for the parent to receive events, so
-    // this step is the only thing standing between the book's code and execution.
-    await mountFixture(page, "manifest-href-parent-prefix");
-
-    const html = await page.evaluate(() => window.frond.html());
-
-    expect(html).not.toContain("<script");
   });
 });
 

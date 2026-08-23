@@ -1,3 +1,7 @@
+// The JSON-RPC layer under the tools, with stand-ins in place of the shelf: version
+// negotiation, which failures come back as results the model should read and which stay
+// protocol errors, and the message shapes that must not go unanswered. What the real tools
+// answer is tools.test.ts; that the route wants a token is ../mcp.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import { handleBody, handleMessage, LATEST_PROTOCOL_VERSION, negotiateVersion } from "./protocol";
 import { ToolError, type ToolContext, type ToolDefinition } from "./tools";
@@ -68,16 +72,29 @@ describe("negotiateVersion", () => {
 });
 
 describe("tools/list", () => {
-  it("gives every tool a name, a description and a schema", async () => {
+  it("offers every tool it was given, and nothing besides", async () => {
+    // The names, not the count: a tool quietly dropped from the list is a tool no agent can
+    // reach, and a list that grew one has something in it nobody registered.
     const reply = (await call("tools/list")) as {
-      result: { tools: { name: string; description: string; inputSchema: object }[] };
+      result: { tools: { name: string }[] };
     };
-    expect(reply.result.tools).toHaveLength(3);
-    for (const tool of reply.result.tools) {
-      expect(tool.name).toBeTruthy();
-      expect(tool.description).toBeTruthy();
-      expect(tool.inputSchema).toBeTruthy();
-    }
+    expect(reply.result.tools.map((tool) => tool.name)).toEqual(["answer", "refuse", "broken"]);
+  });
+
+  it("passes on the description and the schema each tool was registered with", async () => {
+    // The reply is assembled by hand, field by field, so a field dropped from that literal
+    // still type-checks — the type describes the definition, not what goes out on the wire.
+    // A tool arriving with no description or no schema is one no agent can decide to call.
+    const reply = (await call("tools/list")) as {
+      result: { tools: { name: string; description: string; inputSchema: unknown }[] };
+    };
+    expect(reply.result.tools).toEqual(
+      [answering, refusing, broken].map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      })),
+    );
   });
 });
 

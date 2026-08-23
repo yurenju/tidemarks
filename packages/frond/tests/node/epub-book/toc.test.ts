@@ -1,3 +1,6 @@
+// The TOC read out of whichever navigation vehicle a book ships: the tree's shape, the labels,
+// and which section each entry resolves to. Drawing it and jumping when it is tapped is policy
+// and lives in the app (frond ADR-0002).
 import { describe, expect, test } from "vitest";
 import { EpubBook, type TocItem } from "../../../src/epub/index.ts";
 import { readFixture } from "../support/fixtures.ts";

@@ -1,9 +1,11 @@
+// A last page the document cannot scroll far enough to reach (#96). The rounding that decides
+// which page a scroll position is on is arithmetic and lives in
+// tests/node/renderer/geometry.test.ts; what only an engine has is the scroll ceiling it clamps
+// to, and the fraction of a device pixel by which that ceiling misses.
 import { expect, test } from "../support/fixtures.js";
 import { openHarness, type MountOptions, type Snapshot } from "../support/harness.js";
 
 /**
- * The last page of a section the document cannot scroll far enough to reach.
- *
  * Two columns, and a section whose text ends in the first of them: the content reaches into
  * that last page, so it is counted, but the document only extends half a page past the one
  * before it. Asked to bring the last page to the head of the screen, the browser stops at

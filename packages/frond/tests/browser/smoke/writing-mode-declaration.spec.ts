@@ -1,3 +1,9 @@
+// The platform assumption underneath the prefix rewrite: which spellings of a vertical-writing
+// declaration each of the three engines actually honours — measured as geometry, not as a
+// computed string. This is the premise `normalisePrefixedWritingMode` exists to work around, so
+// it is pinned on its own; the rewrite's own string-in/string-out behaviour is
+// tests/node/renderer/css.test.ts. If an engine changes its mind, one named test says so here
+// instead of a batch of unexplained vertical-layout failures elsewhere.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { documentWith } from "../support/document.js";

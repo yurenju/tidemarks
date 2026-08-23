@@ -1,3 +1,6 @@
+// Reading speed and what may be divided to get one: which sittings count, the two floors that
+// keep a nonsense number off the screen, and how much of the book is left. The sentences these
+// numbers turn into are book-status.test.ts.
 import { describe, it, expect } from "vitest";
 import {
   formatDuration,

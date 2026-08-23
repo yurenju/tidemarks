@@ -1,3 +1,6 @@
+// Where the selection toolbar lands, in viewport coordinates: under the passage, flipped above
+// it near the bottom edge, clamped at both sides, and which way its wedge points. Whether it
+// really lands there over a real selection is packages/app/tests/browser/reader/highlights.spec.ts.
 import { describe, it, expect } from "vitest";
 import { anchorFromRects, placeSelectionToolbar } from "./toolbar-position";
 

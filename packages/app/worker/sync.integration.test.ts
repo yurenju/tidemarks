@@ -1,11 +1,12 @@
 // Sync, running against a real D1 — the columns and the parameter positions, not the merge
-// decisions (those are pure and covered in `push.test.ts`).
+// decisions (those are pure: `push.test.ts` here, `src/lib/merge.test.ts` on the device, and
+// `src/lib/sync-payload.test.ts` for what goes on the wire).
 //
-// One test, and it is here for the class of bug the pure tests structurally cannot see: a
-// column that does not exist in the schema, and a `bind()` list that has drifted out of step
-// with its `?N` placeholders. Both typecheck cleanly and both fail in production. This one
-// carries the three columns #129 added, because a reading speed the device measured and the
-// server silently dropped would look exactly like a reader who never read anything.
+// Two tests, and only for the class of bug the pure ones structurally cannot see: a column that
+// does not exist in the schema, and a `bind()` list that has drifted out of step with its `?N`
+// placeholders. Both typecheck cleanly and both fail in production. They carry the three
+// columns #129 added, because a reading speed the device measured and the server silently
+// dropped would look exactly like a reader who never read anything.
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Progress, ReadingSession } from "../src/lib/types";

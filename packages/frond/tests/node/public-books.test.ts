@@ -1,3 +1,7 @@
+// Whether `scripts/trim-public-books.ts` left the two committed public-domain books whole —
+// package document, navigation document and NCX all still naming files the archive carries.
+// A half-trimmed book still opens, so nothing else reports it; how these books actually
+// render is judged by eye before a PR (docs/agents/pull-requests.md) and asserted nowhere.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -5,10 +9,8 @@ import { describe, expect, test } from "vitest";
 import { EpubBook } from "../../src/epub/index.ts";
 
 /**
- * The two public-domain books of ADR-0007's second layer, checked for **being intact** —
- * not for being rendered correctly.
- *
- * That distinction is the whole design of this file. A real book has no correct answer to
+ * Checked for **being intact**, not for being rendered correctly — that distinction is the
+ * whole design of this file. A real book has no correct answer to
  * assert against: nobody wrote down how many pages `草枕` should occupy, and pinning
  * today's number would turn current behaviour into a specification. So this layer's
  * rendering is judged by eye before a PR (`docs/agents/pull-requests.md`) and nothing here

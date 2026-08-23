@@ -1,3 +1,20 @@
+/**
+ * A reader setting turned into CSS text: what `readerStylesheet` emits, which properties
+ * `overriddenProperties` puts in scope, how a patch merges. Strings and objects only —
+ * no engine, no geometry, so this is the layer that proves the *rules* exhaustively.
+ *
+ * This group's weight is not on "what happens when something is set" but on **what
+ * happens when nothing is** — ADR-0003's threshold is "a reader setting is blocked by
+ * the book", which does not hold without a reader setting, and an implementation that
+ * misses that runs an override pass on every single book with nobody noticing: the
+ * screen looks fine, the author's design has simply been erased.
+ *
+ * The neighbours: whether those rules survive the book's cascade and land on the text is
+ * measured in three real engines in `tests/browser/renderer/reader-settings.spec.ts`, which
+ * keeps one wiring case per proposition rather than repeating this table. Which frond
+ * parameter a reader's choice in Tidemarks becomes is `packages/app/src/lib/settings.test.ts`.
+ */
+
 import { describe, expect, test } from "vitest";
 import {
   DEFAULT_SETTINGS,
@@ -8,16 +25,6 @@ import {
   type LayoutSettings,
   type ReaderSettings,
 } from "../../../src/renderer/settings.ts";
-
-/**
- * The reader settings layer.
- *
- * This group's weight is not on "what happens when something is set" but on **what
- * happens when nothing is** — ADR-0003's threshold is "a reader setting is blocked by
- * the book", which does not hold without a reader setting, and an implementation that
- * misses that runs an override pass on every single book with nobody noticing: the
- * screen looks fine, the author's design has simply been erased.
- */
 
 function settings(patch: Partial<ReaderSettings> = {}): ReaderSettings {
   return withSettings(DEFAULT_SETTINGS, patch);

@@ -1,3 +1,7 @@
+// Position measured against a layout that keeps being changed underneath it — resized,
+// resized in type, given another column count. The CFI grammar (tests/node/cfi/) and the
+// fraction arithmetic (tests/node/renderer/progress.test.ts) are pure and settled there; what
+// needs an engine is that a position survives a relayout it did not choose.
 import { expect, test } from "../support/fixtures.js";
 import { compareCfi, parseCfi, serializeCfi } from "../../../src/epub/cfi.ts";
 import { mountFixture, openHarness } from "../support/harness.js";

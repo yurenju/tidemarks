@@ -1,3 +1,7 @@
+// Two facts a consumer cannot recover from a rectangle's coordinates: what the stretch under it
+// is, and where the glyphs sit inside it. Both come from inside the iframe — one from the tree,
+// one from the font's own metrics. Given metrics, the arithmetic is pure, and that half is in
+// tests/node/renderer/ink.test.ts.
 import { expect, test } from "../support/fixtures.js";
 import { openHarness } from "../support/harness.js";
 import type { MarkedRectSnapshot } from "../support/harness.js";

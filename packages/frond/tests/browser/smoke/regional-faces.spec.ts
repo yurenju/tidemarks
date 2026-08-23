@@ -1,3 +1,7 @@
+// A platform assumption, pinned on its own: which regional Noto CJK face each engine and the
+// container's fontconfig land on for a given lang. No frond code takes part — this is the
+// premise every pixel comparison in this suite rests on, so when it moves, one named failure
+// says so instead of a field of unrelated diffs.
 import { type Browser, type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
@@ -11,8 +15,6 @@ import { decodePixels } from "../support/ink.js";
 import { documentWith } from "../support/document.js";
 
 /**
- * Whether the regional faces (TC / SC / JP) are selected correctly by lang.
- *
  * Noto CJK is one family covering Traditional Chinese, Simplified Chinese and Japanese,
  * but that is not the same as one face: the OTC contains Noto Serif CJK TC / SC / JP and
  * others. Which one is picked depends on face selection, and face selection is decided by

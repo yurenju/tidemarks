@@ -1,3 +1,7 @@
+// The seam between frond's two halves: whether an opened book still satisfies what Renderer asks
+// of a book, and whether MemoryBook — the stand-in the browser tests lay out — behaves like one.
+// Mostly a type-level claim, and one nothing else can make: what a renderer then does with
+// either book is tests/browser/renderer/.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

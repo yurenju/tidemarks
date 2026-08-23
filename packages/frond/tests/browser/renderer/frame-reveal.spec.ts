@@ -1,10 +1,12 @@
+// When the reader is allowed to see a section: never before it is paginated and standing on the
+// right page. The gap it guards is made of a real iframe load and a real font wait, so it does
+// not exist anywhere but here; the pagination it waits for is arithmetic, in
+// tests/node/renderer/geometry.test.ts.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness } from "../support/harness.js";
 
 /**
- * **A section is never painted before it has been paginated and positioned.**
- *
  * ## What is on screen without this
  *
  * The document is inside the iframe long before frond has laid it out. The layout

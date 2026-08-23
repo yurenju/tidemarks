@@ -1,3 +1,7 @@
+// What a mark is drawn on and what it can be tapped on, given rectangles frond has already
+// measured: clipped to the page, one strip per line, clear of ruby and of the indent. The
+// rectangles themselves come from a real engine — packages/app/tests/browser/reader/highlights.spec.ts
+// paints one in three browsers and measures where it landed.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {

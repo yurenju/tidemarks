@@ -1,3 +1,7 @@
+// The suite's own `settled()` helper, pinned in the only place it can be: the race it survives is
+// a browser throwing a frame away mid-await, forced here on purpose. Nearly every spec leans on
+// this helper, and a failure of it arrives as somebody else's flake — so this is the one file
+// where a red light names the helper (testing.md principle 2: it fails alone).
 import { expect, type Page } from "@playwright/test";
 import { test } from "../support/fixtures.js";
 import { BOOKS, openBook, readerFrame, settled } from "../support/library.js";

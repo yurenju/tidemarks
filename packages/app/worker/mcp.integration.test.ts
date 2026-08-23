@@ -1,7 +1,9 @@
 // The Worker, running, with a real D1, R2 and KV behind it.
 //
 // Deliberately few. This layer is slow and the pure tests already cover every decision worth
-// making; what it buys is the class of bug those tests structurally cannot see — a column name
+// making — `mcp/protocol.test.ts` for the transport, `mcp/tools.test.ts` for what each tool
+// answers, `mcp/library.test.ts` for the reading underneath. What this buys is the class of bug
+// those tests structurally cannot see — a column name
 // that does not exist, a bound parameter in the wrong position, a route that answers without a
 // token. Each of those typechecks cleanly and fails in production.
 import { env, SELF } from "cloudflare:test";

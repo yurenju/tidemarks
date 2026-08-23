@@ -1,3 +1,7 @@
+// The one decision behind `?next=`: which return address the app will follow back to the
+// consent screen once a login finishes, and which ones are an open redirect wearing a leading
+// slash. String rules only, and the only layer that has them — the flow they sit inside is
+// exercised against a running Worker in worker/mcp.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import { authorizeReturnTarget } from "./authorize-return";
 

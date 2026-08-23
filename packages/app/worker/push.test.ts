@@ -1,3 +1,6 @@
+// The server's side of a sync push, decided in memory: which incoming row wins, which comes
+// back as a conflict carrying the server's copy, which session is a duplicate. The device's
+// mirror is src/lib/merge.test.ts; the SQL that writes the plan is sync.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
 import { type PushExisting, resolvePush } from "./push";

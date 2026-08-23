@@ -1,3 +1,7 @@
+// The coarse-pointer half of the interface, which the suite's 1000×700 desk never enters: thumb
+// targets, the rail clear of the platform's own gesture strip, and a panel that sends the bars
+// away rather than stacking on them. The branch is a media query, so only an engine that matched
+// it can be asked. The desk's half of the same rules is chrome-placement.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,

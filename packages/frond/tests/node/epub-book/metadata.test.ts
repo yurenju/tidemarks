@@ -1,3 +1,7 @@
+// What a book declares about itself in its package document — title, authors, language,
+// identifier, page progression direction — read the same way out of EPUB 2 and EPUB 3 without
+// dispatching on version. All of it is answerable from the packaging alone, which is what puts
+// it in this layer at all.
 import { describe, expect, test } from "vitest";
 import { EpubBook } from "../../../src/epub/index.ts";
 import { readFixture } from "../support/fixtures.ts";

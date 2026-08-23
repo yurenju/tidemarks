@@ -1,3 +1,7 @@
+// One list of paths, checked against the two places it has to agree with: what wrangler runs
+// the Worker first for, and what the service worker must not answer from cache. Drift is silent
+// on both sides — an HTML page with a 200 on it where JSON was expected, or a request that
+// never leaves the browser at all.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";

@@ -1,3 +1,7 @@
+// Whether building a fixture twice gives the same bytes. A leak here is invisible to every
+// other layer until the day someone regenerates: then the browser suite's geometric numbers
+// all drift at once with no cause to trace. Whether the committed bytes still match the
+// generator is committed-fixtures.test.ts's, and it only works because of this.
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,9 +14,7 @@ import {
 } from "../../../src/test-fixtures/index.ts";
 
 /**
- * Determinism is a hard requirement, not reproducibility hygiene.
- *
- * The moment a fixture is regenerated, every geometric number drifts with it — and the
+ * Determinism is a hard requirement, not reproducibility hygiene. The moment a fixture is regenerated, every geometric number drifts with it — and the
  * cause of that drift has nothing to do with frond's code: the cross-browser diffs and
  * the invariants change colour at once, the cause cannot be traced, and then nobody
  * trusts this test suite again. So this **builds twice and compares hashes** rather than

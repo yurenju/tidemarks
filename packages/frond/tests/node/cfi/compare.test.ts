@@ -1,9 +1,12 @@
+// Ordering two positions against each other, worked out from the parsed CFIs and nothing else
+// — no document to consult, which is exactly why "incomparable" has to be an answer this layer
+// can give. Whether frond's positions agree with what a browser produces from a live DOM is
+// settled by a browser, in tests/browser/renderer/cfi-cross-implementation.spec.ts.
 import { describe, expect, test } from "vitest";
 import { compareCfi, parseCfi, type Cfi } from "../../../src/epub/index.ts";
 
 /**
- * Which of two CFIs comes first in the book (user story 22: ordering annotations by
- * their position in the book).
+ * User story 22: ordering annotations by their position in the book.
  *
  * foliate's seven groups are in the file next door. What is asked here is the three
  * things those seven do not: **is the ordering actually usable**, **can

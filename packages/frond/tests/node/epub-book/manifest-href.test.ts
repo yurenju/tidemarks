@@ -1,3 +1,6 @@
+// Turning what a book writes as an href into the name of an entry inside its archive: URL rules,
+// percent-encoding, and where the package root's edge is. Strings and bytes only — what those
+// bytes look like once laid out belongs to Renderer, in tests/browser/.
 import { describe, expect, test } from "vitest";
 import { EpubBook, EpubOpenError } from "../../../src/epub/index.ts";
 import {

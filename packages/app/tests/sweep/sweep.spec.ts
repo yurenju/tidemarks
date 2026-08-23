@@ -1,3 +1,7 @@
+// Not a test: this is the screen sweep (defined in CONTEXT.md), which walks every screen the app
+// has and photographs it for a person to look at. It compares nothing — no baselines, no pixel
+// comparison — so green means only that all 27 steps still run, and a screen can break without a
+// red light anywhere. What it guards is the walk itself; the assertions live in tests/browser/.
 import { test, expect, type Page } from "@playwright/test";
 import { rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -7,12 +11,10 @@ import { BOOKS_DIR, segment, settled } from "../browser/support/library.js";
 /**
  * The screen sweep: every screen the app has, in one pass, as PNGs.
  *
- * The images are for looking at and for discussing visual design with an assistant. **Nothing
- * here asserts what a screen looks like** — no baselines, no pixel comparison. What is asserted
- * is that all 27 steps still run, which is the one thing that rots on its own: a renamed
- * `data-testid`, a drawer that became a dialog, a panel that opens another way. Without
- * something exercising this file, it breaks silently and stays broken until the day it is
- * needed. See docs/adr/0027-the-screen-sweep-runs-in-the-container.md.
+ * The images are for looking at and for discussing visual design with an assistant. What rots on
+ * its own is the walk: a renamed `data-testid`, a drawer that became a dialog, a panel that opens
+ * another way. Without something exercising this file, it breaks silently and stays broken until
+ * the day it is needed. See docs/adr/0027-the-screen-sweep-runs-in-the-container.md.
  *
  * **How things are found here:** a `data-testid` names the screen or the region, and whatever is
  * inside it is found by role and by name — `getByTestId("panel-toc").getByRole("button", …)`.

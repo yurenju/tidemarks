@@ -1,3 +1,7 @@
+// A reader's selection turned into facts: the range CFI it spells, and the rectangles that
+// passage occupies at this moment. Both are read off a live Range in a laid-out document, so
+// neither exists outside an engine — the CFI grammar the range is written in is pure, and
+// tested in tests/node/cfi/.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { parseCfi } from "../../../src/epub/cfi.ts";

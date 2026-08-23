@@ -1,3 +1,6 @@
+// The device's side of a sync conflict: which copy wins on which timestamp, a deletion that
+// must not be resurrected, and the two cursor edges. The server's side of the same fight is
+// worker/push.test.ts, and the SQL that carries it worker/sync.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import {
   clearableDirty,

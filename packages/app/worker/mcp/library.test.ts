@@ -1,3 +1,7 @@
+// What can be read out of a book's bytes for an agent: the characters a CFI addresses, one
+// section's text, and a search hit whose CFI reads back as the phrase it matched. The tools that
+// wrap these answers are tools.test.ts; the same reading against a book in R2 is
+// ../mcp.integration.test.ts.
 import { readFile } from "node:fs/promises";
 import { EpubBook } from "@yurenju/frond/epub";
 import { beforeAll, describe, expect, it } from "vitest";

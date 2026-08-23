@@ -1,3 +1,7 @@
+// A platform assumption kept on its own so that a failure names it rather than arriving as a
+// batch of books that will not import (testing.md principle 3): what each engine will accept into
+// IndexedDB. The last of the three is what says when support/fixtures.ts can stop launching
+// WebKit with a profile on disk.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 
