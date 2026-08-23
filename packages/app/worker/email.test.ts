@@ -1,3 +1,7 @@
+// The letters the Worker sends, as text: the code where it can be copied, the sentence that
+// defends it, and the two paths a letter can take — a vendor's API, or the log when there is no
+// vendor. That a request really produces one, and says why when it fails, is
+// worker/auth.integration.test.ts.
 import { describe, expect, it, vi } from "vitest";
 import { magicCodeMail, loginNoticeMail, sendMail } from "./email";
 import { i18nOf } from "./i18n";

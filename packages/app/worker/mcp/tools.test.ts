@@ -1,3 +1,7 @@
+// What each tool answers an agent, over a fake shelf and a real book: the order the shelf comes
+// back in, when a passage may be called a page, and what is refused rather than guessed. The
+// reading underneath is library.test.ts; the OAuth flow in front of it, and a shelf that is
+// really in D1 and R2, is ../mcp.integration.test.ts.
 import { readFile } from "node:fs/promises";
 import { EpubBook } from "@yurenju/frond/epub";
 import { beforeAll, describe, expect, it } from "vitest";

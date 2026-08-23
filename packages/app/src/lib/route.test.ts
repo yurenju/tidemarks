@@ -1,3 +1,6 @@
+// The address bar as a data structure: which screen and which drawer a hash names, what happens
+// to one nobody writes any more, and that every route can be written and read back unchanged.
+// The app really moving when the hash does is packages/app/tests/browser/library/drawers.spec.ts.
 import { describe, expect, it } from "vitest";
 import { hashFor, parseHash, type Route } from "./route";
 

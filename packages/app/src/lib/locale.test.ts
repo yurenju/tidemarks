@@ -1,3 +1,6 @@
+// Which of the three interface languages a browser or a request gets, and how an
+// Accept-Language header is read to decide it. Tag matching only; the Worker really answering
+// in the language it was asked for is worker/auth.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import { matchLocale, parseAcceptLanguage } from "./locale";
 

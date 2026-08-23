@@ -1,3 +1,7 @@
+// The half of the deploy script that only decides: which build variables have to be set, and
+// what wrangler config they turn the repo's self-hosting one into. This code runs in
+// Cloudflare's build environment, where a wrong answer is not a red light but a deployment
+// pointed at the wrong database. The half that touches files and runs wrangler is not tested.
 import { describe, expect, it } from "vitest";
 import {
   REQUIRED_BUILD_VARIABLES,

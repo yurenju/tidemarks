@@ -1,3 +1,6 @@
+// How the shelf sorts itself: what counts as having touched a book, collation that follows the
+// interface language rather than the browser's, and a stored choice surviving storage that
+// throws. The switch and the reload behind it are packages/app/tests/browser/library/order.spec.ts.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SHELF_ORDER,

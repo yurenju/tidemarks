@@ -1,3 +1,6 @@
+// The backup file, in both directions: what a markdown export of a book's highlights reads
+// like, and what survives serialize/parse — the blobs, the nulls that mean "never recorded",
+// and a version number from the future. The format is decided here and nowhere else.
 import { describe, it, expect } from "vitest";
 import { annotationsToMarkdown, serializeExport, parseImport } from "./export";
 import type { Annotation, BookRecord, Progress, ReadingSession } from "./types";

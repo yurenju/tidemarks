@@ -1,3 +1,7 @@
+// Which way is forward, and when a press is not a page turn at all: the direction a book
+// declares or reveals, the edge a page arrives from, and what is left of a release. Arithmetic
+// over a fake pager — the same turns made by a real finger are
+// packages/app/tests/browser/reader/drag.spec.ts and tap.spec.ts.
 import { describe, it, expect, vi } from "vitest";
 import { createDirection, createNavigator } from "./navigator";
 import type { Pager } from "./navigator";
@@ -5,8 +9,7 @@ import type { Pager } from "./navigator";
 // Two methods is the whole fake now. The section-crossing cases this file used to carry —
 // "at the end of a vertical section, walk to the next spine item" and the scroll-state
 // arithmetic underneath them — are gone because frond's next()/previous() cross sections
-// themselves. What is left is the part that was always ours: which direction is forward, and
-// when not to turn at all.
+// themselves.
 function fakePager(): Pager {
   return { next: vi.fn(), prev: vi.fn() };
 }

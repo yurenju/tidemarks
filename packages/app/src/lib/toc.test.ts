@@ -1,3 +1,7 @@
+// The table of contents as the sidebar and the scrubber need it: flattened with its nesting
+// kept, and turned into chapter boundaries keyed by the section a jump lands on. Clicking an
+// entry, and the current chapter being marked, is
+// packages/app/tests/browser/reader/navigation.spec.ts.
 import { describe, expect, it } from "vitest";
 import type { TocItem } from "@yurenju/frond/epub";
 import { chapterAt, chapterBoundaries, flattenToc } from "./toc";
@@ -5,8 +9,7 @@ import { chapterAt, chapterBoundaries, flattenToc } from "./toc";
 // The href repair this file used to test is gone with the library that needed it: epub.js
 // keyed its spine by the manifest href and could not match a nav href that percent-encoded a
 // comma, so a TOC click silently did nothing. frond resolves hrefs by URL rules in the
-// parsing layer and hands over `target.path`, so these tests are about what spine still
-// decides — flattening for the sidebar, and which chapter a section belongs to.
+// parsing layer and hands over `target.path`, so none of that is ours to get wrong any more.
 
 function item(label: string, path: string, children: TocItem[] = [], fragment?: string): TocItem {
   return {

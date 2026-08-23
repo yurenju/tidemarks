@@ -1,11 +1,13 @@
+// The pass that turns a book's own XHTML bytes into a prose sample: markup dropped, stylesheet
+// and script content dropped, and never two words glued into one. Its only consumer is
+// `detectVariant` (chinese.test.ts), and nothing above this layer looks at the sample.
 import { describe, expect, it } from "vitest";
 import { textFromXhtml } from "./epub";
 
 // Language detection used to sample the rendered page through an epub.js content hook. frond
 // renders inside an iframe and does not offer one — reaching in is what that boundary exists
-// to stop — so the sample comes from the book's own bytes instead, and this is the pass that
-// turns those bytes into prose. It only has to be good enough for `detectVariant` to count Han
-// characters, which is why it is a text pass rather than a parse.
+// to stop — so the sample comes from the book's own bytes instead. It only has to be good
+// enough to count Han characters, which is why it is a text pass rather than a parse.
 describe("textFromXhtml", () => {
   it("keeps the prose and drops the tags", () => {
     expect(textFromXhtml("<p>朝の光</p><p>机の上</p>")).toBe("朝の光 机の上");

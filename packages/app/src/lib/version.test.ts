@@ -1,3 +1,6 @@
+// The build stamp the settings screen shows: an ISO instant read back in the reader's own
+// timezone, and the three states a build can be in — clean, built from a dirty tree, or from no
+// checkout at all. Formatting only, and nowhere else.
 import { describe, expect, it } from "vitest";
 import { formatBuild, localStamp, type BuildInfo } from "./version";
 
