@@ -3,6 +3,10 @@
 // three things that move it — a page turn, a reload, a reflow. The clipping and the strip
 // geometry are exhausted in src/lib/highlights.test.ts; what no pure function has is rectangles
 // frond measured and a CFI resolved against a fresh document.
+
+// frond's own number, imported rather than copied: the gap is what decides how much of the next
+// page fits inside this page's margin, and a copy would not break the day it changes.
+import { COLUMN_GAP } from "@yurenju/frond/renderer";
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
@@ -277,7 +281,7 @@ test.describe("a wide margin, where the page and the container part company", ()
   // it wide: the line-length ceiling (ADR-0012) hands the leftover to the margin, and the
   // leftover is large once a 1000px-wide screen carries a single 30-em line.
   //
-  // Below that margin, the whole defect: pages are `COLUMN_GAP` (40px) apart, so everything in
+  // Below that margin, the whole defect: pages are `COLUMN_GAP` apart, so everything in
   // the first `margin - gap` px of the next page sits **inside the container** while the reader
   // is still on this one. Clipping the highlight layer to the container therefore paints the
   // next page's marks in this page's margin, cut in half at the container's edge (#41).
@@ -315,22 +319,23 @@ test.describe("a wide margin, where the page and the container part company", ()
     expect(
       margin,
       "the margin has to be wider than frond's column gap for this to mean anything",
-    ).toBeGreaterThan(40);
+    ).toBeGreaterThan(COLUMN_GAP);
 
     // Forward to the first page of this chapter carrying prose, which is not always the second:
     // Alice's chapters open with a plate, and a page of picture has nothing to select. `before`
     // is the page immediately in front of it — the one the mark must not appear on.
-    let before = await visibleText(page);
-    for (let step = 0; step < 4; step++) {
+    let before: string | undefined;
+    for (let step = 0; step < 4 && before === undefined; step++) {
       const previous = await visibleText(page);
       await page.getByRole("button", { name: "Next page" }).click();
       await expect.poll(async () => await visibleText(page)).not.toBe(previous);
       await settled(page);
-      if ((await visibleText(page)).trim().length > 8) {
-        before = previous;
-        break;
-      }
+      if ((await visibleText(page)).trim().length > 8) before = previous;
     }
+
+    // Asserted rather than left to fall through, for the same reason as the margin above: with
+    // `before` never set, everything below would run against the wrong page and pass.
+    expect(before, "no page of prose within four turns of the chapter's start").toBeDefined();
 
     await selectVisibleText(page);
     await expect(page.locator(".highlight-toolbar")).toBeVisible();

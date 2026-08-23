@@ -279,11 +279,6 @@ export function pageMetrics(request: ColumnRequest): PageMetrics {
 }
 
 /**
- * Converting the total content length into a page count.
- *
- * @param scrollExtent the document's total length along the pagination axis (`scrollWidth` or `scrollHeight`)
- */
-/**
  * Where the page sits inside the container, in the container's own coordinates.
  *
  * **The page is not the container**, and the difference is the reader's margin: the frame is
@@ -305,7 +300,12 @@ export interface PageBox {
   readonly height: number;
 }
 
-/** The page's box, from the two things that decide it: where the frame is, and how big. */
+/**
+ * The page's box, from the two things that decide it: where the frame is, and how big.
+ *
+ * The size is read back off `metrics` rather than off the viewport it came from, so that this
+ * box and the column arithmetic agree to the pixel — both then carry the same flooring.
+ */
 export function pageBoxFor(metrics: PageMetrics, insets: Insets): PageBox {
   const horizontal = metrics.axis === "x";
 
@@ -319,6 +319,11 @@ export function pageBoxFor(metrics: PageMetrics, insets: Insets): PageBox {
   };
 }
 
+/**
+ * Converting the total content length into a page count.
+ *
+ * @param scrollExtent the document's total length along the pagination axis (`scrollWidth` or `scrollHeight`)
+ */
 export function pageCountFor(metrics: PageMetrics, scrollExtent: number): number {
   return Math.max(1, Math.ceil((scrollExtent - SUBPIXEL_TOLERANCE) / metrics.stride));
 }

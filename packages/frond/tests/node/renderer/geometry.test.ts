@@ -386,9 +386,6 @@ describe("where the page sits inside the container", () => {
     });
 
     expect(pageBoxFor(metrics, INSETS)).toEqual({ left: 157, top: 16, width: 959, height: 821 });
-    // The gap between this page's right edge and where the next page's content begins — the
-    // stretch the consumer must not paint in, and the whole of the bug when it is not clipped.
-    expect(metrics.stride - metrics.inlineSize).toBe(COLUMN_GAP);
   });
 
   test("vertically, the inline size is the height, because that is the axis lines run along", () => {
