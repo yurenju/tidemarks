@@ -7,6 +7,7 @@ import { clearableDirty, dedupeSessions, mergeAnnotation, mergeBook, mergeProgre
 import { isEmptyPayload, syncPayload, toSyncBook, type SyncPayload } from "./sync-payload";
 import type { Progress, ReadingSession } from "./types";
 import { apiFetch } from "./api";
+import { isSignedIn, setSignedIn } from "./session";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "offline" | "unauthenticated" | "error";
 
@@ -189,6 +190,15 @@ let running = false;
 let rerun = false;
 
 export async function syncNow(): Promise<void> {
+  // A reader who never registered has nowhere to sync to, and finding that out from a 401 would
+  // mean the books and notes had already been sent (`lib/session.ts`). App open and every return
+  // to the foreground land here, so this is the door.
+  //
+  // **The state is left exactly as it was.** Setting `idle` here would wipe the
+  // `unauthenticated` an expired session has just left behind — the next visibility change would
+  // erase 〈帳號〉's "sign in again", which is the one thing that path has to say.
+  if (!isSignedIn()) return;
+
   if (running) {
     rerun = true;
     return;
@@ -202,6 +212,10 @@ export async function syncNow(): Promise<void> {
     setState({ status: "synced", lastSyncAt: Date.now() });
   } catch (e) {
     if ((e as { auth?: boolean }).auth) {
+      // The session ran out (they last 90 days) or was revoked elsewhere. The flag said signed
+      // in and the server disagrees, so the server wins — and the status stays on screen until
+      // signing in sets it again, because nothing below clears it.
+      setSignedIn(false);
       setState({ status: "unauthenticated" });
     } else if (!navigator.onLine) {
       setState({ status: "offline" });
@@ -219,7 +233,12 @@ export async function syncNow(): Promise<void> {
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-// write-triggered sync: debounce so page turns don't hammer the server
+// write-triggered sync: debounce so page turns don't hammer the server.
+//
+// ⚠️ `tests/browser/library/signed-out.spec.ts` waits this out before asserting that nothing was
+// sent, with a fixed 4s. Raising the default past that would make it pass without ever reaching
+// the trigger it is about. It cannot import this module — Dexie and a Lingui macro do not survive
+// that runner's transform — so the two are tied by this note.
 export function scheduleSync(delayMs = 3000): void {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => void syncNow(), delayMs);
@@ -263,6 +282,9 @@ export function notePosition(position: Progress): void {
  * answer.
  */
 export function beaconPositions(): boolean {
+  // The same door as `syncNow`, and the one that needed it most: a beacon's response is
+  // unreadable, so a 401 here was never even seen — the position simply left the device.
+  if (!isSignedIn()) return false;
   if (typeof navigator.sendBeacon !== "function") return false;
   const payload = syncPayload({
     books: [],

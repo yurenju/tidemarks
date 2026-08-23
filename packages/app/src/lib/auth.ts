@@ -17,6 +17,7 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 import { apiFetch } from "./api";
+import { setSignedIn } from "./session";
 
 async function post<T>(url: string, body?: unknown): Promise<T> {
   const res = await apiFetch(url, {
@@ -39,9 +40,21 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
+/**
+ * Who this browser is, according to the server.
+ *
+ * It also settles `lib/session.ts`'s flag from the answer, which is what makes the flag
+ * self-healing: the panel asks this on mount, so a browser holding a valid cookie without the
+ * flag — one that was signed in before the flag existed, or that lost localStorage — gets it
+ * back the first time the reader opens 〈帳號〉.
+ */
 export async function me(): Promise<{ userId: string } | null> {
   const res = await apiFetch("/auth/me");
-  if (!res.ok) return null;
+  if (!res.ok) {
+    setSignedIn(false);
+    return null;
+  }
+  setSignedIn(true);
   return res.json();
 }
 
@@ -55,6 +68,7 @@ export async function requestMagicCode(email: string): Promise<void> {
 /** Spend the code. Creates the account if this address has not got one yet. */
 export async function verifyMagicCode(email: string, code: string): Promise<void> {
   await post("/auth/code/verify", { email, code });
+  setSignedIn(true);
 }
 
 // --- passkeys ---
@@ -85,6 +99,7 @@ export async function loginWithPasskey({ autofill = false } = {}): Promise<void>
     useBrowserAutofill: autofill,
   });
   await post("/auth/login/verify", assertion);
+  setSignedIn(true);
 }
 
 export function cancelPasskeyPrompt(): void {
@@ -100,4 +115,5 @@ export async function addPasskey(): Promise<void> {
 
 export async function logout(): Promise<void> {
   await post("/auth/logout");
+  setSignedIn(false);
 }
