@@ -342,7 +342,8 @@ _Avoid_: 筆畫排序（筆畫只是繁中的答案，換個介面語言就換�
 疊在書上面畫重點的那一層。frond 不畫 highlight（它給 `rectsFor(cfi)` 的真實幾何與 `layout` 事件），
 所以顏色、透明度、深色模式的混色、以及「點一下開筆記」都是這一層的決策（用哪四個顏色見〈螢光〉）。
 
-- 幾何與顏色政策是純函式（`lib/highlights.ts`）：`visibleBoxes` 把不在當前頁的矩形裁掉，
+- 幾何與顏色政策是純函式（`lib/highlights.ts`）：`visibleBoxes` 把不在當前頁的矩形裁掉——裁的是
+  frond 的 `pageBox()` 而**不是容器**，容器含著留白，下一頁的開頭會落在裡面（#41），
   `boxesContain` 做 hit test，`markVar` 決定用哪一種〈螢光〉的墨。
 - 元件（`HighlightLayer.tsx`）只負責畫，**而且 `pointer-events: none`**——點 highlight 走 frond 的
   `pointerup` 加自己的 hit test，否則這一層會吃掉翻頁的點擊。

@@ -5,6 +5,7 @@
 import { describe, expect, test } from "vitest";
 import {
   blockExtentOf,
+  COLUMN_GAP,
   inlineExtentOf,
   marginInsets,
   maxScrollOffsetFor,
@@ -13,6 +14,7 @@ import {
   pageAxisFor,
   pageCountFor,
   pageMetrics,
+  pageBoxFor,
   pageOffsetFor,
   resolveColumns,
   turnPlacement,
@@ -365,5 +367,37 @@ describe("a turn in progress", () => {
   test("dragging past either end is clamped rather than scrolling on", () => {
     expect(turnPlacement("left", -80, EXTENT).current).toEqual({ x: 0, y: 0 });
     expect(turnPlacement("left", EXTENT + 80, EXTENT).current).toEqual({ x: EXTENT, y: 0 });
+  });
+});
+
+describe("where the page sits inside the container", () => {
+  // The consumer clips its own highlight layer against this box, and the container will not do
+  // (Tidemarks #41): the container carries the reader's margin and the page does not, while two
+  // adjacent pages are only `COLUMN_GAP` apart. So a margin wider than the gap puts the head of
+  // the next page inside the container, and a consumer clipping to the container paints it.
+  const INSETS = { top: 16, right: 157, bottom: 16, left: 157 };
+
+  test("horizontally, the page is inset by the margin and one page wide", () => {
+    const metrics = pageMetrics({
+      writingMode: "horizontal-tb",
+      viewport: { width: 959, height: 821 },
+      columns: 1,
+      gap: COLUMN_GAP,
+    });
+
+    expect(pageBoxFor(metrics, INSETS)).toEqual({ left: 157, top: 16, width: 959, height: 821 });
+  });
+
+  test("vertically, the inline size is the height, because that is the axis lines run along", () => {
+    // Getting this the wrong way round costs nothing on a square viewport and clips a vertical
+    // book's marks to the wrong box on every other one.
+    const metrics = pageMetrics({
+      writingMode: "vertical-rl",
+      viewport: { width: 959, height: 821 },
+      columns: 1,
+      gap: COLUMN_GAP,
+    });
+
+    expect(pageBoxFor(metrics, INSETS)).toEqual({ left: 157, top: 16, width: 959, height: 821 });
   });
 });

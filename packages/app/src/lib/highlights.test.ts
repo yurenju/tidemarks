@@ -19,15 +19,18 @@ import {
 import type { MarkedRectLike } from "./highlights";
 import { i18n } from "./i18n";
 
-// The container the reader is looking at. frond reports rectangles in these coordinates, with
-// the margin already added back, and reports them **truthfully** — a position two pages ahead
-// comes back at a large x because pages are made by scrolling one long multi-column layout.
-// Deciding what to do about that is this module's job.
-const CONTAINER = { width: 600, height: 400 };
+// The page the reader is looking at, as frond's `pageBox()` states it. Rectangles arrive in
+// the container's coordinates with the margin already added back, and arrive **truthfully** —
+// a position two pages ahead comes back at a large x because pages are made by scrolling one
+// long multi-column layout. Deciding what to do about that is this module's job.
+//
+// It sits at the container's own corner here, which is the no-margin case. `WIDE` below is the
+// one that separates page from container, and it is the case the clipping got wrong.
+const PAGE = { left: 0, top: 0, width: 600, height: 400 };
 
 describe("visibleBoxes", () => {
   it("keeps a rectangle on the current page", () => {
-    expect(visibleBoxes([{ x: 40, y: 50, width: 200, height: 24 }], CONTAINER)).toEqual([
+    expect(visibleBoxes([{ x: 40, y: 50, width: 200, height: 24 }], PAGE)).toEqual([
       { left: 40, top: 50, width: 200, height: 24 },
     ]);
   });
@@ -36,36 +39,63 @@ describe("visibleBoxes", () => {
     // Measured in frond's own test: at a container width of 600, a position one page ahead
     // comes back at x = 632. Painting it unconditionally would put the highlight outside the
     // page — which is why frond calls clipping the consumer's policy.
-    expect(visibleBoxes([{ x: 632, y: 50, width: 200, height: 24 }], CONTAINER)).toEqual([]);
+    expect(visibleBoxes([{ x: 632, y: 50, width: 200, height: 24 }], PAGE)).toEqual([]);
   });
 
   it("drops a rectangle on the previous page", () => {
-    expect(visibleBoxes([{ x: -240, y: 50, width: 200, height: 24 }], CONTAINER)).toEqual([]);
+    expect(visibleBoxes([{ x: -240, y: 50, width: 200, height: 24 }], PAGE)).toEqual([]);
   });
 
   it("drops a rectangle touching the far edge exactly", () => {
     // The first sliver of the next page has no area on this one.
-    expect(visibleBoxes([{ x: 600, y: 0, width: 100, height: 24 }], CONTAINER)).toEqual([]);
+    expect(visibleBoxes([{ x: 600, y: 0, width: 100, height: 24 }], PAGE)).toEqual([]);
   });
 
   it("cuts a rectangle that straddles the edge at the boundary", () => {
     // A highlight whose line breaks across a column boundary. Clipping rather than leaving it
     // to `overflow: hidden` keeps one answer for painting and for hit-testing, so the
     // invisible half never becomes a tap target.
-    expect(visibleBoxes([{ x: 560, y: 10, width: 100, height: 24 }], CONTAINER)).toEqual([
+    expect(visibleBoxes([{ x: 560, y: 10, width: 100, height: 24 }], PAGE)).toEqual([
       { left: 560, top: 10, width: 40, height: 24 },
     ]);
   });
 
   it("clips along the block axis too, which is the one vertical books page along", () => {
-    expect(visibleBoxes([{ x: 10, y: -10, width: 30, height: 60 }], CONTAINER)).toEqual([
+    expect(visibleBoxes([{ x: 10, y: -10, width: 30, height: 60 }], PAGE)).toEqual([
       { left: 10, top: 0, width: 30, height: 50 },
     ]);
   });
 
   it("returns nothing for a range frond could not locate at all", () => {
     // A highlight in another section: frond answers with an empty array rather than guessing.
-    expect(visibleBoxes([], CONTAINER)).toEqual([]);
+    expect(visibleBoxes([], PAGE)).toEqual([]);
+  });
+
+  // The page is not the container, and on a wide screen the difference is most of the margin.
+  //
+  // Measured in Chrome at 1273×853 (#41): the container is 1273 wide, the page 959, and the
+  // reader's margin 157 on each side. Two pages are only `COLUMN_GAP` apart, so the next page
+  // starts at 157 + 959 + 40 = 1156 — which is **inside the container** by 117px, exactly
+  // `margin - gap`. Clipping to the container therefore paints the head of the next page's
+  // marks in this page's right-hand margin, half cut off.
+  const WIDE = { left: 157, top: 16, width: 959, height: 821 };
+
+  it("drops a rectangle on the next page even when the margin leaves room for it", () => {
+    expect(visibleBoxes([{ x: 1156, y: 22.5, width: 300, height: 34.5 }], WIDE)).toEqual([]);
+  });
+
+  it("keeps a rectangle in the last stretch of this page, which sits past the page's width", () => {
+    // The other half of the same claim, and the one that says the page is a box rather than a
+    // size: this rectangle is genuinely on screen — the page ends at 157 + 959 = 1116 — and
+    // clipping from the container's origin would cut it at 959.
+    expect(visibleBoxes([{ x: 1000, y: 100, width: 100, height: 24 }], WIDE)).toEqual([
+      { left: 1000, top: 100, width: 100, height: 24 },
+    ]);
+  });
+
+  it("drops a rectangle in the margin before the page begins", () => {
+    // The previous page's tail, which leaks in on the left by the same `margin - gap`.
+    expect(visibleBoxes([{ x: 40, y: 100, width: 100, height: 24 }], WIDE)).toEqual([]);
   });
 
   it("keeps one box per line of a multi-line selection", () => {
@@ -74,7 +104,7 @@ describe("visibleBoxes", () => {
         { x: 40, y: 50, width: 200, height: 24 },
         { x: 40, y: 74, width: 160, height: 24 },
       ],
-      CONTAINER,
+      PAGE,
     );
     expect(boxes).toHaveLength(2);
   });
@@ -136,7 +166,7 @@ describe("markVar", () => {
 
 // Big enough that nothing in the mark-placement cases below is clipped by it; clipping has
 // its own cases above.
-const ROOMY = { width: 2000, height: 2000 };
+const ROOMY = { left: 0, top: 0, width: 2000, height: 2000 };
 
 /**
  * Alice, 15.33px Times New Roman, `line-height: normal`, measured in the running reader.
@@ -280,8 +310,12 @@ describe("what a mark is not drawn on", () => {
     expect(markStrips([spacer], ROOMY, false)).toEqual([]);
   });
 
-  it("clips a strip to the container like any other box", () => {
-    const strips = markStrips([latinLine(0, 560, 100)], { width: 600, height: 400 }, false);
+  it("clips a strip to the page like any other box", () => {
+    const strips = markStrips(
+      [latinLine(0, 560, 100)],
+      { left: 0, top: 0, width: 600, height: 400 },
+      false,
+    );
     expect(strips).toEqual([
       { left: 560, top: 17 + MARK_CLEARANCE, width: 40, height: WAVE_THICKNESS },
     ]);

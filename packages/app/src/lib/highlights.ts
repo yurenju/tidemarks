@@ -9,6 +9,9 @@
 /** A `DOMRect`, narrowed to what this module reads (so a test needs no DOM). */
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+// The box to clip against is frond's `pageBox()`, and the type is frond's too — this module
+// never measures anything itself, it decides what to do with what frond measured.
+import type { PageBox } from "@yurenju/frond/renderer";
 
 export interface RectLike {
   readonly x: number;
@@ -23,11 +26,6 @@ export interface HighlightBox {
   top: number;
   width: number;
   height: number;
-}
-
-export interface ContainerSize {
-  readonly width: number;
-  readonly height: number;
 }
 
 /** One rectangle as frond reports it: the box, what it covers, and where its glyphs sit. */
@@ -78,19 +76,29 @@ export const MARK_CLEARANCE = 0.7;
 // coordinate and one behind at a negative one, because pages are made by scrolling a single
 // long multi-column layout. Deciding what to do about that is the consumer's ("which
 // rectangles to draw is a clipping policy"), and this is that decision: keep the ones that
-// intersect the container, and cut them at its edges.
+// intersect the page, and cut them at its edges.
+//
+// **The page, and not the container the layer is drawn on.** Those two are different boxes:
+// the container carries the reader's margin and the page sits inset within it, while two
+// adjacent pages are only `COLUMN_GAP` apart. So on a wide screen — where the line-length
+// ceiling makes the margin several times that gap — the head of the *next* page falls inside
+// the container, and clipping to the container paints its marks in this page's right-hand
+// margin, cut in half at the container's edge (#41). Measured at a container of 1273 with a
+// 157px margin: the next page begins at 1156, 117px inside the container.
 //
 // Clipping rather than relying on `overflow: hidden` keeps the answer in one place — the
 // same boxes then work for painting and for hit-testing a tap, and a box that is half on
-// screen does not become a target across its invisible half.
-export function visibleBoxes(rects: readonly RectLike[], container: ContainerSize): HighlightBox[] {
+// screen does not become a target across its invisible half. That second half is why the
+// margin band matters even though nothing is drawn there: a tap in it would otherwise open
+// the note belonging to a mark on the next page.
+export function visibleBoxes(rects: readonly RectLike[], page: PageBox): HighlightBox[] {
   const boxes: HighlightBox[] = [];
 
   for (const rect of rects) {
-    const left = Math.max(0, rect.x);
-    const top = Math.max(0, rect.y);
-    const right = Math.min(container.width, rect.x + rect.width);
-    const bottom = Math.min(container.height, rect.y + rect.height);
+    const left = Math.max(page.left, rect.x);
+    const top = Math.max(page.top, rect.y);
+    const right = Math.min(page.left + page.width, rect.x + rect.width);
+    const bottom = Math.min(page.top + page.height, rect.y + rect.height);
 
     // `>` and not `>=`: a rectangle touching the far edge exactly is the first sliver of
     // the next page, and it has no area on this one.
@@ -123,7 +131,7 @@ export function visibleBoxes(rects: readonly RectLike[], container: ContainerSiz
  */
 export function markStrips(
   marked: readonly MarkedRectLike[],
-  container: ContainerSize,
+  page: PageBox,
   vertical: boolean,
 ): HighlightBox[] {
   const strips: RectLike[] = [];
@@ -145,17 +153,14 @@ export function markStrips(
     );
   }
 
-  return visibleBoxes(strips, container);
+  return visibleBoxes(strips, page);
 }
 
 /** Where a tap counts as landing on this passage: every rectangle of it, whatever it covers. */
-export function hitBoxes(
-  marked: readonly MarkedRectLike[],
-  container: ContainerSize,
-): HighlightBox[] {
+export function hitBoxes(marked: readonly MarkedRectLike[], page: PageBox): HighlightBox[] {
   return visibleBoxes(
     marked.map((one) => one.rect),
-    container,
+    page,
   );
 }
 
