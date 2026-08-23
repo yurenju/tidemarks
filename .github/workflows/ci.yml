@@ -35,16 +35,30 @@ jobs:
   browser:
     runs-on: ubuntu-latest
 
-    # One engine per job. What runs is unchanged — three browsers, all equals, any one red
-    # means red (frond's ADR-0004) — but they used to run one after another inside a single
-    # job, and nothing about the three needs them to. Splitting them makes the wall clock one
-    # engine's share instead of the sum of all three.
+    # One engine per job, and each engine's suite cut in half. What runs is unchanged — three
+    # browsers, all equals, any one red means red (frond's ADR-0004) — but they used to run one
+    # after another inside a single job, and nothing about the three needs them to. Splitting
+    # them makes the wall clock one engine's share instead of the sum of all three.
     #
-    # It is cheaper in runner-minutes as well, which is the opposite of what splitting a job
-    # usually costs. The single job was serial to the point of leaving the runner mostly idle:
-    # 710s of tests, one Playwright worker, on a machine with more than one core. Three jobs
-    # that each use their whole runner finish more total work per minute paid for, and the
-    # extra image builds do not eat the difference.
+    # **Runner minutes stopped being a constraint when this repository went public.** Standard
+    # GitHub-hosted runners are free and unbounded on a public repository, so the only number
+    # left worth spending them on is how long a push waits for its green light. Larger runners
+    # are not part of that offer — they are billed on a public repository like anywhere else —
+    # so what the free tier gives is more machines, never a faster one. Every decision below
+    # follows from those two facts.
+    #
+    # Measured on a clean run, before the shards, with the slowest engine on the critical path
+    # at 273s: 3s of setup, 56s building the image, 61s of frond, 154s of the app, 4s of
+    # reporting. The 4-vCPU runner gives Playwright four workers (`workers: "100%"` in both
+    # configs), which is the number those timings are of.
+    #
+    # **The next thing to try, when this is not fast enough, is a wider runner rather than more
+    # shards.** Playwright's worker count is the core count, so an 8-vCPU machine halves both
+    # suites without touching how anything is divided, and it shortens the image build too. It
+    # costs money — see above — which is why it is written down here instead of done. Note that
+    # the two do not add up: a second shard and a second set of cores would be competing for the
+    # same work, so whichever is done second is worth much less than it looks. Re-measure before
+    # spending anything.
     strategy:
       # Every engine reports, even when another has already failed. The whole reason for
       # keeping three is that they disagree about vertical CJK, so "chromium is red" and "all
@@ -53,6 +67,32 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
+
+        # **Two, and the number is read off the fixed cost rather than chosen.** A job costs 56s before
+        # it runs a single test, nearly all of it fixed: 24s pulling the Playwright base image
+        # (2-3GB at line rate, so this is bandwidth rather than waste), 12s of `npm ci`, 10s
+        # exporting layers, 7s installing and indexing the CJK fonts. Cutting the app's 154s in
+        # two leaves 77s a shard, comfortably above that. Cutting it in three leaves 51s — less
+        # than the price of the job it would run in, which is where this stops paying.
+        #
+        # Sharding does not multiply the suite's own setup, which is the thing that would have
+        # ruled it out. Every reader spec imports a book through the real file input and waits
+        # for the page to settle (`tests/browser/support/library.ts`), and that was the suspect:
+        # measured in this image, the whole of it is 530ms — `goto` 190ms, import 95ms, open
+        # 60ms, settle 170ms. It is charged per test, so the shards divide it rather than each
+        # paying it again. What a shard genuinely does add is one more Vite start, measured at
+        # 4.9s, and one browser launch per worker.
+        #
+        # **How busy a runner is does not change, and that is worth saying out loud** — two
+        # specs in this suite are calibrated against it. `reader/turn-pacing.spec.ts` reads
+        # frame intervals, whose thresholds were set across "alone" and "inside the full
+        # parallel suite"; and #174 was a race that only an *idle* machine exposed, which is why
+        # `support/library.ts` waits for the reader's box to come to rest rather than trusting
+        # Playwright's stability check. A shard still fills its own 4-vCPU runner with four
+        # workers, so each machine has exactly the load it had before. Fewer distinct specs are
+        # in flight together, nothing else. If either of those goes flaky here, that assumption
+        # is the first thing to re-measure.
+        shard: [1, 2]
 
     steps:
       - uses: actions/checkout@v4
@@ -64,9 +104,16 @@ jobs:
 
       # CI and local machines share one image and one script. A step that only exists in CI is
       # how a "green locally, red in CI" gap gets built, and a gap that lands in the font layer
-      # is extremely hard to trace (see the Dockerfile's header). What the matrix adds is an
-      # argument, not a step: `--project` is a filter over the same suite, and both packages
-      # name their Playwright projects after the engine, so one value filters both.
+      # is extremely hard to trace (see the Dockerfile's header). What the matrix adds is
+      # arguments, not steps: `--project` is a filter over the same suite, `--shard` is a second
+      # one, and both packages name their Playwright projects after the engine, so one value
+      # filters both.
+      #
+      # **The shard reaches frond as well, and that is the point.** The script hands its
+      # remaining arguments to each package's own runner in turn, so this one job runs frond's
+      # half of the shard and then the app's. frond would not be worth a job of its own to
+      # split — 61s against a 56s image build — but the job is already here and already paid
+      # for, so its half comes free.
       #
       # The engine is named rather than left to the script to work out, and the name is
       # load-bearing: `scripts/container.sh` prefers podman, the runner ships both, and this
@@ -76,37 +123,54 @@ jobs:
       - name: Run both runners in the container
         env:
           TIDEMARKS_CONTAINER_ENGINE: docker
-        run: ./scripts/test-in-container.sh --project=${{ matrix.browser }}
+        run: ./scripts/test-in-container.sh --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
 
-      # The screen sweep, which is not a test: it walks every screen the app has and photographs
-      # each one, and nothing compares those images to anything
-      # (docs/adr/0027-the-screen-sweep-runs-in-the-container.md). **The images are discarded
-      # here** — this runner is thrown away and nothing uploads them. What the step asserts is
-      # that the sweep still runs end to end, because that is the part which rots on its own: it
-      # is 27 steps of clicking through the app, and a renamed `data-testid` breaks it in silence
-      # months before the day someone needs the pictures.
+      # One artifact per shard of one engine. `upload-artifact@v4` rejects a name another job in
+      # the same run has already used, so both coordinates have to be in it — and they are the
+      # right name anyway, because a report is now one engine's half.
       #
-      # One engine, where the tests take three. Rot looks identical in all three — a selector
-      # that is gone is gone everywhere — so the other two would buy three copies of one finding.
-      # What three engines do buy is their disagreement about vertical CJK, and `tests/browser/`
-      # is where that is held.
-      #
-      # Both devices, though: the desktop and hand-held paths are not the same code, and raising
-      # the chrome is a tap on one and a click on the other.
-      - name: Check the screen sweep still runs
-        if: ${{ matrix.browser == 'chromium' }}
-        env:
-          TIDEMARKS_CONTAINER_ENGINE: docker
-        run: ./scripts/capture-shots.sh
-
-      # One artifact per engine. `upload-artifact@v4` rejects a name that another job in the
-      # same run has already used, so the engine has to be in it — and it is the right name
-      # anyway, because a report is now one engine's.
+      # Deliberately not merged. Playwright can stitch shards back together through its `blob`
+      # reporter and a `merge-reports` job, but that job would have to wait for all six of these
+      # and would put a serial tail on the very wall clock the shards were cut to shorten. Six
+      # reports, each saying which engine and which half, answer the question a red run actually
+      # asks.
       - name: Upload the Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore
+
+  # The screen sweep, which is not a test: it walks every screen the app has and photographs
+  # each one, and nothing compares those images to anything
+  # (docs/adr/0027-the-screen-sweep-runs-in-the-container.md). **The images are discarded here**
+  # — this runner is thrown away and nothing uploads them. What this asserts is that the sweep
+  # still runs end to end, because that is the part which rots on its own: it is 27 steps of
+  # clicking through the app, and a renamed `data-testid` breaks it in silence months before the
+  # day someone needs the pictures.
+  #
+  # A job of its own, where it used to be a step tacked onto the chromium one. Nothing about it
+  # depends on the tests having run, and hanging it off one arm of the matrix made that arm do
+  # 55s of work the other two did not — visible on the run summary as chromium being
+  # inexplicably the odd one out. Free-standing, it is off the critical path entirely.
+  #
+  # One engine, where the tests take three. Rot looks identical in all three — a selector that
+  # is gone is gone everywhere — so the other two would produce three copies of one finding.
+  # What three engines are for is their disagreement about vertical CJK, and `tests/browser/` is
+  # where that is held.
+  #
+  # Both devices, though: the desktop and hand-held paths are not the same code, and raising the
+  # chrome is a tap on one and a click on the other.
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # `docker` for the same reason as the browser job above: this runner's podman cannot build
+      # the image, and `capture-shots.sh` builds it too.
+      - name: Check the screen sweep still runs
+        env:
+          TIDEMARKS_CONTAINER_ENGINE: docker
+        run: ./scripts/capture-shots.sh
