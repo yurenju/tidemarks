@@ -1,3 +1,7 @@
+// The thresholds a finger is judged against: tap, drag, flick, how far the page follows and how
+// far it may be pulled past the end. Numbers only — which page a drag is asking for is
+// navigator.test.ts, and the same gestures in three engines are
+// packages/app/tests/browser/reader/drag.spec.ts and real-touch.spec.ts.
 import { describe, expect, it } from "vitest";
 import { commitsTurn, dampen, incomingEdge, isTap, startsDrag, travelled } from "./touch";
 

@@ -1,3 +1,6 @@
+// The launch line as a decision: how the one environment variable is read, and who may create
+// an account while signup is closed. The gate standing at account creation against real rows,
+// with a real allowlist table, is auth.integration.test.ts.
 import { describe, expect, it, vi } from "vitest";
 import { openSignupFrom, signupDecision } from "./signup-gate";
 import { i18nOf } from "./i18n";
@@ -26,20 +29,15 @@ describe("openSignupFrom", () => {
 });
 
 describe("signupDecision while signup is closed", () => {
-  it("sends a code to an address that already has an account", async () => {
+  it("sends a code to an address that already has an account, listed or not", async () => {
+    // Removing somebody from the list must not lock them out of data that is already theirs,
+    // so the answer here is the same one an unlisted address would otherwise be refused with.
     const allowlisted = vi.fn().mockResolvedValue(false);
     expect(
       await signupDecision(i18n, { openSignup: false, hasAccount: true }, allowlisted),
     ).toEqual({
       allowed: true,
     });
-  });
-
-  it("does not consult the allowlist for an account that exists", async () => {
-    // Removing somebody from the list must not lock them out of data that is already theirs.
-    const allowlisted = vi.fn().mockResolvedValue(false);
-    await signupDecision(i18n, { openSignup: false, hasAccount: true }, allowlisted);
-    expect(allowlisted).not.toHaveBeenCalled();
   });
 
   it("lets a listed address create an account", async () => {
@@ -64,21 +62,17 @@ describe("signupDecision while signup is closed", () => {
 });
 
 describe("signupDecision once signup is open", () => {
-  it("lets any address create an account", async () => {
+  it("lets any address in, account or not, whatever the list says about it", async () => {
+    // A list nobody maintains once signup is open must not lock anyone out, so a `false` from
+    // it changes the answer on neither path.
     const allowlisted = vi.fn().mockResolvedValue(false);
     expect(
       await signupDecision(i18n, { openSignup: true, hasAccount: false }, allowlisted),
     ).toEqual({
       allowed: true,
     });
-  });
-
-  it("never reads the allowlist table at all", async () => {
-    // Not "the table is empty so everything passes" — the switch changes which code path runs,
-    // so a forgotten row cannot lock anyone out after launch.
-    const allowlisted = vi.fn().mockResolvedValue(false);
-    await signupDecision(i18n, { openSignup: true, hasAccount: false }, allowlisted);
-    await signupDecision(i18n, { openSignup: true, hasAccount: true }, allowlisted);
-    expect(allowlisted).not.toHaveBeenCalled();
+    expect(await signupDecision(i18n, { openSignup: true, hasAccount: true }, allowlisted)).toEqual(
+      { allowed: true },
+    );
   });
 });

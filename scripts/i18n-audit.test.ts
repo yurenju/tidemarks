@@ -1,3 +1,6 @@
+// The catalog rules CI enforces, as pure functions: how a .po file is read, and the four ways a
+// catalog fails — no translation, no comment, an entry nothing uses any more, and a wording
+// that has quietly started serving a second file. Nothing above this layer re-checks them.
 import { describe, expect, it } from "vitest";
 import { auditCatalogs, formatProblems, parsePo, sharedMessages } from "./i18n-audit";
 

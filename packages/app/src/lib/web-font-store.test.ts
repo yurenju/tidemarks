@@ -1,3 +1,6 @@
+// Fetching a CJK face and saying so: progress reported against a total the server may not have
+// declared, a failure the reader is told about rather than asked to retry, and the wording of
+// each state. Which faces are worth fetching at all is web-font.test.ts.
 import { describe, expect, it } from "vitest";
 import { i18n } from "./i18n";
 import {

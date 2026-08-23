@@ -1,3 +1,6 @@
+// Where the reader is put back to when the two stores disagree: an IndexedDB write that has not
+// committed, a newer position synced in behind it, a browser that refuses localStorage. The
+// storage engines themselves are packages/app/tests/browser/reader/storage.spec.ts.
 import { describe, expect, it } from "vitest";
 import { recallPosition, rememberPosition, type PositionStores } from "./position-store";
 import type { Progress } from "./types";

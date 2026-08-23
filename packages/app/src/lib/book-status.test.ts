@@ -1,3 +1,7 @@
+// The sentences a shelf card puts under a book: which book counts as the one being read, when a
+// book is finished, and how the two status lines are worded in each interface language. The
+// numbers behind them are stats.test.ts; the card itself is
+// packages/app/tests/browser/library/first-screen.spec.ts.
 import { beforeEach, describe, expect, it } from "vitest";
 import { currentlyReading, isFinished, statusLines } from "./book-status";
 import { i18n } from "./i18n";

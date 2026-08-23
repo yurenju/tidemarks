@@ -1,9 +1,10 @@
 // Login, running, against a real D1.
 //
-// The pure tests already decide when a code is dead and who may create an account; what these
-// buy is the part that only exists once there is a database behind it — that the columns are
-// the columns the SQL names, that "used once" survives a second request rather than a second
-// call to a function, and that the gate really does stand at account creation and nowhere else.
+// The pure tests already decide when a code is dead (magic-code.test.ts), who may create an
+// account (signup-gate.test.ts) and which host a passkey may be issued for (rp-id.test.ts).
+// What these buy is the part that only exists once there is a database behind it — that the
+// columns are the columns the SQL names, that "used once" survives a second request rather than
+// a second call to a function, and that the gate really stands at account creation.
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

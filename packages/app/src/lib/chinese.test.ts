@@ -1,3 +1,6 @@
+// Which Chinese variant a book is written in, and the font stack that follows. Both are string
+// decisions — the stack names families in a fixed order and asks no browser which of them is
+// installed, so the order is all there is to get wrong here.
 import { describe, expect, it } from "vitest";
 import { detectVariant, fontStack } from "./chinese";
 

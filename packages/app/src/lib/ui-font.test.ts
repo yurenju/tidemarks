@@ -1,3 +1,6 @@
+// Which downloaded faces the interface itself may be set in: both weights of a family or none
+// of it, and never the sans whatever the reader chose for their books. Getting the faces onto
+// the device is web-font-store.test.ts.
 import { describe, expect, it } from "vitest";
 import { uiFontFaces } from "./ui-font";
 

@@ -1,3 +1,6 @@
+// Whether a book is Chinese enough to be worth a 16 MB face, and which faces follow: the count
+// that decides it, the family names, the weight ranges, what a device already carries. No layer
+// above repeats this — the download itself is web-font-store.test.ts.
 import { describe, expect, it } from "vitest";
 import { detectScript } from "./line-length";
 import {

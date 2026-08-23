@@ -1,3 +1,6 @@
+// Whether a passkey may be issued for the host a request arrived on, and what the refusal says
+// when it may not. Hostname rules only; that both endpoints really consult them — and that a
+// mailed code is still a way back in — is auth.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import { rpIdCoversHost, rpIdMismatchMessage } from "./rp-id";
 import { i18nOf } from "./i18n";

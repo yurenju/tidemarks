@@ -1,3 +1,6 @@
+// What leaves the device on a push: blobs left behind, this device's own bookkeeping stripped,
+// and the fields that have to be on the wire. What the server does with them is
+// worker/push.test.ts; that they survive D1 is worker/sync.integration.test.ts.
 import { describe, expect, it } from "vitest";
 import { isEmptyPayload, syncPayload, type DirtyRows } from "./sync-payload";
 import type { BookRecord, Progress } from "./types";
