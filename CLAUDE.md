@@ -208,8 +208,13 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 `npm run test:container` 在容器裡跑三家瀏覽器：先 frond 的（量字符幾何，`--network=none`），
 再 app 的（真的開一本真的書）。動到 reader 就跑 `test:container`。
 
+這一段講的是**東西放在哪一層**。**一條測試該不該存在**是另一個問題，答案在
+[testing.md](docs/agents/testing.md)：每個測試都要說得出它測到的角度，而那個角度是其他層次測不到
+的，答不出來就刪。加測試之前先讀那一份——尤其是「同一個命題在上層最多留一條接線」那條，它是最常
+被違反的。
+
 **scripts 那層只收純函式**，也就是 `scripts/deploy.ts` 那種部署腳本裡「不碰檔案、不叫外部指令」的
-半邊（現在是 `deploy-config.ts`）。它買的東西跟 worker 那層同一類：這些程式碼跑在 Cloudflare 的
+半邊（現在是 `deploy-config.ts`）。它擋的問題跟 worker 那層同一類：這些程式碼跑在 Cloudflare 的
 build 環境裡，錯了不會紅燈，會變成一次「部署成功、但指到錯的資料庫」。I／O 那一半不測——把它跟
 判斷分開，就是為了讓判斷測得到。
 
@@ -221,8 +226,8 @@ CI 紅了而重現不了的時候，**先分診再動手**：原因只有「測�
 放大器不是原因，所以壓 `workers` 不算修好。帳本是貼 `flaky` label 的 GitHub issue，第一次紅就開。
 按重跑之前先確認它在帳本裡。見 `docs/agents/flaky.md`。
 
-worker 那層**刻意只有少數幾條**。它慢，而且決策該不該做的部分純函式已經測完了；它買的是純測試
-結構上看不到的那一類 bug：欄位名不存在、`bind()` 的次序跟 `?N` 對不上、某條路沒有 token 也進得去。
+worker 那層**刻意只有少數幾條**。它慢，而且決策該不該做的部分純函式已經測完了；它測到的角度是純
+測試結構上看不到的那一類 bug：欄位名不存在、`bind()` 的次序跟 `?N` 對不上、某條路沒有 token 也進得去。
 那些都通得過 type check，然後在 production 壞掉。動到 `worker/` 底下的 SQL 或路由就補一條。
 
 **它跑在 host 上，不進容器**，跟瀏覽器測試相反。瀏覽器那套進容器是因為字型與引擎版本要一致，數字
@@ -243,11 +248,11 @@ UI（frond ADR-0002），這一段跟它們無關。
 **介面語言在設定檔裡釘死 `en`**，兩份 Playwright 設定各一行（`playwright.config.ts`、
 `playwright.sweep.config.ts`）。不釘的話畫面上的字跟著容器的 `Accept-Language` 走，那是機器的性質
 不是 app 的性質：測試那層會找不到自己寫的字串，巡檢那層則是拍出來的圖跨機器跨日期不能比，而可比性
-正是 ADR-0027 買的東西。釘 `en` 是因為英文是原文，**不可能缺詞條**。想看中文或日文的畫面就把那一行
+正是 ADR-0027 要守住的東西。釘 `en` 是因為英文是原文，**不可能缺詞條**。想看中文或日文的畫面就把那一行
 改掉跑一次，不為此多開一個 project。
 
 **`data-testid` 標的是畫面與區塊，區塊裡面的東西用 role 找**：
-`getByTestId("panel-toc").getByRole("button", { name: "Contents" })`。這樣一次買到兩件事——區塊找得
+`getByTestId("panel-toc").getByRole("button", { name: "Contents" })`。這樣一次守住兩件事——區塊找得
 到（改文案不會全盤紅），而按鈕仍然必須有可及名稱，那個名稱掉了就會紅。testid 掛到按鈕上只剩前者，
 而可及性壞掉是沒有人會回報的那一類（ADR-0021）。圖示鈕（`book-open`、`about-delete`）是例外，當例外
 看待。
