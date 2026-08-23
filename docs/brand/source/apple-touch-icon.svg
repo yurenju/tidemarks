@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180" role="img" aria-label="tidemarks">
+  <rect width="180" height="180" fill="#F4EEE2"></rect>
+  <g transform="translate(54.19 36) scale(1.0037)">
+    <path d="M0 95 V6.25 A6.25 6.25 0 0 1 6.25 0 H65.10 A6.25 6.25 0 0 1 71.35 6.25 V102.7 q-3.964 5.6 -7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 t-7.928 0 Z" fill="#EDE5D6"></path>
+    <path d="M0 102.7 q3.964 5.6 7.928 0 t7.928 0 t7.928 0 t7.928 0 t7.928 0 t7.928 0 t7.928 0 t7.928 0 t7.928 0" fill="none" stroke="#1B2E4D" stroke-width="2.2"></path>
+    <text x="35.68" y="77.71" text-anchor="middle" font-family="Spectral, Georgia, serif" font-size="100" font-weight="400" letter-spacing="-1.5" fill="#14171C">t</text>
+  </g>
+</svg>

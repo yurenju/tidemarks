@@ -26,25 +26,12 @@
     U+A720-A7FF;
 }
 
-/* The wordmark's face, and only the wordmark's. One weight, Basic Latin, 21 KB — because
-   "Tidemarks" is the only string it ever draws, and a display face earning its keep on one
-   word should not cost more than that.
+/* Spectral used to be carried here as the wordmark's face. The wordmark is now a drawing
+   (`components/Wordmark.tsx`) whose letters are outlines, so nothing on any screen asks for
+   that family and the file is no longer shipped: it lives in `docs/brand/source/fonts/`, where
+   the tool that cuts the outlines reads it.
 
-   It is not let near running text on purpose. The design system asks for four families with
-   strict jobs, and a second Latin serif in prose is exactly the collision that rule exists to
-   prevent: Source Serif 4 already covers every weight the interface asks for out of one
-   variable file. */
-@font-face {
-  font-family: "Spectral";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/spectral-latin-400-normal.woff2") format("woff2");
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2122;
-}
-
-/* The one monospace, for the micro-labels that say the system is talking — uppercase, tracked
+   The one monospace, for the micro-labels that say the system is talking — uppercase, tracked
    out, never a sentence. Basic Latin only and no CJK fallback of its own: a mono label is
    Latin by construction (`NOTE`, `SYNCED`, a timestamp), and where a translation puts Han
    characters in one the stack behind it catches them in the interface's own serif. */
@@ -231,6 +218,14 @@ html[data-drawer="open"] {
   --wave-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5.333' height='4'%3E%3Cpath d='M0 2Q1.333 0.667 2.667 2T5.333 2' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
   --wave-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5.333'%3E%3Cpath d='M2 0Q0.667 1.333 2 2.667T2 5.333' fill='none' stroke='%23000' stroke-width='1.333'/%3E%3C/svg%3E");
 
+  /* The block the wordmark's letters sit in. It needs a name of its own because the two themes
+     reach it through different semantics: on paper it is the surface a step below the page,
+     and at night that surface is nearly black and the block would vanish, so the dark theme
+     takes the selected-fill blue instead. The other two colours in the logo need no token —
+     `--mark-indigo` and `--text-primary` already carry the brand sheet's values in both
+     themes. */
+  --wordmark-block: var(--surface-sunken);
+
   /* Components. The Latin family leads so figures and Western titles are drawn by the face we
      carry; the Han names behind it mirror `lib/chinese.ts`'s `SERIF_TC` and are needed for the
      same reasons given there — chiefly that a bare `serif` keyword lands on PingFang, a sans,
@@ -240,8 +235,9 @@ html[data-drawer="open"] {
   --font-ui:
     "Source Serif 4", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", "Songti TC",
     "PMingLiU", serif;
-  /* Four families with strict jobs, and crossing between them is an error (ADR-0022). Two of
-     them are carried Latin faces; the other two name what the machine has.
+  /* Three families with strict jobs, and crossing between them is an error (ADR-0022). One of
+     them is a carried Latin face; the other two name what the machine has. The fourth used to
+     be the wordmark's display serif, and the wordmark no longer needs a font at all.
 
      **The Han half is never carried.** `NotoSerifCJKtc-Regular` is 16 MB and
      `NotoSansCJKtc-Regular` is 11 MB, and ADR-0014 only pays that when the reader opens a book
@@ -250,11 +246,10 @@ html[data-drawer="open"] {
      a Chinese button looks like still depends on the machine — that is the half of the
      handoff's promise this cannot buy.
 
-     Both carried faces fall back into `--font-ui` rather than into a generic keyword, because
-     neither has a single Han glyph: the wordmark is Latin so it reaches Spectral, a mono label
-     is Latin so it reaches Plex, and anything else lands in the interface's own serif rather
-     than on whatever `sans-serif` happens to be. */
-  --font-display: "Spectral", var(--font-ui);
+     The carried face falls back into `--font-ui` rather than into a generic keyword, because it
+     has not a single Han glyph: a mono label is Latin by construction so it reaches Plex, and
+     anything else lands in the interface's own serif rather than on whatever `sans-serif`
+     happens to be. */
   --font-control:
     system-ui, "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC", "PingFang TC",
     "Microsoft JhengHei", sans-serif;
@@ -426,6 +421,9 @@ html[data-drawer="open"] {
   /* The same four names, lifted. `--mark-indigo` is still the brand's blue — it is the dark
      theme's value for it, not a different colour. */
   --mark-indigo: #a9c4de;
+  /* Not `--surface-sunken` here: at night that is the near-black below the page, and a block
+     of it behind the letters would leave the wordmark with no block at all. */
+  --wordmark-block: var(--fill-selected);
   --mark-ochre: #cf8b4e;
   --mark-moss: #8aab72;
   --mark-soot: #9aa4ab;

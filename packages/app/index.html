@@ -6,6 +6,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- iOS reads this and nothing else when a page is added to the home screen: it ignores the
+         manifest's icons, and it will not take an SVG. The PNG is the same mark, rendered at
+         180 and left square — iOS rounds the corners itself. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
       The colour Android paints its own system bar in, which lands directly above the reader's
@@ -17,7 +21,7 @@
       manifest's own `theme_color` is a third copy for a third moment — install and splash,
       before this document exists at all.
     -->
-    <meta name="theme-color" content="#f0efe6" />
+    <meta name="theme-color" content="#fbf7ed" />
     <title>Tidemarks</title>
   </head>
   <body>

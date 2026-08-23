@@ -123,23 +123,26 @@ thumb 外面那一圈（那是在它所騎的軌上挖一個洞）、以及目�
 
 ### 字
 
-四個家族，各有職責，越界即為錯：
+三個家族，各有職責，越界即為錯：
 
 | token | 家族 | 只用在 |
 | --- | --- | --- |
 | `--font-ui` | Source Serif 4 ＋ 平台的宋體堆疊 | 所有內容與標題，`body` 的預設 |
-| `--font-display` | Spectral ＋ `--font-ui` | **只有字標**「Tidemarks」 |
 | `--font-control` | 平台的黑體堆疊 | 按鈕與 meta |
 | `--font-mono` | IBM Plex Mono ＋ `ui-monospace` | 只有 uppercase 微型標籤與系統狀態 |
 
-**拉丁那半自帶，漢字那半名平台堆疊**（ADR-0014、ADR-0022〈四個家族，兩種待遇〉）。自帶的有三支
-拉丁：Source Serif 4（variable，latin 與 latin-ext 兩個 subset 共 90 KB）、Spectral 400、
-IBM Plex Mono 400。**漢字沒有自帶的介面字**——`NotoSerifCJKtc-Regular` 是 16 MB、
-`NotoSansCJKtc-Regular` 是 11 MB，那兩支照 ADR-0014 是讀者開了有漢字的書才下載。
+本來有第四個 `--font-display`（Spectral），只畫字標「Tidemarks」那一個字串。**字標現在是圖不是字**
+（`components/Wordmark.tsx`，字母是外框），所以那支字型不再隨 app 送出，改放在
+[`docs/brand/source/fonts/`](brand/source/fonts/) 給切外框的工具讀。為什麼要外框：favicon 與 README
+的圖都是被當成獨立圖片載入的，載不到頁面的 `@font-face`。
 
-`--font-display` 與 `--font-mono` 的堆疊尾端都退回 `--font-ui`／`ui-monospace`，因為 Spectral 與
-IBM Plex Mono 都沒有漢字：字標是西文所以拿得到 Spectral，微型標籤是 uppercase 拉丁所以拿得到 mono，
-中文落到後面那一支，這是刻意的。
+**拉丁那半自帶，漢字那半名平台堆疊**（ADR-0014、ADR-0022〈四個家族，兩種待遇〉）。自帶的剩兩支
+拉丁：Source Serif 4（variable，latin 與 latin-ext 兩個 subset 共 90 KB）與 IBM Plex Mono 400。
+**漢字沒有自帶的介面字**——`NotoSerifCJKtc-Regular` 是 16 MB、`NotoSansCJKtc-Regular` 是 11 MB，
+那兩支照 ADR-0014 是讀者開了有漢字的書才下載。
+
+`--font-mono` 的堆疊尾端退回 `ui-monospace`，因為 IBM Plex Mono 沒有漢字：微型標籤是 uppercase
+拉丁所以拿得到 mono，中文落到後面那一支，這是刻意的。
 
 讀者如果為了看書下載過自帶明體，**下一次開 app** 的時候介面也會用它（`lib/ui-font.ts`）。不在下載
 完成的當下換，因為讀者那一刻正盯著那個面板。
@@ -154,7 +157,7 @@ IBM Plex Mono 都沒有漢字：字標是西文所以拿得到 Spectral，微型
 
 | token | fine | coarse | 家族 | 用在 |
 | --- | --- | --- | --- | --- |
-| `--type-display` | 2rem | 同左 | display | 字標 |
+| `--type-display` | 2rem | 同左 | — | 字標的高度（不是字級，字標是圖） |
 | `--type-title` | 1.375rem | 同左 | ui | 大書的書名（另有 `clamp`） |
 | `--type-lede` | 1.125rem | 1.1875rem | ui | 抽屜標題、確認框標題、〈帳號〉第一句 |
 | `--type-body` | 1rem | 1.0625rem | ui | 內文、目錄項、引用 |

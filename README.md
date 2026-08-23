@@ -1,4 +1,9 @@
-# Tidemarks
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/tidemarks-wordmark-dark.svg">
+    <img src="docs/brand/tidemarks-wordmark.svg" alt="Tidemarks" width="340">
+  </picture>
+</p>
 
 A local-first epub reader, built as a PWA. Everything lives in the browser's IndexedDB, so a book stays readable and writable offline; an optional Cloudflare Worker syncs across devices (sign in with a passkey, or with a code mailed to you — no password either way).
 
