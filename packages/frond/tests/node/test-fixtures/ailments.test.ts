@@ -46,6 +46,18 @@ describe("the stylesheet behind an @import", () => {
   });
 });
 
+describe("colours the book pins", () => {
+  // Nothing above reports this one. The browser suite reads the reader's own ink and the
+  // reader's own background back, both of which stay right whatever the book declares, so a
+  // book that quietly stopped pinning anything would leave every layer green.
+  test("hardcoded-colors: foreground and background pinned, defeating night mode", () => {
+    const book = open("hardcoded-colors");
+
+    expect(book.stylesheet).toMatch(/color:\s*#000000/);
+    expect(book.stylesheet).toMatch(/background-color:\s*#ffffff/);
+  });
+});
+
 describe("shapes in manifest hrefs", () => {
   test("an href escaping the package root is blocked rather than silently corrected", () => {
     // "`../` is conforming" and "`../` always passes" are two different things: one more
@@ -136,6 +148,20 @@ function depthOf(nodes: readonly TocNode[]): number {
 }
 
 const PNG_SIGNATURE = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+describe("the vehicle an EPUB 2 TOC ailment rides on", () => {
+  // toc.test.ts runs each TOC ailment once per vehicle, but it takes the vehicle from a label
+  // in its own table rather than asserting it. If either of these grew a nav.xhtml it would
+  // fall back to it and become a copy of the EPUB 3 twin — the pairing would collapse with
+  // every layer still green. These fixtures exist because the bad TOCs measured in the wild
+  // appear on the NCX.
+  test.for(["toc-href-percent-comma-epub2", "toc-href-parent-prefix-epub2"] as const)(
+    "%s is read from an NCX, not a nav document",
+    (name) => {
+      expect(open(name).navigationVehicle).toBe("ncx");
+    },
+  );
+});
 
 describe("sections with no text of their own", () => {
   test("empty-and-image-only-sections: one empty, one holding only an image", () => {

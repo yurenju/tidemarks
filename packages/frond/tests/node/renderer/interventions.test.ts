@@ -54,10 +54,13 @@ describe("the closed list of interventions", () => {
     expect(new Set(INTERVENTIONS.map((i) => i.id)).size).toBe(INTERVENTIONS.length);
   });
 
-  test("every entry points at a file under the renderer", () => {
-    // `what` and `why` being non-empty is not asserted here: an entry with an empty `what`
-    // already fails the case below that makes every injected property name itself.
+  test("every entry states a reason and points at a file under the renderer", () => {
+    // `what` is left out: an entry with an empty one already fails the case below that makes
+    // every injected property name itself. `why` has no such second reporter, and it is the
+    // field the closed list exists for — an intervention that cannot say why it is warranted
+    // is exactly the one ADR-0003 means to keep out.
     for (const intervention of INTERVENTIONS) {
+      expect(intervention.why, intervention.id).not.toBe("");
       expect(intervention.where, intervention.id).toMatch(/^src\/renderer\//);
     }
   });

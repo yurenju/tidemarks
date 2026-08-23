@@ -80,6 +80,22 @@ describe("tools/list", () => {
     };
     expect(reply.result.tools.map((tool) => tool.name)).toEqual(["answer", "refuse", "broken"]);
   });
+
+  it("passes on the description and the schema each tool was registered with", async () => {
+    // The reply is assembled by hand, field by field, so a field dropped from that literal
+    // still type-checks — the type describes the definition, not what goes out on the wire.
+    // A tool arriving with no description or no schema is one no agent can decide to call.
+    const reply = (await call("tools/list")) as {
+      result: { tools: { name: string; description: string; inputSchema: unknown }[] };
+    };
+    expect(reply.result.tools).toEqual(
+      [answering, refusing, broken].map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      })),
+    );
+  });
 });
 
 describe("tools/call", () => {
