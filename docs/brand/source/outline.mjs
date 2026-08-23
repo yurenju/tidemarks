@@ -16,12 +16,13 @@
 // x = 18.75, and 18.75 is 0.1875F — the left inset the spec states. That agreement is the
 // check that this is laid out the way the design was drawn.
 //
-// What it does NOT write is `components/Wordmark.tsx`, which carries the same wordmark
-// outline so the app can paint it from theme tokens. Regenerating means pasting the printed
-// `d` into that file too.
+// It writes `components/Wordmark.tsx` as well — not the whole file, only the three `d`
+// attributes in it. That component is the fourth copy of this geometry and the only one that
+// is hand-written code, so leaving it to a human step would mean a design change that lands
+// everywhere except the screen it is most seen on.
 
 import * as fontkit from "fontkit";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const FONT = "docs/brand/source/fonts/spectral-latin-400-normal.woff2";
 const SIZE = 100;
@@ -64,6 +65,9 @@ const WORDMARK = {
   text: outline("tidemarks", 233.05, 86.8),
 };
 
+// The brand sheet's own literals. They are also in `styles/tokens.css` under names, and the
+// two cannot reference each other: these files are read as images, with no page to ask. If a
+// token here ever moves, `docs/brand/README.md` has the table that pairs them up.
 const LIGHT = { block: "#EDE5D6", tide: "#1B2E4D", letters: "#14171C", page: "#F4EEE2" };
 const DARK = { block: "#2C3F55", tide: "#A9C4DE", letters: "#F2F1E9", page: "#16202B" };
 
@@ -119,6 +123,24 @@ for (const [path, contents] of Object.entries(files)) {
   console.log(`wrote ${path}`);
 }
 
+// The component, edited rather than written: everything around the three paths is code that a
+// person maintains. Each `d` is found by the class beside it, so the three cannot swap places.
+const COMPONENT = "packages/app/src/components/Wordmark.tsx";
+let tsx = readFileSync(COMPONENT, "utf8");
+for (const [cls, d] of [
+  ["wordmark-block", WORDMARK.block],
+  ["wordmark-tide", WORDMARK.tide],
+  ["wordmark-letters", WORDMARK.text.d],
+]) {
+  // Whitespace-tolerant, because prettier decides for itself whether the two attributes share
+  // a line with the tag or get one each.
+  const at = new RegExp(`(className="${cls}"\\s+d=")[^"]*`);
+  if (!at.test(tsx)) throw new Error(`${COMPONENT} has no path for ${cls}`);
+  tsx = tsx.replace(at, `$1${d}`);
+}
+writeFileSync(COMPONENT, tsx);
+console.log(`wrote ${COMPONENT} (three path attributes)`);
+
 for (const [name, logo] of Object.entries({ mark: MARK, wordmark: WORDMARK })) {
-  console.log(`\n--- ${name} stem at x=${logo.text.originX.toFixed(3)} ---\n${logo.text.d}`);
+  console.log(`${name} stem at x=${logo.text.originX.toFixed(3)}`);
 }

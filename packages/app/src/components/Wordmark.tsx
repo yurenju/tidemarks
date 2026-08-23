@@ -4,11 +4,14 @@
 // **The letters are outlines, not text.** The same drawing has to serve as the favicon and
 // the README image, and both of those are loaded as standalone images that cannot reach the
 // page's @font-face — so the app carries no display face any more, and these paths are cut
-// from Spectral once by `docs/brand/source/outline.mjs`. Changing the design means rerunning
-// that script and pasting the `d` here as well as into `docs/brand/*.svg`.
+// from Spectral by `docs/brand/source/outline.mjs`. **The three `d` attributes below are
+// written by that script**, which finds them by the class beside them; everything else in this
+// file is ordinary code. Rerun it after changing the design and all four copies move together.
 //
-// **The three colours are tokens** (`styles/library.css`). This is the one place the logo
-// lives inside the app, where the reader may have picked a theme the machine disagrees with;
+// **The three colours are tokens** (`--wordmark-block` and its two neighbours are declared in
+// `styles/tokens.css`; `styles/library.css` wires them to these classes). This is the one place
+// the logo lives inside the app, where the reader may have picked a theme the machine
+// disagrees with;
 // an `<img>` would only ever see the system preference. The favicon, having no page to ask,
 // does exactly that instead.
 //

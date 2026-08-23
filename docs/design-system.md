@@ -132,6 +132,7 @@ thumb 外面那一圈（那是在它所騎的軌上挖一個洞）、以及目�
 | `--font-mono` | IBM Plex Mono ＋ `ui-monospace` | 只有 uppercase 微型標籤與系統狀態 |
 
 本來有第四個 `--font-display`（Spectral），只畫字標「Tidemarks」那一個字串。**字標現在是圖不是字**
+（[ADR-0034](adr/0034-the-wordmark-stops-being-type.md)，它取代了 ADR-0022 那句「Spectral 給字標」）
 （`components/Wordmark.tsx`，字母是外框），所以那支字型不再隨 app 送出，改放在
 [`docs/brand/source/fonts/`](brand/source/fonts/) 給切外框的工具讀。為什麼要外框：favicon 與 README
 的圖都是被當成獨立圖片載入的，載不到頁面的 `@font-face`。
