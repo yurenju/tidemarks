@@ -20,10 +20,9 @@ import { BOOKS, openBook, openPanel, readerFrame, segment, settled } from "../su
  * against the column box rather than against pixels of text, so they do not depend on the
  * font the container happens to have.
  *
- * The ceiling gets **one** test, not one per case: the cases belong to the arithmetic, which
- * `src/lib/line-length.test.ts` walks in full. The one kept is the vertical one because it
- * carries the axis with it — the number and the axis it lies along are the two things that can
- * be lost on the way to the page, and a horizontal case would only carry the first.
+ * The kept case is the vertical one because it carries the axis with it: the number and the
+ * axis it lies along are the two things that can be lost on the way to the page, and a
+ * horizontal case would only carry the first.
  */
 /** The column geometry frond settled on, read from the document it laid out. */
 async function columns(page: Page): Promise<{ count: number; emsPerColumn: number }> {
