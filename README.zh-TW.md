@@ -1,4 +1,9 @@
-# Tidemarks
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/tidemarks-wordmark-dark.svg">
+    <img src="docs/brand/tidemarks-wordmark.svg" alt="Tidemarks" width="340">
+  </picture>
+</p>
 
 Local-first 的 epub 閱讀 PWA。資料存在瀏覽器的 IndexedDB，離線可讀可寫；可選配 Cloudflare Worker 做跨裝置同步（用 passkey 登入，或收一封信裡的登入碼，兩條路都不用密碼）。
 

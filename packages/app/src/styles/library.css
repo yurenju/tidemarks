@@ -24,18 +24,38 @@
 }
 
 /* The wordmark. It used to be the one coloured thing on the shelf, which spent the
-   colour that means "you can press this" on the one word nobody can. */
+   colour that means "you can press this" on the one word nobody can.
+
+   It is a drawing now rather than a line of type (`components/Wordmark.tsx`), so what used to
+   be a font stack and a tracking figure is a viewBox — but it is still sized in the same token
+   as before, which is what keeps it growing with the rest of the interface when the reader
+   turns their browser's text up (ADR-0006). */
 .library-header h1 {
   margin: 0;
   margin-right: auto;
-  font-family: var(--font-display);
   font-size: var(--type-display);
-  font-weight: 400;
-  /* The handoff's own figure for the wordmark, and it is negative: a display serif at this
-     size sets loose, so the tracking pulls it back to one word rather than nine letters. */
-  letter-spacing: -0.015em;
   line-height: 1;
-  color: var(--text-primary);
+}
+
+/* 107.6 tall for every 100 of type size — the block plus the wave hanging under it. Height
+   rather than width, because it is the letters that have to match the interface's scale; the
+   width follows from the word. */
+.wordmark {
+  display: block;
+  height: 1.076em;
+  width: auto;
+}
+
+.wordmark-block {
+  fill: var(--wordmark-block);
+}
+
+.wordmark-tide {
+  stroke: var(--mark-indigo);
+}
+
+.wordmark-letters {
+  fill: var(--text-primary);
 }
 
 .library-actions {

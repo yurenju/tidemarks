@@ -8,6 +8,7 @@ import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../l
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
 import type { BookRecord, Progress, ReadingSession } from "../lib/types";
+import { Wordmark } from "./Wordmark";
 
 interface Shelf {
   books: BookRecord[];
@@ -130,7 +131,9 @@ export default function Library({
           here; it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a
           setting is a question that no longer arises (ADR-0026). */}
       <header className="library-header">
-        <h1>Tidemarks</h1>
+        <h1>
+          <Wordmark />
+        </h1>
         <div className="library-actions">
           <button className="ghost" onClick={onOpenSettings} data-testid="open-settings">
             <Trans comment="The one door out of the shelf, in the header beside the app's name. Opens 〈設定〉.">

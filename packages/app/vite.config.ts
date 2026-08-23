@@ -66,11 +66,19 @@ export default defineConfig({
         short_name: "Tidemarks",
         description: "epub reader with cross-device sync",
         display: "standalone",
-        // `--surface-page` in the dark theme, spelled out: a manifest is read before any CSS
-        // is, so this is the one place a token has to be a literal.
-        background_color: "#1a1815",
-        theme_color: "#1a1815",
-        icons: [{ src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+        // The light theme's `--surface-page`, spelled out: a manifest is read before any CSS
+        // is, so this is the one place a token has to be a literal. It is the light value and
+        // not the dark one because both icons below are painted on that same paper — a splash
+        // screen in night colours would frame them in a rectangle of the wrong century.
+        background_color: "#f4eee2",
+        theme_color: "#f4eee2",
+        icons: [
+          { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+          // Android crops a maskable icon to whatever shape the launcher uses, so this one is
+          // a separate drawing: square, full-bleed, and with the mark inside the 80% safe
+          // circle. Feeding it the SVG above would let a round mask cut the waves off.
+          { src: "maskable-icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
       },
     }),
   ],
