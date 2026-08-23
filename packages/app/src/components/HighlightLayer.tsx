@@ -36,15 +36,22 @@ export interface PaintedHighlight {
 // book, down the right-hand side in a vertical one, where a Chinese reader expects 傍線. A
 // strip is axis-aligned either way, so nothing about its geometry says which. `Reader.tsx`
 // already holds the answer, from frond's `writingMode` event.
+//
+// **The `ref` is how a page turn moves it.** A turn slides the page under this layer, and the
+// marks have to travel with the text they belong to; `Reader.tsx` writes the transform straight
+// onto this element once per animation frame rather than through a prop, because re-rendering
+// the reader sixty times a second to move one box is the whole tree paying for a transform.
 export default function HighlightLayer({
+  ref,
   painted,
   vertical = false,
 }: {
+  ref?: React.Ref<HTMLDivElement>;
   painted: readonly PaintedHighlight[];
   vertical?: boolean;
 }) {
   return (
-    <div className="highlight-layer" aria-hidden>
+    <div className="highlight-layer" ref={ref} aria-hidden>
       {painted.map(({ annotation, strips }) =>
         strips.map((strip, index) => (
           <div

@@ -134,6 +134,12 @@ export type RendererListeners = {
 /** Which way a turn is going. */
 export type TurnDirection = "next" | "prev";
 
+/** How far a page sits from where it rests, in px. `{ x: 0, y: 0 }` is at rest. */
+export interface PageOffset {
+  readonly x: number;
+  readonly y: number;
+}
+
 /**
  * A page turn that has begun and has not been decided yet — the reader's finger is still on
  * it.
@@ -163,8 +169,18 @@ export interface TurnInProgress {
   readonly hasPreview: boolean;
   /** Still the turn in progress. False once it has been committed, cancelled, or overtaken. */
   readonly live: boolean;
-  /** Moves it to `distance` px along, clamped to `0..extent`. */
-  moveTo(distance: number): void;
+  /**
+   * Moves it to `distance` px along, clamped to `0..extent`, and answers where that put the
+   * page the reader is on — an offset from where it rests, in the coordinates `rectsFor`
+   * reports in.
+   *
+   * **The answer is what a consumer drawing over the page needs and cannot work out.** Which
+   * axis a turn travels on and which way along it are frond's (`turnPlacement`), while anything
+   * drawn on top of the page — a highlight, a note marker — belongs to the app (ADR-0002).
+   * Without this the app's layer stays where the text used to be for the length of the turn,
+   * and only catches up when `relocate` arrives, after it has landed.
+   */
+  moveTo(distance: number): PageOffset;
   /**
    * Takes the turn: the incoming page becomes the page.
    *
@@ -198,6 +214,9 @@ function sameNeighbour(a: NeighbourPage, b: NeighbourPage): boolean {
 interface ActiveTurn extends TurnInProgress {
   abandon(): void;
 }
+
+/** Where a page sits when no turn is moving it. */
+const AT_REST: PageOffset = { x: 0, y: 0 };
 
 /** A placement as `SectionView.place` takes it. */
 function offsetOf(at: { readonly x: number; readonly y: number }): [number, number] {
@@ -875,10 +894,13 @@ export class Renderer {
         return live;
       },
       moveTo: (distance) => {
-        if (!live) return;
+        // A turn that is already over leaves the frames alone, and says so: the frames are back
+        // at rest, so that is where a consumer's own layer belongs too.
+        if (!live) return AT_REST;
         const at = turnPlacement(spec.from, distance, spec.extent);
         current.place(...offsetOf(at.current));
         incoming?.place(...offsetOf(at.incoming));
+        return at.current;
       },
       commit: () => {
         if (!live) return;

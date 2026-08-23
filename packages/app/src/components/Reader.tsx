@@ -5,8 +5,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { EpubBook } from "@yurenju/frond/epub";
 import {
   Renderer,
+  type PageOffset,
   type RenderLocation,
   type TurnDirection,
+  type TurnEdge,
   type TurnInProgress,
 } from "@yurenju/frond/renderer";
 import { db } from "../lib/db";
@@ -148,6 +150,22 @@ const FONT_TOAST_MS = 2600;
 // on a 60Hz screen, short enough that it is the flick and not the drag before it.
 const VELOCITY_WINDOW_MS = 90;
 
+// Where the page sits when no turn is moving it.
+const AT_REST: PageOffset = { x: 0, y: 0 };
+
+/**
+ * Moves the highlight layer with the page a turn is sliding.
+ *
+ * A mark belongs to a passage of the book, not to the screen: the moment the page starts
+ * moving, so must every mark on it. The boxes themselves are measured against the page's
+ * resting place and are not remeasured during a turn — nothing about the page's *own* layout
+ * changes while it slides, so one transform on the layer says the whole of it.
+ */
+function slideMarks(layer: HTMLElement | null, at: PageOffset): void {
+  if (layer === null) return;
+  layer.style.transform = at.x === 0 && at.y === 0 ? "" : `translate(${at.x}px, ${at.y}px)`;
+}
+
 // The reader-facing name of a font choice, from its one source. The toast names the face the
 // download applied, and the dropdown is where that name is defined.
 const fontFamilyLabel = (i18n: I18n, choice: FontChoice): string => {
@@ -221,6 +239,10 @@ export default function Reader({
   const [painted, setPainted] = useState<PaintedHighlight[]>([]);
   // The same list the layer paints, for hit-testing a tap without waiting for a re-render.
   const paintedRef = useRef<PaintedHighlight[]>([]);
+  // The layer itself, so a turn in progress can slide it with the page it is drawn over. Moved
+  // by hand rather than through state: this runs once per animation frame, and re-rendering the
+  // reader at 60Hz to move one box would be paying for the whole tree to move a transform.
+  const marksRef = useRef<HTMLDivElement>(null);
   const [chapters, setChapters] = useState<ChapterBoundary[]>([]);
   // Which section is on screen. Unlike `fraction` this is known from the very first
   // `relocate`, before the whole-book index exists — so the panel can mark the current
@@ -325,12 +347,56 @@ export default function Reader({
       return Math.max(0, advanced / (last.at - first.at));
     };
 
+    /**
+     * A turn from frond, with the highlight layer tied to the page it is drawn over.
+     *
+     * **Wrapped here rather than at each call site**, because a turn is put back by several
+     * routes — released, bounced, swapped for the other page, cancelled by a press going
+     * somewhere else — and every one of them ends at `cancel()`. A route added later gets this
+     * without knowing it exists.
+     *
+     * **Committing is the one ending that does not put the layer back, and that is deliberate.**
+     * The boxes on it were measured against the page that has just left; frond swaps the frames
+     * at once, while the repaint that replaces those boxes waits for `relocate` to come back
+     * through React. Snapping the layer home in between would draw the old page's marks over
+     * the new page for a frame — the mark slides off the edge, blinks back at its old spot on
+     * the wrong page, and then goes. Left where the turn carried them, the stale boxes are off
+     * the side of the book and clipped until the repaint drops them.
+     */
+    const beginTurn = (
+      towards: TurnDirection,
+      from: TurnEdge,
+      renderer: Renderer,
+    ): TurnInProgress | undefined => {
+      const turn = renderer.beginTurn(towards, from);
+      if (turn === undefined) return undefined;
+
+      return {
+        extent: turn.extent,
+        atBoundary: turn.atBoundary,
+        hasPreview: turn.hasPreview,
+        get live() {
+          return turn.live;
+        },
+        moveTo: (distance) => {
+          const at = turn.moveTo(distance);
+          slideMarks(marksRef.current, at);
+          return at;
+        },
+        commit: turn.commit,
+        cancel: () => {
+          turn.cancel();
+          slideMarks(marksRef.current, AT_REST);
+        },
+      };
+    };
+
     const beginDrag = (travel: number): { turn: TurnInProgress; sign: number } | null => {
       const renderer = rendererRef.current;
       const towards = navRef.current?.dragTowards(travel);
       if (!renderer || towards === undefined) return null;
 
-      const turn = renderer.beginTurn(towards.towards, towards.from);
+      const turn = beginTurn(towards.towards, towards.from, renderer);
       if (turn === undefined) return null;
 
       trail = [];
@@ -368,8 +434,12 @@ export default function Reader({
 
       const startedAt = performance.now();
       const step = (now: number) => {
-        // Something else moved the reader — a key, a jump, a resize. The turn is already over.
-        if (!turn.live) return;
+        // Something else moved the reader — a key, a jump, a resize. The turn is already over,
+        // and frond has already put the frames back, so the marks go back with them.
+        if (!turn.live) {
+          slideMarks(marksRef.current, AT_REST);
+          return;
+        }
         const t = Math.min(1, (now - startedAt) / span.ms);
         turn.moveTo(span.from + (span.to - span.from) * span.ease(t));
         if (t < 1) {
@@ -608,7 +678,7 @@ export default function Reader({
       const edge = navRef.current?.edgeFor(towards);
       if (!renderer || edge === undefined) return;
 
-      const turn = renderer.beginTurn(towards, edge);
+      const turn = beginTurn(towards, edge, renderer);
       if (turn === undefined) return;
 
       // A page to go to but nothing laid out behind the current one: sliding it across would
@@ -1144,6 +1214,11 @@ export default function Reader({
 
     setPainted(next);
     paintedRef.current = next;
+    // Freshly measured boxes are measured against the page at rest, so whatever a turn left on
+    // the layer is spent. This is also the backstop for a turn abandoned from inside frond — a
+    // resize or a jump ends it without the code that started it hearing about it, and both of
+    // those arrive here.
+    slideMarks(marksRef.current, AT_REST);
     // `verticalBook` is in here because the placement depends on it now: which edge of the
     // text a mark runs along is the axis, and a book whose writing mode arrives after the
     // first paint would otherwise keep its marks on the wrong side of the line.
@@ -1299,7 +1374,7 @@ export default function Reader({
             {loadError && <p className="error">{loadError}</p>}
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
-            <HighlightLayer painted={painted} vertical={verticalBook} />
+            <HighlightLayer ref={marksRef} painted={painted} vertical={verticalBook} />
           </div>
           <button
             className="page-btn"

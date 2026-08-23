@@ -19,6 +19,7 @@
 
 export { Renderer } from "./renderer.ts";
 export type {
+  PageOffset,
   RendererListeners,
   RendererOptions,
   RendererStart,
