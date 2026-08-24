@@ -675,6 +675,75 @@ export class SectionView {
     );
   }
 
+  /**
+   * A `Range` in this document spanning two container points, for a consumer that has taken
+   * over touch selection and draws its own (issue #50, ADR-0036). `undefined` when either
+   * point falls on nothing selectable.
+   *
+   * `"word"` snaps to the word under the anchor — a long press — using the platform's own
+   * segmentation (`Intl.Segmenter`), so the boundary is the one the reader's script expects; a
+   * point between words, or an engine without the segmenter, falls back to the single character
+   * there. `"char"` takes the two carets as they are — dragging an endpoint.
+   */
+  rangeFromPoints(
+    anchor: { readonly x: number; readonly y: number },
+    focus: { readonly x: number; readonly y: number },
+    granularity: "word" | "char",
+  ): Range | undefined {
+    const start = this.caretAt(anchor);
+    if (start === undefined) return undefined;
+
+    if (granularity === "word") {
+      if (start.node.nodeType !== Node.TEXT_NODE) return undefined;
+      const text = (start.node as Text).data;
+      if (text.length === 0) return undefined;
+      const bounds = wordBoundsAt(text, start.offset);
+      return this.rangeBetween(
+        { node: start.node, offset: bounds.start },
+        { node: start.node, offset: bounds.end },
+      );
+    }
+
+    const end = this.caretAt(focus);
+    if (end === undefined) return undefined;
+
+    const range = this.rangeAt(start);
+    if (range.comparePoint(end.node, end.offset) < 0) range.setStart(end.node, end.offset);
+    else range.setEnd(end.node, end.offset);
+    return range.collapsed ? undefined : range;
+  }
+
+  /**
+   * The caret position in this document under a container point, or `undefined` when the point
+   * falls on nothing selectable.
+   *
+   * The inverse of `describePointer`: the point arrives in container coordinates, so subtract
+   * the margin the iframe is inset by and the offset a turn in progress has moved the frame by,
+   * which lands in the iframe's own viewport — where `caretPositionFromPoint` counts from, with
+   * the scroll already accounted for. `caretRangeFromPoint` is the WebKit spelling of the same
+   * question.
+   */
+  private caretAt(point: {
+    readonly x: number;
+    readonly y: number;
+  }): { readonly node: Node; readonly offset: number } | undefined {
+    const x = point.x - this.insets.left - this.offset.x;
+    const y = point.y - this.insets.top - this.offset.y;
+    const doc = this.document as Document & {
+      caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
+      caretRangeFromPoint?(x: number, y: number): Range | null;
+    };
+    if (typeof doc.caretPositionFromPoint === "function") {
+      const caret = doc.caretPositionFromPoint(x, y);
+      return caret === null ? undefined : { node: caret.offsetNode, offset: caret.offset };
+    }
+    if (typeof doc.caretRangeFromPoint === "function") {
+      const range = doc.caretRangeFromPoint(x, y);
+      return range === null ? undefined : { node: range.startContainer, offset: range.startOffset };
+    }
+    return undefined;
+  }
+
   /** The current selection. `undefined` when there is none, or when it is not in this document. */
   selection(): Range | undefined {
     const selection = this.document.getSelection();
@@ -1123,6 +1192,46 @@ export const PEEK_FRAME_ATTRIBUTE = "data-frond-peek";
  * right side, while `rectsFor()` adds back `rect.left`. With the two sides using different
  * frames of reference, every highlight would be displaced.
  */
+/** One word segment the way `Intl.Segmenter` reports them — the fields this file reads. */
+interface WordSegment {
+  readonly index: number;
+  readonly segment: string;
+  readonly isWordLike?: boolean;
+}
+
+interface WordSegmenter {
+  segment(input: string): Iterable<WordSegment>;
+}
+
+/**
+ * The `[start, end)` of the word covering `offset` in `text`, using the platform's own word
+ * segmentation. Falls back to the single character at `offset` when the point sits between
+ * words (whitespace, punctuation) or when the engine has no `Intl.Segmenter` — never zero
+ * width, so a long press always lands on at least one character.
+ */
+function wordBoundsAt(text: string, offset: number): { start: number; end: number } {
+  const at = Math.max(0, Math.min(offset, text.length - 1));
+  const single = { start: at, end: at + 1 };
+
+  const Segmenter = (
+    Intl as unknown as {
+      Segmenter?: new (
+        locales?: string | undefined,
+        options?: { granularity: "word" },
+      ) => WordSegmenter;
+    }
+  ).Segmenter;
+  if (typeof Segmenter !== "function") return single;
+
+  const segmenter = new Segmenter(undefined, { granularity: "word" });
+  for (const word of segmenter.segment(text)) {
+    const start = word.index;
+    const end = start + word.segment.length;
+    if (word.isWordLike === true && offset >= start && offset < end) return { start, end };
+  }
+  return single;
+}
+
 function sizeFrame(frame: HTMLIFrameElement, host: HTMLElement, insets: Insets): void {
   const width = Math.max(1, Math.floor(host.clientWidth - insets.left - insets.right));
   const height = Math.max(1, Math.floor(host.clientHeight - insets.top - insets.bottom));

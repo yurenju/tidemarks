@@ -40,6 +40,32 @@ export function isTap(dx: number, dy: number, ms: number): boolean {
 // select.
 export const TAP_SELECTION_GRACE_MS = 400;
 
+// How long a still finger has to stay down before its press becomes a selection rather than a
+// page turn (ADR-0036). It happens to equal `MAX_TAP_MS` — both phone platforms start selecting
+// text at around half a second — but it is a separate name because it answers a different
+// question ("has this become a long press to select", not "is this still a tap") and the ADR
+// marks it for real-device measurement, where the two may diverge.
+export const LONG_PRESS_MS = 500;
+
+/**
+ * Whether a press has become a long press asking to select text, rather than a page turn.
+ *
+ * This is the discriminator ADR-0036 revised ADR-0024 for: telling "held still to select" from
+ * "slow swipe to turn". The two are mutually exclusive by construction — `startsDrag` claims the
+ * press for a page turn the instant it travels past `TAP_SLOP_PX` sideways, whatever the clock
+ * says, so a finger that is still inside the slop when the threshold elapses was never a swipe.
+ * A finger that had already moved is turning a page and never reaches here.
+ *
+ * So time enters the decision only to *recognise a selection*, never to *refuse a turn* — the
+ * reader who presses, hesitates and then swipes still moves past the slop and still turns the
+ * page, which is the promise `startsDrag`'s time-blindness was there to keep.
+ *
+ * **The threshold is a guess** — ADR-0036 marks it for real-device measurement.
+ */
+export function startsLongPressSelection(dx: number, dy: number, ms: number): boolean {
+  return ms >= LONG_PRESS_MS && Math.abs(dx) < TAP_SLOP_PX && Math.abs(dy) < TAP_SLOP_PX;
+}
+
 /**
  * Whether the page should start following the finger.
  *
