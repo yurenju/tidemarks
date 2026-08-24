@@ -128,7 +128,24 @@
    the top of its first strip and ends at the bottom of its last: the stems run along the sides
    of the text there, not above and below it. `data-axis` carries the answer, which comes from
    frond's `writingMode` — nothing in the geometry of a square says which way it is facing. */
-.selection-handle {
+/* **Hovered and pressed as well as plain**, which the rest of the app's buttons want and this one
+   must refuse: `controls.css` fills a hovered button with `--fill-selected` and a pressed one with
+   `--tide-pressed`. A handle is a bead on a stem, so either fill arrives as an opaque 44px square —
+   the whole hit area — over the text: the pressed one for the length of every drag, and the hovered
+   one after it, because a phone leaves the hover with the last thing touched until something else
+   is. Measured on an emulated iPhone; a desktop-sized screen shows none of it, because handles are
+   only drawn under a coarse pointer.
+
+   **The two refusals are not written the same way, and cannot be.** `button:hover` is one class
+   short of `.selection-handle:hover`, so that one is won on specificity. The pressed rule is
+   `button:not(.ghost, .danger, .settings-tab):active:not(:disabled)`, which counts three
+   class-weight terms and an element — so it is matched term for term here and won by the thing that
+   decides ties in this project: `index.css` imports this file after `controls.css` (see the note on
+   `device.css` in CLAUDE.md). Drop the `:not(:disabled)` or the leading `button` and the square
+   comes back, with nothing to say why. */
+button.selection-handle,
+button.selection-handle:hover,
+button.selection-handle:active:not(:disabled) {
   /* How far the stem reaches past the edge of the text, and how big the bead on the end of it
      is. `selection-handles.ts`'s `HANDLE_REACH_PX` is the first of these, and
      `toolbar-position.ts` leaves room for the whole handle — the colour row landing on one is
