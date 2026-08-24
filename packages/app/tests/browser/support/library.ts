@@ -551,7 +551,7 @@ export async function longPressSelect(
 }
 
 /**
- * The middle of each run of text on the page, longest first, in the outer document's
+ * A point on each run of text on the page, longest run first, in the outer document's
  * coordinates.
  *
  * **The middle of the page is not reliably on a character.** A vertical book lays its column
@@ -562,6 +562,23 @@ export async function longPressSelect(
  * anywhere, and a test that fails saying nothing about the thing it names.
  *
  * Several rather than one, because a drag needs somewhere to go as well as somewhere to start.
+ *
+ * ## The point is a line box's, clipped to the page — and both halves are load-bearing
+ *
+ * The bounding rectangle of a run **is not a place where that run is drawn**. A run wraps, and
+ * in a paginated book it wraps into the next column: its bounding rectangle then spans the
+ * columns and the gutters between them, and the middle of it lands on whatever else is there.
+ * On the vertical book's cover that "whatever else" is the empty part of the title's column,
+ * and both engines answer a point there with the end of the title — the caret the selection
+ * already sits at, so a drag to it extends nothing. The first line box is a rectangle the
+ * glyphs actually occupy.
+ *
+ * The clipping is the other half. A run may begin on screen and continue far below it, and the
+ * middle of a rectangle like that is off the page — where `rangeFromPoints` answers `null`,
+ * correctly, and a drag aimed there is a drag onto nothing. This was issue #54, read for a
+ * while as WebKit's caret-from-point being broken: WebKit paginates the cover differently, so
+ * the run this picked was the one whose middle fell off the page, and it was the aim that
+ * differed between the engines rather than the engine.
  */
 export async function textPoints(page: Page): Promise<{ x: number; y: number }[]> {
   const points = await page.evaluate(
@@ -583,21 +600,21 @@ export async function textPoints(page: Page): Promise<{ x: number; y: number }[]
 
         const range = document_.createRange();
         range.selectNodeContents(node);
-        const rect = range.getBoundingClientRect();
-        const onScreen =
-          rect.width > 0 &&
-          rect.height > 0 &&
-          rect.right > 0 &&
-          rect.bottom > 0 &&
-          rect.left < view.innerWidth &&
-          rect.top < view.innerHeight;
-        if (!onScreen) continue;
 
-        found.push({
-          x: box.left + rect.left + rect.width / 2,
-          y: box.top + rect.top + rect.height / 2,
-          length: value.length,
-        });
+        for (const rect of range.getClientRects()) {
+          const left = Math.max(rect.left, 0);
+          const top = Math.max(rect.top, 0);
+          const right = Math.min(rect.right, view.innerWidth);
+          const bottom = Math.min(rect.bottom, view.innerHeight);
+          if (right <= left || bottom <= top) continue;
+
+          found.push({
+            x: box.left + (left + right) / 2,
+            y: box.top + (top + bottom) / 2,
+            length: value.length,
+          });
+          break;
+        }
       }
 
       return found.sort((a, b) => b.length - a.length).map(({ x, y }) => ({ x, y }));

@@ -49,6 +49,7 @@ import {
 import {
   handleAt,
   selectionEnds,
+  washRect,
   type Point,
   type Rect,
   type SelectionEnds,
@@ -634,7 +635,13 @@ export default function Reader({
         cfiRange: facts.cfi,
         text: facts.text,
         anchor,
-        drawn: { rects: facts.rects.map(toRect), ends },
+        drawn: {
+          // The wash is let out past the text under vertical setting, where the box frond
+          // reports stops at the glyphs (`washRect`). The handles are placed from the boxes as
+          // reported — a bead belongs on the edge of the text, not on the edge of its colour.
+          rects: facts.rects.map((rect) => washRect(toRect(rect), verticalRef.current)),
+          ends,
+        },
         live,
       });
     };
@@ -652,12 +659,6 @@ export default function Reader({
       const anchor = selecting?.anchor;
       if (anchor === undefined) return;
       const facts = rendererRef.current?.rangeFromPoints(anchor, point, "char");
-      console.log(
-        "EXT",
-        JSON.stringify(anchor),
-        JSON.stringify(point),
-        facts ? `n=${facts.rects.length} t=${facts.text.slice(0, 8)}` : "null",
-      );
       // A finger over a margin, a picture, or past the end of the column has moved off the text
       // rather than to the end of it — the selection stays where the reader last had it.
       if (facts) showRange(facts, true);

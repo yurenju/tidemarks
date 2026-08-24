@@ -123,23 +123,15 @@ test.describe("a vertical book", () => {
     await expect(page.locator(".highlight-toolbar")).toBeVisible();
   });
 
-  test("dragging a handle extends the selection", async ({ page, browserName }) => {
-    // ⚠️ **WebKit does not extend, and the reason is not this test.** Measured: the press snaps
-    // its word, both handles appear, the drag reaches the handle and is captured — and every
-    // `rangeFromPoints(anchor, focus, "char")` along the way comes back as the range it started
-    // from, wherever on the page the focus is. Chromium extends on the same page, the same
-    // fixture and the same gesture, so what differs is the engine's caret-from-point inside
-    // frond's paginated frame (`SectionView.caretAt` takes the `caretRangeFromPoint` branch
-    // there). **This is the engine iPhone Safari is built on**, so it is not a curiosity —
-    // it is #54, and the real-device trip ADR-0036 books is where it gets settled.
-    test.fixme(browserName === "webkit", "rangeFromPoints does not extend on WebKit — see #54");
-
+  test("dragging a handle extends the selection", async ({ page }) => {
     // **Both ends of this gesture are aimed at text.** The cover is a title and an author with a
     // screenful of nothing between them, which is the ordinary shape of a page: press in the
     // empty part and the selection lands on whichever character is nearest, drag into it and
     // `rangeFromPoints` answers `null` and the selection correctly does not move. Either way the
     // test would be reading a page that cannot answer the question. Two runs of real text is the
-    // smallest arrangement that can.
+    // smallest arrangement that can. **Where exactly those points land is `textPoints`' rule,
+    // and it is what #54 turned out to be** — a point off the page, or in the empty part of a
+    // column, is not a place a drag can extend to on any engine.
     const runs = await textPoints(page);
     expect(runs.length, "this page has only one run of text to drag between").toBeGreaterThan(1);
 
