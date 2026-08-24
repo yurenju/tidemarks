@@ -98,7 +98,7 @@
 
      **What keeps both ends draggable is the row not landing there**, which is
      `toolbar-position.ts`'s three-way choice and its `HANDLE_CLEARANCE_PX`, and that is the
-     thing worth守ing: `touch-selection.spec.ts` asserts the row clears both handles rather than
+     thing worth keeping: `touch-selection.spec.ts` asserts the row clears both handles rather than
      asserting which of the two is painted over the other. The one case where it still cannot —
      a full-width row beside a vertical column — is #56, and it is a shape problem. */
   z-index: 1;
@@ -189,7 +189,7 @@ button.selection-handle:active:not(:disabled) {
    is ever drawn without one. */
 .selection-handle::after {
   width: 2px;
-  height: calc(var(--handle-span, 9px) + var(--handle-reach));
+  height: calc(var(--handle-span) + var(--handle-reach));
 }
 
 /* Horizontal: the leading bead sits above its line and the trailing one below, which is what
@@ -218,7 +218,7 @@ button.selection-handle:active:not(:disabled) {
 /* And the mirror: the bead is below, so the stem starts at the top of the wash and runs down to
    it. */
 .selection-handle[data-axis="h"][data-end="end"]::after {
-  top: calc(50% - var(--handle-span, 9px));
+  top: calc(50% - var(--handle-span));
 }
 
 /* Vertical: the same pair on the other axis — the leading bead off the right edge of the first
@@ -229,7 +229,7 @@ button.selection-handle:active:not(:disabled) {
 
 .selection-handle[data-axis="v"]::after {
   top: calc(50% - 1px);
-  width: calc(var(--handle-span, 9px) + var(--handle-reach));
+  width: calc(var(--handle-span) + var(--handle-reach));
   height: 2px;
 }
 
@@ -239,7 +239,7 @@ button.selection-handle:active:not(:disabled) {
 
 /* The bead is off the right edge of the first strip, so the stem runs leftwards across it. */
 .selection-handle[data-axis="v"][data-end="start"]::after {
-  left: calc(50% - var(--handle-span, 9px));
+  left: calc(50% - var(--handle-span));
 }
 
 .selection-handle[data-axis="v"][data-end="end"]::before {

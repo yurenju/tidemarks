@@ -63,6 +63,7 @@ import {
 } from "../lib/turn";
 import {
   anchorFromRects,
+  handleBoxes,
   placeSelectionToolbar,
   type SelectionAnchor,
   type ToolbarPlacement,
@@ -1576,12 +1577,19 @@ export default function Reader({
       return;
     }
     const el = toolbarRef.current;
+    const container = mountRef.current?.getBoundingClientRect();
+    // Where the two beads are, so the row can be placed off them. Only a selection we drew has
+    // handles; a browser-drawn one on the desk has none to avoid.
+    const ends = selection.drawn?.ends;
     setToolbarPos(
       placeSelectionToolbar(
         selection.anchor,
         { width: el.offsetWidth, height: el.offsetHeight },
         { width: window.innerWidth, height: window.innerHeight },
-        { vertical: verticalBook },
+        {
+          vertical: verticalBook,
+          handles: ends && container ? handleBoxes(ends, container) : [],
+        },
       ),
     );
   }, [selection, verticalBook]);

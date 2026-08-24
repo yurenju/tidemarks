@@ -7,7 +7,7 @@
 // so we can't measure it. Keeping the toolbar next to the selection means it is
 // never in the bottom strip the native bar occupies.
 
-import { HANDLE_CLEARANCE_PX, HANDLE_HIT_PX } from "./selection-handles";
+import { HANDLE_CLEARANCE_PX, HANDLE_HIT_PX, type SelectionEnds } from "./selection-handles";
 
 export interface SelectionAnchor {
   top: number; // selection top edge, in top-window viewport coordinates
@@ -39,21 +39,9 @@ export interface ToolbarPlacement {
   side: "below" | "above" | "left" | "right";
 }
 
-/**
- * The space left between the selection and the toolbar.
- *
- * **It is the room a selection handle needs, not a margin.** On touch the two ends of a
- * selection carry draggable handles, and the bead on each sits past the edge of the colour
- * (`selection-handles.ts`'s `HANDLE_CLEARANCE_PX`). At the 8px this used to be — a number from
- * the days when a native selection had nothing at its edges — the toolbar landed on the far
- * handle, and what it covered was not the 11px bead but the 44px the finger actually aims at.
- * The symptom is one end of the selection dragging and the other not, with nothing on screen to
- * say why.
- *
- * **The desk pays it too.** There are no handles under a mouse, so it is spent on nothing there
- * — and one number for both is what stops someone changing the touch case alone and leaving the
- * desk behind.
- */
+// The gap between the selection and the toolbar is `HANDLE_CLEARANCE_PX`, which is where its
+// reasoning lives: it is the room a handle needs rather than a margin, and the desk pays it too
+// so that nobody changes the touch case alone and leaves the desk behind.
 
 interface Options {
   gap?: number; // space between selection and toolbar; `HANDLE_CLEARANCE_PX` by default
@@ -62,18 +50,46 @@ interface Options {
   // native contextual-search bar slides up into this region during selection, so
   // the toolbar flips above the selection rather than land inside it — even when
   // it would technically still fit on-screen.
-  // **Read as a share of the viewport, not as the number itself**: `reservedBottom` takes the
-  // smaller of this and a fifth of the height. 96px is a portrait phone's contextual bar, and on
-  // a 343px landscape screen reserving it outright is 28% of everything there is — enough that a
-  // toolbar with room under the passage gets pushed off it, fails to fit above, and is clamped
-  // back onto the text. Guarding against an overlay that may not be there is not worth landing
-  // on the passage every time.
   bottomSafe?: number;
   // A vertically-written book (frond's `vertical-rl`). A selection there is a tall strip and
   // runs along the block axis, so the toolbar sits **beside** it — below/above would land the
   // bar far under the passage and over the lines the reader has not selected yet (the 直排 bug
   // in #52). Which edge of the text a mark runs along is the same fact `HighlightLayer` needs.
   vertical?: boolean;
+  // The boxes a finger aims at to drag the selection's two ends, in viewport coordinates
+  // (`handleBoxes`). The toolbar is painted over them, so one it lands on is one the reader
+  // cannot take hold of — with the row's own colours where the bead should be, which reads as a
+  // fault in the row rather than as a covered control. Given these, the placements below are
+  // tried in order and the first that clears both wins.
+  handles?: readonly Box[];
+}
+
+/** A rectangle the toolbar has to keep off, in viewport coordinates. */
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * The two handles' hit regions in viewport coordinates, from the ends frond's geometry gave.
+ *
+ * `SelectionEnds` is in the container's system, like everything else frond reports, and each
+ * box is `HANDLE_HIT_PX` centred on the bead's own point — the same square `handleAt` tests a
+ * press against, so what the toolbar avoids and what the finger finds are one number.
+ */
+export function handleBoxes(ends: SelectionEnds, container: Origin): readonly Box[] {
+  return [ends.start, ends.end].map((end) => {
+    const x = container.left + end.point.x;
+    const y = container.top + end.point.y;
+    return {
+      left: x - HANDLE_HIT_PX / 2,
+      top: y - HANDLE_HIT_PX / 2,
+      right: x + HANDLE_HIT_PX / 2,
+      bottom: y + HANDLE_HIT_PX / 2,
+    };
+  });
 }
 
 export interface Origin {
@@ -122,26 +138,76 @@ export function placeSelectionToolbar(
   anchor: SelectionAnchor,
   toolbar: Size,
   viewport: Size,
-  { gap = HANDLE_CLEARANCE_PX, margin = 8, bottomSafe = 96, vertical = false }: Options = {},
+  {
+    gap = HANDLE_CLEARANCE_PX,
+    margin = 8,
+    bottomSafe = 96,
+    vertical = false,
+    handles = [],
+  }: Options = {},
 ): ToolbarPlacement {
-  if (vertical) {
-    const beside = placeBeside(anchor, toolbar, viewport, gap, margin);
-    if (beside !== null) return beside;
+  // **In preference order, and the first one that clears both handles wins.**
+  //
+  // A horizontal book has one answer, because `placeAcross` already chooses between below,
+  // above and the two edges. A vertical book has three, and no one of them is right everywhere:
+  // beside the column is what a reader expects and a phone rarely has room for; across the
+  // passage is where a row nearly as wide as the screen has to go; and beside-but-clamped —
+  // centred on the passage, overlapping it — is the one that fits *between* the two beads when
+  // a tall column leaves nothing above or below it either.
+  //
+  const attempts = vertical
+    ? [
+        placeBeside(anchor, toolbar, viewport, gap, margin),
+        placeAcross(anchor, toolbar, viewport, gap, margin, bottomSafe),
+        placeBesideClamped(anchor, toolbar, viewport, margin),
+      ]
+    : [placeAcross(anchor, toolbar, viewport, gap, margin, bottomSafe)];
 
-    // **Neither side of the column had room, so fall back to the horizontal rule**: under the
-    // passage, or over it. A row nearly as wide as a phone cannot go beside a vertical column at
-    // all, and clamping it back into view — what this used to do — parks it across the middle of
-    // the passage, on whichever handle is there. Above or below is at least at one end of it.
-    //
-    // **The gap is bigger in this fallback, and it has to be.** A vertical handle hangs off the
-    // *side* of its strip, with the bead on the corner: the passage's own bottom edge is where
-    // the trailing bead is centred, so clearing the text by `gap` still leaves the row on half
-    // the 44px the finger aims at. Clearing the hit region is the whole of what the extra half
-    // buys.
-    return placeAcross(anchor, toolbar, viewport, gap + HANDLE_HIT_PX / 2, margin, bottomSafe);
-  }
+  const placements = attempts.filter((placement) => placement !== null);
+  const clear = placements.find((placement) => clears(placement, toolbar, handles));
+  // Nothing clears them on a screen this size — #56, where the answer is a row shaped for a
+  // vertical book rather than a better place to put this one. The preferred placement stands.
+  return clear ?? placements[0]!;
+}
 
-  return placeAcross(anchor, toolbar, viewport, gap, margin, bottomSafe);
+/** Whether a placement keeps off every box it was given. */
+function clears(placement: ToolbarPlacement, toolbar: Size, handles: readonly Box[]): boolean {
+  const right = placement.left + toolbar.width;
+  const bottom = placement.top + toolbar.height;
+  return handles.every(
+    (box) =>
+      box.right <= placement.left ||
+      box.left >= right ||
+      box.bottom <= placement.top ||
+      box.top >= bottom,
+  );
+}
+
+/**
+ * Beside the passage with no room to be beside it: centred on the passage and clamped into the
+ * viewport, which is where this always used to land in a vertical book.
+ *
+ * Last of the three because it is the only one that starts by covering the text. It earns its
+ * place on a column taller than the screen: there is nothing above or below it either, and
+ * centred on the passage the row falls between the two beads rather than on one of them.
+ */
+function placeBesideClamped(
+  anchor: SelectionAnchor,
+  toolbar: Size,
+  viewport: Size,
+  margin: number,
+): ToolbarPlacement {
+  const top = clamp(
+    anchor.midY - toolbar.height / 2,
+    margin,
+    viewport.height - toolbar.height - margin,
+  );
+  const left = clamp(
+    anchor.midX - toolbar.width / 2,
+    margin,
+    viewport.width - toolbar.width - margin,
+  );
+  return { left, top, side: left >= anchor.right ? "right" : "left" };
 }
 
 /** Under the passage, or over it — the horizontal book's rule, and the vertical one's fallback. */
@@ -168,8 +234,7 @@ function placeAcross(
   // text is a fault the reader has in front of them.
   const below = anchor.bottom + gap;
   const above = anchor.top - gap - toolbar.height;
-  const clearsReserve =
-    below + toolbar.height <= viewport.height - reservedBottom(viewport, bottomSafe);
+  const clearsReserve = below + toolbar.height <= viewport.height - bottomSafe;
   const fitsAbove = above >= margin;
   const fitsBelow = below + toolbar.height <= viewport.height - margin;
 
@@ -180,6 +245,9 @@ function placeAcross(
   else {
     // The passage is taller than the screen: nowhere is clear of it. Pin to whichever edge has
     // more room — for a passage that starts high, that is the bottom, which is the end of it.
+    // **The reserved strip is given up here**, deliberately: a row where Android's contextual
+    // bar might appear is a guess about another surface, and a row over the passage is a fault
+    // the reader is looking at.
     const roomBelow = viewport.height - margin - below;
     const roomAbove = anchor.top - gap - margin;
     top = roomBelow >= roomAbove ? viewport.height - toolbar.height - margin : margin;
@@ -218,20 +286,6 @@ function placeBeside(
   // When nothing fits and the bar lands over the text, default the wedge to the left edge.
   const side = left >= anchor.right ? "right" : "left";
   return { left, top, side };
-}
-
-/**
- * How much of the bottom of the screen to keep the toolbar out of.
- *
- * Android Chrome slides a contextual-search bar up from the bottom during a selection. It is
- * browser chrome — not in the DOM, invisible to `visualViewport` — so it can only be avoided by
- * reserving room, and the reserve is measured in pixels of a portrait phone. A fifth of the
- * viewport is the ceiling on that: on a short screen the full reserve leaves nowhere below the
- * passage at all, and the toolbar ends up on the passage, which is a certain fault traded for a
- * possible one.
- */
-function reservedBottom(viewport: Size, bottomSafe: number): number {
-  return Math.min(bottomSafe, viewport.height * 0.2);
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -166,9 +166,11 @@ test.describe("a vertical book", () => {
     // vertical column, and it used to be clamped back across the middle of the passage — where
     // whichever bead it landed on stopped being pressable. Placing it at one end of the passage
     // instead is what makes "clears both" a rule this layout can actually keep.
+    // The row's presence is the premise, so it is asserted rather than defaulted: a regression
+    // where it never appears would otherwise satisfy "clears both handles" trivially.
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
     const rowClearsHandles = await page.evaluate(() => {
-      const row = document.querySelector(".highlight-toolbar")?.getBoundingClientRect();
-      if (row === undefined) return true;
+      const row = document.querySelector(".highlight-toolbar")!.getBoundingClientRect();
       return [...document.querySelectorAll(".selection-handle")].every((handle) => {
         const box = handle.getBoundingClientRect();
         return (
@@ -180,6 +182,16 @@ test.describe("a vertical book", () => {
       });
     });
     expect(rowClearsHandles, "the colour row is sitting on a selection handle").toBe(true);
+
+    // And nothing else is on it either. The check above knows about one element; this one asks
+    // the engine what is actually under the point the drag is about to press, which is what the
+    // drag depends on — a wash, a panel or a portalled overlay would fail here by name rather
+    // than as a selection that mysteriously did not grow.
+    const under = await page.evaluate(
+      ({ x, y }) => (document.elementFromPoint(x, y) as HTMLElement | null)?.className ?? "",
+      { x: hitX, y: hitY },
+    );
+    expect(under).toContain("selection-handle");
 
     // **The run furthest from the end that is staying put**, which is what makes this a
     // lengthening rather than a move: the passage runs from the start handle to wherever the end

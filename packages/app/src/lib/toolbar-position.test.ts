@@ -2,8 +2,29 @@
 // it near the bottom edge, clamped at both sides, and which way its wedge points. Whether it
 // really lands there over a real selection is packages/app/tests/browser/reader/highlights.spec.ts.
 import { describe, it, expect } from "vitest";
-import { anchorFromRects, placeSelectionToolbar, type SelectionAnchor } from "./toolbar-position";
+import {
+  anchorFromRects,
+  handleBoxes,
+  placeSelectionToolbar,
+  type SelectionAnchor,
+} from "./toolbar-position";
 import { HANDLE_CLEARANCE_PX } from "./selection-handles";
+
+// Whether a placement lands on any of the boxes it was asked to keep off — the question
+// `placeSelectionToolbar` answers internally, asked from outside so a test can name it.
+function covers(
+  placement: { left: number; top: number },
+  toolbar: { width: number; height: number },
+  boxes: readonly { left: number; top: number; right: number; bottom: number }[],
+): boolean {
+  return boxes.some(
+    (box) =>
+      box.right > placement.left &&
+      box.left < placement.left + toolbar.width &&
+      box.bottom > placement.top &&
+      box.top < placement.top + toolbar.height,
+  );
+}
 
 const vp = { width: 400, height: 800 };
 const toolbar = { width: 300, height: 48 };
@@ -87,11 +108,11 @@ describe("placeSelectionToolbar", () => {
     expect(p.top + toolbar.height).toBe(vp.height - 8);
   });
 
-  it("keeps the room under a passage on a screen too short to reserve the whole bottom strip", () => {
-    // A landscape phone: 343px tall, and the 96px reserve is 28% of it. Reserved outright, a
-    // selection ending at 200 has nowhere to put a 62px row — below is refused by the reserve,
-    // above does not fit either — and the row lands back on the passage. Capping the reserve at
-    // a fifth of the height is what keeps it under the text where the reader is looking.
+  it("goes below into the reserved strip rather than back onto the passage", () => {
+    // A landscape phone: 343px tall, and the 96px strip reserved for Android's contextual bar is
+    // 28% of it. Below is refused by the reserve and above does not fit either, which used to
+    // clamp the row onto the passage — over the line it starts on and the handle there with it.
+    // A row where another surface *might* appear beats a row over the text that certainly has.
     const landscape = { width: 734, height: 343 };
     const row = { width: 470, height: 62 };
     const p = placeSelectionToolbar(hAnchor(37, 200, 367), row, landscape);
@@ -197,13 +218,38 @@ describe("placeSelectionToolbar in a vertical book", () => {
   it("goes across the passage when neither side of the column has room for it", () => {
     // A row nearly as wide as a phone cannot sit beside a column. Clamped back into view it used
     // to land across the middle of the passage, on whichever handle was there; under it is at
-    // one end instead. The gap clears the handle's 44px hit region rather than just the text,
-    // because a vertical bead is centred on the passage's own bottom edge.
+    // one end instead, and clear of the bead centred on the passage's own bottom edge.
     const wide = { width: 360, height: 48 };
     const column = { top: 100, bottom: 400, left: 180, right: 240, midX: 210, midY: 250 };
     const p = placeSelectionToolbar(column, wide, vp, { vertical: true });
     expect(p.side).toBe("below");
-    expect(p.top).toBeGreaterThanOrEqual(column.bottom + HANDLE_CLEARANCE_PX + 22);
+    expect(p.top).toBeGreaterThanOrEqual(column.bottom + HANDLE_CLEARANCE_PX);
+  });
+
+  it("takes the next placement when the preferred one would cover a handle", () => {
+    // Measured on an emulated iPhone, on the vertical book's cover: a column running most of the
+    // page, a row too wide to go beside it, and no room above or below either — so the row is
+    // placed across the passage and lands on the leading bead. The row is painted over the
+    // handles now, so that bead would be one the reader can see and cannot press. Centred on the
+    // passage instead, it falls between the two.
+    const screen = { width: 393, height: 659 };
+    const row = { width: 249, height: 123 };
+    const column = { top: 120, bottom: 559, left: 93, right: 235, midX: 164, midY: 339.5 };
+    const handles = handleBoxes(
+      {
+        start: { point: { x: 235, y: 120 }, anchor: { x: 0, y: 0 }, span: 20 },
+        end: { point: { x: 93, y: 559 }, anchor: { x: 0, y: 0 }, span: 20 },
+      },
+      { left: 0, top: 0 },
+    );
+
+    const covering = placeSelectionToolbar(column, row, screen, { vertical: true });
+    const placed = placeSelectionToolbar(column, row, screen, { vertical: true, handles });
+
+    // The preferred placement really is the one that covers a bead — otherwise this test would
+    // pass without the choice it is named after ever being made.
+    expect(covers(covering, row, handles)).toBe(true);
+    expect(covers(placed, row, handles)).toBe(false);
   });
 
   it("keeps the toolbar on-screen when the selection spans the whole height", () => {
@@ -211,13 +257,5 @@ describe("placeSelectionToolbar in a vertical book", () => {
     const p = placeSelectionToolbar(tall, vToolbar, vp, { vertical: true });
     expect(p.top).toBeGreaterThanOrEqual(0);
     expect(p.top + vToolbar.height).toBeLessThanOrEqual(vp.height);
-  });
-
-  it("keeps the toolbar on-screen when the selection fills the viewport height", () => {
-    // no room below and flipping above also overflows the top → clamp into view
-    const anchor = hAnchor(10, 790, 200);
-    const p = placeSelectionToolbar(anchor, toolbar, vp);
-    expect(p.top).toBeGreaterThanOrEqual(0);
-    expect(p.top + toolbar.height).toBeLessThanOrEqual(vp.height);
   });
 });

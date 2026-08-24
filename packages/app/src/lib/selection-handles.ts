@@ -93,13 +93,6 @@ export const HANDLE_BEAD_PX = 11;
 export const WASH_BLEED_PX = 3;
 
 /**
- * The box to paint one rectangle of the wash in, given the box frond reported for the text.
- *
- * Only the cross axis is let out, and only under vertical setting — see `WASH_BLEED_PX`. Along
- * the line it must stay exactly as reported: consecutive rectangles of one line meet end to end
- * there, and a translucent wash that overlapped itself would draw a darker seam at every join.
- */
-/**
  * How far past the text's own box the bead is held off, so that it begins exactly where the
  * colour ends — `styles/book.css`'s `--handle-reach`, which `SelectionLayer` sets from this.
  *
@@ -115,15 +108,26 @@ export function handleReach(vertical: boolean): number {
 }
 
 /**
- * The room the colour row has to leave beside a passage: the furthest a handle ever reaches past
- * the text, which is the bead sitting at the end of the wash's lip.
+ * The room the colour row has to leave beside a passage.
  *
- * `toolbar-position.ts` reads it rather than adding the two up itself — a number written down
- * twice is a number that will disagree with itself, and the row landing inside this is the far
- * end of the selection quietly becoming undraggable.
+ * **Half the hit region, not the bead.** A bead is 11px of tide sitting a few pixels past the
+ * text, and a row clearing only that covers the rest of the 44px square the finger is aiming at
+ * — which is the same failure as covering the bead, minus the part the reader can see. Every
+ * bead is centred on a corner of the passage's own box, in both writing modes, so half the
+ * square is exactly what the row has to stay outside of.
+ *
+ * `toolbar-position.ts` reads it from here rather than working it out again: the row landing
+ * inside it is the far end of a selection quietly becoming undraggable.
  */
-export const HANDLE_CLEARANCE_PX = HANDLE_BEAD_PX + WASH_BLEED_PX;
+export const HANDLE_CLEARANCE_PX = HANDLE_HIT_PX / 2;
 
+/**
+ * The box to paint one rectangle of the wash in, given the box frond reported for the text.
+ *
+ * Only the cross axis is let out, and only under vertical setting — see `WASH_BLEED_PX`. Along
+ * the line it must stay exactly as reported: consecutive rectangles of one line meet end to end
+ * there, and a translucent wash that overlapped itself would draw a darker seam at every join.
+ */
 export function washRect(rect: Rect, vertical: boolean): Rect {
   if (!vertical) return rect;
   return {
@@ -155,12 +159,12 @@ export function selectionEnds(rects: readonly Rect[], vertical: boolean): Select
       start: {
         point: { x: first.x + first.width, y: first.y },
         anchor: { x: first.x + first.width / 2, y: first.y + INSET_PX },
-        span: spanOf(first, true),
+        span: spanOf(rects, first, true),
       },
       end: {
         point: { x: last.x, y: last.y + last.height },
         anchor: { x: last.x + last.width / 2, y: last.y + last.height - INSET_PX },
-        span: spanOf(last, true),
+        span: spanOf(rects, last, true),
       },
     };
   }
@@ -172,12 +176,12 @@ export function selectionEnds(rects: readonly Rect[], vertical: boolean): Select
     start: {
       point: { x: first.x, y: first.y },
       anchor: { x: first.x + INSET_PX, y: first.y + first.height / 2 },
-      span: spanOf(first, false),
+      span: spanOf(rects, first, false),
     },
     end: {
       point: { x: last.x + last.width, y: last.y + last.height },
       anchor: { x: last.x + last.width - INSET_PX, y: last.y + last.height / 2 },
-      span: spanOf(last, false),
+      span: spanOf(rects, last, false),
     },
   };
 }
@@ -190,10 +194,22 @@ export function selectionEnds(rects: readonly Rect[], vertical: boolean): Select
  * line's top edge, leftwards from a vertical strip's right edge, and the mirror of each at the
  * other end. So the distance to the far edge is the line's own cross size, plus the bleed on
  * that far side under vertical setting (`washRect`) — the near side's bleed falls behind the
- * bead and is `HANDLE_REACH_PX`'s business, not this one's.
+ * bead and is `handleReach()`'s business, not this one's.
+ *
+ * **A line is not always one rectangle.** A superscript, an inline code span, a book that sets
+ * its opening words larger: each run is reported separately, and the one the handle sits on can
+ * be the short one. Taking the widest of the rectangles that share the line is what keeps the
+ * stem lying across the whole band rather than across the fragment it started from.
  */
-function spanOf(rect: Rect, vertical: boolean): number {
-  return vertical ? rect.width + WASH_BLEED_PX : rect.height;
+function spanOf(rects: readonly Rect[], edge: Rect, vertical: boolean): number {
+  const cross = (rect: Rect) => (vertical ? rect.width : rect.height);
+  const sharesLine = (rect: Rect) =>
+    vertical
+      ? rect.x < edge.x + edge.width && edge.x < rect.x + rect.width
+      : rect.y < edge.y + edge.height && edge.y < rect.y + rect.height;
+
+  const widest = Math.max(...rects.filter(sharesLine).map(cross));
+  return vertical ? widest + WASH_BLEED_PX : widest;
 }
 
 /**
