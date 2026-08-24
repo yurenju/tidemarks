@@ -182,10 +182,16 @@ button.selection-handle:active:not(:disabled) {
   border-radius: 50%;
 }
 
-/* The stem, which runs from the edge of the text out to the bead. */
+/* The stem, which lies across the wash and ends at the bead.
+   `--handle-span` is how far the colour reaches back from this bead (`selection-handles.ts`'s
+   `SelectionEnd.span`), so the stem is that plus the gap the bead is held off at. **It has to
+   cross the whole band rather than touch its edge**: the stem is what says which passage a bead
+   belongs to, and on a line wider than the stem a bead that stops short reads as floating beside
+   the text. The fallback is the length this was before the span existed — used only if a handle
+   is ever drawn without one. */
 .selection-handle::after {
   width: 2px;
-  height: 9px;
+  height: calc(var(--handle-span, 9px) + var(--handle-reach));
 }
 
 /* Horizontal: the leading bead sits above its line and the trailing one below, which is what
@@ -202,6 +208,7 @@ button.selection-handle:active:not(:disabled) {
   top: calc(50% - var(--handle-reach) - var(--handle-bead));
 }
 
+/* The bead is above the line, so the stem runs down from it and across the wash below. */
 .selection-handle[data-axis="h"][data-end="start"]::after {
   top: calc(50% - var(--handle-reach));
 }
@@ -210,8 +217,10 @@ button.selection-handle:active:not(:disabled) {
   top: calc(50% + var(--handle-reach));
 }
 
+/* And the mirror: the bead is below, so the stem starts at the top of the wash and runs down to
+   it. */
 .selection-handle[data-axis="h"][data-end="end"]::after {
-  top: calc(50% + var(--handle-reach) - 9px);
+  top: calc(50% - var(--handle-span, 9px));
 }
 
 /* Vertical: the same pair on the other axis — the leading bead off the right edge of the first
@@ -222,7 +231,7 @@ button.selection-handle:active:not(:disabled) {
 
 .selection-handle[data-axis="v"]::after {
   top: calc(50% - 1px);
-  width: 9px;
+  width: calc(var(--handle-span, 9px) + var(--handle-reach));
   height: 2px;
 }
 
@@ -230,14 +239,16 @@ button.selection-handle:active:not(:disabled) {
   left: calc(50% + var(--handle-reach));
 }
 
+/* The bead is off the right edge of the first strip, so the stem runs leftwards across it. */
 .selection-handle[data-axis="v"][data-end="start"]::after {
-  left: calc(50% + var(--handle-reach) - 9px);
+  left: calc(50% - var(--handle-span, 9px));
 }
 
 .selection-handle[data-axis="v"][data-end="end"]::before {
   left: calc(50% - var(--handle-reach) - var(--handle-bead));
 }
 
+/* And the mirror, off the left edge of the last strip. */
 .selection-handle[data-axis="v"][data-end="end"]::after {
   left: calc(50% - var(--handle-reach));
 }

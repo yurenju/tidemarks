@@ -45,6 +45,7 @@ export default function SelectionLayer({
     {
       end: "start" as const,
       point: ends.start.point,
+      span: ends.start.span,
       label: t({
         message: "Selection start",
         comment:
@@ -54,6 +55,7 @@ export default function SelectionLayer({
     {
       end: "end" as const,
       point: ends.end.point,
+      span: ends.end.span,
       label: t({
         message: "Selection end",
         comment:
@@ -79,7 +81,7 @@ export default function SelectionLayer({
           />
         );
       })}
-      {handles.map(({ end, point, label }) => (
+      {handles.map(({ end, point, span, label }) => (
         <button
           key={end}
           type="button"
@@ -93,7 +95,12 @@ export default function SelectionLayer({
              for. Adjusting a selection from a keyboard is the desk's, where the browser's own
              selection is still in charge (ADR-0036). */
           tabIndex={-1}
-          style={{ left: point.x, top: point.y }}
+          /* `--handle-span` is how far the wash reaches back from this bead, which decides how
+             long its stem is drawn: a stem that stops short of the colour leaves the bead
+             floating beside the passage instead of holding on to it. The width of a line is not
+             something `book.css` can know — the reader sets the type and the book has its own
+             CSS — so it arrives here as a number and `book.css` does the arithmetic. */
+          style={{ left: point.x, top: point.y, ["--handle-span" as string]: `${span}px` }}
           onPointerDown={(event) => {
             // The finger owns this handle until it lifts, wherever it travels — without the
             // capture the drag stops the moment it leaves the bead, which is immediately.

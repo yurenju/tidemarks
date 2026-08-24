@@ -37,6 +37,22 @@ describe("selectionEnds", () => {
     expect(ends?.end.point).toEqual({ x: 280, y: 220 });
   });
 
+  it("measures each end's span across its own line, not across the passage", () => {
+    // The stem is drawn `span` long so that it lies across the wash rather than stopping at its
+    // edge (`book.css`). The two ends can sit on lines of different widths — a passage that runs
+    // from a title into the prose under it does — so a single number for the pair would draw one
+    // of the two stems wrong, and the wrong one is invisible until a book with mixed type sizes
+    // is on screen.
+    const ends = selectionEnds([strip, nextStrip], true)!;
+    expect(ends.start.span).toBe(strip.width + WASH_BLEED_PX);
+    expect(ends.end.span).toBe(nextStrip.width + WASH_BLEED_PX);
+
+    // Horizontal takes the line's height, and no bleed: the wash is not let out on that axis.
+    const flat = selectionEnds([line, nextLine], false)!;
+    expect(flat.start.span).toBe(line.height);
+    expect(flat.end.span).toBe(nextLine.height);
+  });
+
   it("keeps the anchors off the boundary, inside the text", () => {
     // **The bead's corner is not a point the range can be held from.** A corner is on the
     // boundary between this line and the next, and `caretPositionFromPoint` answers there with
@@ -61,7 +77,8 @@ describe("selectionEnds", () => {
 describe("handleAt", () => {
   // Only the beads matter here, so the anchors are the same points: what is under test is which
   // handle a finger claimed, and a finger aims at what it can see.
-  const at = (x: number, y: number) => ({ point: { x, y }, anchor: { x, y } });
+  // `span` plays no part in a hit test — it is how long the stem is drawn — so any value does.
+  const at = (x: number, y: number) => ({ point: { x, y }, anchor: { x, y }, span: 20 });
   const ends = { start: at(100, 220), end: at(180, 240) };
 
   it("claims a press that landed near a handle but not on the bead", () => {

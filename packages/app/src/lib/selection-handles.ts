@@ -38,6 +38,16 @@ export interface SelectionEnd {
   readonly point: Point;
   /** A point inside the text at this end, for holding the range from while the other end moves. */
   readonly anchor: Point;
+  /**
+   * How far the wash reaches back from `point`, across the line — the length the stem has to run
+   * to arrive at its far edge.
+   *
+   * The stem is what says which passage a bead belongs to, and it can only say it by lying across
+   * the colour: stopped short, a bead on a wide line reads as floating beside it. How wide that
+   * line is depends on the type the reader set and on the book's own CSS, so it is not a number
+   * `book.css` can hold — it travels out of here as `--handle-span`.
+   */
+  readonly span: number;
 }
 
 /** The two ends of a selection, in container coordinates — frond's own system. */
@@ -128,10 +138,12 @@ export function selectionEnds(rects: readonly Rect[], vertical: boolean): Select
       start: {
         point: { x: first.x + first.width, y: first.y },
         anchor: { x: first.x + first.width / 2, y: first.y + INSET_PX },
+        span: spanOf(first, true),
       },
       end: {
         point: { x: last.x, y: last.y + last.height },
         anchor: { x: last.x + last.width / 2, y: last.y + last.height - INSET_PX },
+        span: spanOf(last, true),
       },
     };
   }
@@ -143,12 +155,28 @@ export function selectionEnds(rects: readonly Rect[], vertical: boolean): Select
     start: {
       point: { x: first.x, y: first.y },
       anchor: { x: first.x + INSET_PX, y: first.y + first.height / 2 },
+      span: spanOf(first, false),
     },
     end: {
       point: { x: last.x + last.width, y: last.y + last.height },
       anchor: { x: last.x + last.width - INSET_PX, y: last.y + last.height / 2 },
+      span: spanOf(last, false),
     },
   };
+}
+
+/**
+ * `SelectionEnd.span` for the line an end sits on.
+ *
+ * One expression covers all four handles, because every bead sits on the corner where its line
+ * *begins* along the cross axis and the wash runs away from it: rightwards from a horizontal
+ * line's top edge, leftwards from a vertical strip's right edge, and the mirror of each at the
+ * other end. So the distance to the far edge is the line's own cross size, plus the bleed on
+ * that far side under vertical setting (`washRect`) — the near side's bleed falls behind the
+ * bead and is `HANDLE_REACH_PX`'s business, not this one's.
+ */
+function spanOf(rect: Rect, vertical: boolean): number {
+  return vertical ? rect.width + WASH_BLEED_PX : rect.height;
 }
 
 /**
