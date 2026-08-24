@@ -24,6 +24,9 @@ English: [README.md](README.md)
 - 匯出：單本書筆記匯出 markdown；完整資料（含 epub 檔本體）匯出 JSON，換瀏覽器可匯入接續
 - 同步（選配）：電腦匯入的書自動出現在手機書櫃，進度、重點筆記、閱讀統計跨裝置互通；epub 本體點開才下載
 
+## 開發
+
+要自己跑起來、跑測試或改東西，見 [docs/development.md](docs/development.md)。
 
 ## 關於貢獻
 
