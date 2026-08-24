@@ -142,6 +142,18 @@ html[data-drawer="open"] {
   /* Hover and selection, and the one fill that is not a surface step: it says "this one",
      which is a different question from "which layer is this". */
   --fill-selected: var(--blue-selected);
+  /* The wash over a passage being selected — **tide, because a selection can still move**. A
+     mark is 墨 and wears the wave; this is 潮 and wears a block of colour, and the two must not
+     be the same shape (ADR-0036, CONTEXT.md 〈接管選取〉). Flat rather than a `color-mix` of
+     `--tide`, because the same value has to travel to frond as a plain colour and a copy of an
+     expression is harder to compare than a copy of a value. Low enough that CJK strokes read
+     through it — a heavy selection colour over Han characters is what #52 ② is about.
+
+     Both the layer we draw on touch and the browser's own `::selection` on a desk take this one
+     value — ⚠️ and the desk's copy is **restated in `lib/settings.ts`**, because `::selection`
+     only matches inside the book's own document and a stylesheet out here does not reach it.
+     `lib/tokens.test.ts` compares the two, which is the only thing that can. */
+  --selection-wash: rgba(46, 74, 117, 0.16);
   --backdrop: rgba(20, 23, 28, 0.55);
 
   /* Semantics — running text. The four steps are not four text colours: `--text-faint` is the
@@ -403,6 +415,9 @@ html[data-drawer="open"] {
   --line-actionable: var(--night-400);
   --line-track: var(--night-400);
   --fill-selected: #2c3f55;
+  /* A few points stronger than the light theme's: the same proportion of a lightened tide over
+     a near-black page is most of the way to invisible. */
+  --selection-wash: rgba(126, 166, 206, 0.22);
   --text-primary: var(--bone-100);
   --text-body: var(--bone-200);
   --text-muted: var(--bone-300);

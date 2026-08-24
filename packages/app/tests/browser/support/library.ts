@@ -495,7 +495,143 @@ export async function visibleFrames(page: Page): Promise<number> {
 }
 
 /**
+ * Holds a finger still in the middle of the page until the press becomes a selection.
+ *
+ * **The only way to select anything where the pointer is coarse.** There, the browser's own
+ * selection is off inside the book and Tidemarks makes its own (ADR-0036), so
+ * `selectVisibleText` below has nothing to work with — `user-select: none` makes a
+ * programmatically added range a no-op in WebKit, and even where it does not, a range the app
+ * never heard about raises no toolbar.
+ *
+ * Dispatched into the book's own frame, the way `dragPage` does, because that is where frond
+ * listens: an event on the container never crosses into the document holding the text.
+ *
+ * @param ms how long to hold. The default clears `LONG_PRESS_MS` with room for a loaded machine.
+ */
+export async function longPressSelect(
+  page: Page,
+  { ms = 700, at }: { ms?: number; at?: { x: number; y: number } } = {},
+): Promise<void> {
+  await page.evaluate(
+    async ({ ms, at, selector }) => {
+      const frame = document.querySelector(selector) as HTMLIFrameElement | null;
+      const view = frame?.contentWindow;
+      const target = frame?.contentDocument?.body;
+      if (!frame || !view || !target) throw new Error("no page frame to press");
+
+      // The middle of the page unless the caller aimed somewhere — see `textPoint` for when the
+      // middle will not do. A point given in the outer document's coordinates, because that is
+      // where a caller can measure one; the frame's own origin is the whole conversion.
+      const box = frame.getBoundingClientRect();
+      const point =
+        at === undefined
+          ? { x: box.width / 2, y: box.height / 2 }
+          : { x: at.x - box.left, y: at.y - box.top };
+
+      const Pointer = (view as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent;
+      const send = (type: string) =>
+        target.dispatchEvent(
+          new Pointer(type, {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: "touch",
+            isPrimary: true,
+            clientX: point.x,
+            clientY: point.y,
+          }),
+        );
+
+      send("pointerdown");
+      await new Promise((resolve) => setTimeout(resolve, ms));
+      send("pointerup");
+    },
+    { ms, at, selector: PAGE_FRAME },
+  );
+}
+
+/**
+ * A point on each run of text on the page, longest run first, in the outer document's
+ * coordinates.
+ *
+ * **The middle of the page is not reliably on a character.** A vertical book lays its column
+ * against one edge and leaves the rest of the screen empty; a cover is a title and an author
+ * with a screenful of nothing between them; how much of a page is text differs per engine
+ * because the pagination does. A gesture aimed at a point with no text under it resolves to
+ * whichever character happens to be nearest — which is a selection that cannot be dragged
+ * anywhere, and a test that fails saying nothing about the thing it names.
+ *
+ * Several rather than one, because a drag needs somewhere to go as well as somewhere to start.
+ *
+ * ## The point is a line box's, clipped to the page — and both halves are load-bearing
+ *
+ * The bounding rectangle of a run **is not a place where that run is drawn**. A run wraps, and
+ * in a paginated book it wraps into the next column: its bounding rectangle then spans the
+ * columns and the gutters between them, and the middle of it lands on whatever else is there.
+ * On the vertical book's cover that "whatever else" is the empty part of the title's column,
+ * and both engines answer a point there with the end of the title — the caret the selection
+ * already sits at, so a drag to it extends nothing. The first line box is a rectangle the
+ * glyphs actually occupy.
+ *
+ * The clipping is the other half. A run may begin on screen and continue far below it, and the
+ * middle of a rectangle like that is off the page — where `rangeFromPoints` answers `null`,
+ * correctly, and a drag aimed there is a drag onto nothing. This was issue #54, read for a
+ * while as WebKit's caret-from-point being broken: WebKit paginates the cover differently, so
+ * the run this picked was the one whose middle fell off the page, and it was the aim that
+ * differed between the engines rather than the engine.
+ */
+export async function textPoints(page: Page): Promise<{ x: number; y: number }[]> {
+  const points = await page.evaluate(
+    ({ selector }) => {
+      const frame = document.querySelector(selector) as HTMLIFrameElement | null;
+      const view = frame?.contentWindow;
+      const body = frame?.contentDocument?.body;
+      if (!frame || !view || !body) return [];
+
+      const document_ = body.ownerDocument;
+      const box = frame.getBoundingClientRect();
+      const walker = document_.createTreeWalker(body, 4 /* SHOW_TEXT */);
+      const found: { x: number; y: number; length: number }[] = [];
+
+      while (walker.nextNode() !== null) {
+        const node = walker.currentNode;
+        const value = (node.nodeValue ?? "").trim();
+        if (value.length === 0) continue;
+
+        const range = document_.createRange();
+        range.selectNodeContents(node);
+
+        for (const rect of range.getClientRects()) {
+          const left = Math.max(rect.left, 0);
+          const top = Math.max(rect.top, 0);
+          const right = Math.min(rect.right, view.innerWidth);
+          const bottom = Math.min(rect.bottom, view.innerHeight);
+          if (right <= left || bottom <= top) continue;
+
+          found.push({
+            x: box.left + (left + right) / 2,
+            y: box.top + (top + bottom) / 2,
+            length: value.length,
+          });
+          break;
+        }
+      }
+
+      return found.sort((a, b) => b.length - a.length).map(({ x, y }) => ({ x, y }));
+    },
+    { selector: PAGE_FRAME },
+  );
+
+  expect(points.length, "no visible text on this page").toBeGreaterThan(0);
+  return points;
+}
+
+/**
  * Selects a run of text that is on the page in front of the reader, and returns it.
+ *
+ * ⚠️ **Only where the browser's own selection is still on** — a desk, in this suite's terms.
+ * Under mobile emulation the reader's finger is the primary pointer, selection inside the book
+ * is off, and `longPressSelect` above is the way in.
  *
  * Through the selection API rather than a mouse drag. A drag has to be aimed, and aiming it
  * means knowing where the text runs — which is the opposite direction in a vertical book, and

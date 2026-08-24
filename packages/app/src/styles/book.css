@@ -70,6 +70,187 @@
   overflow: hidden;
 }
 
+/* The selection we draw ourselves, on touch (ADR-0036): a wash over the passage and a handle at
+   each end of it. The layer shares the highlight layer's coordinate system — both are drawn on
+   `.viewer`, which is the box frond reports rectangles against.
+
+   **The layer takes no pointer events and the handles do.** The page underneath has to keep
+   receiving the presses that turn it, so `pointer-events` is off here and back on for the two
+   controls — which are the only things on this layer a finger is meant to find. */
+.selection-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* **Not clipped, unlike the highlight layer**, and the difference is what each one holds. A
+     mark travels with the page a turn is sliding, so it has to be cut off at the edge of the
+     book; a selection is dropped the moment a turn begins, so nothing here ever leaves. What
+     clipping would take instead is a bead: the leading one is drawn past the edge of its
+     line, and on the first line of a page there is only the reader's margin above it — 16px on
+     a hand-held, and nothing at all at the "None" setting. The handle on every page's first
+     line would be painted at 0 and its hit region cut in half. */
+  overflow: visible;
+  /* Under the colour row.
+     ---------------------
+     This was the other way round, so that a handle the row had landed on stayed pressable. What
+     that bought was a bead painted on top of a colour swatch — the row is the thing the reader
+     is being asked to press at that moment, and a dot of tide sitting on one of its four
+     colours reads as a fault in the row rather than as the end of the passage.
+
+     **What keeps both ends draggable is the row not landing there**, which is
+     `toolbar-position.ts`'s three-way choice and its `HANDLE_CLEARANCE_PX`, and that is the
+     thing worth keeping: `touch-selection.spec.ts` asserts the row clears both handles rather than
+     asserting which of the two is painted over the other. The one case where it still cannot —
+     a full-width row beside a vertical column — is #56, and it is a shape problem. */
+  z-index: 1;
+}
+
+/* A block of tide, not a wave. The wave is 〈螢光〉 — a mark the reader has already made, which
+   is 墨; a selection is 潮, because it can still move and may yet come to nothing. Same shape
+   for both and the reader cannot tell "I marked this" from "I am about to", and indigo against
+   tide is the closest pair of colours there is here (CONTEXT.md 〈紙／墨／潮〉).
+
+   The value is `--selection-wash`, which the browser's own `::selection` inside the book takes
+   too — by way of `lib/settings.ts`, since a stylesheet out here does not reach that document. */
+.selection-wash {
+  position: absolute;
+  background: var(--selection-wash);
+}
+
+/* One end of the selection, and the thing a finger drags to move it.
+   -----------------------------------------------------------------
+   **Drawn 11px, pressed 44px.** The button is the whole hit region and is transparent; the bead
+   and its stem are drawn by the two pseudo-elements, centred on the point `selection-handles.ts`
+   worked out. An 11px bead is what fits between two lines of a Chinese book, and 11px is not
+   something a finger can aim at — the same split `lib/highlights.ts` makes between the boxes a
+   mark is painted in and the boxes a tap is tested against.
+
+   **The pair turns ninety degrees with the writing mode**, because a vertical passage begins at
+   the top of its first strip and ends at the bottom of its last: the stems run along the sides
+   of the text there, not above and below it. `data-axis` carries the answer, which comes from
+   frond's `writingMode` — nothing in the geometry of a square says which way it is facing. */
+/* **Hovered and pressed as well as plain**, which the rest of the app's buttons want and this one
+   must refuse: `controls.css` fills a hovered button with `--fill-selected` and a pressed one with
+   `--tide-pressed`. A handle is a bead on a stem, so either fill arrives as an opaque 44px square —
+   the whole hit area — over the text: the pressed one for the length of every drag, and the hovered
+   one after it, because a phone leaves the hover with the last thing touched until something else
+   is. Measured on an emulated iPhone; a desktop-sized screen shows none of it, because handles are
+   only drawn under a coarse pointer.
+
+   **The two refusals are not written the same way, and cannot be.** `button:hover` is one class
+   short of `.selection-handle:hover`, so that one is won on specificity. The pressed rule is
+   `button:not(.ghost, .danger, .settings-tab):active:not(:disabled)`, which counts three
+   class-weight terms and an element — so it is matched term for term here and won by the thing that
+   decides ties in this project: `index.css` imports this file after `controls.css` (see the note on
+   `device.css` in CLAUDE.md). Drop the `:not(:disabled)` or the leading `button` and the square
+   comes back, with nothing to say why. */
+button.selection-handle,
+button.selection-handle:hover,
+button.selection-handle:active:not(:disabled) {
+  /* How big the bead is. Its companion `--handle-reach` — how far past the text the bead is
+     held off — is set on `.selection-layer` from `handleReach()`, because it differs by writing
+     mode and CSS cannot see which one is in force. */
+  --handle-bead: 11px;
+  position: absolute;
+  /* `--tap-min` square, centred on the end point rather than starting at it. Under a coarse
+     pointer that token is 44px, which is the number `selection-handles.ts` hit-tests against —
+     and a coarse pointer is the only place these are drawn at all. */
+  width: var(--tap-min);
+  height: var(--tap-min);
+  margin: calc(var(--tap-min) / -2) 0 0 calc(var(--tap-min) / -2);
+  padding: 0;
+  border: none;
+  background: none;
+  pointer-events: auto;
+  /* The finger belongs to this control for the length of the drag; without this the browser
+     claims it as a pan the moment it moves, exactly as it does over the book itself. */
+  touch-action: none;
+}
+
+.selection-handle::before,
+.selection-handle::after {
+  content: "";
+  position: absolute;
+  background: var(--tide);
+}
+
+/* The bead. */
+.selection-handle::before {
+  width: var(--handle-bead);
+  height: var(--handle-bead);
+  border-radius: 50%;
+}
+
+/* The stem, which lies across the wash and ends at the bead.
+   `--handle-span` is how far the colour reaches back from this bead (`selection-handles.ts`'s
+   `SelectionEnd.span`), so the stem is that plus the gap the bead is held off at. **It has to
+   cross the whole band rather than touch its edge**: the stem is what says which passage a bead
+   belongs to, and on a line wider than the stem a bead that stops short reads as floating beside
+   the text. The fallback is the length this was before the span existed — used only if a handle
+   is ever drawn without one. */
+.selection-handle::after {
+  width: 2px;
+  height: calc(var(--handle-span) + var(--handle-reach));
+}
+
+/* Horizontal: the leading bead sits above its line and the trailing one below, which is what
+   both phone platforms do and the only thing telling the two apart on a one-word selection. */
+.selection-handle[data-axis="h"]::before {
+  left: calc(50% - var(--handle-bead) / 2);
+}
+
+.selection-handle[data-axis="h"]::after {
+  left: calc(50% - 1px);
+}
+
+.selection-handle[data-axis="h"][data-end="start"]::before {
+  top: calc(50% - var(--handle-reach) - var(--handle-bead));
+}
+
+/* The bead is above the line, so the stem runs down from it and across the wash below. */
+.selection-handle[data-axis="h"][data-end="start"]::after {
+  top: calc(50% - var(--handle-reach));
+}
+
+.selection-handle[data-axis="h"][data-end="end"]::before {
+  top: calc(50% + var(--handle-reach));
+}
+
+/* And the mirror: the bead is below, so the stem starts at the top of the wash and runs down to
+   it. */
+.selection-handle[data-axis="h"][data-end="end"]::after {
+  top: calc(50% - var(--handle-span));
+}
+
+/* Vertical: the same pair on the other axis — the leading bead off the right edge of the first
+   strip, the trailing one off the left edge of the last. The stem lies down with them. */
+.selection-handle[data-axis="v"]::before {
+  top: calc(50% - var(--handle-bead) / 2);
+}
+
+.selection-handle[data-axis="v"]::after {
+  top: calc(50% - 1px);
+  width: calc(var(--handle-span) + var(--handle-reach));
+  height: 2px;
+}
+
+.selection-handle[data-axis="v"][data-end="start"]::before {
+  left: calc(50% + var(--handle-reach));
+}
+
+/* The bead is off the right edge of the first strip, so the stem runs leftwards across it. */
+.selection-handle[data-axis="v"][data-end="start"]::after {
+  left: calc(50% - var(--handle-span));
+}
+
+.selection-handle[data-axis="v"][data-end="end"]::before {
+  left: calc(50% - var(--handle-reach) - var(--handle-bead));
+}
+
+/* And the mirror, off the left edge of the last strip. */
+.selection-handle[data-axis="v"][data-end="end"]::after {
+  left: calc(50% - var(--handle-reach));
+}
+
 /* A wavy line along the edge of the text, and nothing else: no wash, no block of colour.
    ---------------------------------------------------------------------------------------
    This is the one place the product's name is drawn — tidemarks are what the water leaves —
@@ -333,6 +514,10 @@
   /* left/top are set inline: the toolbar floats next to the text selection so it
      never sits in the bottom strip where Android Chrome shows its native bar */
   position: fixed;
+  /* Above the selection layer: this is what the reader is being asked to press, so nothing of
+     ours is painted over it — see `.selection-layer` for what that used to buy and what
+     replaced it. Stated rather than left to source order. */
+  z-index: 2;
   left: 0;
   top: 0;
   display: flex;

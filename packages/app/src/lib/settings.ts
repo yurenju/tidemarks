@@ -352,6 +352,29 @@ export function saveSettings(settings: ReaderSettings) {
 const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f8" };
 
 /**
+ * What a native selection is painted with inside the book, per theme.
+ *
+ * ⚠️ **These are `--selection-wash` restated**, and the two have to be changed together.
+ * Nothing enforces it, and nothing can: `::selection` matches only inside the document holding
+ * the text, and that document is frond's iframe — a token in `styles/tokens.css` never reaches
+ * it. So the value has to travel as a value, the same way `DARK_THEME` above does.
+ *
+ * **Sent under both themes, unlike the theme itself.** Light mode deliberately hands frond no
+ * theme (the book keeps its own colours), but the browser's default selection blue is not one
+ * of the book's colours — it is the browser's, and it fills in the counters of Han characters
+ * at any hour of the day (#52).
+ *
+ * On touch this is never seen: native selection is off there and the wash is drawn by
+ * `SelectionLayer` from the token itself (ADR-0036). The one value covers both so that the two
+ * halves of the app cannot drift into two different blues — and `tokens.test.ts` compares this
+ * against the stylesheet, which is the only thing that can.
+ */
+export const SELECTION_WASH = {
+  light: "rgba(46, 74, 117, 0.16)",
+  dark: "rgba(126, 166, 206, 0.22)",
+} as const;
+
+/**
  * What the mapping needs beyond the settings themselves: facts about the device and the book
  * in front of the reader, none of which anyone picked from the panel.
  */
@@ -428,6 +451,7 @@ export function frondSettings(
     // height — every rung the panel offers already leaves more than 6px.
     minimumInkGap: MARK_CLEARANCE + WAVE_THICKNESS + 1.3,
     theme: theme === "dark" ? DARK_THEME : undefined,
+    selectionBackground: SELECTION_WASH[theme],
     genericFamilies: {
       serif: stack("serif"),
       sansSerif: stack("sans"),

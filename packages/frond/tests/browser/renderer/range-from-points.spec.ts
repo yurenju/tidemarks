@@ -38,8 +38,16 @@ test.describe("rangeFromPoints", () => {
   test("char granularity spans the two points, in either order", async ({ page }) => {
     // Dragging an endpoint: the two carets are taken as they are, and which one the reader
     // grabbed first must not change the passage.
+    //
+    // **The passage has to reach across what lies between the points**, not merely be non-empty.
+    // A range that came back as the word it started from would satisfy "some text, and the same
+    // both ways" — and that is precisely what a drag that extends nothing looks like from out
+    // here, which is how issue #54 stayed open as long as it did with this file green. The
+    // paragraph in the middle is a fact neither endpoint carries, so containing it can only be
+    // true of a range that really spans them.
     await mountFixture(page, "vertical-japanese");
     const first = centreOf((await rectAndTextOf(page, "p:nth-of-type(1)")).rect);
+    const between = (await rectAndTextOf(page, "p:nth-of-type(2)")).text;
     const third = centreOf((await rectAndTextOf(page, "p:nth-of-type(3)")).rect);
     await page.evaluate(() => window.frond.clearSelection());
 
@@ -53,7 +61,7 @@ test.describe("rangeFromPoints", () => {
     ] as const);
 
     expect(forward).not.toBeNull();
-    expect(forward!.text.length).toBeGreaterThan(0);
+    expect(forward!.text).toContain(between);
     expect(parseCfi(forward!.cfi).kind).toBe("range");
     // The drag reads the same span whichever end was the anchor.
     expect(backward!.text).toBe(forward!.text);

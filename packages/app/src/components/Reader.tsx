@@ -40,10 +40,19 @@ import {
   commitsTurn,
   dampen,
   isTap,
+  LONG_PRESS_MS,
   startsDrag,
+  startsLongPressSelection,
   TAP_SELECTION_GRACE_MS,
   travelled,
 } from "../lib/touch";
+import {
+  handleAt,
+  selectionEnds,
+  type Point,
+  type Rect,
+  type SelectionEnds,
+} from "../lib/selection-handles";
 import {
   BOUNCE_FRACTION,
   BOUNCE_MS,
@@ -54,6 +63,7 @@ import {
 } from "../lib/turn";
 import {
   anchorFromRects,
+  handleBoxes,
   placeSelectionToolbar,
   type SelectionAnchor,
   type ToolbarPlacement,
@@ -76,6 +86,7 @@ import {
 import Panel from "./Panel";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
+import SelectionLayer from "./SelectionLayer";
 import Scrubber from "./Scrubber";
 
 /**
@@ -154,6 +165,35 @@ const VELOCITY_WINDOW_MS = 90;
 const AT_REST: PageOffset = { x: 0, y: 0 };
 
 /**
+ * Whether this device's own selection is the one the reader gets, or ours.
+ *
+ * **Asked of the device, not of each gesture.** ADR-0036 splits on the pointer — a finger gets
+ * the selection we draw, a mouse gets the browser's — and the cheapest reading of that would be
+ * to switch on every `pointerdown`. It is not the reading taken: turning `user-select` off is a
+ * declaration inside the book's document, and flipping it mid-gesture is exactly the moment iOS
+ * has already decided whether to raise a magnifier. So the question is put once, to the machine,
+ * in the terms CSS puts it: is the primary pointer coarse.
+ *
+ * What that costs is an iPad with a trackpad, where the primary pointer is the finger and the
+ * mouse therefore loses native selection too. Accepted for this round — the alternative is a
+ * second selection mechanism switching under the reader's hand, and whether that is even safe on
+ * iOS is one of the things only a real device can answer (ADR-0036's own note).
+ *
+ * `matchMedia` may be absent in a non-browser environment; a missing answer means the desk,
+ * which is the arrangement that has never had any of these symptoms.
+ */
+const coarsePointer = (): boolean =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
+
+/** The selection the app drew itself: what to wash, and the two ends to take hold of. */
+interface DrawnSelection {
+  readonly rects: readonly Rect[];
+  readonly ends: SelectionEnds;
+}
+
+/**
  * Moves the highlight layer with the page a turn is sliding.
  *
  * A mark belongs to a passage of the book, not to the screen: the moment the page starts
@@ -165,6 +205,16 @@ function slideMarks(layer: HTMLElement | null, at: PageOffset): void {
   if (layer === null) return;
   layer.style.transform = at.x === 0 && at.y === 0 ? "" : `translate(${at.x}px, ${at.y}px)`;
 }
+
+// A rectangle frond reported, kept as a plain value. `DOMRect`s from a document that has since
+// relaid out are not wrong so much as meaningless, and holding one in state invites reading it
+// later; four numbers cannot be mistaken for a live measurement.
+const toRect = (rect: DOMRect): Rect => ({
+  x: rect.x,
+  y: rect.y,
+  width: rect.width,
+  height: rect.height,
+});
 
 // The reader-facing name of a font choice, from its one source. The toast names the face the
 // download applied, and the dropdown is where that name is defined.
@@ -212,10 +262,50 @@ export default function Reader({
    * this is the only place that knows — `resolveLayout` gets the mode from frond itself.
    */
   const [verticalBook, setVerticalBook] = useState(false);
+  // Read from inside the open effect, which closed over its scope before the first section had
+  // laid out. Which axis a selection's handles hang off depends on it.
+  const verticalRef = useRef(false);
+  verticalRef.current = verticalBook;
+  /**
+   * Whether this device gets the selection we draw. Decided once, at the top of the reader.
+   *
+   * Held in a ref rather than read where it is needed, because the answer must not change
+   * halfway through a book: frond is told at `attach()` whether to leave the document
+   * selectable, and a later disagreement between that and the gestures here is a book that
+   * selects two ways at once.
+   */
+  const ownSelectionRef = useRef(coarsePointer());
+  /**
+   * What a pointer on a selection handle does, filled in by the effect that owns the gestures.
+   *
+   * A ref because the two live on opposite sides of the component: the handles are rendered
+   * here, and everything that knows what dragging one means — the renderer, the anchor, the
+   * page — is inside the effect that opened the book. Lifting that into state would re-render
+   * the reader on every frame of a drag.
+   */
+  const handlesRef = useRef<
+    ((kind: "down" | "move" | "up" | "cancel", end: "start" | "end", point: Point) => void) | null
+  >(null);
   const [selection, setSelection] = useState<{
     cfiRange: string;
     text: string;
     anchor: SelectionAnchor;
+    /**
+     * The geometry of a selection we drew, or `null` for one the browser drew.
+     *
+     * Both arrive here because everything downstream — the colour row, saving a mark — is the
+     * same either way. What differs is only who painted it, and that is one field rather than a
+     * second piece of state that half the reader would have to consult as well.
+     */
+    drawn: DrawnSelection | null;
+    /**
+     * The finger is still down on it.
+     *
+     * 〈標〉 waits for that finger to lift (CONTEXT.md 〈chrome〉): a colour row raised mid-drag
+     * appears under the finger that raised it and then chases the selection across the page.
+     * Always false for a browser-drawn selection, which is only reported once it has settled.
+     */
+    live: boolean;
   } | null>(null);
   // Read from inside the open effect, which closed over its own scope before any selection
   // existed. A press landing in the margin has no `hasSelection` of its own to report — frond
@@ -326,6 +416,26 @@ export default function Reader({
       isLink: boolean;
       hadSelection: boolean;
     } | null = null;
+
+    // The selection the finger is currently making, and the point it is being made away from.
+    //
+    // **One field for two gestures**, because they are the same gesture from here: a long press
+    // fixes the anchor where the finger landed and extends from it, and dragging a handle fixes
+    // it at the *other* end and extends from that. Neither can be in progress while the page is
+    // being dragged — a press becomes one or the other and never both.
+    let selecting: { anchor: Point } | null = null;
+
+    // The clock that turns a still finger into a selection. A timer rather than a test inside
+    // `pointermove`, because a finger that is holding perfectly still sends no moves at all —
+    // the one gesture this has to recognise is the one that would never be asked about.
+    let longPress: ReturnType<typeof setTimeout> | undefined;
+    // Where the finger is now, for the timer to judge when it fires.
+    let at: Point = { x: 0, y: 0 };
+
+    const cancelLongPress = (): void => {
+      if (longPress !== undefined) clearTimeout(longPress);
+      longPress = undefined;
+    };
 
     // The turn the finger is dragging, once it has travelled far enough to be one. `sign` is
     // which way it is going, so that dragging back the other way can swap it for the other page
@@ -486,11 +596,95 @@ export default function Reader({
     let tappedAt = 0;
     const withinTapGrace = () => tappedAt !== 0 && Date.now() - tappedAt < TAP_SELECTION_GRACE_MS;
 
-    // Undoes a selection the reader did not ask for, and the toolbar it raised. The clearing
-    // itself is frond's to do: the selection lives inside its iframe.
-    const dropTapSelection = () => {
+    // Puts a selection away: the one this component is showing, and the browser's own if there
+    // is one. The second half is frond's to do — a browser-drawn selection lives inside its
+    // iframe — and it is harmless where the selection was ours, because there is nothing there
+    // to clear.
+    //
+    // Called for a selection the reader did not ask for (a phone browser's tap-to-select), for
+    // one they have asked to be rid of, and for one a page turn has carried off.
+    const dropSelection = () => {
       setSelection(null);
       rendererRef.current?.clearSelection();
+    };
+
+    /**
+     * Puts a range frond has just located on screen as the selection.
+     *
+     * The one route into 〈標〉 for a selection we drew, so everything that has to be true of one
+     * is true here once: the chrome goes down, the geometry is converted into both systems that
+     * need it — the container's, for the wash and the handles, and the top window's, for the
+     * colour row — and `live` says whether the finger has finished.
+     *
+     * A range with no rectangles is dropped rather than shown: it is a selection that is not on
+     * the page in front of the reader, and there is nothing to put a handle on.
+     */
+    const showRange = (
+      facts: { cfi: string; text: string; rects: readonly DOMRect[] },
+      live: boolean,
+    ): void => {
+      const container = mountRef.current?.getBoundingClientRect();
+      if (!container) return;
+      const anchor = anchorFromRects(facts.rects, container);
+      const ends = selectionEnds(facts.rects, verticalRef.current);
+      if (!anchor || !ends) return;
+
+      // 〈標〉 displaces 〈找〉, same as the browser-drawn route below.
+      setChrome("down");
+      setSelection({
+        cfiRange: facts.cfi,
+        text: facts.text,
+        anchor,
+        drawn: { rects: facts.rects.map(toRect), ends },
+        live,
+      });
+    };
+
+    /**
+     * Extends the selection being made out to where the finger is now.
+     *
+     * `"char"` rather than `"word"`: the word granularity is spent on the first snap, and from
+     * then on the reader is choosing where the passage ends. The two platforms differ here —
+     * iOS extends by character, Android snaps to words — and character is the one the reader can
+     * always reach the other from. ⚠️ Whether it is fiddly on a real phone is one for the device
+     * trip; changing it is changing this argument.
+     */
+    const extendTo = (point: Point): void => {
+      const anchor = selecting?.anchor;
+      if (anchor === undefined) return;
+      const facts = rendererRef.current?.rangeFromPoints(anchor, point, "char");
+      // A finger over a margin, a picture, or past the end of the column has moved off the text
+      // rather than to the end of it — the selection stays where the reader last had it.
+      if (facts) showRange(facts, true);
+    };
+
+    /**
+     * A still finger, held past the threshold: the word under it becomes the selection.
+     *
+     * **The distance half of `startsLongPressSelection` is asked as the finger moves, not here.**
+     * Asking it once, when the timer fires, gets a still finger wrong in the ordinary case: a
+     * press drifts a few pixels while it settles, and if that drift is *downwards* it is not a
+     * page turn either (`startsDrag` is sideways-only, ADR-0024) — so the press would fail the
+     * distance test at the threshold, never be reconsidered, and do nothing at all however long
+     * it was held. Cancelling as soon as the finger genuinely travels says the same thing about
+     * the gesture and leaves nothing to fail late.
+     *
+     * The time half is the timer itself, so re-asking it could only ever produce a false
+     * negative from a coarse clock.
+     */
+    const beginLongPressSelection = (): void => {
+      const started = press;
+      longPress = undefined;
+      if (started === null || drag !== null || !ownSelectionRef.current) return;
+
+      const point = { x: started.x, y: started.y };
+      const facts = rendererRef.current?.rangeFromPoints(point, point, "word");
+      // A press on a margin, a picture, the gap between paragraphs: nothing to select, and the
+      // press carries on being whatever it would otherwise have been.
+      if (!facts) return;
+
+      selecting = { anchor: point };
+      showRange(facts, true);
     };
 
     /**
@@ -518,8 +712,17 @@ export default function Reader({
         isLink: event.isLink,
         hadSelection: event.hasSelection,
       };
+      at = { x: event.x, y: event.y };
       // The reader is driving from here on, so a selection is theirs again.
       tappedAt = 0;
+
+      // A finger held still on the text chooses a word (ADR-0036). Only a finger, and only
+      // where the selection is ours to make: under a mouse the browser is still doing this.
+      cancelLongPress();
+      selecting = null;
+      if (ownSelectionRef.current && event.pointerType !== "mouse") {
+        longPress = setTimeout(beginLongPressSelection, LONG_PRESS_MS);
+      }
 
       // The browser does not get to act on this press as a tap of its own — that is the search
       // bar in #36, and this is the only moment early enough to stop it. Must stay synchronous:
@@ -531,10 +734,33 @@ export default function Reader({
     const onMove = (event: { x: number; y: number }) => {
       const started = press;
       if (started === null) return;
+      at = { x: event.x, y: event.y };
+
+      // The finger is making a selection: it is not going to turn a page with the same stroke.
+      if (selecting !== null) {
+        extendTo(at);
+        return;
+      }
+
+      // A finger that has travelled is no longer a still one, whichever way it went — so the
+      // press stops being a candidate for a selection now rather than failing the distance test
+      // when the timer fires (`beginLongPressSelection`). Asked of the raw travel and not of
+      // `startsDrag`, because a finger going down the page turns nothing and is still moving.
+      if (!startsLongPressSelection(event.x - started.x, event.y - started.y, LONG_PRESS_MS)) {
+        cancelLongPress();
+      }
+
       // A mouse turns no page: the desktop has the edge buttons and the arrow keys, and a drag
-      // there is how text is selected. A press that landed on a selection belongs to that
-      // selection, whatever pressed it.
-      if (started.pointerType === "mouse" || started.hadSelection) return;
+      // there is how text is selected.
+      //
+      // **Where the selection is ours, a standing one no longer stops the page.** That rule was
+      // the compensation for not knowing where the finger had landed — with the browser drawing
+      // the selection there was no way to tell "adjusting this end" from "turning the page", so
+      // every press while something was selected was read as the first. The handles are ours
+      // now and they claim their own presses (`SelectionLayer`), so a press anywhere else is
+      // what it looks like: a page turn, which takes the selection with it.
+      if (started.pointerType === "mouse") return;
+      if (!ownSelectionRef.current && started.hadSelection) return;
 
       const dx = event.x - started.x;
       const dy = event.y - started.y;
@@ -544,6 +770,13 @@ export default function Reader({
         if (!startsDrag(dx, dy)) return;
         drag = beginDrag(travel);
         if (drag === null) return;
+        // The press has become a page turn, so it is not going to become a selection — and
+        // whatever was selected goes with the page it was on. Done at the start of the drag
+        // rather than when it commits, because a drag that springs back has still spent this
+        // press: leaving the wash standing under a page the reader just pushed at reads as the
+        // selection having survived something it did not.
+        cancelLongPress();
+        dropSelection();
       } else if (travel !== 0 && Math.sign(travel) !== drag.sign) {
         // Dragged back past where it started and on the other way: that is the other page being
         // asked for, so the turn is swapped rather than pinned at zero.
@@ -561,14 +794,34 @@ export default function Reader({
 
     const onCancel = () => {
       press = null;
+      cancelLongPress();
+      // The system took the finger away mid-selection — an edge gesture, a call. What has been
+      // selected so far stands and settles, exactly as if the finger had lifted: dropping it
+      // would be taking the reader's work away over something they did not do.
+      settleSelection();
       const held = drag;
       drag = null;
       held?.turn.cancel();
     };
 
+    /** The finger has finished with the selection, so 〈標〉 may stand up (CONTEXT.md 〈chrome〉). */
+    const settleSelection = (): void => {
+      if (selecting === null) return;
+      selecting = null;
+      setSelection((now) => (now === null ? null : { ...now, live: false }));
+    };
+
     const onRelease = (event: { x: number; y: number; isLink: boolean; hasSelection: boolean }) => {
       const started = press;
       press = null;
+      cancelLongPress();
+
+      // A selection was being made, and this press is spent on having made it. Nothing else may
+      // read the release: it neither raises the chrome nor puts the selection back down.
+      if (selecting !== null) {
+        settleSelection();
+        return;
+      }
 
       if (drag !== null) {
         endDrag();
@@ -601,8 +854,13 @@ export default function Reader({
       // away. Tapping is the only way to put a selection down by hand now that it does not also
       // turn the page.
       tappedAt = Date.now();
-      const dismissing = started?.hadSelection === true || event.hasSelection;
-      if (dismissing) dropTapSelection();
+      // `hasSelection` is frond's answer about the browser's own selection, and where we draw
+      // our own that answer is permanently no — so what this component is showing has to be
+      // asked as well, or a tap would stop being the way to put a selection down on exactly the
+      // devices where it is the only way.
+      const dismissing =
+        started?.hadSelection === true || event.hasSelection || selectionRef.current !== null;
+      if (dismissing) dropSelection();
 
       // And a tap nothing else has a claim on is what raises the chrome — or puts it back down,
       // which is the same tap seen from the other state. One toggle, no timer: a chrome that
@@ -612,6 +870,47 @@ export default function Reader({
       // A tap that dismissed a selection is spent on that. One press, one thing.
       if (result.unclaimed && !dismissing) {
         setChrome((now) => (now === "down" ? "up" : "down"));
+      }
+    };
+
+    /**
+     * A pointer on one of the two handles.
+     *
+     * **A third surface**, alongside the book's frame and the band of margin. It cannot go
+     * through either: the handles are this component's own elements, drawn over frond's
+     * container, so frond never sees the press and the margin's listeners are on a box the
+     * press did not land in. The handle captures the pointer for the length of the drag, so
+     * every move and the release come back here however far the finger travels.
+     *
+     * The end being dragged is the one that moves, so the anchor is **the other one** — which
+     * is the whole difference between this and a long press, and the reason both can share
+     * `selecting`.
+     */
+    handlesRef.current = (kind, end, point) => {
+      const ends = selectionRef.current?.drawn?.ends;
+      if (ends === undefined) return;
+
+      switch (kind) {
+        case "down": {
+          // **Which handle, asked of the geometry rather than of the element.** A long press
+          // selects one word, and one word puts the two hit regions on top of each other; the
+          // press then goes to whichever button the DOM has on top, which need not be the one
+          // the reader was aiming at. `handleAt` answers with the nearer, and the element's own
+          // answer stands only where the point is outside both, which a press in the corner of
+          // a 44px square can be (31px from the centre against a radius of 22) — there the
+          // element that took the press is the better answer, not a worse one.
+          const grabbed = handleAt(point, ends) ?? end;
+          selecting = { anchor: grabbed === "start" ? ends.end.anchor : ends.start.anchor };
+          setSelection((now) => (now === null ? null : { ...now, live: true }));
+          return;
+        }
+        case "move":
+          extendTo(point);
+          return;
+        case "up":
+        case "cancel":
+          settleSelection();
+          return;
       }
     };
 
@@ -645,6 +944,23 @@ export default function Reader({
     mount?.addEventListener("pointermove", marginMove);
     mount?.addEventListener("pointerup", marginRelease);
     mount?.addEventListener("pointercancel", onCancel);
+
+    /**
+     * A finger that let go somewhere neither surface can see.
+     *
+     * A long press begins inside frond's frame and then follows the finger, and the finger is
+     * free to leave: on a tablet the page buttons stand either side of the book, and a release
+     * over one of those reaches neither frond's listeners nor the margin's. The handles take a
+     * pointer capture and have no such gap; this route cannot, because at the moment the press
+     * lands there is nothing yet to capture with — it is not a selection until half a second
+     * later.
+     *
+     * Without this the selection stays `live` for good: the colour row never appears, and the
+     * only way out is a tap, which throws the selection away.
+     */
+    const strayRelease = () => settleSelection();
+    document.addEventListener("pointerup", strayRelease);
+    document.addEventListener("pointercancel", strayRelease);
 
     // The turn a press is playing out, and whether it ends in a page or back where it started.
     // Held so that the next press can land this one rather than fight it: a reader leaning on
@@ -858,6 +1174,12 @@ export default function Reader({
       // so nothing reflows after the position has been restored.
       attached = await Renderer.attach(book, mountRef.current, {
         settings: initial,
+        // On a touch device the browser's own selection is off entirely and this component
+        // draws its own (ADR-0036). It has to be said here rather than in a stylesheet: the
+        // text is inside frond's iframe, and `user-select` on anything out here reaches none
+        // of it — nor does `-webkit-touch-callout`, which is what iOS raises its own menu
+        // from.
+        nativeSelection: !ownSelectionRef.current,
         // The one thing the margin needs and nobody here can know before the book is on
         // screen: which axis the line lies along (ADR-0012). frond asks; this answers.
         resolveLayout: (facts) =>
@@ -877,6 +1199,14 @@ export default function Reader({
             if (direction.observeSection(event.writingMode)) applyDirection();
           },
           relocate: (at: RenderLocation) => {
+            // The page under a selection we drew has moved, so its rectangles are measurements
+            // of somewhere the reader can no longer see. A dragged turn has already dropped it
+            // at the moment the drag began; this is every other way of leaving a page — a
+            // button, an arrow key, a jump from the Scrubber or the contents.
+            //
+            // Only ours: a browser-drawn selection is frond's to report on, and it says so
+            // itself through `selection` when the page it was on goes.
+            setSelection((now) => (now?.drawn ? null : now));
             const percentage = at.fraction ?? lastPercentage;
             lastPercentage = percentage;
             setFraction(percentage);
@@ -923,7 +1253,7 @@ export default function Reader({
             // either side of `pointerup` depending on the browser, so it is caught here as
             // well as in the tap branch below.
             if (withinTapGrace()) {
-              dropTapSelection();
+              dropSelection();
               return;
             }
             // 〈標〉 displaces 〈找〉, with no exception made for either. The colour row is placed
@@ -935,7 +1265,15 @@ export default function Reader({
             // The rectangles come with the event, so there is no CFI round trip here.
             const anchor = anchorFromRects(event.rects, container);
             if (!anchor) return;
-            setSelection({ cfiRange: event.cfi, text: event.text, anchor });
+            // `drawn: null` — the browser painted this one, so there is nothing of ours to put
+            // on screen over it, and no handles: adjusting it is the browser's gesture too.
+            setSelection({
+              cfiRange: event.cfi,
+              text: event.text,
+              anchor,
+              drawn: null,
+              live: false,
+            });
           },
           pointerdown: onPress,
           // The page follows the finger from here (ADR-0024). Every frame of it comes through
@@ -1012,6 +1350,10 @@ export default function Reader({
       mount?.removeEventListener("pointermove", marginMove);
       mount?.removeEventListener("pointerup", marginRelease);
       mount?.removeEventListener("pointercancel", onCancel);
+      document.removeEventListener("pointerup", strayRelease);
+      document.removeEventListener("pointercancel", strayRelease);
+      cancelLongPress();
+      handlesRef.current = null;
       navRef.current = null;
       rendererRef.current = null;
       setRenderer(null);
@@ -1235,12 +1577,19 @@ export default function Reader({
       return;
     }
     const el = toolbarRef.current;
+    const container = mountRef.current?.getBoundingClientRect();
+    // Where the two beads are, so the row can be placed off them. Only a selection we drew has
+    // handles; a browser-drawn one on the desk has none to avoid.
+    const ends = selection.drawn?.ends;
     setToolbarPos(
       placeSelectionToolbar(
         selection.anchor,
         { width: el.offsetWidth, height: el.offsetHeight },
         { width: window.innerWidth, height: window.innerHeight },
-        { vertical: verticalBook },
+        {
+          vertical: verticalBook,
+          handles: ends && container ? handleBoxes(ends, container) : [],
+        },
       ),
     );
   }, [selection, verticalBook]);
@@ -1379,6 +1728,22 @@ export default function Reader({
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
             <HighlightLayer ref={marksRef} painted={painted} vertical={verticalBook} />
+            {/* Only for a selection we drew: where the browser drew one it is already on
+                screen, and a second wash over it would be twice the colour. */}
+            {selection?.drawn && (
+              <SelectionLayer
+                rects={selection.drawn.rects}
+                ends={selection.drawn.ends}
+                vertical={verticalBook}
+                onHandlePointer={(kind, end, event) => {
+                  const box = mountRef.current?.getBoundingClientRect();
+                  handlesRef.current?.(kind, end, {
+                    x: event.clientX - (box?.left ?? 0),
+                    y: event.clientY - (box?.top ?? 0),
+                  });
+                }}
+              />
+            )}
           </div>
           <button
             className="page-btn"
@@ -1627,7 +1992,10 @@ export default function Reader({
         )}
       </Panel>
 
-      {selection && (
+      {/* 〈標〉 waits for the finger to lift. While it is still down the reader has the wash and
+          the two handles and nothing else — a colour row raised mid-drag would sit under the
+          finger that raised it and chase the selection across the page (CONTEXT.md 〈chrome〉). */}
+      {selection && !selection.live && (
         <div
           ref={toolbarRef}
           className="highlight-toolbar"

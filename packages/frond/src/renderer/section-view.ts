@@ -443,10 +443,17 @@ export class SectionView {
    * documentation on the neighbouring question was measured to be wrong once already
    * (`docs/browser-quirks.md` #4, frond #80), so the consumer keeps its own way of undoing a
    * selection that arrives anyway.
+   *
+   * `-webkit-touch-callout` goes with them: on iOS a long press raises a callout menu of its
+   * own, and that menu is not a selection — turning selection off leaves it standing. A
+   * consumer drawing its own selection (`RendererOptions.nativeSelection`) would get the
+   * system's menu over its own colour row, which is one of the symptoms ADR-0036 exists to
+   * remove. ⚠️ **Whether it is enough on a real iPhone is unmeasured**, for the same reason as
+   * the note above.
    */
   suppressSelection(suppressed: boolean): void {
     const root = this.document.documentElement;
-    for (const property of ["user-select", "-webkit-user-select"]) {
+    for (const property of ["user-select", "-webkit-user-select", "-webkit-touch-callout"]) {
       if (suppressed) root.style.setProperty(property, "none", "important");
       else root.style.removeProperty(property);
     }
