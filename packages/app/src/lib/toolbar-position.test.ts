@@ -66,11 +66,14 @@ describe("anchorFromRects", () => {
 });
 
 describe("placeSelectionToolbar", () => {
-  it("sits just below the selection when there is room", () => {
+  it("sits below the selection, clear of where a handle reaches", () => {
+    // The gap is the room a touch handle needs, not decoration: the far handle's stem and bead
+    // hang past the edge of the text, and a toolbar inside that reach covers the 44px the
+    // finger aims at. Anything under 22 puts it back on top of the handle.
     const anchor = hAnchor(200, 240, 200);
     const p = placeSelectionToolbar(anchor, toolbar, vp);
-    expect(p.top).toBeGreaterThan(anchor.bottom);
-    expect(p.top).toBeLessThan(anchor.bottom + 24); // a small gap, not far away
+    expect(p.top).toBeGreaterThanOrEqual(anchor.bottom + 22);
+    expect(p.top).toBeLessThan(anchor.bottom + 48); // beside the passage, not adrift from it
   });
 
   it("flips above the selection when placing below would overflow the bottom", () => {

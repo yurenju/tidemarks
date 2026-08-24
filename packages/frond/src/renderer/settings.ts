@@ -123,6 +123,29 @@ export interface ReaderSettings {
    */
   readonly genericFamilies: GenericFamilies | undefined;
   /**
+   * What the browser's own selection is painted with, as a CSS colour. Unset, the browser's.
+   *
+   * ## Why it is not part of `theme`
+   *
+   * A consumer may well want it under one theme and not the other, and `theme` is all-or-
+   * nothing: a consumer content with the book's own colours on a light page sets no theme at
+   * all, and would have nowhere to put this. It is also not an inversion of anything — a
+   * selection colour is the consumer's own decoration, in the same way `theme.link` is, and
+   * that is the field this one is modelled on.
+   *
+   * ## Why frond has to be the one to apply it
+   *
+   * `::selection` matches inside the document the text is in, and that document is the
+   * iframe's. A consumer styling its own page reaches none of the book, so without this the
+   * book keeps the browser's default selection colour however carefully the rest of the
+   * interface is themed — which on a phone is a heavy blue that fills in the counters of Han
+   * characters (Tidemarks #52).
+   *
+   * Only the background: the text keeps whatever colour it had, so a book that coloured a
+   * passage is still legible under a selection.
+   */
+  readonly selectionBackground: string | undefined;
+  /**
    * The two weights the book's own `font-weight` declarations are restated as.
    *
    * Set only by a consumer whose supplied faces are pinned to two weights; see
@@ -281,6 +304,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   columns: "auto",
   theme: undefined,
   genericFamilies: undefined,
+  selectionBackground: undefined,
   fontWeights: undefined,
   fontFaces: undefined,
   fontLanguage: undefined,
@@ -541,6 +565,17 @@ export function readerStylesheet(settings: ReaderSettings): string {
     // the whole of it now that the book's own link colour is adapted rather than replaced:
     // an adapted colour still carrying the flag would win from a style attribute.
     rules.push(`:root a, :root a * { color: ${settings.theme.link} !important; }`);
+  }
+
+  if (settings.selectionBackground !== undefined) {
+    // Both spellings, because `::selection` on the root element does not match a selection
+    // inside its descendants — and books do select inside `<p>`, not inside `<html>`.
+    // `!important` for the same reason the reader's other colours carry it: a book that
+    // styles its own selection is stating a presentational preference, and the reader's
+    // layer outranks that (ADR-0004).
+    const paint = `background-color: ${settings.selectionBackground} !important;`;
+    rules.push(`:root::selection { ${paint} }`);
+    rules.push(`:root ::selection { ${paint} }`);
   }
 
   if (settings.theme !== undefined) {

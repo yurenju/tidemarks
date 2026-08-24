@@ -37,8 +37,25 @@ export interface ToolbarPlacement {
   side: "below" | "above" | "left" | "right";
 }
 
+/**
+ * The space left between the selection and the toolbar.
+ *
+ * **It is the room a selection handle needs, not a margin.** On touch the two ends of a
+ * selection carry draggable handles: the stem reaches `HANDLE_REACH_PX` past the edge of the
+ * text and the bead sits at the end of it (`selection-handles.ts`). At the 8px this used to be
+ * — a number from the days when a native selection had nothing at its edges — the toolbar
+ * landed on the far handle, and what it covered was not the 11px bead but the 44px the finger
+ * actually aims at. The symptom is one end of the selection dragging and the other not, with
+ * nothing on screen to say why.
+ *
+ * **The desk pays it too.** There are no handles under a mouse, so the 16px is spent on
+ * nothing there — and one number for both is what stops someone changing the touch case alone
+ * and leaving the desk behind.
+ */
+const HANDLE_CLEARANCE_PX = 24;
+
 interface Options {
-  gap?: number; // space between selection and toolbar
+  gap?: number; // space between selection and toolbar; `HANDLE_CLEARANCE_PX` by default
   margin?: number; // minimum distance from the viewport edges
   // Height of the reserved strip at the bottom of the viewport. Android Chrome's
   // native contextual-search bar slides up into this region during selection, so
@@ -98,7 +115,7 @@ export function placeSelectionToolbar(
   anchor: SelectionAnchor,
   toolbar: Size,
   viewport: Size,
-  { gap = 8, margin = 8, bottomSafe = 96, vertical = false }: Options = {},
+  { gap = HANDLE_CLEARANCE_PX, margin = 8, bottomSafe = 96, vertical = false }: Options = {},
 ): ToolbarPlacement {
   if (vertical) return placeBeside(anchor, toolbar, viewport, gap, margin);
 

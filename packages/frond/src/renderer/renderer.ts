@@ -131,6 +131,19 @@ export interface RendererOptions {
    * opening the book.
    */
   readonly start?: RendererStart;
+  /**
+   * Whether the browser may select text in the book. Omitted, it may.
+   *
+   * A consumer that draws its own selection turns this off and works from
+   * `rangeFromPoints()` instead (ADR-0036). It has to be frond's to apply: the text is in the
+   * iframe, so `user-select` on the container reaches none of it, and the same is true of the
+   * callout menu iOS raises on a long press.
+   *
+   * **Which pointers this covers is not asked here.** Suppressing for a finger and leaving a
+   * mouse alone is a policy about devices, and policy is the consumer's (ADR-0002) — it decides
+   * and passes the answer.
+   */
+  readonly nativeSelection?: boolean;
 }
 
 export type RendererListeners = {
@@ -239,6 +252,16 @@ export class Renderer {
 
   private currentSettings: ReaderSettings;
   private readonly resolveLayout: ResolveLayout | undefined;
+  /**
+   * Whether the browser may select text (`RendererOptions.nativeSelection`).
+   *
+   * Read wherever a document becomes selectable again, because "selectable" has two reasons to
+   * be false and they nest: a turn suppresses selection for as long as the finger is down, and
+   * this suppresses it for the whole session. Restoring to `true` after a turn — which is what
+   * the code did when a turn was the only reason — would hand native selection back to a
+   * consumer that had asked for it to be gone, one page turn in.
+   */
+  private readonly nativeSelection: boolean;
   private resources: ResourceUrls;
   private view: SectionView | undefined;
   private sectionIndex = 0;
@@ -307,11 +330,13 @@ export class Renderer {
     container: HTMLElement,
     settings: ReaderSettings,
     resolveLayout: ResolveLayout | undefined,
+    nativeSelection: boolean,
   ) {
     this.book = book;
     this.container = container;
     this.currentSettings = settings;
     this.resolveLayout = resolveLayout;
+    this.nativeSelection = nativeSelection;
     this.resources = new ResourceUrls(book, settings);
 
     // The iframe is absolutely positioned (the margin comes from the inset), so the
@@ -374,6 +399,7 @@ export class Renderer {
       container,
       withSettings(DEFAULT_SETTINGS, options.settings ?? {}),
       options.resolveLayout,
+      options.nativeSelection ?? true,
     );
 
     for (const [name, listener] of Object.entries(options.on ?? {})) {
@@ -935,7 +961,7 @@ export class Renderer {
     const settle = (): void => {
       live = false;
       if (this.turn === turn) this.turn = undefined;
-      current.suppressSelection(false);
+      current.suppressSelection(!this.nativeSelection);
       current.promote(false);
       incoming?.promote(false);
       current.place(0, 0);
@@ -1008,7 +1034,7 @@ export class Renderer {
     // The turn is over, so the layers it needed come down — on both frames, including the one
     // that is staying on screen. Leaving them up is what breaks WebKit's hit-testing
     // (`SectionView.promote`).
-    outgoing.suppressSelection(false);
+    outgoing.suppressSelection(!this.nativeSelection);
     outgoing.promote(false);
     incoming.promote(false);
     outgoing.place(0, 0);
@@ -1389,6 +1415,11 @@ export class Renderer {
     );
 
     holder.view = view;
+    // Applied to **every** document frond mounts, not only the one on screen, because a peek
+    // becomes the page on screen without being mounted again (`takeTurn`). Setting it where the
+    // frame is built is the only place that covers both without a list of the moments a frame
+    // changes role.
+    view.suppressSelection(!this.nativeSelection);
     return view;
   }
 

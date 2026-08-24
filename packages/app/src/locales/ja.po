@@ -585,6 +585,16 @@ msgstr "ゴシック体"
 msgid "Save"
 msgstr "保存"
 
+#. Screen-reader name for the draggable handle at the end of a passage the reader is selecting by touch. Dragging it moves that end of the selection.
+#: src/components/SelectionLayer.tsx
+msgid "Selection end"
+msgstr "選択の終点"
+
+#. Screen-reader name for the draggable handle at the beginning of a passage the reader is selecting by touch. Dragging it moves that end of the selection.
+#: src/components/SelectionLayer.tsx
+msgid "Selection start"
+msgstr "選択の始点"
+
 #. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
 #: src/lib/settings.ts
 msgid "Serif"

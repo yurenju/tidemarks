@@ -585,6 +585,16 @@ msgstr "Sans"
 msgid "Save"
 msgstr "Save"
 
+#. Screen-reader name for the draggable handle at the end of a passage the reader is selecting by touch. Dragging it moves that end of the selection.
+#: src/components/SelectionLayer.tsx
+msgid "Selection end"
+msgstr "Selection end"
+
+#. Screen-reader name for the draggable handle at the beginning of a passage the reader is selecting by touch. Dragging it moves that end of the selection.
+#: src/components/SelectionLayer.tsx
+msgid "Selection start"
+msgstr "Selection start"
+
 #. One of three typeface choices for the book: a serif face. In Chinese and Japanese this is a named style rather than a description — 明體 / 明朝体 — so use that name, not a translation of 'serif'.
 #: src/lib/settings.ts
 msgid "Serif"

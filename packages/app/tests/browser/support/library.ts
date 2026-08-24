@@ -495,7 +495,56 @@ export async function visibleFrames(page: Page): Promise<number> {
 }
 
 /**
+ * Holds a finger still in the middle of the page until the press becomes a selection.
+ *
+ * **The only way to select anything where the pointer is coarse.** There, the browser's own
+ * selection is off inside the book and Tidemarks makes its own (ADR-0036), so
+ * `selectVisibleText` below has nothing to work with — `user-select: none` makes a
+ * programmatically added range a no-op in WebKit, and even where it does not, a range the app
+ * never heard about raises no toolbar.
+ *
+ * Dispatched into the book's own frame, the way `dragPage` does, because that is where frond
+ * listens: an event on the container never crosses into the document holding the text.
+ *
+ * @param ms how long to hold. The default clears `LONG_PRESS_MS` with room for a loaded machine.
+ */
+export async function longPressSelect(page: Page, ms = 700): Promise<void> {
+  await page.evaluate(
+    async ({ ms, selector }) => {
+      const frame = document.querySelector(selector) as HTMLIFrameElement | null;
+      const view = frame?.contentWindow;
+      const target = frame?.contentDocument?.body;
+      if (!frame || !view || !target) throw new Error("no page frame to press");
+
+      const box = frame.getBoundingClientRect();
+      const Pointer = (view as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent;
+      const send = (type: string) =>
+        target.dispatchEvent(
+          new Pointer(type, {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: "touch",
+            isPrimary: true,
+            clientX: box.width / 2,
+            clientY: box.height / 2,
+          }),
+        );
+
+      send("pointerdown");
+      await new Promise((resolve) => setTimeout(resolve, ms));
+      send("pointerup");
+    },
+    { ms, selector: PAGE_FRAME },
+  );
+}
+
+/**
  * Selects a run of text that is on the page in front of the reader, and returns it.
+ *
+ * ⚠️ **Only where the browser's own selection is still on** — a desk, in this suite's terms.
+ * Under mobile emulation the reader's finger is the primary pointer, selection inside the book
+ * is off, and `longPressSelect` above is the way in.
  *
  * Through the selection API rather than a mouse drag. A drag has to be aimed, and aiming it
  * means knowing where the text runs — which is the opposite direction in a vertical book, and

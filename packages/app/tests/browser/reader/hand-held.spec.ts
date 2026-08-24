@@ -9,7 +9,7 @@ import {
   openChrome,
   openPanel,
   segment,
-  selectVisibleText,
+  longPressSelect,
 } from "../support/library.js";
 
 /**
@@ -254,7 +254,11 @@ test.describe("in Chinese, where the form was measured", () => {
  * in there. The suite can, so the claim lives where it can fail.
  */
 test("the highlight toolbar stacks, and its rule turns with it", async ({ page }) => {
-  await selectVisibleText(page);
+  // A long press, not `selectVisibleText`: on the pointer this whole file is about, the
+  // browser's own selection inside the book is off and Tidemarks makes its own (ADR-0036).
+  // Adding a range by hand there raises nothing — and in WebKit `user-select: none` refuses
+  // the range outright.
+  await longPressSelect(page);
   await expect(page.locator(".highlight-toolbar")).toBeVisible();
 
   const seam = await page.evaluate(() => {
