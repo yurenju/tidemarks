@@ -8,9 +8,10 @@ const vp = { width: 400, height: 800 };
 const toolbar = { width: 300, height: 48 };
 
 // Horizontal placement reads only the block edges and the cross-axis midpoint; the rest of the
-// anchor is filled here so a case can stay written in the three numbers it cares about.
+// anchor is filled with the midpoint too, so a reader can see at once that the horizontal cases
+// do not depend on `left`/`right`.
 function hAnchor(top: number, bottom: number, midX: number): SelectionAnchor {
-  return { top, bottom, left: midX - 150, right: midX + 150, midX, midY: (top + bottom) / 2 };
+  return { top, bottom, left: midX, right: midX, midX, midY: (top + bottom) / 2 };
 }
 
 // frond reports a selection's rectangles in **container** coordinates, on the event itself.

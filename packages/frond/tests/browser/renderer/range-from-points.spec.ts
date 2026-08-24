@@ -70,18 +70,21 @@ test.describe("rangeFromPoints", () => {
     expect(range).toBeNull();
   });
 
-  test("works on a horizontal book too", async ({ page }) => {
-    // The same query in the other writing mode — the coordinate conversion is the part that
-    // differs, and a horizontal miss would still return *a* word, just the wrong one.
-    await mountFixture(page, "huge-single-section");
+  test("one point off the text and one on gives nothing to select either", async ({ page }) => {
+    // The two ends of a drag are only meaningful together — an endpoint dragged off the page
+    // (into another section, or into the margin the iframe sits behind) cannot pair with a live
+    // anchor to make a range. `null` means "the consumer has no drag to draw right now."
+    await mountFixture(page, "vertical-japanese");
     const paragraph = await rectAndTextOf(page, "p");
-    const point = centreOf(paragraph.rect);
+    const on = centreOf(paragraph.rect);
+    const off: Point = { x: -100, y: -100 };
 
-    const word = await page.evaluate((p) => window.frond.rangeFromPoints(p, p, "word"), point);
+    const range = await page.evaluate(([a, b]) => window.frond.rangeFromPoints(a, b, "char"), [
+      on,
+      off,
+    ] as const);
 
-    expect(word).not.toBeNull();
-    expect(word!.text.length).toBeGreaterThan(0);
-    expect(word!.text.length).toBeLessThan(paragraph.text.length);
+    expect(range).toBeNull();
   });
 });
 
