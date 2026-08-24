@@ -10,7 +10,10 @@
 export interface SelectionAnchor {
   top: number; // selection top edge, in top-window viewport coordinates
   bottom: number; // selection bottom edge
+  left: number; // selection left edge
+  right: number; // selection right edge
   midX: number; // horizontal midpoint of the selection
+  midY: number; // vertical midpoint of the selection
 }
 
 export interface Size {
@@ -22,24 +25,31 @@ export interface ToolbarPlacement {
   left: number;
   top: number;
   /**
-   * Whether the toolbar ended up above the selection rather than below it.
+   * Which side of the passage the toolbar ended up on.
    *
-   * The toolbar carries a wedge that points at the passage it is about, and which way it
-   * points is this answer. It is reported rather than left to the caller because the caller
-   * would have to compare the same two numbers this function has just compared — and a wedge
-   * pointing away from the text is worse than no wedge at all.
+   * The toolbar carries a wedge that points at the passage it is about, and this is the side
+   * the wedge hangs off — `"below"`/`"above"` in a horizontal book, `"left"`/`"right"` in a
+   * vertical one, where the toolbar sits beside the selection rather than under it. It is
+   * reported rather than left to the caller because the caller would have to compare the same
+   * numbers this function has just compared, and a wedge pointing away from the text is worse
+   * than no wedge at all.
    */
-  above: boolean;
+  side: "below" | "above" | "left" | "right";
 }
 
 interface Options {
-  gap?: number; // vertical space between selection and toolbar
+  gap?: number; // space between selection and toolbar
   margin?: number; // minimum distance from the viewport edges
   // Height of the reserved strip at the bottom of the viewport. Android Chrome's
   // native contextual-search bar slides up into this region during selection, so
   // the toolbar flips above the selection rather than land inside it — even when
   // it would technically still fit on-screen.
   bottomSafe?: number;
+  // A vertically-written book (frond's `vertical-rl`). A selection there is a tall strip and
+  // runs along the block axis, so the toolbar sits **beside** it — below/above would land the
+  // bar far under the passage and over the lines the reader has not selected yet (the 直排 bug
+  // in #52). Which edge of the text a mark runs along is the same fact `HighlightLayer` needs.
+  vertical?: boolean;
 }
 
 export interface Origin {
@@ -77,7 +87,10 @@ export function anchorFromRects(
   return {
     top: container.top + top,
     bottom: container.top + bottom,
+    left: container.left + left,
+    right: container.left + right,
     midX: container.left + (left + right) / 2,
+    midY: container.top + (top + bottom) / 2,
   };
 }
 
@@ -85,14 +98,16 @@ export function placeSelectionToolbar(
   anchor: SelectionAnchor,
   toolbar: Size,
   viewport: Size,
-  { gap = 8, margin = 8, bottomSafe = 96 }: Options = {},
+  { gap = 8, margin = 8, bottomSafe = 96, vertical = false }: Options = {},
 ): ToolbarPlacement {
-  // Horizontal: centre on the selection midpoint, clamped inside the viewport.
+  if (vertical) return placeBeside(anchor, toolbar, viewport, gap, margin);
+
+  // Centre on the selection midpoint along the cross axis, clamped inside the viewport.
   const rawLeft = anchor.midX - toolbar.width / 2;
   const left = clamp(rawLeft, margin, viewport.width - toolbar.width - margin);
 
-  // Vertical: prefer just below the selection, but flip above if that would put
-  // the toolbar into the reserved bottom strip (the native-bar zone).
+  // Prefer just below the selection, but flip above if that would put the toolbar into the
+  // reserved bottom strip (the native-bar zone).
   let top = anchor.bottom + gap;
   if (top + toolbar.height > viewport.height - bottomSafe) {
     top = anchor.top - gap - toolbar.height;
@@ -102,7 +117,31 @@ export function placeSelectionToolbar(
 
   // Read off the placement that survived the clamp, not off the intention before it: when
   // nothing fits the toolbar lands over the selection, and that is not "above" it.
-  return { left, top, above: top + toolbar.height <= anchor.top };
+  return { left, top, side: top + toolbar.height <= anchor.top ? "above" : "below" };
+}
+
+// A vertical book: the toolbar goes beside the tall selection, centred on it along the block
+// axis. Prefer the left of the passage — in a `vertical-rl` book that is the side the reading
+// moves towards — and flip to the right when the left would run off the edge, mirroring the
+// below/above choice of the horizontal case.
+function placeBeside(
+  anchor: SelectionAnchor,
+  toolbar: Size,
+  viewport: Size,
+  gap: number,
+  margin: number,
+): ToolbarPlacement {
+  const rawTop = anchor.midY - toolbar.height / 2;
+  const top = clamp(rawTop, margin, viewport.height - toolbar.height - margin);
+
+  let left = anchor.left - gap - toolbar.width;
+  if (left < margin) left = anchor.right + gap;
+  left = clamp(left, margin, viewport.width - toolbar.width - margin);
+
+  // Which side the clamp left it on, so the wedge points across the passage rather than away.
+  // When nothing fits and the bar lands over the text, default the wedge to the left edge.
+  const side = left >= anchor.right ? "right" : "left";
+  return { left, top, side };
 }
 
 function clamp(value: number, min: number, max: number): number {
