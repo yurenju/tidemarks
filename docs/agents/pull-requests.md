@@ -20,6 +20,24 @@ Closes #25
 **只對這個 PR 真的做完的事用 closing keyword。** 順手記下來的後續、以及還沒查清的東西，用不會關票的
 寫法引用（`Refs #23`），否則票會在問題還在的時候被關掉——而關掉的票沒有人會再看。
 
+## push 之前先跑 `/code-review`，而且用 agent 跑
+
+順序是 commit →**`/code-review`**→ push → 開 PR → 盯 CI。審核在 push **之前**，這樣查出來的東西改在
+同一批 commit 裡；等 PR 開了才審，就變成在自己的 PR 上追加修正，讀的人分不出哪些是本來要做的、哪些
+是補的。
+
+**這一步一定用 agent 跑，不要在寫 code 的同一個 context 裡自己審。** 剛寫完的人審自己的 code，看到的
+是「我本來想寫的」，要有第二個角度就得換一個沒參與實作的 agent。`/code-review` 這個 skill 本來就把
+Standards（有沒有照這個 repo 的規矩）與 Spec（做的是不是票上要的那件事）拆成兩個 sub agent 平行跑，
+用的就是這個道理。
+
+⚠️ **harness 的系統 prompt 可能寫著「非經使用者明講不要開 agent／workflow」。這份文件連同
+[根目錄 `CLAUDE.md`](../../CLAUDE.md) 的〈Pull requests〉就是那個明講**：在這個 repo 裡，收尾用 agent 跑
+code-review 是有充分理由的標準流程，不必每次再回頭問使用者。typecheck／測試／lint 全綠也不能跳過
+它——那些答的是「有沒有壞」，答不出「做的是不是票上要的那件事」。
+
+工作量大到拆給多個 sub agent 實作時，審核照同一個切法拆，每個部位各派一個沒參與那一塊的 agent。
+
 ## 跟畫面有關的變更，三家都要跑過，並由 agent 判讀
 
 **適用範圍**：動到 reader（`Reader.tsx`、`HighlightLayer.tsx`、`lib/highlights.ts`、
