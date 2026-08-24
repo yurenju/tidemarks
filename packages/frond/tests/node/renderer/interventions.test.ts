@@ -33,6 +33,7 @@ const REQUIRED_BY_ADR_0003 = [
   "integer-page-geometry",
   "minimum-ink-gap",
   "multicol-pagination",
+  "quantise-font-weight",
   "reader-stylesheet",
   "relativise-font-size",
   "reset-root-box",

@@ -22,14 +22,14 @@
 
 import { db } from "./db";
 import { storedFontUrl } from "./web-font-store";
-import { carriedFontKinds, WEB_FONTS, type WebFont } from "./web-font";
+import { carriedFontKinds, weightAxis, WEB_FONTS, type WebFont } from "./web-font";
 
 /**
  * Which carried faces the chrome should be drawn in, given the keys this device holds.
  *
- * Empty unless the serif is here **in both weights**: half a family is worse than none of it,
- * because the bold headings would then be the browser's outlining of our Regular while the
- * body around them is the real face, and the two do not look like the same typeface.
+ * Empty unless the serif is here. There is one file and it answers for every weight, so the
+ * old hazard is gone — the chrome can no longer end up with real body text beside headings
+ * the browser outlined for itself.
  */
 export function uiFontFaces(storedKeys: readonly string[]): readonly WebFont[] {
   if (!carriedFontKinds(storedKeys).serif) return [];
@@ -61,15 +61,19 @@ export async function registerUiFonts(): Promise<void> {
     try {
       const src = await storedFontUrl(font);
       if (src === null) continue;
+      // **The whole axis, not the reader's two weights.** Those two belong to the book: they
+      // are what the reader chose for reading in, and the chrome has its own scale — 600 for
+      // a section heading, 400 for a label (`styles/`). Declared with the book's pair, a 600
+      // in the interface would draw at the book's bold weight and the chrome's hierarchy
+      // would come out flattened onto two steps.
       const face = new FontFace(font.family, `url(${src})`, {
-        weight: String(font.weight),
+        weight: weightAxis(font.kind),
         display: "swap",
       });
       document.fonts.add(await face.load());
     } catch {
-      // Both weights were in the store a moment ago, so getting here means the read or the
-      // parse failed. Carrying on gives the other weight its chance; the chrome falls back
-      // per character, so a Regular with no Bold is still most of the interface in our face.
+      // The face was in the store a moment ago, so getting here means the read or the parse
+      // failed. The chrome keeps the face the platform gave it.
     }
   }
 }

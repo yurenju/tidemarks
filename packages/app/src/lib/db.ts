@@ -9,12 +9,17 @@ export interface MetaRow {
 /**
  * One CJK face Tidemarks carries (ADR-0014), as it sits on this device.
  *
- * **A Blob, not an ArrayBuffer.** A face is 16 MB, and an ArrayBuffer read back out of
- * IndexedDB is 16 MB of memory; a Blob read back out is still a reference to something the
+ * **A Blob, not an ArrayBuffer.** A face is 19 MB, and an ArrayBuffer read back out of
+ * IndexedDB is 19 MB of memory; a Blob read back out is still a reference to something the
  * browser keeps on disk until it is asked for.
  */
 export interface FontRow {
-  /** family and weight — `web-font.ts`'s `webFontKey`. */
+  /**
+   * The family — `web-font.ts`'s `webFontKey`.
+   *
+   * It used to be `family/weight`, from when a face was two static files. Rows still under
+   * those keys are deleted rather than left (`web-font-store.ts`'s `forgetStaleFonts`).
+   */
   key: string;
   file: Blob;
 }

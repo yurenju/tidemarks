@@ -282,11 +282,10 @@ describe("frondSettings with the faces Tidemarks carries", () => {
     script: "cjk",
     webFonts: [],
   };
-  const carried = (kind: "serif" | "sans", weight = 400): LoadedWebFont => ({
+  const carried = (kind: "serif" | "sans"): LoadedWebFont => ({
     family: kind === "serif" ? "Noto Serif CJK TC" : "Noto Sans CJK TC",
     kind,
-    weight,
-    src: `blob:tidemarks/${kind}-${weight}`,
+    src: `blob:tidemarks/${kind}`,
   });
 
   it("changes nothing at all while no face has been fetched", () => {
@@ -320,6 +319,69 @@ describe("frondSettings with the faces Tidemarks carries", () => {
   it("leaves the sans stack alone when only the serif face was fetched", () => {
     const serifOnly = { ...context, simplified: true, webFonts: [carried("serif")] };
     expect(frondSettings(base, serifOnly).genericFamilies?.sansSerif).toBe(fontStack("sans", true));
+  });
+
+  // The reader's typeface setting decides two things at once, and this is the second: whether
+  // the book's own weights stand or are quantised onto Tidemarks' two.
+  describe("the weights the face is declared under", () => {
+    const withSerif = { ...context, webFonts: [carried("serif")] };
+    const withSans = { ...context, webFonts: [carried("sans")] };
+
+    it("keeps the book's own weights when the reader kept the book's fonts", () => {
+      // One face over the whole axis, and nothing restating anything: what the book asked
+      // for is what it gets, which is the setting's entire meaning.
+      const mapped = frondSettings({ ...base, fontFamily: "publisher" }, withSerif);
+      expect(mapped.fontFaces?.map((face) => face.weight)).toEqual(["200 900"]);
+      expect(mapped.fontWeights).toBeUndefined();
+    });
+
+    it("pins the serif to 300 and 800 when the reader picked 明體", () => {
+      const mapped = frondSettings({ ...base, fontFamily: "serif" }, withSerif);
+      expect(mapped.fontFaces?.map((face) => face.weight)).toEqual(["300 300", "800 800"]);
+      expect(mapped.fontWeights).toEqual({ normal: 300, bold: 800, boundary: 500 });
+    });
+
+    it("pins the sans to 300 and 600 when the reader picked 黑體", () => {
+      // 600 rather than 800: the sans has even strokes and separates a stop earlier, while
+      // the serif's stroke contrast needs the extra weight before the difference reads.
+      const mapped = frondSettings({ ...base, fontFamily: "sans" }, withSans);
+      expect(mapped.fontFaces?.map((face) => face.weight)).toEqual(["300 300", "600 600"]);
+      expect(mapped.fontWeights).toEqual({ normal: 300, bold: 600, boundary: 500 });
+    });
+
+    it("declares both rules over the one file", () => {
+      // Two `@font-face`s naming one URL, which costs one parse rather than two — the font
+      // cache is keyed on the URL (`web-font-store.ts`).
+      const faces = frondSettings({ ...base, fontFamily: "serif" }, withSerif).fontFaces ?? [];
+      expect(new Set(faces.map((face) => face.src)).size).toBe(1);
+      expect(faces).toHaveLength(2);
+    });
+
+    it("asks for no restating when there is no carried face to restate onto", () => {
+      // Offline, or a book with no Han in it. The book renders in the platform's own face,
+      // which has whatever weights it has — rewriting the book's would be an intervention
+      // against a face nobody chose the weights of.
+      const mapped = frondSettings({ ...base, fontFamily: "serif" }, context);
+      expect(mapped.fontWeights).toBeUndefined();
+    });
+
+    it("asks for no restating when the face in hand is the other kind", () => {
+      // A device that fetched 黑體 earlier and is now on 明體: there is a carried face, and it
+      // is not the one the weights are pinned onto. The book is in the platform's serif until
+      // ours arrives, and its weights are none of our business until then.
+      const mapped = frondSettings({ ...base, fontFamily: "serif" }, withSans);
+      expect(mapped.fontWeights).toBeUndefined();
+    });
+
+    it("leaves the other kind's face over the whole axis", () => {
+      // Only the picked kind is pinned. The sans is still declared — it is what a book's
+      // `font-family: sans-serif` resolves to — and pinning it to weights the reader chose for
+      // the serif would be a rule nobody asked for.
+      const both = { ...context, webFonts: [carried("serif"), carried("sans")] };
+      const faces = frondSettings({ ...base, fontFamily: "serif" }, both).fontFaces ?? [];
+      const sans = faces.filter((face) => face.family === "'Noto Sans CJK TC'");
+      expect(sans.map((face) => face.weight)).toEqual(["100 900"]);
+    });
   });
 });
 

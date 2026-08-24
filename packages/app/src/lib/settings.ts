@@ -7,7 +7,7 @@ import type {
 } from "@yurenju/frond/renderer";
 import { fontStack } from "./chinese";
 import { MARK_CLEARANCE, WAVE_THICKNESS } from "./highlights";
-import { fontLanguageFor, weightRange } from "./web-font";
+import { BOLD_BOUNDARY, faceWeightDescriptors, fontLanguageFor, READING_WEIGHTS } from "./web-font";
 import type { LoadedWebFont } from "./web-font-store";
 import { layoutFor, type ColumnChoice, type Script } from "./line-length";
 
@@ -404,9 +404,20 @@ export function frondSettings(
   const stack = (kind: "sans" | "serif") =>
     carriedFirst(fontStack(kind, simplified), webFonts, kind);
 
+  // Keeping the book's own fonts means keeping its own weights: the faces are declared over
+  // the whole axis and nothing restates anything. Picking a typeface is picking Tidemarks'
+  // two-weight system along with it, and that is what both fields below carry.
+  const chosen = settings.fontFamily === "publisher" ? undefined : settings.fontFamily;
+
+  // **The kind the reader picked, not any kind.** A device that fetched the sans earlier and
+  // is now on 明體 has a face in hand and none of it is the one being restated onto — the book
+  // renders in the platform's serif, which has whatever weights it has. Restating the book's
+  // 500 as 800 there is an intervention against a face nobody chose the weights of.
+  const pinned = chosen !== undefined && webFonts.some((font) => font.kind === chosen);
+
   return {
     fontSize: frondFontSize(settings, rootFontSize),
-    fontFamily: settings.fontFamily === "publisher" ? undefined : stack(settings.fontFamily),
+    fontFamily: chosen === undefined ? undefined : stack(chosen),
     lineHeight: settings.lineHeight === 0 ? undefined : settings.lineHeight,
     // The room a mark needs between one line's ink and the next: 4px of wave, 0.7 clear of
     // this line and 1.3 clear of the next (ADR-0032). frond turns it into a line height,
@@ -421,7 +432,17 @@ export function frondSettings(
       serif: stack("serif"),
       sansSerif: stack("sans"),
     },
-    fontFaces: webFonts.length === 0 ? undefined : webFonts.map(frondFontFace),
+    fontFaces:
+      webFonts.length === 0
+        ? undefined
+        : webFonts.flatMap((font) => frondFontFaces(font, font.kind === chosen)),
+    // The one weight the descriptors above cannot reach — see frond's `FontWeights` for what
+    // the gap is and why no third descriptor closes it. Sent only where there is a pinned face
+    // for it to land on.
+    fontWeights:
+      pinned && chosen !== undefined
+        ? { ...READING_WEIGHTS[chosen], boundary: BOLD_BOUNDARY }
+        : undefined,
     // Only alongside a face Tidemarks actually carries. The property shapes whatever face the
     // text lands on, and against a platform font that is an instruction to something nobody
     // here has seen — some faces carry no `locl` at all, and which regional forms one holds
@@ -432,13 +453,24 @@ export function frondSettings(
 }
 
 /**
- * A carried face as frond takes it. `family` is a CSS value, so it carries its own quotes,
- * and `weight` is the **range** the face answers to rather than the single weight it was
- * drawn at — see `weightRange`, which is what keeps a book's `font-weight: 500` emphasis
- * visible once the reader has chosen a face.
+ * A carried face as frond takes it — **one `@font-face` per weight descriptor, all naming
+ * the same file.**
+ *
+ * `family` is a CSS value, so it carries its own quotes. The descriptors are where the
+ * reader's choice lands: keeping the book's own fonts declares the whole axis and the book's
+ * weights are drawn as written, while picking 黑體 or 明體 declares two single-value ranges
+ * that pin every weight onto one of the reader's two (`web-font.ts`'s
+ * `faceWeightDescriptors`).
+ *
+ * Two rules over one URL costs nothing: the font cache is keyed on the URL, so the file is
+ * parsed once however many times it is named (`web-font-store.ts`).
  */
-function frondFontFace(font: LoadedWebFont): FrondFontFace {
-  return { family: `'${font.family}'`, src: font.src, weight: weightRange(font.weight) };
+function frondFontFaces(font: LoadedWebFont, quantise: boolean): FrondFontFace[] {
+  return faceWeightDescriptors(font.kind, quantise).map((weight) => ({
+    family: `'${font.family}'`,
+    src: font.src,
+    weight,
+  }));
 }
 
 /**

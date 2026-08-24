@@ -29,6 +29,7 @@ import {
   inlineImports,
   normalisePageBreaks,
   normalisePrefixedWritingMode,
+  quantiseFontWeights,
   relativiseFontSizes,
   resolveGenericFamilies,
   rewriteUrls,
@@ -421,6 +422,9 @@ function rewriteInlineStyles({ document, path, settings, resources }: SectionBui
     if (settings.genericFamilies !== undefined) {
       rewritten = resolveGenericFamilies(rewritten, settings.genericFamilies, "declarations");
     }
+    if (settings.fontWeights !== undefined) {
+      rewritten = quantiseFontWeights(rewritten, settings.fontWeights, "declarations");
+    }
     if (colors !== undefined) {
       rewritten = adaptColors(rewritten, colors, "declarations");
     }
@@ -551,6 +555,12 @@ function transformBookStylesheet(
   const overridden = overriddenProperties(settings);
   if (overridden.size > 0) output = demoteImportant(output, overridden);
   if (settings.fontSize !== undefined) output = relativiseFontSizes(output);
+
+  // After the demotion, so that the flag and the value are each decided by one pass — the
+  // same ordering, and the same reason, as the colours below.
+  if (settings.fontWeights !== undefined) {
+    output = quantiseFontWeights(output, settings.fontWeights);
+  }
 
   // After the demotion rather than before, so that a colour and its `!important` are
   // decided by one pass each rather than by whichever ran first. The two are independent

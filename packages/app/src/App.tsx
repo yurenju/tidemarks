@@ -18,6 +18,7 @@ import { registerUiFonts } from "./lib/ui-font";
 import { activateLocale, i18n } from "./lib/i18n";
 import { saveLocale, type Locale } from "./lib/locale";
 import { beaconPositions, syncNow } from "./lib/sync";
+import { forgetStaleFonts } from "./lib/web-font-store";
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -81,7 +82,11 @@ export default function App() {
   // Once, at startup, and deliberately not when a download finishes — `lib/ui-font.ts` has
   // why. Nothing waits on it: the chrome is already drawn in the platform's serif, and this
   // either improves it or does not.
+  //
+  // The two static faces a device may still hold go first, so a reader who never opens a
+  // book again still gets the space back.
   useEffect(() => {
+    void forgetStaleFonts();
     void registerUiFonts();
   }, []);
 

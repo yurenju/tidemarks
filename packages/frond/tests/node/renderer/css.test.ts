@@ -11,6 +11,7 @@ import {
   mapStylesheet,
   normalisePageBreaks,
   normalisePrefixedWritingMode,
+  quantiseFontWeights,
   relativiseFontSizes,
   resolveGenericFamilies,
   rewriteUrls,
@@ -266,6 +267,107 @@ p span { font-size: 10px }`);
     expect(relativiseFontSizes("font-size: 24px; color: red", "declarations")).toBe(
       "font-size: 1.5rem; color: red",
     );
+  });
+});
+
+describe("quantising the book's font weights", () => {
+  // The two weights the reader's chosen face is drawn at, and where the book's own numbers
+  // start counting as the bold one. These are the serif figures.
+  const WEIGHTS = { normal: 300, bold: 800, boundary: 500 };
+
+  test("a number below the boundary becomes the body weight", () => {
+    expect(quantiseFontWeights("p { font-weight: 400 }", WEIGHTS)).toBe("p { font-weight: 300}");
+  });
+
+  test("a number at the boundary becomes the bold weight", () => {
+    // The whole reason this rewrite exists. Left alone, 500 searches *downwards* and lands
+    // on the body face, so the book's emphasis draws identically to the text around it.
+    expect(quantiseFontWeights("p { font-weight: 500 }", WEIGHTS)).toBe("p { font-weight: 800}");
+  });
+
+  test("a number above the boundary becomes the bold weight", () => {
+    expect(quantiseFontWeights(".x { font-weight: 600 }", WEIGHTS)).toContain("font-weight: 800");
+  });
+
+  test("the keywords resolve to their own side", () => {
+    expect(quantiseFontWeights("p { font-weight: normal }", WEIGHTS)).toContain("font-weight: 300");
+    expect(quantiseFontWeights("p { font-weight: bold }", WEIGHTS)).toContain("font-weight: 800");
+  });
+
+  test("bolder and lighter are left alone", () => {
+    // Both are relative to the inherited weight, which is not known until the cascade runs.
+    // Left alone they still land on one of the two declared faces, because those are the
+    // only two there are — so guessing here would add risk and change nothing.
+    for (const css of ["p { font-weight: bolder }", "p { font-weight: lighter }"]) {
+      expect(quantiseFontWeights(css, WEIGHTS)).toBe(css);
+    }
+  });
+
+  test("a value that is not a weight is left alone", () => {
+    const css = "p { font-weight: var(--w) }";
+    expect(quantiseFontWeights(css, WEIGHTS)).toBe(css);
+  });
+
+  test("!important stays on the quantised declaration", () => {
+    expect(quantiseFontWeights("p { font-weight: 500 !important }", WEIGHTS)).toContain(
+      "font-weight: 800 !important",
+    );
+  });
+
+  test("a font shorthand gets a longhand appended rather than being rewritten", () => {
+    // **The shorthand is never taken apart.** Its grammar puts the family after the size and
+    // an optional line height, and rewriting that wrongly corrupts the whole declaration —
+    // which is why the two older rewrites decline to reach into it at all (`relativiseFontSizes`,
+    // `resolveGenericFamilies`). A longhand after it in the same block wins on its own.
+    // The shorthand comes back with its own whitespace intact, because it is the untouched
+    // `source` — the same shape `normalisePrefixedWritingMode` produces when it adds a
+    // declaration beside one it left alone.
+    expect(quantiseFontWeights("p { font: 500 16px serif }", WEIGHTS)).toBe(
+      "p {  font: 500 16px serif ;font-weight: 800}",
+    );
+  });
+
+  test("the rest of the shorthand survives verbatim", () => {
+    const rewritten = quantiseFontWeights(
+      "p { font: italic 500 16px/1.4 Georgia, serif }",
+      WEIGHTS,
+    );
+
+    expect(rewritten).toContain("font: italic 500 16px/1.4 Georgia, serif");
+    expect(rewritten).toContain("font-weight: 800");
+  });
+
+  test("a shorthand naming no weight is left alone", () => {
+    // It does set one — the shorthand resets weight to `normal` — but 400 already draws in
+    // the body face, so there is nothing to restate and no reason to leave a trace.
+    const css = "p { font: 16px/1.4 serif }";
+    expect(quantiseFontWeights(css, WEIGHTS)).toBe(css);
+  });
+
+  test("a system font keyword is left alone", () => {
+    // `font: menu` names no weight of its own, and the tokens before a size are the only
+    // place one could be.
+    const css = "p { font: menu }";
+    expect(quantiseFontWeights(css, WEIGHTS)).toBe(css);
+  });
+
+  test("the appended longhand carries the shorthand's !important", () => {
+    // Without the flag the appended declaration would lose to any !important elsewhere that
+    // the shorthand itself was beating.
+    expect(quantiseFontWeights("p { font: 500 16px serif !important }", WEIGHTS)).toContain(
+      "font-weight: 800 !important",
+    );
+  });
+
+  test("weights in a style attribute are quantised too", () => {
+    expect(quantiseFontWeights("font-weight: 500; color: red", WEIGHTS, "declarations")).toBe(
+      "font-weight: 800; color: red",
+    );
+  });
+
+  test("nothing else is touched", () => {
+    const css = "p { color: red; font-size: 12px; font-style: italic }";
+    expect(quantiseFontWeights(css, WEIGHTS)).toBe(css);
   });
 });
 

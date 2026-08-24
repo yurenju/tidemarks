@@ -1103,16 +1103,18 @@ export default function Reader({
       let netApplied = false;
       let failed = false;
       try {
-        // Sequential, and Regular is first (`webFontsFor`): the body text is what the reader
-        // is looking at, and two 16 MB fetches racing each other would only make it later.
+        // A loop over what is now one file per kind. It used to be two — Regular first, so the
+        // body text arrived before the headings — and the loop is kept because the shape of
+        // "fetch what this setting needs" is the setting's business rather than the count's.
         for (const font of webFontsFor(settings.fontFamily)) {
           let downloading = false;
           const loaded = await ensureWebFont(font, (status) => {
             if (cancelled) return;
             setWebFontStatus(status);
-            // The trace comes up the moment a fetch reaches the wire and stays up across both
-            // faces — it is cleared once, in `finally`, so it does not flicker off in the gap
-            // between Regular finishing and Bold starting.
+            // The trace comes up the moment a fetch reaches the wire, and is cleared once, in
+            // `finally`. That used to matter across two faces, so the indicator did not flicker
+            // off between Regular finishing and Bold starting; with one file it is simply where
+            // the clearing belongs.
             if (status.state === "downloading") {
               downloading = true;
               setFontBusy(true);
@@ -1127,19 +1129,15 @@ export default function Reader({
           // Only a face that reached the wire earns the applied toast, so a cached switch stays
           // silent; a face that came from the device applies without setting this.
           if (downloading) netApplied = true;
-          setWebFonts((held) => [
-            ...held.filter((f) => !(f.family === loaded.family && f.weight === loaded.weight)),
-            loaded,
-          ]);
+          setWebFonts((held) => [...held.filter((f) => f.family !== loaded.family), loaded]);
         }
       } finally {
         if (!cancelled) setFontBusy(false);
       }
       if (cancelled) return;
-      // One toast for the whole job, not one per face. The applied note wins when a downloaded
-      // face is on the page — even if Bold then failed, the reader is reading in the face they
-      // picked, so the failure note would contradict what is on screen. It is for when
-      // nothing they picked could be had at all.
+      // One toast for the whole job. The applied note wins whenever a downloaded face is on
+      // the page: the reader is reading in the face they picked, so a failure note would
+      // contradict what is on screen. It is for when nothing they picked could be had at all.
       if (netApplied)
         setFontToast(webFontAppliedNote(i18n, fontFamilyLabel(i18n, settings.fontFamily)));
       else if (failed) setFontToast(i18n._(WEB_FONT_UNAVAILABLE_NOTE));

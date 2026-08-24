@@ -32,6 +32,12 @@ export const BOOKS = {
   vertical: join(BOOKS_DIR, "kusamakura-vertical-japanese.epub"),
   /** 橫排英文——Alice. Illustrations mixed into the text. */
   horizontal: join(BOOKS_DIR, "alice-in-wonderland-horizontal.epub"),
+  /**
+   * 橫排繁中, written for the weight question: body at 300, `.sans` at 500, `.six-hundred`
+   * at 600, `h1` at 700. Nothing else in `tests/books/` declares a numeric weight, so this is
+   * the only fixture on which the reader's two-weight rule is visible at all.
+   */
+  emphasis: join(BOOKS_DIR, "emphasis-weight-500-chinese.epub"),
 } as const;
 
 /**

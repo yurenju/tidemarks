@@ -1,16 +1,17 @@
-// Whether a book is Chinese enough to be worth a 16 MB face, and which faces follow: the count
-// that decides it, the family names, the weight ranges, what a device already carries. No layer
-// above repeats this — the download itself is web-font-store.test.ts.
+// Whether a book is Chinese enough to be worth a 19 MB face, and which faces follow: the count
+// that decides it, the family names, the weight descriptors, what a device already carries. No
+// layer above repeats this — the download itself is web-font-store.test.ts.
 import { describe, expect, it } from "vitest";
 import { detectScript } from "./line-length";
 import {
   WEB_FONTS,
   carriedFontKinds,
+  faceWeightDescriptors,
   fontLanguageFor,
   needsWebFont,
+  staleFontKeys,
   webFontKey,
   webFontsFor,
-  weightRange,
 } from "./web-font";
 
 describe("needsWebFont", () => {
@@ -31,7 +32,7 @@ describe("needsWebFont", () => {
   });
 
   // A Latin book quoting Han characters — a linguistics text, a travel memoir — is not worth
-  // 16 MB on the reader's connection: those characters render from the platform's own face
+  // 19 MB on the reader’s connection: those characters render from the platform's own face
   // as they always have. Forty of them scattered through a chapter is still quoting.
   it("says no when Han characters are only quoted in passing", () => {
     const quoting = "Latin prose carries on. 漢字。".repeat(20);
@@ -66,7 +67,7 @@ describe("needsWebFont", () => {
   // The whole reason this is a second judgement rather than a reuse of `detectScript`: that
   // one answers "how wide is a character", and answers `'cjk'` when it counted nothing at
   // all, because a line too short is the safe failure there. Here the safe failure runs the
-  // other way — nothing counted must not start a 16 MB download.
+  // other way — nothing counted must not start a 19 MB download.
   it("disagrees with detectScript exactly where the safe default differs", () => {
     for (const sample of ["", "   ", "01234567890 ......"]) {
       expect(detectScript(sample)).toBe("cjk");
@@ -101,12 +102,11 @@ describe("webFontsFor", () => {
     expect(webFontsFor("publisher").every((f) => f.kind === "serif")).toBe(true);
   });
 
-  // Regular is the body text; Bold is the headings inside it. Fetching them the other way
-  // round would leave a reader looking at 16 MB of progress before a single paragraph
-  // changed face. Both kinds carry a real Bold.
-  it("fetches Regular before Bold, for either face", () => {
-    expect(webFontsFor("serif").map((f) => f.weight)).toEqual([400, 700]);
-    expect(webFontsFor("sans").map((f) => f.weight)).toEqual([400, 700]);
+  // One file per kind now that the face is variable, where it used to be Regular and Bold
+  // fetched in that order. There is no half-arrived state left to sequence.
+  it("fetches one file for the kind, not one per weight", () => {
+    expect(webFontsFor("serif")).toHaveLength(1);
+    expect(webFontsFor("sans")).toHaveLength(1);
   });
 });
 
@@ -123,39 +123,46 @@ describe("WEB_FONTS", () => {
     for (const font of WEB_FONTS) expect(font.path).toMatch(/^\/fonts\/[\w-]+\.woff2$/);
   });
 
-  // Family alone is not a key: each face ships at two weights under one name, and a store
-  // keyed on the name would hand the Bold bytes back for a Regular request.
-  it("keys a face by family and weight, which is what a stored copy is looked up by", () => {
+  // The family is the whole key now: one variable file answers for every weight, so there is
+  // no second thing about a face to tell apart.
+  it("keys a face by family, which is what a stored copy is looked up by", () => {
     const keys = WEB_FONTS.map(webFontKey);
     expect(new Set(keys).size).toBe(WEB_FONTS.length);
-    expect(keys).toContain("Noto Serif CJK TC/400");
-    expect(keys).toContain("Noto Serif CJK TC/700");
-    expect(keys).toContain("Noto Sans CJK TC/400");
-    expect(keys).toContain("Noto Sans CJK TC/700");
+    expect(keys).toEqual(["Noto Serif CJK TC", "Noto Sans CJK TC"]);
   });
 });
 
-describe("weightRange", () => {
-  // The whole point of the range: 500 is where CSS searches downwards first, so two faces
-  // declared at 400 and 700 alone draw a book's `font-weight: 500` emphasis in the same
-  // Regular as the body text around it.
-  it("gives 500 to the Bold rather than letting it fall back to the Regular", () => {
-    expect(weightRange(700)).toBe("500 900");
-    expect(weightRange(400)).toBe("100 400");
+describe("faceWeightDescriptors", () => {
+  // Two single-value ranges, and single-value is load-bearing. A range that *contains* the
+  // requested weight passes it through unclamped, so a bold face declared `800 900` draws a
+  // book's `font-weight: 900` at 900 and the two-weight rule breaks in its topmost cell.
+  it("pins the face to the reader's two weights, one value each", () => {
+    expect(faceWeightDescriptors("serif", true)).toEqual(["300 300", "800 800"]);
+    expect(faceWeightDescriptors("sans", true)).toEqual(["300 300", "600 600"]);
   });
 
-  it("covers the whole scale between the two faces, leaving no weight unmatched", () => {
-    const bounds = WEB_FONTS.filter((f) => f.kind === "serif").map((f) => weightRange(f.weight));
-    expect(bounds).toEqual(["100 400", "500 900"]);
+  // The book's own weights are the answer when the reader kept the book's fonts, so the face
+  // answers for the whole axis and draws whatever was asked for.
+  it("declares the whole axis when the book's own weights are to stand", () => {
+    expect(faceWeightDescriptors("serif", false)).toEqual(["200 900"]);
+    expect(faceWeightDescriptors("sans", false)).toEqual(["100 900"]);
+  });
+
+  // Noto Serif CJK's wght axis starts at 200 and Noto Sans CJK's at 100. Declaring a range
+  // the file does not hold would be clamped to the file's own anyway, but saying it wrongly
+  // is a claim nobody could check against the bytes.
+  it("declares no weight the file cannot draw", () => {
+    expect(faceWeightDescriptors("serif", false)[0]!.startsWith("200")).toBe(true);
+    expect(faceWeightDescriptors("sans", false)[0]!.startsWith("100")).toBe(true);
   });
 });
 
 describe("carriedFontKinds", () => {
-  it("says a kind is carried only when every weight of it is stored", () => {
-    expect(carriedFontKinds(["Noto Serif CJK TC/400"])).toEqual({ serif: false, sans: false });
-    expect(carriedFontKinds(["Noto Serif CJK TC/400", "Noto Serif CJK TC/700"])).toEqual({
+  it("says a kind is carried when its file is stored", () => {
+    expect(carriedFontKinds(["Noto Serif CJK TC"])).toEqual({ serif: true, sans: false });
+    expect(carriedFontKinds(["Noto Serif CJK TC", "Noto Sans CJK TC"])).toEqual({
       serif: true,
-      sans: false,
+      sans: true,
     });
   });
 
@@ -163,10 +170,32 @@ describe("carriedFontKinds", () => {
     expect(carriedFontKinds([])).toEqual({ serif: false, sans: false });
   });
 
-  it("ignores keys that belong to no face this build ships", () => {
-    expect(carriedFontKinds(["Some Old Face/400", ...WEB_FONTS.map(webFontKey)])).toEqual({
-      serif: true,
-      sans: true,
+  // The keys the two static faces were stored under. A device that has them holds bytes for
+  // a face this build no longer ships, and reading them as "carried" would leave the reader
+  // looking at the old Regular for good.
+  it("does not read a superseded key as the face being carried", () => {
+    expect(carriedFontKinds(["Noto Serif CJK TC/400", "Noto Serif CJK TC/700"])).toEqual({
+      serif: false,
+      sans: false,
     });
+  });
+});
+
+describe("staleFontKeys", () => {
+  // 33 MB of a face nobody will read again. `web-font.ts` used to ignore these, which was
+  // right while the keys it did not recognise were only ever an older build's — now there is
+  // a known pair of them on every device that ever picked a face.
+  it("names the keys this build no longer ships", () => {
+    expect(
+      staleFontKeys(["Noto Serif CJK TC/400", "Noto Serif CJK TC", "Noto Sans CJK TC"]),
+    ).toEqual(["Noto Serif CJK TC/400"]);
+  });
+
+  it("names nothing on a device holding only today's faces", () => {
+    expect(staleFontKeys(WEB_FONTS.map(webFontKey))).toEqual([]);
+  });
+
+  it("names nothing on an empty device", () => {
+    expect(staleFontKeys([])).toEqual([]);
   });
 });
