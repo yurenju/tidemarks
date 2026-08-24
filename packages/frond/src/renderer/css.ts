@@ -25,7 +25,7 @@
  */
 
 import { adaptColor, type ColorTheme } from "./color.ts";
-import type { GenericFamilies } from "./settings.ts";
+import type { FontWeights, GenericFamilies } from "./settings.ts";
 
 /** One declaration. `important` and `value` are separate, because every rewrite only touches one of them. */
 export interface Declaration {
@@ -438,6 +438,128 @@ function toRem(value: string): string | undefined {
   // long repeating decimal that makes the rewritten stylesheet hard to read, and that text
   // is the only thing visible when investigating a problem.
   return `${Number(rem.toFixed(4))}rem`;
+}
+
+/**
+ * Restates the book's own `font-weight` values as the two the reader's faces are drawn at.
+ *
+ * ## What this repairs
+ *
+ * A carried face pinned to two weights by narrow `font-weight` descriptors answers every
+ * request with one of the two — with one exception the matching algorithm creates. CSS
+ * searches for a weight it does not hold, and for a request **inclusively between 400 and
+ * 500** it looks up only as far as 500 before turning round and looking down. With faces
+ * declared at 300 and 800 there is nothing in that window, so a book's `font-weight: 500`
+ * lands on the body face and its emphasis draws identically to the text around it.
+ *
+ * **There is no declaration that closes the gap.** A third face at 500 is found by the
+ * *400* request too — that same upward leg runs "until 500 is hit and checked" — so it
+ * takes the body text with it. Measured on all three engines: 500 draws as the body weight,
+ * and a face added at 500 turns the body into 500 (docs/specs/cjk-web-font/measurements.md).
+ *
+ * Restating the value here closes it, and does something better besides: the weight the
+ * book gets stops depending on the matching algorithm at all.
+ *
+ * ## Why the `font` shorthand is appended to rather than rewritten
+ *
+ * The two older rewrites decline to reach into the shorthand, because its grammar puts the
+ * family after the size and an optional line height, and taking it apart wrongly corrupts
+ * the whole declaration (`relativiseFontSizes`, `resolveGenericFamilies`). That reason is
+ * about **replacing** the value, and this does not replace it: the shorthand is carried
+ * over verbatim and a longhand is written after it, which wins on being later in the same
+ * block. Nothing can be corrupted because nothing is taken apart — the shorthand is only
+ * *read*, and a read that fails appends nothing. `normalisePrefixedWritingMode` adds a
+ * declaration rather than replacing one for the same reason.
+ *
+ * A shorthand naming no weight is left alone. It does set one — the shorthand resets weight
+ * to `normal` — but 400 already draws in the body face, so there would be nothing to
+ * restate and no reason to leave a trace.
+ *
+ * ## What is not reached
+ *
+ * `bolder` and `lighter` are relative to the inherited weight, which is not known until the
+ * cascade runs. They are left alone, and cost nothing by it: the two declared faces are the
+ * only two there are, so whatever they compute to still lands on one of them.
+ *
+ * The `<b>`, `<strong>` and heading weights come from the user-agent stylesheet rather than
+ * from the book, so no rewrite can reach them — they ask for 700 and the matching algorithm
+ * answers with the bold face, which is measured and is what it already did.
+ */
+export function quantiseFontWeights(
+  source: string,
+  weights: FontWeights,
+  scope: CssScope = "stylesheet",
+): string {
+  return walk(source, scope, (declaration) => {
+    const flag = declaration.important ? " !important" : "";
+
+    if (declaration.property === "font-weight") {
+      const resolved = quantise(declaration.value, weights);
+      return resolved === undefined ? undefined : `font-weight: ${resolved}${flag}`;
+    }
+
+    if (declaration.property === "font") {
+      const named = shorthandWeight(declaration.value);
+      if (named === undefined) return undefined;
+      const resolved = quantise(named, weights);
+      return resolved === undefined
+        ? undefined
+        : `${declaration.source};font-weight: ${resolved}${flag}`;
+    }
+
+    return undefined;
+  });
+}
+
+/** The tokens the `font` shorthand allows before the size, none of which is a weight. */
+const SHORTHAND_LEADING = new Set([
+  "normal",
+  "italic",
+  "oblique",
+  "small-caps",
+  "ultra-condensed",
+  "extra-condensed",
+  "condensed",
+  "semi-condensed",
+  "semi-expanded",
+  "expanded",
+  "extra-expanded",
+  "ultra-expanded",
+]);
+
+/** `bolder` and `lighter` are weights, but not ones that can be resolved without the cascade. */
+const KEYWORD_WEIGHTS = new Set(["bold", "bolder", "lighter"]);
+
+function isWeightToken(token: string): boolean {
+  return KEYWORD_WEIGHTS.has(token) || /^\d{1,4}$/.test(token);
+}
+
+/**
+ * The weight a `font` shorthand names, or `undefined` if it names none.
+ *
+ * Only the tokens before the size are read, which is the one place a weight can be. Reading
+ * stops at the first token that is neither a leading keyword nor a weight — the size, or
+ * anything unrecognised — so a system keyword (`font: menu`) and an unparseable value both
+ * stop on their first token and yield nothing, which is the safe answer.
+ */
+function shorthandWeight(value: string): string | undefined {
+  for (const token of value.trim().toLowerCase().split(/\s+/)) {
+    if (isWeightToken(token)) return token;
+    if (!SHORTHAND_LEADING.has(token)) return undefined;
+  }
+  return undefined;
+}
+
+/** One weight value as one of the reader's two, or `undefined` to leave the declaration alone. */
+function quantise(value: string, weights: FontWeights): number | undefined {
+  const token = value.trim().toLowerCase();
+  if (token === "normal") return weights.normal;
+  if (token === "bold") return weights.bold;
+
+  if (!/^\d{1,4}$/.test(token)) return undefined;
+  const numeric = Number(token);
+  if (numeric < 1 || numeric > 1000) return undefined;
+  return numeric < weights.boundary ? weights.normal : weights.bold;
 }
 
 /**

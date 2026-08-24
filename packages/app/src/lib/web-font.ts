@@ -27,82 +27,138 @@ export interface WebFont {
    */
   readonly family: string;
   readonly kind: WebFontKind;
-  /** The CSS weight, which is also half the key a stored copy is looked up by. */
-  readonly weight: 400 | 700;
-  /** Absolute path on spine's own origin. Never a third party — see ADR-0014. */
+  /** Absolute path on Tidemarks' own origin. Never a third party — see ADR-0014. */
   readonly path: string;
 }
 
 /**
- * The faces, in the order they are fetched — **Regular before Bold** within each kind,
- * because Regular is the body text and Bold is the headings and the emphasis inside it. A
- * reader who has the first one is already reading in the right face; the second one arrives
- * and the headings redraw.
+ * The faces, one file per kind.
  *
- * Both kinds carry a real Bold. Synthesised bold — the browser outlining the Regular — is
- * what the goal of "the same face on every machine" fails on: measured coverage over
- * stroke-dense glyphs at 48px (docs/specs/cjk-web-font/measurements.md) varies 14–18% across
- * the three engines against a drawn Bold's 1–2%. The serif is the worse of the two (its
- * counters fill in and the character turns to mush; +25–27% over the drawn face against the
- * sans's +10%), which is why it was carried first — but a heading is a heading in either
- * face, so both get the real weight.
+ * Each is the **variable** build, whose wght axis is drawn continuously rather than at two
+ * fixed stops — and it is the cheaper of the two shapes, which is the reverse of what
+ * `measurements.md` concluded when it compared the uncompressed files. Two static faces each
+ * carry a full set of outlines and compress separately (68% of the OTF); one variable face
+ * carries one set plus the deltas between the masters, and those compress to 34–42%. Over
+ * the wire the serif is 18.83 MB against 32.93, the sans 12.86 against 22.46.
+ *
+ * What it costs is the half-arrived state. Regular used to be fetched before Bold so that a
+ * reader was already reading in the right face while the headings caught up; there is one
+ * file now, so nothing applies until all of it has. Against the serif's old 15.94 MB before
+ * the first paragraph changed face, this is 18.83 — 18% longer to start, 43% shorter to
+ * finish.
+ *
+ * Synthesised bold is still what this is all for. The browser outlining a Regular varies
+ * 14–18% in ink coverage across the three engines against a drawn weight's 1–2%
+ * (docs/specs/cjk-web-font/measurements.md), and "the same face on every machine" is the
+ * whole of ADR-0014.
  */
 export const WEB_FONTS: readonly WebFont[] = [
   {
     family: "Noto Serif CJK TC",
     kind: "serif",
-    weight: 400,
-    path: "/fonts/NotoSerifCJKtc-Regular.woff2",
-  },
-  {
-    family: "Noto Serif CJK TC",
-    kind: "serif",
-    weight: 700,
-    path: "/fonts/NotoSerifCJKtc-Bold.woff2",
+    path: "/fonts/NotoSerifCJKtc-VF.woff2",
   },
   {
     family: "Noto Sans CJK TC",
     kind: "sans",
-    weight: 400,
-    path: "/fonts/NotoSansCJKtc-Regular.woff2",
-  },
-  {
-    family: "Noto Sans CJK TC",
-    kind: "sans",
-    weight: 700,
-    path: "/fonts/NotoSansCJKtc-Bold.woff2",
+    path: "/fonts/NotoSansCJKtc-VF.woff2",
   },
 ];
 
-/** How a stored copy is looked up: one face is a family at a weight, nothing else. */
+/** How a stored copy is looked up: one file per family, and the family is the whole of it. */
 export function webFontKey(font: WebFont): string {
-  return `${font.family}/${font.weight}`;
+  return font.family;
+}
+
+/** The two weights a reader's chosen face is drawn at. */
+export interface ReadingWeights {
+  readonly normal: number;
+  readonly bold: number;
 }
 
 /**
- * The range of weights a carried face answers to, which is wider than the weight it was drawn
- * at: Regular takes everything up to 400, Bold everything from 500 up.
+ * The two weights each face is pinned to when the reader has picked it.
  *
- * **The interesting half is the 500.** CSS matches a weight the family does not hold by
- * searching outwards, and for 500 it looks *down* before it looks up — so with faces declared
- * at 400 and 700 alone, a book's `font-weight: 500` lands on the same Regular as its body
- * text and draws identically. That is not a rare shape in Chinese books: there is no italic
- * to emphasise with, so emphasis is a heavier face, a different family, or both. FIRE．致富
- * 實踐 marks 「另一本」with `.sans { font-family: sans-serif; font-weight: 500 }`, and once the
- * reader picks 黑體 or 明體 the family half is overridden by their choice (frond's
- * `readerStylesheet`) — leaving the 500, which without this range resolves to Regular and
- * leaves the emphasis invisible.
+ * Measured as ink coverage over stroke-dense glyphs at 48px, these lift the ratio between
+ * body and bold from 1.37× to 1.56× for the serif and from 1.42× to 1.74× for the sans
+ * (docs/specs/cjk-web-font/measurements.md). **The asymmetry is deliberate**: the sans has
+ * even strokes and separates at 600, while the serif's stroke contrast and small counters
+ * need 800 before the difference reads at a glance.
  *
- * Moving the boundary to 500 is safe because **no book puts 500 on its body text**: over 34
- * commercially circulating Chinese books, 10 declare a weight between 400 and 700 and every
- * one of them hangs it on a named class (`.bold`, `span.emph`, `.tips`, `p.img_text`,
- * `div.example0 li`), never on `body`, a bare `p` or `*`. Nine of the ten put under 1.4% of
- * their text in those classes (docs/specs/cjk-web-font/measurements.md).
- *
- * 600 needs nothing from this: CSS searches upwards from 600, so it already found the Bold.
+ * The body weight carries most of that gain, and more so for the sans — Noto Sans CJK's axis
+ * steps hard between 300 and 400 (12.87% to 17.35%), so dropping the body a stop takes out
+ * more ink than raising the bold one does.
  */
-export function weightRange(weight: number): string {
-  return weight >= 700 ? "500 900" : "100 400";
+export const READING_WEIGHTS: Record<WebFontKind, ReadingWeights> = {
+  sans: { normal: 300, bold: 600 },
+  serif: { normal: 300, bold: 800 },
+};
+
+/**
+ * Where a book's own numeric weight starts counting as bold.
+ *
+ * The same boundary the two static faces were declared around, and it is safe for the same
+ * measured reason: **no book puts 500 on its body text.** Over 34 commercially circulating
+ * Chinese books, 10 declare a weight between 400 and 700 and every one of them hangs it on a
+ * named class (`.bold`, `span.emph`, `.tips`, `p.img_text`), never on `body`, a bare `p` or
+ * `*` (docs/specs/cjk-web-font/measurements.md).
+ */
+export const BOLD_BOUNDARY = 500;
+
+const AXIS: Record<WebFontKind, string> = { sans: "100 900", serif: "200 900" };
+
+/**
+ * The whole wght axis a carried file actually draws, as a `font-weight` descriptor.
+ *
+ * Noto Serif CJK's starts at 200 and Noto Sans CJK's at 100. Declaring more than the file
+ * holds would be clamped to the file's own range anyway, so the harm is not in the rendering
+ * — it is that the declaration would be a claim about the bytes that is not true.
+ */
+export function weightAxis(kind: WebFontKind): string {
+  return AXIS[kind];
+}
+
+/**
+ * The `font-weight` descriptors to declare the carried face under — one `@font-face` each.
+ *
+ * With `quantise` the face is pinned to the reader's two weights, and **each descriptor is a
+ * single value rather than a range**. That is what does the pinning: a variable font's wght
+ * axis is clamped to the descriptor's range (CSS Fonts 4 §4.6), so a range that contains the
+ * requested weight passes it through untouched. Declared `800 900`, a book's `font-weight:
+ * 900` would draw at 900 and the two-weight rule would break in its topmost cell. Measured on
+ * all three engines.
+ *
+ * Without it — the reader kept the book's own fonts — the face answers for the whole axis and
+ * draws whatever the book asked for, which is the setting's entire meaning.
+ *
+ * **One value is out of reach of any descriptor, and `frondSettings` closes it** by asking
+ * frond to restate the book's own weights (its `quantise-font-weight`, where the gap is
+ * written down).
+ */
+export function faceWeightDescriptors(kind: WebFontKind, quantise: boolean): readonly string[] {
+  if (!quantise) return [weightAxis(kind)];
+  const { normal, bold } = READING_WEIGHTS[kind];
+  return [`${normal} ${normal}`, `${bold} ${bold}`];
+}
+
+/**
+ * Stored keys that belong to no face this build ships, so the caller can delete them.
+ *
+ * This used to be something to **ignore**: an unrecognised key said nothing about today's
+ * faces, and the bytes behind it were an older build's business. Moving to one variable file
+ * per kind changes that from a hypothetical to a certainty — every device that ever picked a
+ * face holds two static faces under `family/weight` keys, 22 MB for the sans and 33 for the
+ * serif, that nothing will ever read again. That is the reader's own storage, which is not
+ * covered by ADR-0004's "the data can be thrown away".
+ *
+ * **The rule is general rather than a list of the two old keys**, so that it needs no editing
+ * the next time a face is replaced. The cost is that rolling a reader back to an older build
+ * makes them fetch again — which is the same cost as never having deleted anything, paid by
+ * the far smaller group who roll back rather than by everyone who does not.
+ */
+export function staleFontKeys(storedKeys: readonly string[]): readonly string[] {
+  const shipped = new Set(WEB_FONTS.map(webFontKey));
+  return storedKeys.filter((key) => !shipped.has(key));
 }
 
 /**
@@ -125,10 +181,10 @@ export function webFontsFor(choice: FontChoice): readonly WebFont[] {
 /**
  * Which carried faces this device already holds, from the keys a store hands back.
  *
- * A kind counts only when **every** weight of it is here: a serif with no Bold still leaves
- * the headings to a synthesised weight, which is the thing carrying a face was for
- * (ADR-0014). Keys naming a face this build no longer ships are ignored rather than
- * flagged — an older copy left in the store says nothing about today's faces.
+ * One file answers for every weight, so a kind is carried or it is not — there is no longer a
+ * half-held state where the body text is our face and the headings are the browser's
+ * outlining of it. A key this build does not ship counts for nothing, which now includes the
+ * two static faces every earlier device holds; `staleFontKeys` is what clears them out.
  */
 export function carriedFontKinds(storedKeys: readonly string[]): Record<WebFontKind, boolean> {
   const stored = new Set(storedKeys);

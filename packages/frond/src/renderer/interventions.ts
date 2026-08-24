@@ -184,6 +184,14 @@ export const INTERVENTIONS: readonly Intervention[] = [
     onlyWhenReaderOverrides: true,
   },
   {
+    id: "quantise-font-weight",
+    what: "restates the book's numeric and keyword font-weight values as the two the reader's faces are drawn at, in stylesheets and style attributes. A `font` shorthand is read but never taken apart: a longhand is appended after it, and a shorthand naming no weight is left alone. `bolder` and `lighter` are left alone",
+    reason: "reader-blocked",
+    why: "**this one is honest about being self-inflicted.** The reader's faces can be one variable font pinned to two weights by narrow font-weight descriptors, and the CSS matching algorithm has a gap in that arrangement: a request inclusively between 400 and 500 searches up only as far as 500 before turning round, so a book's `font-weight: 500` lands on the body face and its emphasis draws identically to the text around it. No declaration closes it — a face added at 500 is picked up by the 400 request too and takes the body text with it, measured on all three engines. So the consumer's delivery choice is what creates the need, not the book. It still clears ADR-0003's threshold on the same ground as theme-colors: the reader picked that typeface, the reader's system has two weights and no others, and a book value that renders emphasis invisible is what stands between them and it — the harm is the same category as text that cannot be read on the chosen page. The scope is narrow and stated: only where the consumer supplied `fontWeights`, and only values that are weights",
+    where: "src/renderer/css.ts",
+    onlyWhenReaderOverrides: true,
+  },
+  {
     id: "theme-colors",
     what: "replaces the value of the book's color declarations that cannot be read on the reader's background: a near-black neutral becomes the reader's ink, and anything else keeps its hue and saturation and has its lightness moved just far enough to clear a 4.5 contrast ratio. A colour that already reads, and any value frond cannot parse, is left verbatim",
     reason: "reader-blocked",

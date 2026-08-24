@@ -17,7 +17,7 @@
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { db } from "./db";
-import { webFontKey, type WebFont, type WebFontKind } from "./web-font";
+import { staleFontKeys, webFontKey, type WebFont, type WebFontKind } from "./web-font";
 
 export interface WebFontProgress {
   received: number;
@@ -36,15 +36,18 @@ export type WebFontStatus =
   | { state: "unavailable" };
 
 /**
- * A face as frond takes it: a family name, a weight, and somewhere to load the bytes from.
+ * A face as frond takes it: a family name and somewhere to load the bytes from.
+ *
+ * No weight, because the file is variable and answers for the whole axis. Which weights it
+ * is *declared* under is the reader's setting rather than the file's property, and
+ * `frondSettings` decides it (`web-font.ts`'s `faceWeightDescriptors`).
  *
  * `kind` is not frond's — it is carried along so `frondSettings` can put the family in front
- * of the right stack without looking the face up again.
+ * of the right stack, and pick the two weights, without looking the face up again.
  */
 export interface LoadedWebFont {
   family: string;
   kind: WebFontKind;
-  weight: number;
   src: string;
 }
 
@@ -209,6 +212,28 @@ export const WEB_FONT_UNAVAILABLE_NOTE = msg({
 });
 
 /**
+ * Deletes stored faces this build no longer ships.
+ *
+ * **This is the reader's own storage, and it is not covered by ADR-0004.** "The data can be
+ * thrown away" is about Tidemarks' databases during development; leaving 22 MB of a
+ * superseded sans, or 33 of a serif, sitting on someone's phone is a different thing
+ * entirely. Every device that ever picked a face holds a pair of them under the old
+ * `family/weight` keys.
+ *
+ * Silent on failure, and deliberately so: this frees space, it does not make anything work.
+ * A reader whose IndexedDB refuses the delete should not see an error about it.
+ */
+export async function forgetStaleFonts(): Promise<void> {
+  try {
+    const keys = (await db.fonts.toCollection().primaryKeys()).map(String);
+    const stale = staleFontKeys(keys);
+    if (stale.length > 0) await db.fonts.bulkDelete([...stale]);
+  } catch {
+    // Storage unavailable or evicted mid-read. The bytes stay where they are.
+  }
+}
+
+/**
  * The URL for a face this device already holds, or `null` if it does not hold it.
  *
  * Never fetches: this is for callers that want the face **only if it is free**, which today
@@ -247,7 +272,6 @@ export async function ensureWebFont(
   const loaded = (src: string): LoadedWebFont => ({
     family: font.family,
     kind: font.kind,
-    weight: font.weight,
     src,
   });
 

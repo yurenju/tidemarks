@@ -123,6 +123,13 @@ export interface ReaderSettings {
    */
   readonly genericFamilies: GenericFamilies | undefined;
   /**
+   * The two weights the book's own `font-weight` declarations are restated as.
+   *
+   * Set only by a consumer whose supplied faces are pinned to two weights; see
+   * `FontWeights` for what it repairs and why frond picks none of the numbers.
+   */
+  readonly fontWeights: FontWeights | undefined;
+  /**
    * Faces the consumer supplies as **bytes** rather than by name.
    *
    * Each one is emitted as an `@font-face` rule into the reader's stylesheet, so a name
@@ -226,6 +233,38 @@ export interface GenericFamilies {
 }
 
 /**
+ * The two weights a reader's chosen face is drawn at, and where the book's own numbers
+ * start counting as the second one.
+ *
+ * ## Why a consumer would set this
+ *
+ * A face supplied through `fontFaces` may be a **variable** font pinned to two weights by
+ * narrow `font-weight` descriptors. That lands every weight the book asks for on one of
+ * the two, save for one value the matching algorithm puts out of reach — the gap, and why
+ * no declaration closes it, is written down once, on `css.ts`'s `quantiseFontWeights`.
+ *
+ * Restating the book's own values closes it, and does something better besides: the weight
+ * the book gets stops depending on the matching algorithm at all.
+ *
+ * ## Why frond holds no opinion about the numbers
+ *
+ * All three are the consumer's: which two weights its faces are drawn at, and which
+ * boundary its own typography system draws between them. frond supplies the mechanism —
+ * reaching the book's declarations, which a consumer outside the iframe cannot do
+ * (ADR-0006) — and nothing else.
+ *
+ * Unset, not one declaration is touched.
+ */
+export interface FontWeights {
+  /** What a weight below `boundary` is restated as. */
+  readonly normal: number;
+  /** What a weight at or above `boundary` is restated as. */
+  readonly bold: number;
+  /** The weight at which the book's own value starts counting as bold. */
+  readonly boundary: number;
+}
+
+/**
  * A reader who has set nothing.
  *
  * The margin is the one field with a default — at 0 the text would sit flush against the
@@ -242,6 +281,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   columns: "auto",
   theme: undefined,
   genericFamilies: undefined,
+  fontWeights: undefined,
   fontFaces: undefined,
   fontLanguage: undefined,
 };

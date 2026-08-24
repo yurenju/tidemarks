@@ -11,14 +11,36 @@
 
 | | OTF | woff2 |
 | --- | --- | --- |
-| NotoSerifCJKtc-Regular | 23.40 MB | **15.94 MB** |
-| NotoSerifCJKtc-Bold | 24.34 MB | **16.99 MB** |
-| NotoSansCJKtc-Regular | 15.67 MB | **10.90 MB** |
-| NotoSerifCJKtc-VF（variable） | 52.81 MB | 未量 |
+| NotoSerifCJKtc-Regular | 24.54 MB | **15.94 MB** |
+| NotoSerifCJKtc-Bold | 25.52 MB | **16.99 MB** |
+| NotoSansCJKtc-Regular | 16.44 MB | **10.90 MB** |
+| NotoSansCJKtc-Bold | 17.00 MB | **11.56 MB** |
+| NotoSerifCJKtc-VF（variable） | 55.38 MB | **18.83 MB** |
+| NotoSansCJKtc-VF（variable） | 30.74 MB | **12.86 MB** |
 
-woff2 對 CFF 的壓縮率大約 68%，兩支量下來一致。轉一支要 73 到 95 秒。
+轉一支要 45 到 89 秒。
 
-Variable font 不划算：一支 VF 52.81 MB 比 Regular 加 Bold 兩支 static（47.7 MB）還大。
+### ⚠️ 更正：VF 划算，而且划算很多
+
+這一節原本的結論是「**Variable font 不划算**：一支 VF 52.81 MB 比 Regular 加 Bold 兩支 static
+（47.7 MB）還大」。那句話是拿 **OTF** 比出來的，而且 VF 的 woff2 那格當時標著「未量」。補量之後方向
+相反：
+
+| woff2 | 兩支 static 相加 | 一支 VF | |
+| --- | --- | --- | --- |
+| 明體 | 32.93 MB | **18.83 MB** | VF 小 43% |
+| 黑體 | 22.46 MB | **12.86 MB** | VF 小 43% |
+
+原因是壓縮率差很多，而 OTF 的比較看不到這件事：
+
+- 兩支 static **各自帶一整套完整輪廓**，只能各壓各的。woff2 對 CFF 的壓縮率大約 68%，兩支量下來一致。
+- 一支 VF 帶一套輪廓**加上 master 之間的差分**，而差分壓得掉非常多——明體壓到 34%，黑體 42%。
+
+所以比體積要比壓縮後的，不能比 OTF。決定與代價見
+[ADR-0035](../../adr/0035-one-variable-face-replaces-two-static-ones.md)。
+
+（上面 static 的 OTF 數字也順手更新了：原表的 23.40／15.67 是舊版量的，重量之後是 24.54／16.44。
+woff2 那一欄一個位元組都沒變，四支都跟 `packages/app/public/fonts/` 裡當時的檔案對得上。）
 
 **subset 之後大約每字 640 bytes**（sfnt 裡的 CFF），跟字數幾乎線性：
 
@@ -157,6 +179,27 @@ glyph 出來。
 **沒有 Reserved Font Name**：copyright 行裡沒有 `with Reserved Font Name`，所以轉檔、subset、改名都在
 授權內，family 名可以保留 `Noto Serif CJK TC`。
 
+### ⚠️ 更正：可變字型那兩支不一樣
+
+上面那句「沒有 Reserved Font Name」是拿**靜態檔**量的。換成可變字型之後重量了一次，兩支的答案不同：
+
+| | copyright | RFN |
+| --- | --- | --- |
+| NotoSansCJKtc-Regular / Bold | `© 2014-2021 Adobe (http://www.adobe.com/).` | 無 |
+| **NotoSansCJKtc-VF** | `© 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.` | **有** |
+| NotoSerifCJKtc-Regular / Bold | `© 2017-2024 Adobe (http://www.adobe.com/).` | 無 |
+| NotoSerifCJKtc-VF | `© 2017-2024 Adobe (http://www.adobe.com/).` | 無 |
+
+保留的名字是 **`Source`**。OFL 1.1 第 3 條限制的是「改過的版本不得使用保留的名字」，而且明講
+「This restriction only applies to the primary font name as presented to the users」——我們註冊的名字是
+`Noto Sans CJK TC`，不含 `Source`，所以轉 woff2 與散布都在授權內。
+
+**但上面那句話的後半對這支不成立**：「改名都在授權內」要改成「改名不得改成含 `Source` 的名字」。
+name table 在 woff2 轉檔中原樣保留，`public/fonts/OFL.txt` 也跟著一起散布，OFL 的另外兩項要求
+（保留版權聲明與授權）都滿足。
+
+重跑：讀 sfnt 的 name table，取 nameID 0（copyright）、1（family）、13（license）。
+
 ## 八、合成粗體有多難看
 
 只帶 Regular 的話，標題與強調是瀏覽器**合成**的粗體，三家演算法不同。量它到底差多少：**墨水覆蓋率**
@@ -211,8 +254,13 @@ glyph 出來。
 讀者一旦選了黑體或明體，字族那一半被讀者的選擇蓋掉（frond 的 `readerStylesheet`），只剩下 500，然後
 500 又掉回 Regular，強調就整個消失。
 
-**修法是把 face 宣告成範圍**：Regular 收 `100 400`，Bold 收 `500 900`（`web-font.ts` 的
+**當時的修法是把 face 宣告成範圍**：Regular 收 `100 400`，Bold 收 `500 900`（`web-font.ts` 的
 `weightRange`）。代價是書如果拿 500 當內文，整本會變粗，所以先量了它到底掛在哪裡。
+
+⚠️ **那個修法在一支可變字型底下不成立了**，而下面這份 34 本書的量測正是它現在的依據：宣告範圍會夾住
+可變字型的 wght 軸（第十一節），所以範圍不能再拿來當匹配標靶用——`weightRange` 已經沒有了，換成
+frond 重述書自己的宣告（第十二、十三節，ADR-0035）。判斷「500 以上算粗」的界線沒有變，這份樣本仍然
+是它的依據。
 
 **樣本**：34 本市售中文電子書。做法是解開 epub，收集所有 CSS 與內嵌 `<style>` 裡數值型的
 `font-weight`，取 400 與 700 之間的規則，再回頭數那些 selector 裡的 class 包住多少字。
@@ -243,8 +291,102 @@ FIRE 那筆的 17.31% 標成上限，因為算法會重複計算：`div.example0
 
 重跑：`node scan-weights.mjs <書目錄>`，script 沒有進版控（一次性分析，而且它讀的是版權書）。
 
-## 十一、還沒量的
+## 十一、窄範圍宣告會不會夾住可變字型的 wght 軸
 
-- **實機下載時間**。16 MB 在慢網路上是分鐘等級，但沒有量過真的手機。
-- **範圍宣告在三家的行為**。這次只在 chromium 上驗過，firefox 與 webkit 的字重匹配沒有理由不同，但
-  沒有實際跑過。
+ADR-0035 整個押在這件事上，而規格那句是 **should** 不是 must：
+
+> variation values applied to fonts defined with `@font-face` will be **clamped to both the
+> values specified in these descriptors**, or implied by the application of variation parameters
+> (such as manipulation of the wght axis to satisfy the requested `font-weight`), as well as the
+> values supported by the font file itself.
+> ——CSS Fonts 4 §4.6
+
+**在容器裡**（chromium 1232 / firefox 1534 / webkit 2327）拿 `packages/app/public/fonts/` 實際出貨的
+那兩支 woff2 量，方法照第八節的墨水量測。明體宣告 `300 300` + `800 800`、黑體 `300 300` + `600 600`：
+
+| 書請求 | 明體畫出來 | 黑體畫出來 | 三家一致 |
+| --- | --- | --- | --- |
+| 100 / 200 / 300 / 350 / 400 | 300 | 300 | 是 |
+| **500** | **300** | **300** | 是 |
+| 600 / 700 / 800 / 900 | 800 | 600 | 是 |
+
+**夾擠成立。** 500 那一格是匹配規則本身的結構，不是夾擠失效——見下一節。
+
+**粗體那一條必須是單一值。** 先寫成 `800 900` 量過一次，書請求 900 就落在範圍內、畫出 900 沒有被夾。
+範圍只要涵蓋請求的字重就會原樣放行。
+
+## 十二、只有「剛好 500」會落錯，而且補不起來
+
+CSS Fonts 4 的字重匹配規則，逐字：
+
+> If the desired weight is inclusively between 400 and 500, weights greater than or equal to the
+> target weight are checked in ascending order **until 500 is hit and checked**, followed by
+> weights less than the target weight in descending order, followed by weights greater than 500,
+> until a match is found.
+
+所以請求 400 與請求 500 走同一條路：往上找到 500 為止，沒有就往下找，落到內文那條。450 與 499 同樣
+落到內文，那是**對的**（400 以下算內文）；501 以上往上找，落到粗體。**錯的只有剛好 500 這一格。**
+
+補一條 `500 500` 的宣告**會把內文一起帶走**——請求 400 的那條「往上找到 500 為止」先抓到它。實測
+（三家一致）：
+
+| 宣告 `300 300` + `500 500` + `800 800` | 畫出來 | |
+| --- | --- | --- |
+| 請求 400 | **500** | 內文整個變重 |
+| 請求 500 | 500 | 仍然不是 800 |
+
+所以這一格在 CSS 這一層沒有解，改由 frond 重述書自己的宣告（它的 `quantise-font-weight`）。
+
+## 十三、追加長寫法蓋不蓋得過 `font` 簡寫
+
+frond 的既有缺口是「不碰 `font` 簡寫」，理由是拆開重寫會把宣告寫壞。改寫字重不必拆開——**在後面追加
+一條長寫法**就好，同一個宣告區塊裡後面的勝出。容器裡三家量過，十個案例：
+
+| 書裡寫的 | 畫出來 | |
+| --- | --- | --- |
+| `font-weight: 500` | 300 | 不處理的樣子 |
+| `font-weight: 800`（改寫後） | 800 | ✓ |
+| `font: 500 48px`| 300 | 不處理的樣子 |
+| `font: 500 48px; font-weight: 800` | 800 | ✓ |
+| `font: italic 500 48px/1.2 …; font-weight: 800` | 800 | ✓ |
+| `font: small-caps 600 48px …; font-weight: 800` | 800 | ✓ |
+| `font: 500 48px … !important; font-weight: 800 !important` | 800 | ✓ |
+| `font: 48px …`（沒寫字重） | 300 | ✓ 不需追加 |
+| `font: bold 48px …` | 800 | ✓ |
+
+**簡寫的其他部分完全沒被動到**（讀 computed style）：`font: italic 500 48px/1.2` 追加之後仍是
+`size=48px style=italic line-height=57.6px`。因為那條簡寫從頭到尾只被**讀**，沒有被重寫。
+
+### 量這件事的兩個坑
+
+1. **不能用「墨水佔框的比例」，要用墨水總量。** 帶 `/1.2` 的簡寫框比較矮，同樣的墨水除以比較小的
+   面積會虛高——第一次就是這樣量出假的 900。樣本都是同樣十個字、同樣字級，總量可以直接比。
+2. **斜體要跟斜體比。** 兩條宣告都沒有斜體，所以斜體是引擎合成傾斜出來的。實測合成傾斜的墨水比直立
+   少約 2%，拿去跟直立的對照組比會偏。
+
+## 十四、換上那兩個字重之後對比拉開多少
+
+墨水總量的倍率（粗體 ÷ 內文），三家在 3% 以內。第三欄是對今天 400/700 的增減：
+
+| 內文／粗體 | 明體 | | 黑體 | |
+| --- | --- | --- | --- | --- |
+| **400 / 700**（今天）| 1.37× | — | 1.42× | — |
+| 400 / 600 | 1.20× | **−12%** | 1.29× | **−9%** |
+| 400 / 800 | 1.44× | +5% | 1.49× | +5% |
+| 400 / 900 | 1.56× | +14% | 1.62× | +14% |
+| 300 / 600 | 1.30× | −5% | **1.74×** | **+23%** |
+| **300 / 800** | **1.56×** | **+14%** | 2.02× | +42% |
+
+採用的是明體 300/800 與黑體 300/600（粗體那一欄各自加粗的那一列）。
+
+**內文那一半才是增益的主要來源**，黑體尤其明顯：Noto Sans CJK 在 300 到 400 之間有一個大跳
+（12.87% → 17.35%），內文降一階削掉的墨水比粗體加上去的還多。把內文留在 400 只加重粗體，兩種字型
+都只有 +5%（400/800）；而配上原本挑的 600，兩種都比今天更糟。
+
+不對稱是刻意的：黑體筆畫等粗，300/600 就分得出來；明體筆畫有粗細對比、字腔小，要到 800。
+
+## 十五、還沒量的
+
+- **實機下載時間**。19 MB 在慢網路上是分鐘等級，但沒有量過真的手機。
+- **可變字型的解析時間**。第五節量的是 15.94 MB 的靜態檔。VF 是 18.83 MB 而且是 CFF2 variable，
+  單次可能更貴，但從兩次解析變一次，總帳應該是賺的——沒有實際跑過。
