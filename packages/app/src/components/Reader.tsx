@@ -49,7 +49,6 @@ import {
 import {
   handleAt,
   selectionEnds,
-  washRect,
   type Point,
   type Rect,
   type SelectionEnds,
@@ -635,13 +634,7 @@ export default function Reader({
         cfiRange: facts.cfi,
         text: facts.text,
         anchor,
-        drawn: {
-          // The wash is let out past the text under vertical setting, where the box frond
-          // reports stops at the glyphs (`washRect`). The handles are placed from the boxes as
-          // reported — a bead belongs on the edge of the text, not on the edge of its colour.
-          rects: facts.rects.map((rect) => washRect(toRect(rect), verticalRef.current)),
-          ends,
-        },
+        drawn: { rects: facts.rects.map(toRect), ends },
         live,
       });
     };

@@ -71,6 +71,43 @@ export const HANDLE_REACH_PX = 13;
 export const HANDLE_BEAD_PX = 11;
 
 /**
+ * How far the wash is let out past the text's own box, on each side of a vertical strip.
+ *
+ * **A vertical text rectangle is tight to the glyphs and a horizontal one is not**, which is a
+ * fact about how the two are measured rather than a choice either engine made: a horizontal box
+ * carries the font's internal leading above and below the letters, and there is no counterpart
+ * for the cross axis of vertical setting (frond's `measurePart` says the same thing from the
+ * other side, and computes an ink box only for the horizontal axis). Painted as they arrive, a
+ * vertical wash stops exactly at the glyphs — 11px of colour on 14.7px type — and reads as too
+ * narrow for the characters standing in it, while the horizontal one sits comfortably around
+ * them.
+ *
+ * 3px is what makes the two match. Measured in the emulated phone: horizontal boxes come back
+ * at 1.14em of their type size, and 3px a side brings the vertical ones to 1.15em at both sizes
+ * on the cover of the vertical book (11px on 14.7px type, 15px on 18.4px). It stays well inside
+ * the paper between two strips, which is 11px at that size — a wash that met its neighbour would
+ * turn a two-line selection into one slab and lose the lines the reader is choosing.
+ */
+export const WASH_BLEED_PX = 3;
+
+/**
+ * The box to paint one rectangle of the wash in, given the box frond reported for the text.
+ *
+ * Only the cross axis is let out, and only under vertical setting — see `WASH_BLEED_PX`. Along
+ * the line it must stay exactly as reported: consecutive rectangles of one line meet end to end
+ * there, and a translucent wash that overlapped itself would draw a darker seam at every join.
+ */
+export function washRect(rect: Rect, vertical: boolean): Rect {
+  if (!vertical) return rect;
+  return {
+    x: rect.x - WASH_BLEED_PX,
+    y: rect.y,
+    width: rect.width + WASH_BLEED_PX * 2,
+    height: rect.height,
+  };
+}
+
+/**
  * Where a selection's two handles belong, given the rectangles frond reported for it.
  *
  * The rectangles arrive in reading order, one or more per line, so the first names the line the

@@ -1,7 +1,13 @@
 // Where the two ends of a selection are, and which of them a finger has landed on. Whether a
 // handle really drags the selection is packages/app/tests/browser/reader/touch-selection.spec.ts.
 import { describe, it, expect } from "vitest";
-import { handleAt, HANDLE_HIT_PX, selectionEnds } from "./selection-handles";
+import {
+  handleAt,
+  HANDLE_HIT_PX,
+  selectionEnds,
+  washRect,
+  WASH_BLEED_PX,
+} from "./selection-handles";
 
 // One line of a horizontal book, and two lines of one.
 const line = { x: 100, y: 200, width: 80, height: 20 };
@@ -75,5 +81,27 @@ describe("handleAt", () => {
     // undraggable on exactly the selection a long press produces.
     const tight = { start: at(100, 220), end: at(120, 220) };
     expect(handleAt({ x: 118, y: 220 }, tight)).toBe("end");
+  });
+});
+
+describe("washRect", () => {
+  it("lets a vertical strip out sideways and not along the line", () => {
+    // The box frond reports for vertical text stops at the glyphs, so the colour has to reach
+    // past it to read as a band the characters stand in. Along the line it must not move: one
+    // line arrives as several rectangles meeting end to end, and a translucent wash let out
+    // there would paint a darker seam at every join.
+    expect(washRect(strip, true)).toEqual({
+      x: strip.x - WASH_BLEED_PX,
+      y: strip.y,
+      width: strip.width + WASH_BLEED_PX * 2,
+      height: strip.height,
+    });
+  });
+
+  it("leaves a horizontal line exactly as it arrived", () => {
+    // A horizontal box already carries the font's internal leading above and below the letters
+    // — it is the one axis where the measurement is generous — so the same bleed here would be
+    // a band taller than the line and two selected lines would run together.
+    expect(washRect(line, false)).toEqual(line);
   });
 });

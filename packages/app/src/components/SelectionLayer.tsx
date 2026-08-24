@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
-import type { Rect, SelectionEnds } from "../lib/selection-handles";
+import { washRect, type Rect, type SelectionEnds } from "../lib/selection-handles";
 
 // The selection the app draws itself, on touch (ADR-0036): a wash over the chosen passage and
 // a handle at each end of it.
@@ -64,14 +64,21 @@ export default function SelectionLayer({
 
   return (
     <div className="selection-layer">
-      {rects.map((rect, index) => (
-        <div
-          key={index}
-          className="selection-wash"
-          aria-hidden
-          style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
-        />
-      ))}
+      {rects.map((rect, index) => {
+        // Let out across the strip under vertical setting, where the box frond reports stops at
+        // the glyphs (`washRect`). Done here rather than to the rectangles the reader's selection
+        // is held as: the handles are placed from the same boxes, and a bead belongs on the edge
+        // of the text rather than on the edge of its colour.
+        const wash = washRect(rect, vertical);
+        return (
+          <div
+            key={index}
+            className="selection-wash"
+            aria-hidden
+            style={{ left: wash.x, top: wash.y, width: wash.width, height: wash.height }}
+          />
+        );
+      })}
       {handles.map(({ end, point, label }) => (
         <button
           key={end}
