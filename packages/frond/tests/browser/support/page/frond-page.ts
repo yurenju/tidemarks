@@ -290,6 +290,12 @@ const harness: FrondHarness = {
       .map((marked) => plainRect(marked.rect));
   },
 
+  rangeFromPoints(anchor, focus, granularity) {
+    const facts = active().rangeFromPoints(anchor, focus, granularity);
+    if (facts === null) return null;
+    return { cfi: facts.cfi, text: facts.text, rects: facts.rects.map(plainRect) };
+  },
+
   markedRectsFor(cfi): readonly MarkedRectSnapshot[] {
     return active()
       .rectsFor(cfi)

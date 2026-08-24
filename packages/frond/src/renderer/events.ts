@@ -167,6 +167,20 @@ export interface SelectionEvent {
 }
 
 /**
+ * A range frond located from two points, for a consumer that draws its own selection instead
+ * of the browser's (issue #50, ADR-0036). The same three facts a `SelectionEvent` carries, but
+ * pulled on demand rather than pushed when a native selection changes — nothing native is
+ * involved, so `user-select` can be off entirely.
+ *
+ * `rects` and `cfi` go stale on the next `layout`, exactly as a `SelectionEvent`'s do.
+ */
+export interface RangeFacts {
+  readonly cfi: string;
+  readonly text: string;
+  readonly rects: readonly DOMRect[];
+}
+
+/**
  * One pointer press or release inside the iframe.
  *
  * ## Why raw down/up rather than a gesture event carrying `dx`/`dy`

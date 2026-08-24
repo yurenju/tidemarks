@@ -341,6 +341,26 @@ _Avoid_: 最近閱讀（少掉匯入那一半，而那一半正是 max 存在的
 
 _Avoid_: 筆畫排序（筆畫只是繁中的答案，換個介面語言就換一種）、字母序（中文沒有）
 
+## 接管選取
+
+觸控上，Tidemarks 自己做的 text selection，取代瀏覽器原生那一套
+（[ADR-0036](docs/adr/0036-touch-selection-is-ours-not-the-browsers.md)，實作見 issue #49）。長按
+吸一個詞、拖端點延伸、反白與顏色列都是 app 自己畫；frond 只補一個事實（`rangeFromPoints`：兩個容器
+座標點 → 一段範圍，issue #50）。
+
+**只在觸控上接管，桌機留原生。** 桌機沒有那些症狀（滑鼠不翻頁、不會自動捲進下一頁、沒有搜尋 bar），
+而原生選取免費帶著可及性（[ADR-0021](docs/adr/0021-accessibility-is-borrowed-not-written.md)）與鍵盤
+選字。依 `pointerType` 分流：手指走這一套、滑鼠留給瀏覽器。
+
+**這一輪只做單屏內選取**，不跨頁——這樣「拖到邊緣自動捲動延伸」那整套從源頭不存在，而那正是原生選取
+跟 frond 分頁打架的地方。
+
+它跟〈標〉是兩件事：接管選取是「**怎麼選到那段字**」，〈標〉是「選到之後畫面長什麼樣」。選取一出現就
+進〈標〉。它也小幅修訂 Navigator「時間不參與判斷」那條——時間開始拿來認出長按選字，但永遠不拿來擋
+一次翻頁（理由見 ADR-0036）。
+
+_Avoid_: 自製選取／custom selection（都漏掉「只接管觸控、桌機留原生」這半，而那半是整個決定的重點）
+
 ## Highlight layer
 
 疊在書上面畫重點的那一層。frond 不畫 highlight（它給 `rectsFor(cfi)` 的真實幾何與 `layout` 事件），

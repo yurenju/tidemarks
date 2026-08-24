@@ -23,7 +23,13 @@ import { resolveHref } from "../epub/resource-path.ts";
 import type { RenderableBook } from "./book.ts";
 import { cfiForRange, rangeForCfi, sectionIndexOf, spineSegment } from "./cfi-dom.ts";
 import { buildSectionDocument, ResourceUrls, SectionParseError } from "./document-source.ts";
-import { Emitter, type RenderLocation, type RendererEvents, type Unsubscribe } from "./events.ts";
+import {
+  Emitter,
+  type RangeFacts,
+  type RenderLocation,
+  type RendererEvents,
+  type Unsubscribe,
+} from "./events.ts";
 import { turnPlacement, type PageBox, type TurnEdge, type WritingMode } from "./geometry.ts";
 import { ProgressIndex } from "./progress.ts";
 import { SectionView, type MarkedRect, type SettingsSource } from "./section-view.ts";
@@ -846,6 +852,38 @@ export class Renderer {
    */
   clearSelection(): void {
     this.view?.clearSelection();
+  }
+
+  /**
+   * The range between two container points, for a consumer that has taken over touch selection
+   * (ADR-0036, issue #50). This is the one fact only frond can compute for that consumer: what
+   * text sits between two places on screen, and where it is — the content lives in the iframe,
+   * out of the consumer's reach.
+   *
+   * `null` when either point is off the text. Both points are taken against the section on
+   * screen, so a selection does not cross the page boundary; cross-page selection is
+   * deliberately out for now (ADR-0036), which is what lets this stay a single-section query.
+   *
+   * Unlike `emitSelection`, nothing native is involved — the consumer supplies the two points
+   * and frond answers with geometry, so the document's `user-select` can be off entirely. The
+   * `rects` and `cfi` go stale on the next `layout`, exactly as a `SelectionEvent`'s do.
+   */
+  rangeFromPoints(
+    anchor: { readonly x: number; readonly y: number },
+    focus: { readonly x: number; readonly y: number },
+    granularity: "word" | "char",
+  ): RangeFacts | null {
+    const view = this.view;
+    if (view === undefined) return null;
+
+    const range = view.rangeFromPoints(anchor, focus, granularity);
+    if (range === undefined) return null;
+
+    return {
+      cfi: serializeCfi(cfiForRange(range, this.sectionIndex)),
+      text: range.toString(),
+      rects: view.rectsFor(range).map((marked) => marked.rect),
+    };
   }
 
   destroy(): void {

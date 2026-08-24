@@ -418,6 +418,15 @@ export interface FrondHarness {
   addressEveryCharacter(xml: string, sectionIndex: number): AddressedSection;
   /** A CFI's rectangles in the container's coordinate system. */
   rectsFor(cfi: string): readonly Rect[];
+  /**
+   * The range between two container points, for the take-over-selection path (issue #50,
+   * ADR-0036). The consumer drives the two points; `null` when either falls off the text.
+   */
+  rangeFromPoints(
+    anchor: { readonly x: number; readonly y: number },
+    focus: { readonly x: number; readonly y: number },
+    granularity: "word" | "char",
+  ): { readonly cfi: string; readonly text: string; readonly rects: readonly Rect[] } | null;
   /** The same rectangles with what each covers and where its glyphs sit — for mark placement. */
   markedRectsFor(cfi: string): readonly MarkedRectSnapshot[];
   /** The container's current size — needed to decide whether a rectangle is on screen. */

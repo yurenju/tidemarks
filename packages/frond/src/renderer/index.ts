@@ -54,6 +54,7 @@ export type {
   RendererEvents,
   RendererFailure,
   RendererKeyEvent,
+  RangeFacts,
   RendererPointerDownEvent,
   RendererPointerEvent,
   SectionLoadEvent,
