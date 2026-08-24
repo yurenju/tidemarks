@@ -63,6 +63,9 @@ const SET_ONLY_AT_RUNTIME = new Set([
   // drawn across the colour rather than stopping at the edge of it. A line's width depends on
   // the type the reader set and on the book's own CSS, so the stylesheet cannot hold it.
   "--handle-span",
+  // `SelectionLayer` — how far past the text a bead is held off. It is the wash's lip on that
+  // side, which differs by writing mode, and CSS cannot see which one is in force.
+  "--handle-reach",
   // Base UI publishes these while a finger is on a drawer or panel.
   "--drawer-swipe-movement-x",
   "--drawer-swipe-movement-y",

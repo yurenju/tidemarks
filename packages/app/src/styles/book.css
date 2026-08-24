@@ -84,24 +84,24 @@
   /* **Not clipped, unlike the highlight layer**, and the difference is what each one holds. A
      mark travels with the page a turn is sliding, so it has to be cut off at the edge of the
      book; a selection is dropped the moment a turn begins, so nothing here ever leaves. What
-     clipping would take instead is a bead: the leading one is drawn 24px past the edge of its
+     clipping would take instead is a bead: the leading one is drawn past the edge of its
      line, and on the first line of a page there is only the reader's margin above it — 16px on
      a hand-held, and nothing at all at the "None" setting. The handle on every page's first
      line would be painted at 0 and its hit region cut in half. */
   overflow: visible;
-  /* Above the colour row, and this is load-bearing rather than tidiness.
-     -------------------------------------------------------------------
-     `toolbar-position.ts` leaves the handles room — and **the room is not always there to
-     leave**. On a phone the row is nearly the width of the screen, so beside a vertical
-     passage it does not fit on either side and is clamped back over the text (`placeBeside`'s
-     last line). Whichever handle it lands on then stops being pressable, and the reader is left
-     with a selection one end of which will not move and no way to see why. Painting the handles
-     over it keeps both ends reachable.
+  /* Under the colour row.
+     ---------------------
+     This was the other way round, so that a handle the row had landed on stayed pressable. What
+     that bought was a bead painted on top of a colour swatch — the row is the thing the reader
+     is being asked to press at that moment, and a dot of tide sitting on one of its four
+     colours reads as a fault in the row rather than as the end of the passage.
 
-     ⚠️ **What it does not fix is the row sitting over the passage in the first place**, which
-     is a placement question and #52's — this is the half that keeps the control working while
-     that is answered. Both are marked for the device trip. */
-  z-index: 2;
+     **What keeps both ends draggable is the row not landing there**, which is
+     `toolbar-position.ts`'s three-way choice and its `HANDLE_CLEARANCE_PX`, and that is the
+     thing worth守ing: `touch-selection.spec.ts` asserts the row clears both handles rather than
+     asserting which of the two is painted over the other. The one case where it still cannot —
+     a full-width row beside a vertical column — is #56, and it is a shape problem. */
+  z-index: 1;
 }
 
 /* A block of tide, not a wave. The wave is 〈螢光〉 — a mark the reader has already made, which
@@ -146,11 +146,9 @@
 button.selection-handle,
 button.selection-handle:hover,
 button.selection-handle:active:not(:disabled) {
-  /* How far the stem reaches past the edge of the text, and how big the bead on the end of it
-     is. `selection-handles.ts`'s `HANDLE_REACH_PX` is the first of these, and
-     `toolbar-position.ts` leaves room for the whole handle — the colour row landing on one is
-     the far end of the selection quietly becoming undraggable. */
-  --handle-reach: 13px;
+  /* How big the bead is. Its companion `--handle-reach` — how far past the text the bead is
+     held off — is set on `.selection-layer` from `handleReach()`, because it differs by writing
+     mode and CSS cannot see which one is in force. */
   --handle-bead: 11px;
   position: absolute;
   /* `--tap-min` square, centred on the end point rather than starting at it. Under a coarse
@@ -516,10 +514,10 @@ button.selection-handle:active:not(:disabled) {
   /* left/top are set inline: the toolbar floats next to the text selection so it
      never sits in the bottom strip where Android Chrome shows its native bar */
   position: fixed;
-  /* Below the selection handles, which are the one thing that must stay reachable when this
-     lands over the passage — see `.selection-layer`. Stated rather than left to source order,
-     because source order is what put it on top of them. */
-  z-index: 1;
+  /* Above the selection layer: this is what the reader is being asked to press, so nothing of
+     ours is painted over it — see `.selection-layer` for what that used to buy and what
+     replaced it. Stated rather than left to source order. */
+  z-index: 2;
   left: 0;
   top: 0;
   display: flex;

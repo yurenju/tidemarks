@@ -3,6 +3,7 @@
 // really lands there over a real selection is packages/app/tests/browser/reader/highlights.spec.ts.
 import { describe, it, expect } from "vitest";
 import { anchorFromRects, placeSelectionToolbar, type SelectionAnchor } from "./toolbar-position";
+import { HANDLE_CLEARANCE_PX } from "./selection-handles";
 
 const vp = { width: 400, height: 800 };
 const toolbar = { width: 300, height: 48 };
@@ -67,13 +68,35 @@ describe("anchorFromRects", () => {
 
 describe("placeSelectionToolbar", () => {
   it("sits below the selection, clear of where a handle reaches", () => {
-    // The gap is the room a touch handle needs, not decoration: the far handle's stem and bead
-    // hang past the edge of the text, and a toolbar inside that reach covers the 44px the
-    // finger aims at. Anything under 22 puts it back on top of the handle.
+    // The gap is the room a touch handle needs, not decoration: the bead hangs past the edge of
+    // the colour, and a toolbar inside it covers the 44px the finger aims at. The number is
+    // `HANDLE_CLEARANCE_PX`, read from where the handles are drawn rather than repeated here —
+    // a copy of it would go on passing after the handles had changed shape underneath it.
     const anchor = hAnchor(200, 240, 200);
     const p = placeSelectionToolbar(anchor, toolbar, vp);
-    expect(p.top).toBeGreaterThanOrEqual(anchor.bottom + 22);
+    expect(p.top).toBeGreaterThanOrEqual(anchor.bottom + HANDLE_CLEARANCE_PX);
     expect(p.top).toBeLessThan(anchor.bottom + 48); // beside the passage, not adrift from it
+  });
+
+  it("goes to the end of the passage when neither side has room", () => {
+    // A passage taller than the screen has no room below it and none above: clamping alone
+    // lands the row at the top margin, which is over the line the reader started from and over
+    // the start handle with it. The end of the passage is where the finger just was.
+    const anchor = hAnchor(10, 790, 200);
+    const p = placeSelectionToolbar(anchor, toolbar, vp);
+    expect(p.top + toolbar.height).toBe(vp.height - 8);
+  });
+
+  it("keeps the room under a passage on a screen too short to reserve the whole bottom strip", () => {
+    // A landscape phone: 343px tall, and the 96px reserve is 28% of it. Reserved outright, a
+    // selection ending at 200 has nowhere to put a 62px row — below is refused by the reserve,
+    // above does not fit either — and the row lands back on the passage. Capping the reserve at
+    // a fifth of the height is what keeps it under the text where the reader is looking.
+    const landscape = { width: 734, height: 343 };
+    const row = { width: 470, height: 62 };
+    const p = placeSelectionToolbar(hAnchor(37, 200, 367), row, landscape);
+    expect(p.top).toBeGreaterThanOrEqual(200);
+    expect(p.side).toBe("below");
   });
 
   it("flips above the selection when placing below would overflow the bottom", () => {
@@ -169,6 +192,18 @@ describe("placeSelectionToolbar in a vertical book", () => {
     const p = placeSelectionToolbar(leftward, vToolbar, vp, { vertical: true });
     expect(p.side).toBe("right");
     expect(p.left).toBeGreaterThanOrEqual(leftward.right);
+  });
+
+  it("goes across the passage when neither side of the column has room for it", () => {
+    // A row nearly as wide as a phone cannot sit beside a column. Clamped back into view it used
+    // to land across the middle of the passage, on whichever handle was there; under it is at
+    // one end instead. The gap clears the handle's 44px hit region rather than just the text,
+    // because a vertical bead is centred on the passage's own bottom edge.
+    const wide = { width: 360, height: 48 };
+    const column = { top: 100, bottom: 400, left: 180, right: 240, midX: 210, midY: 250 };
+    const p = placeSelectionToolbar(column, wide, vp, { vertical: true });
+    expect(p.side).toBe("below");
+    expect(p.top).toBeGreaterThanOrEqual(column.bottom + HANDLE_CLEARANCE_PX + 22);
   });
 
   it("keeps the toolbar on-screen when the selection spans the whole height", () => {

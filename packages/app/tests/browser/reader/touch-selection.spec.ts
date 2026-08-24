@@ -150,16 +150,36 @@ test.describe("a vertical book", () => {
     const anchored = await centreOf("start");
     const { x: hitX, y: hitY } = await centreOf("end");
 
-    // The press has to reach a handle, and the colour row can land over the passage on a phone —
-    // so this is also what holds the handles above it (`styles/book.css`'s `.selection-layer`).
-    // Asserted rather than assumed: when it stops being true the drag below silently becomes a
-    // tap on the row behind, which dismisses the selection and fails somewhere that says nothing
-    // about why.
-    const under = await page.evaluate(
-      ({ x, y }) => (document.elementFromPoint(x, y) as HTMLElement | null)?.className ?? "",
-      { x: hitX, y: hitY },
-    );
-    expect(under).toContain("selection-handle");
+    // **The colour row has to leave the handle this drag takes hold of.** The row is painted over
+    // the selection layer, so a row that landed on this bead would turn the drag below into a tap
+    // on the row — which dismisses the selection and fails somewhere that says nothing about why.
+    //
+    // It used to be asserted the other way round: that the handle was the element under the
+    // point, which the layer's stacking order made true whether or not the row was on the
+    // passage. That passed on a row landing squarely over the text — the reader could still drag,
+    // but a bead was painted over one of the four colours they were being asked to press. The
+    // rule worth holding is where the row goes, not which of the two is painted first, and the
+    // arithmetic of it is `toolbar-position.test.ts`'s. What needs a real layout is this: that
+    // the choice it makes leaves a real handle over a real passage reachable.
+    //
+    // **Both handles, not just this one.** A row nearly as wide as a phone does not fit beside a
+    // vertical column, and it used to be clamped back across the middle of the passage — where
+    // whichever bead it landed on stopped being pressable. Placing it at one end of the passage
+    // instead is what makes "clears both" a rule this layout can actually keep.
+    const rowClearsHandles = await page.evaluate(() => {
+      const row = document.querySelector(".highlight-toolbar")?.getBoundingClientRect();
+      if (row === undefined) return true;
+      return [...document.querySelectorAll(".selection-handle")].every((handle) => {
+        const box = handle.getBoundingClientRect();
+        return (
+          box.right <= row.left ||
+          box.left >= row.right ||
+          box.bottom <= row.top ||
+          box.top >= row.bottom
+        );
+      });
+    });
+    expect(rowClearsHandles, "the colour row is sitting on a selection handle").toBe(true);
 
     // **The run furthest from the end that is staying put**, which is what makes this a
     // lengthening rather than a move: the passage runs from the start handle to wherever the end

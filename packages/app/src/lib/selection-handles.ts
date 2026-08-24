@@ -69,15 +69,7 @@ export interface SelectionEnds {
  */
 export const HANDLE_HIT_PX = 44;
 
-/**
- * How far past the edge of the text a handle's stem reaches, and how big the bead on the end of
- * it is — `styles/book.css`'s `--handle-reach` and `--handle-bead` in numeric form.
- *
- * Exported because `toolbar-position.ts` has to leave room for the whole handle, and a number
- * written down twice is a number that will disagree with itself. What CSS cannot do is the
- * arithmetic in viewport coordinates, so the two travel out of here rather than the other way.
- */
-export const HANDLE_REACH_PX = 13;
+/** How big the bead on the end of a stem is — `styles/book.css`'s `--handle-bead` in numeric form. */
 export const HANDLE_BEAD_PX = 11;
 
 /**
@@ -107,6 +99,31 @@ export const WASH_BLEED_PX = 3;
  * the line it must stay exactly as reported: consecutive rectangles of one line meet end to end
  * there, and a translucent wash that overlapped itself would draw a darker seam at every join.
  */
+/**
+ * How far past the text's own box the bead is held off, so that it begins exactly where the
+ * colour ends — `styles/book.css`'s `--handle-reach`, which `SelectionLayer` sets from this.
+ *
+ * **Which is the wash's lip on that side, and nothing more.** It used to be 13px of paper
+ * between the text and the bead, with a short tick of stem crossing it; a phone draws the bar
+ * along the edge of the highlight and puts the ball straight on the end of it, with no gap for
+ * the eye to read as a separate thing. Under vertical setting the colour is let out past the
+ * glyphs (`WASH_BLEED_PX`) and the bead starts after that; horizontally the wash is the box the
+ * text reports, so there is nothing to clear at all.
+ */
+export function handleReach(vertical: boolean): number {
+  return vertical ? WASH_BLEED_PX : 0;
+}
+
+/**
+ * The room the colour row has to leave beside a passage: the furthest a handle ever reaches past
+ * the text, which is the bead sitting at the end of the wash's lip.
+ *
+ * `toolbar-position.ts` reads it rather than adding the two up itself — a number written down
+ * twice is a number that will disagree with itself, and the row landing inside this is the far
+ * end of the selection quietly becoming undraggable.
+ */
+export const HANDLE_CLEARANCE_PX = HANDLE_BEAD_PX + WASH_BLEED_PX;
+
 export function washRect(rect: Rect, vertical: boolean): Rect {
   if (!vertical) return rect;
   return {
