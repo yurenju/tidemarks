@@ -508,15 +508,26 @@ export async function visibleFrames(page: Page): Promise<number> {
  *
  * @param ms how long to hold. The default clears `LONG_PRESS_MS` with room for a loaded machine.
  */
-export async function longPressSelect(page: Page, ms = 700): Promise<void> {
+export async function longPressSelect(
+  page: Page,
+  { ms = 700, at }: { ms?: number; at?: { x: number; y: number } } = {},
+): Promise<void> {
   await page.evaluate(
-    async ({ ms, selector }) => {
+    async ({ ms, at, selector }) => {
       const frame = document.querySelector(selector) as HTMLIFrameElement | null;
       const view = frame?.contentWindow;
       const target = frame?.contentDocument?.body;
       if (!frame || !view || !target) throw new Error("no page frame to press");
 
+      // The middle of the page unless the caller aimed somewhere — see `textPoint` for when the
+      // middle will not do. A point given in the outer document's coordinates, because that is
+      // where a caller can measure one; the frame's own origin is the whole conversion.
       const box = frame.getBoundingClientRect();
+      const point =
+        at === undefined
+          ? { x: box.width / 2, y: box.height / 2 }
+          : { x: at.x - box.left, y: at.y - box.top };
+
       const Pointer = (view as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent;
       const send = (type: string) =>
         target.dispatchEvent(
@@ -526,8 +537,8 @@ export async function longPressSelect(page: Page, ms = 700): Promise<void> {
             pointerId: 1,
             pointerType: "touch",
             isPrimary: true,
-            clientX: box.width / 2,
-            clientY: box.height / 2,
+            clientX: point.x,
+            clientY: point.y,
           }),
         );
 
@@ -535,8 +546,67 @@ export async function longPressSelect(page: Page, ms = 700): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, ms));
       send("pointerup");
     },
-    { ms, selector: PAGE_FRAME },
+    { ms, at, selector: PAGE_FRAME },
   );
+}
+
+/**
+ * The middle of each run of text on the page, longest first, in the outer document's
+ * coordinates.
+ *
+ * **The middle of the page is not reliably on a character.** A vertical book lays its column
+ * against one edge and leaves the rest of the screen empty; a cover is a title and an author
+ * with a screenful of nothing between them; how much of a page is text differs per engine
+ * because the pagination does. A gesture aimed at a point with no text under it resolves to
+ * whichever character happens to be nearest — which is a selection that cannot be dragged
+ * anywhere, and a test that fails saying nothing about the thing it names.
+ *
+ * Several rather than one, because a drag needs somewhere to go as well as somewhere to start.
+ */
+export async function textPoints(page: Page): Promise<{ x: number; y: number }[]> {
+  const points = await page.evaluate(
+    ({ selector }) => {
+      const frame = document.querySelector(selector) as HTMLIFrameElement | null;
+      const view = frame?.contentWindow;
+      const body = frame?.contentDocument?.body;
+      if (!frame || !view || !body) return [];
+
+      const document_ = body.ownerDocument;
+      const box = frame.getBoundingClientRect();
+      const walker = document_.createTreeWalker(body, 4 /* SHOW_TEXT */);
+      const found: { x: number; y: number; length: number }[] = [];
+
+      while (walker.nextNode() !== null) {
+        const node = walker.currentNode;
+        const value = (node.nodeValue ?? "").trim();
+        if (value.length === 0) continue;
+
+        const range = document_.createRange();
+        range.selectNodeContents(node);
+        const rect = range.getBoundingClientRect();
+        const onScreen =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.right > 0 &&
+          rect.bottom > 0 &&
+          rect.left < view.innerWidth &&
+          rect.top < view.innerHeight;
+        if (!onScreen) continue;
+
+        found.push({
+          x: box.left + rect.left + rect.width / 2,
+          y: box.top + rect.top + rect.height / 2,
+          length: value.length,
+        });
+      }
+
+      return found.sort((a, b) => b.length - a.length).map(({ x, y }) => ({ x, y }));
+    },
+    { selector: PAGE_FRAME },
+  );
+
+  expect(points.length, "no visible text on this page").toBeGreaterThan(0);
+  return points;
 }
 
 /**

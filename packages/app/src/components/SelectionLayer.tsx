@@ -44,7 +44,7 @@ export default function SelectionLayer({
   const handles = [
     {
       end: "start" as const,
-      point: ends.start,
+      point: ends.start.point,
       label: t({
         message: "Selection start",
         comment:
@@ -53,7 +53,7 @@ export default function SelectionLayer({
     },
     {
       end: "end" as const,
-      point: ends.end,
+      point: ends.end.point,
       label: t({
         message: "Selection end",
         comment:
@@ -80,6 +80,12 @@ export default function SelectionLayer({
           data-end={end}
           data-axis={axis}
           aria-label={label}
+          /* Named but not tabbable. A button that answers to no key is a stop in the tab order
+             that does nothing when it is reached, which is worse than not being there — while
+             the name still reaches a screen reader moving through the page, which is what it is
+             for. Adjusting a selection from a keyboard is the desk's, where the browser's own
+             selection is still in charge (ADR-0036). */
+          tabIndex={-1}
           style={{ left: point.x, top: point.y }}
           onPointerDown={(event) => {
             // The finger owns this handle until it lifts, wherever it travels — without the

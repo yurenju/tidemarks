@@ -652,24 +652,35 @@ export default function Reader({
       const anchor = selecting?.anchor;
       if (anchor === undefined) return;
       const facts = rendererRef.current?.rangeFromPoints(anchor, point, "char");
+      console.log(
+        "EXT",
+        JSON.stringify(anchor),
+        JSON.stringify(point),
+        facts ? `n=${facts.rects.length} t=${facts.text.slice(0, 8)}` : "null",
+      );
+      // A finger over a margin, a picture, or past the end of the column has moved off the text
+      // rather than to the end of it — the selection stays where the reader last had it.
       if (facts) showRange(facts, true);
     };
 
     /**
      * A still finger, held past the threshold: the word under it becomes the selection.
      *
-     * The two conditions are `startsLongPressSelection`'s, and the drag check beside them is not
-     * a third: a press that had already travelled claimed the page at the moment it did, and the
-     * page does not give it back (ADR-0024, as ADR-0036 revised it — time recognises a
-     * selection, it never refuses a turn).
+     * **The distance half of `startsLongPressSelection` is asked as the finger moves, not here.**
+     * Asking it once, when the timer fires, gets a still finger wrong in the ordinary case: a
+     * press drifts a few pixels while it settles, and if that drift is *downwards* it is not a
+     * page turn either (`startsDrag` is sideways-only, ADR-0024) — so the press would fail the
+     * distance test at the threshold, never be reconsidered, and do nothing at all however long
+     * it was held. Cancelling as soon as the finger genuinely travels says the same thing about
+     * the gesture and leaves nothing to fail late.
+     *
+     * The time half is the timer itself, so re-asking it could only ever produce a false
+     * negative from a coarse clock.
      */
     const beginLongPressSelection = (): void => {
       const started = press;
       longPress = undefined;
       if (started === null || drag !== null || !ownSelectionRef.current) return;
-      if (!startsLongPressSelection(at.x - started.x, at.y - started.y, Date.now() - started.at)) {
-        return;
-      }
 
       const point = { x: started.x, y: started.y };
       const facts = rendererRef.current?.rangeFromPoints(point, point, "word");
@@ -734,6 +745,14 @@ export default function Reader({
       if (selecting !== null) {
         extendTo(at);
         return;
+      }
+
+      // A finger that has travelled is no longer a still one, whichever way it went — so the
+      // press stops being a candidate for a selection now rather than failing the distance test
+      // when the timer fires (`beginLongPressSelection`). Asked of the raw travel and not of
+      // `startsDrag`, because a finger going down the page turns nothing and is still moving.
+      if (!startsLongPressSelection(event.x - started.x, event.y - started.y, LONG_PRESS_MS)) {
+        cancelLongPress();
       }
 
       // A mouse turns no page: the desktop has the edge buttons and the arrow keys, and a drag
@@ -882,10 +901,11 @@ export default function Reader({
           // selects one word, and one word puts the two hit regions on top of each other; the
           // press then goes to whichever button the DOM has on top, which need not be the one
           // the reader was aiming at. `handleAt` answers with the nearer, and the element's own
-          // answer stands only where the point is outside both — which a press on a handle is
-          // not, so it is a fallback that never fires rather than a second opinion.
+          // answer stands only where the point is outside both, which a press in the corner of
+          // a 44px square can be (31px from the centre against a radius of 22) — there the
+          // element that took the press is the better answer, not a worse one.
           const grabbed = handleAt(point, ends) ?? end;
-          selecting = { anchor: grabbed === "start" ? ends.end : ends.start };
+          selecting = { anchor: grabbed === "start" ? ends.end.anchor : ends.start.anchor };
           setSelection((now) => (now === null ? null : { ...now, live: true }));
           return;
         }
@@ -929,6 +949,23 @@ export default function Reader({
     mount?.addEventListener("pointermove", marginMove);
     mount?.addEventListener("pointerup", marginRelease);
     mount?.addEventListener("pointercancel", onCancel);
+
+    /**
+     * A finger that let go somewhere neither surface can see.
+     *
+     * A long press begins inside frond's frame and then follows the finger, and the finger is
+     * free to leave: on a tablet the page buttons stand either side of the book, and a release
+     * over one of those reaches neither frond's listeners nor the margin's. The handles take a
+     * pointer capture and have no such gap; this route cannot, because at the moment the press
+     * lands there is nothing yet to capture with — it is not a selection until half a second
+     * later.
+     *
+     * Without this the selection stays `live` for good: the colour row never appears, and the
+     * only way out is a tap, which throws the selection away.
+     */
+    const strayRelease = () => settleSelection();
+    document.addEventListener("pointerup", strayRelease);
+    document.addEventListener("pointercancel", strayRelease);
 
     // The turn a press is playing out, and whether it ends in a page or back where it started.
     // Held so that the next press can land this one rather than fight it: a reader leaning on
@@ -1318,6 +1355,8 @@ export default function Reader({
       mount?.removeEventListener("pointermove", marginMove);
       mount?.removeEventListener("pointerup", marginRelease);
       mount?.removeEventListener("pointercancel", onCancel);
+      document.removeEventListener("pointerup", strayRelease);
+      document.removeEventListener("pointercancel", strayRelease);
       cancelLongPress();
       handlesRef.current = null;
       navRef.current = null;

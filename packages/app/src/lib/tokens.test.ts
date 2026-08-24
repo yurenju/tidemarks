@@ -21,6 +21,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { SELECTION_WASH } from "./settings";
 
 // **Read from disk, not through Vite.** `import CSS from "../index.css?raw"` looks tidier and
 // hands back an **empty string**: Vitest stubs stylesheet imports unless `css: true`, and
@@ -122,5 +123,27 @@ describe("the stylesheet's custom properties", () => {
     const orphans = [...declared(dark)].filter((name) => !light.has(name)).sort();
 
     expect(orphans).toEqual([]);
+  });
+
+  /**
+   * The one token that exists twice, and the only thing standing between the two copies.
+   *
+   * `::selection` matches inside the document holding the text, and that document is frond's
+   * iframe — so the selection colour cannot reach the book as a token and travels as a value
+   * instead (`settings.ts`'s `SELECTION_WASH`). That is a copy, and a copy of a colour is a
+   * pair of colours waiting to differ: the touch wash we draw ourselves would end up one blue
+   * and the desk's native selection another, on the same screen, for no stated reason.
+   *
+   * Nothing in the type system can catch that, and no other layer looks at both. This does.
+   */
+  test("the selection wash frond is handed is the one the stylesheet draws", () => {
+    const dark = darkRootBlock(CSS);
+    const value = (css: string) =>
+      /--selection-wash:\s*([^;]+);/.exec(css)?.[1]?.replaceAll(/\s+/g, "");
+
+    expect(value(CSS.slice(0, CSS.indexOf(dark)))).toBe(
+      SELECTION_WASH.light.replaceAll(/\s+/g, ""),
+    );
+    expect(value(dark)).toBe(SELECTION_WASH.dark.replaceAll(/\s+/g, ""));
   });
 });

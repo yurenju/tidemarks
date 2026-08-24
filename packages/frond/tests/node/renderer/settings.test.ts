@@ -140,6 +140,25 @@ describe("the injected stylesheet", () => {
     );
   });
 
+  test("a selection colour is painted in both spellings, and only when asked for", () => {
+    // **Both, because `::selection` on the root does not match a selection inside it** — and a
+    // reader selects inside a paragraph, never inside `<html>`. One spelling alone leaves the
+    // browser's own blue on every selection in the book, which is the whole of what this field
+    // is for (Tidemarks #52).
+    //
+    // Independent of `theme`, which is the other half of the claim: a consumer content with the
+    // book's own colours sets no theme at all, and the browser's selection blue is not one of
+    // the book's colours.
+    expect(readerStylesheet(settings({ selectionBackground: "rgba(46, 74, 117, 0.16)" }))).toBe(
+      [
+        ":root::selection { background-color: rgba(46, 74, 117, 0.16) !important; }",
+        ":root ::selection { background-color: rgba(46, 74, 117, 0.16) !important; }",
+      ].join("\n"),
+    );
+
+    expect(readerStylesheet(settings({ selectionBackground: undefined }))).toBe("");
+  });
+
   test("a background frond cannot read puts the colour back on every element", () => {
     // The fallback, and the reason it goes this way round: with no background to measure
     // against, no colour the book declared can be judged. Flattening the book is worse than

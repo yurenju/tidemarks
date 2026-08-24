@@ -81,7 +81,14 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  overflow: hidden;
+  /* **Not clipped, unlike the highlight layer**, and the difference is what each one holds. A
+     mark travels with the page a turn is sliding, so it has to be cut off at the edge of the
+     book; a selection is dropped the moment a turn begins, so nothing here ever leaves. What
+     clipping would take instead is a bead: the leading one is drawn 24px past the edge of its
+     line, and on the first line of a page there is only the reader's margin above it — 16px on
+     a hand-held, and nothing at all at the "None" setting. The handle on every page's first
+     line would be painted at 0 and its hit region cut in half. */
+  overflow: visible;
   /* Above the colour row, and this is load-bearing rather than tidiness.
      -------------------------------------------------------------------
      `toolbar-position.ts` leaves the handles room — and **the room is not always there to

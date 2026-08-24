@@ -7,6 +7,8 @@
 // so we can't measure it. Keeping the toolbar next to the selection means it is
 // never in the bottom strip the native bar occupies.
 
+import { HANDLE_BEAD_PX, HANDLE_REACH_PX } from "./selection-handles";
+
 export interface SelectionAnchor {
   top: number; // selection top edge, in top-window viewport coordinates
   bottom: number; // selection bottom edge
@@ -40,9 +42,10 @@ export interface ToolbarPlacement {
 /**
  * The space left between the selection and the toolbar.
  *
- * **It is the room a selection handle needs, not a margin.** On touch the two ends of a
- * selection carry draggable handles: the stem reaches `HANDLE_REACH_PX` past the edge of the
- * text and the bead sits at the end of it (`selection-handles.ts`). At the 8px this used to be
+ * **It is the room a selection handle needs, not a margin**, and it is spelled as that sum
+ * rather than as the 24 it comes to. On touch the two ends of a selection carry draggable
+ * handles: the stem reaches `HANDLE_REACH_PX` past the edge of the text and the bead sits at
+ * the end of it (`selection-handles.ts`). At the 8px this used to be
  * — a number from the days when a native selection had nothing at its edges — the toolbar
  * landed on the far handle, and what it covered was not the 11px bead but the 44px the finger
  * actually aims at. The symptom is one end of the selection dragging and the other not, with
@@ -52,7 +55,7 @@ export interface ToolbarPlacement {
  * nothing there — and one number for both is what stops someone changing the touch case alone
  * and leaving the desk behind.
  */
-const HANDLE_CLEARANCE_PX = 24;
+const HANDLE_CLEARANCE_PX = HANDLE_REACH_PX + HANDLE_BEAD_PX;
 
 interface Options {
   gap?: number; // space between selection and toolbar; `HANDLE_CLEARANCE_PX` by default

@@ -366,9 +366,10 @@ const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f
  *
  * On touch this is never seen: native selection is off there and the wash is drawn by
  * `SelectionLayer` from the token itself (ADR-0036). The one value covers both so that the two
- * halves of the app cannot drift into two different blues.
+ * halves of the app cannot drift into two different blues — and `tokens.test.ts` compares this
+ * against the stylesheet, which is the only thing that can.
  */
-const SELECTION_WASH = {
+export const SELECTION_WASH = {
   light: "rgba(46, 74, 117, 0.16)",
   dark: "rgba(126, 166, 206, 0.22)",
 } as const;
