@@ -387,8 +387,9 @@ test.describe("key events", () => {
   /**
    * While focus is inside the iframe, the outer document's keyup receives nothing at all —
    * which is exactly why arrow-key paging stops working once frond is wired up. So this
-   * test clicks the content first to send focus in, and only then presses a key: receiving
-   * events while focus is outside proves nothing about this outlet.
+   * test sends focus in with a real click and waits for it to land (`focusContent`), and
+   * only then presses a key: receiving events while focus is outside proves nothing about
+   * this outlet.
    */
   test("arrow keys still get out while focus is inside the iframe", async ({ page }) => {
     await mountFixture(page, "vertical-japanese");
@@ -585,14 +586,19 @@ async function prependLink(page: Page): Promise<{ x: number; y: number }> {
  * key spec red on firefox, green on a rerun, with the other two engines green in the same
  * round.
  *
- * The content document's own `hasFocus()` is what gets polled, because it is the condition
- * the press actually depends on. The shell page's `activeElement` is not the same question:
- * it names the iframe element, not where key events will be delivered.
+ * The content document's own `hasFocus()` is what gets polled rather than the shell page's
+ * `activeElement`. Both name the same frame, and `activeElement` is the right reading where
+ * the question is which frame holds the focus (`turn.spec.ts` asks it that way). This one
+ * is asked from inside, so it also waits on the frame's own realm having caught up and on
+ * the window being focused at all — which is what a press needs and the outer reading does
+ * not promise.
  *
  * This also splits the two causes apart for whoever reads the next red run (see
- * docs/agents/flaky.md). Red here means focus never landed, which is the test's own race;
- * red at the assertion below it, with focus confirmed, means the events really are not
- * getting out — and that would be frond's defect, not the spec's.
+ * docs/agents/flaky.md). On these three paths frond never moves the focus itself — the one
+ * place it does is a turn (`SectionView.takeFocus`), and no key test turns a page — so red
+ * here means the click's focus never landed, which is the test's own race. Red at the
+ * assertion below it, with focus confirmed, means the events really are not getting out,
+ * and that would be frond's defect rather than the spec's.
  */
 async function focusContent(page: Page): Promise<void> {
   await page.mouse.click(400, 300);
