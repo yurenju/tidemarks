@@ -1569,8 +1569,8 @@ export default function Reader({
     // first paint would otherwise keep its marks on the wrong side of the line.
   }, [renderer, annotations, geometry, verticalBook]);
 
-  // position the highlight toolbar next to the selection once it has rendered
-  // (we need its measured size to decide below-vs-above and to clamp on-screen)
+  // Place the highlight toolbar once it has rendered: its measured size is what decides which
+  // sides of the passage it fits beside, and where the resting line falls when none of them do.
   useLayoutEffect(() => {
     if (!selection || !toolbarRef.current) {
       setToolbarPos(null);
@@ -1999,11 +1999,6 @@ export default function Reader({
         <div
           ref={toolbarRef}
           className="highlight-toolbar"
-          /* Which side of the passage this landed on, so the wedge points back at it — below or
-             above in a horizontal book, left or right beside a vertical one. An attribute rather
-             than a class because it is a fact about this one placement, not a variant of the
-             component. */
-          data-side={toolbarPos?.side}
           style={
             toolbarPos ? { left: toolbarPos.left, top: toolbarPos.top } : { visibility: "hidden" }
           }

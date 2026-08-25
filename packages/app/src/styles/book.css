@@ -97,10 +97,11 @@
      colours reads as a fault in the row rather than as the end of the passage.
 
      **What keeps both ends draggable is the row not landing there**, which is
-     `toolbar-position.ts`'s three-way choice and its `HANDLE_CLEARANCE_PX`, and that is the
-     thing worth keeping: `touch-selection.spec.ts` asserts the row clears both handles rather than
-     asserting which of the two is painted over the other. The one case where it still cannot —
-     a full-width row beside a vertical column — is #56, and it is a shape problem. */
+     `toolbar-position.ts`'s three stages and its `HANDLE_CLEARANCE_PX`, and that is the thing
+     worth keeping: `touch-selection.spec.ts` asserts the row clears both handles rather than
+     asserting which of the two is painted over the other. Stage 3 is the one case where it
+     cannot — a selection reaching across the screen, where every height covers a bead and
+     moving is only a choice of which one. */
   z-index: 1;
 }
 
@@ -511,8 +512,9 @@ button.selection-handle:active:not(:disabled) {
 
    Position is still `toolbar-position.ts`'s business and nothing here touches it. */
 .highlight-toolbar {
-  /* left/top are set inline: the toolbar floats next to the text selection so it
-     never sits in the bottom strip where Android Chrome shows its native bar */
+  /* left/top are set inline: the row goes beside the passage where there is room for it, and to
+     a fixed resting line near the bottom of the screen where there is not (`toolbar-position`).
+     No wedge hangs off it — see that file for why the one that used to is gone. */
   position: fixed;
   /* Above the selection layer: this is what the reader is being asked to press, so nothing of
      ours is painted over it — see `.selection-layer` for what that used to buy and what
@@ -599,58 +601,6 @@ button.selection-handle:active:not(:disabled) {
    against it; the ring gives every dot an edge without repainting the ink. */
 .highlight-toolbar .swatch::before {
   border-color: var(--text-on-inverse);
-}
-
-/* The wedge: it points at the passage, so it hangs off whichever edge faces it. `clip-path`
-   rather than the old border trick, because a triangle made of borders cannot take the
-   toolbar's own background as a variable. Which side it is on is `data-side` from
-   `toolbar-position`; without it (the toolbar is measuring, before its first placement) no wedge
-   is drawn. */
-.highlight-toolbar::after {
-  content: "";
-  position: absolute;
-  background: var(--surface-inverse);
-}
-
-/* Horizontal book: the toolbar is below the passage (the usual case), so the wedge is on top
-   pointing up — or below it pointing down when it flipped above near the screen's bottom edge. */
-.highlight-toolbar[data-side="below"]::after {
-  left: 50%;
-  margin-left: -7px;
-  width: 14px;
-  height: 7px;
-  bottom: 100%;
-  clip-path: polygon(0 100%, 50% 0, 100% 100%);
-}
-
-.highlight-toolbar[data-side="above"]::after {
-  left: 50%;
-  margin-left: -7px;
-  width: 14px;
-  height: 7px;
-  top: 100%;
-  clip-path: polygon(0 0, 50% 100%, 100% 0);
-}
-
-/* Vertical book: the toolbar sits beside the tall passage, so the wedge is on the facing edge
-   and points sideways across it — right when the bar is to the passage's left, left when it is
-   to its right. */
-.highlight-toolbar[data-side="left"]::after {
-  top: 50%;
-  margin-top: -7px;
-  width: 7px;
-  height: 14px;
-  left: 100%;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-
-.highlight-toolbar[data-side="right"]::after {
-  top: 50%;
-  margin-top: -7px;
-  width: 7px;
-  height: 14px;
-  right: 100%;
-  clip-path: polygon(100% 0, 0 50%, 100% 100%);
 }
 
 /* The one round thing on the shelf-and-reader side of the app, along with the Scrubber's
