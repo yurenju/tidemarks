@@ -1,16 +1,16 @@
-// The shape the shelf takes around real IndexedDB rows — one large book or none — and the two
-// doors into a book's details, from the shelf and from over the book. Which book leads and what the
-// two lines under it say are pure functions, exhausted in src/lib/book-status.test.ts.
+// The shape the shelf takes around real IndexedDB rows — a row for the book in progress, or none
+// — and the two doors into a book's details, from the shelf and from over the book. Which book
+// leads and what the lines beside it say are pure functions, exhausted in src/lib/book-status.test.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, openChrome, settled } from "../support/library.js";
 
 /**
- * The shelf's first screen: one large book, or none.
+ * The book the shelf leads with: one row, or none.
  *
- * What only a browser can answer is the shape of the screen — that the large book is really
- * absent in the three cases where there is nobody to lead with, and that reading a book really
- * does put it there.
+ * What only a browser can answer is the shape of the screen — that the row is really absent in
+ * the three cases where there is nobody to lead with, and that reading a book really does put it
+ * there. The card above it is `marks.spec.ts`.
  */
 
 /**
@@ -99,8 +99,11 @@ test("the book the reader was in the middle of leads the shelf", async ({ page }
   await expect(page.getByTestId("reading-now")).toBeVisible();
   await expect(page.getByTestId("reading-now-title")).toContainText("Alice");
   await expect(page.getByTestId("continue-reading")).toBeVisible();
-  // And it is not on the wall as well: the shelf shows a book once.
-  await expect(bookCards(page)).toHaveCount(0);
+  // And it is on the wall as well, in the first square. The row above is an action rather than a
+  // second copy of the shelf, so filtering the book out would be an exception to the default
+  // order — which puts the most recently touched book there anyway — with nothing to show for it.
+  await expect(bookCards(page)).toHaveCount(1);
+  await expect(bookCards(page).first()).toContainText("Alice");
 });
 
 test("the card's ⋯ opens 〈書的詳情〉 for that book", async ({ page }) => {

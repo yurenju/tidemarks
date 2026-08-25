@@ -61,6 +61,11 @@ msgstr "{face} not downloaded yet"
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, one {About # hour left} other {About # hours left}}"
 
+#. Where the reader is in their marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many there are.
+#: src/components/Library.tsx
+msgid "{position} of {total}"
+msgstr "{position} of {total}"
+
 #. The how-many-times number in the book-details drawer, with its unit. A sitting is one continuous stretch of reading.
 #: src/components/AboutDrawer.tsx
 msgid "{sittings, plural, one {# sitting} other {# sittings}}"
@@ -439,6 +444,11 @@ msgstr "Moss"
 msgid "Next page"
 msgstr "Next page"
 
+#. Screen-reader name for the › button on the shelf's card, which steps on to the passage marked before this one. 'Passage' is a stretch of the book the reader marked.
+#: src/components/Library.tsx
+msgid "Next passage"
+msgstr "Next passage"
+
 #. The button that refuses the agent. Short and plain — it is the safe answer, not an apology.
 #. js-lingui-explicit-id
 #: worker/authorize.ts
@@ -501,6 +511,11 @@ msgstr "Notes .md"
 msgid "Notes ({markCount})"
 msgstr "Notes ({markCount})"
 
+#. Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.
+#: src/components/Library.tsx
+msgid "Nothing marked yet. A passage you mark while reading comes back to you here."
+msgstr "Nothing marked yet. A passage you mark while reading comes back to you here."
+
 #. Toast shown once a downloaded face has been applied to the book. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog.
 #: src/lib/web-font-store.ts
 msgid "Now set in {familyLabel}"
@@ -559,6 +574,11 @@ msgstr "Paid"
 #: src/components/Reader.tsx
 msgid "Previous page"
 msgstr "Previous page"
+
+#. Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage marked after this one. 'Passage' is a stretch of the book the reader marked.
+#: src/components/Library.tsx
+msgid "Previous passage"
+msgstr "Previous passage"
 
 #. Label of the how-far number in the book-details drawer. The value beside it is a percentage.
 #: src/components/AboutDrawer.tsx
@@ -903,6 +923,11 @@ msgstr "US$3 a month (provisional)"
 #: worker/auth.ts
 msgid "auth.passkey.failed"
 msgstr "Verification failed"
+
+#. Placeholder in the empty note box under a marked passage on the shelf. An invitation to write, not a label — the box is empty because the reader has not written anything on this passage yet.
+#: src/components/Library.tsx
+msgid "What did this make you think?"
+msgstr "What did this make you think?"
 
 #. Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.
 #: src/components/AccountPanel.tsx

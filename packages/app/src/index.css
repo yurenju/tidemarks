@@ -25,7 +25,8 @@
    line. Nothing in here belongs to one screen. */
 @import "./styles/controls.css";
 
-/* The shelf: the header, the cover wall, a card and its cover, the delete confirmation. */
+/* The shelf: the header, the card holding one marked passage, the row for the book in
+   progress, the cover wall, a card and its cover, the delete confirmation. */
 @import "./styles/library.css";
 
 /* The reader's frame and its chrome: the box the book sits in, the three bars, the chapter
@@ -46,6 +47,6 @@
 @import "./styles/drawers.css";
 
 /* Last, and it has to be: the two questions about the device. What a coarse pointer makes
-   bigger, then the four width breakpoints, narrow-first. Kept apart inside the file, because
+   bigger, then the three width breakpoints, narrow-first. Kept apart inside the file, because
    width and pointer never stand in for each other (ADR-0023). */
 @import "./styles/device.css";

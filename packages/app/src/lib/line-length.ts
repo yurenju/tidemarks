@@ -49,8 +49,13 @@ export type ColumnChoice = "auto" | 1 | 2;
  * both rows: 28 ideographs is where the 28–45 range starts, and 20 ems of Latin is 45–49
  * letters, where 45–75 starts. So neither split ever produces a column shorter than a book
  * would set.
+ *
+ * Exported because the shelf sets a quoted passage to the same ceiling, and it is the book's
+ * own text there too. The alternative was writing `40em` into `library.css`, and a copy of a
+ * number fails in the quietest way there is: it goes on computing a line length that used to
+ * be right. Same reason `COLUMN_GAP` is public in frond.
  */
-const LINE_LENGTH: Record<Script, { ceiling: number; columnFloor: number }> = {
+export const LINE_LENGTH: Record<Script, { ceiling: number; columnFloor: number }> = {
   cjk: { ceiling: 40, columnFloor: 28 },
   latin: { ceiling: 30, columnFloor: 20 },
 };
