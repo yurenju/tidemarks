@@ -45,6 +45,10 @@ code-review 是有充分理由的標準流程，不必每次再回頭問使用�
 `reader.css`、`book.css`、`typography.css`、`device.css`。純 logic／sync／worker 的變更不適用
 ——那些 `npm test` 就蓋掉了。
 
+**改到只在 `(pointer: coarse)` 出現的 UI（選取手把、觸控選取那些），截圖一定要用手機模擬尺寸，而且
+直式與橫式各一輪。** 桌機尺寸的圖對 touch-only 的功能等於沒拍——那些元素根本不會出現。做法見
+〈截圖怎麼產〉的 `--device`。
+
 開 PR 之前有兩件事，各屬不同層：跑 `npm run test:container`（三家，自動化那一層，在容器裡），以及在
 host 上用 playwright-cli 把畫面截出來判讀（見〈截圖怎麼產〉）。**判讀由開 PR 的 agent 自己做**，
 **照下面這五項逐項回答，而且只回答這五項**，每項給一個嚴重度：
@@ -142,6 +146,7 @@ for B in chromium firefox webkit; do
   playwright-cli -s=$B delete-data       # 上一輪的書還躺在 profile 裡，不清會混進這次的圖
   playwright-cli -s=$B open --browser $B --persistent http://localhost:5001/
   playwright-cli -s=$B resize 1000 700   # 跟 playwright.config.ts 的 viewport 對齊
+                                         # touch-only 的 UI 改用 --device，見下面那條
 
   # ── 這次要走的操作，從這裡開始 ──
   playwright-cli -s=$B click "getByRole('button', { name: '匯入 epub' })"
@@ -160,7 +165,7 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
 **那段 bash 連同填好的操作一起貼進 PR 說明。** 它就是「做法」本身——以前那裡放的是一段文字描述，現在
 貼上去的東西跟實際跑過的是同一份。
 
-五件會踩到的事，骨架裡每一件都對應一行：
+六件會踩到的事，骨架裡每一件都對應一行：
 
 - **開書要點 `getByTestId('book-open')`，不能用書名選。** 這一行原本寫成
   `getByRole('button', { name: '草枕' })`，那會選到兩個東西：
@@ -179,6 +184,20 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
   導掉（`>/dev/null 2>&1`），連錯誤訊息都看不到，圖看起來就只是「書沒開」。用
   `tests/browser/support/library.ts` 的 `openBook()` 同一個選擇器，順帶讓文件與測試開書的路徑是同
   一條。
+- **touch-only 的 UI 要把 `resize` 換成 `--device`，而且裝置名稱大小寫敏感。**
+
+  ```bash
+  playwright-cli -s=$B open --browser $B --persistent --device "iPhone 15" http://localhost:5001/
+  playwright-cli -s=$B open --browser $B --persistent --device "iPhone 15 landscape" http://localhost:5001/
+  ```
+
+  `iphone 15` 這種寫法會被**無聲忽略**，退回 1280x720 的桌機尺寸——不報錯，只是截出來的圖上那些手把
+  一個都不會出現，看起來就像功能沒做出來。三家都收 `--device`；Firefox 拿不到 `isMobile`，但拿得到
+  viewport 與 `hasTouch`，所以 `(pointer: coarse)` 一樣成立。
+
+  一輪的最小組合是**引擎 × 直式／橫式 × 直排書／橫排書**，外加一張拖曳進行中的（手指還沒放開、
+  顏色列還沒出現的那個狀態）。⚠️ 從 host 用滑鼠拖曳在 Firefox 上不會產生 pointer 事件，所以它那張
+  只能停在長按。
 - **`--persistent` 不能省。** Tidemarks 把 epub body 存成 Blob，而暫時性 profile 存不進去——WebKit 上匯入
   會直接失敗（`Error preparing Blob/File data to be stored in object store`）。
 - **`delete-data` 也不能省，而且要夾在兩次 `open` 中間。** `--persistent` 的另一面是資料會留到下一輪，
