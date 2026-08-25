@@ -923,3 +923,77 @@ the elements the browser colours itself, which inheritance does not"，三家都
 
 `Dockerfile` 的映像（`mcr.microsoft.com/playwright:v1.61.1-noble`），三家都是 Linux 建置。
 量測本身在 host 上跑，因為它問的是引擎的預設樣式表，跟字型無關。
+
+## Firefox 偶爾把 click 送進 iframe，卻不把焦點交給它（#34）
+
+**症狀**
+
+對 iframe 裡的內容按一下滑鼠，事件確實送到了 iframe 的 document，但外層 document 的
+`activeElement` 沒有跟著變成那個 iframe——焦點留在外面，而且不是「還在路上」：等五秒也不會到。
+**再按一下就立刻到了。**
+
+這對讀者的影響是：摸過書之後方向鍵應該由書收到（frond 的 `keydown` listener 掛在 iframe 的
+content document 上），但這一次沒有，鍵盤還指著外面。
+
+**量測**（有渲染器參與：frond 自己的 fixture 跑在測試映像裡，firefox）
+
+全部都在容器裡跑 frond 的 firefox 全套（podman；製造負載的方式是幾份容器並行，每份
+`--cpus=3` 或不設上限）。**分兩個階段，數字不要合起來讀**：
+
+| 階段 | 未修那棵樹 | 修好那棵樹 |
+| --- | --- | --- |
+| 診斷（含探針，負載形狀在調） | 43 趟，紅 5 趟 | —— |
+| 並排第一輪（同一份負載，各 10 趟） | 10 趟全綠 | 10 趟全綠，重試觸發 **3 次** |
+| 並排第二輪（同上） | 10 趟，紅 1 趟 | 10 趟全綠，重試觸發 **1 次** |
+| 另跑的修後負載測試（`--cpus=3` 與 `--cpus=2`） | —— | 30 趟全綠，重試 0 次 |
+| **合計** | **63 趟，紅 6 趟**（約 9%） | **50 趟全綠**，重試觸發 4 次 |
+
+⚠️ **並排第一輪未修那邊全綠不代表它好了**——那一輪的負載沒把怪癖逼出來，同一輪修好那邊
+卻踩到三次（重試計數器記到的），可見它出現與否跟樹無關。要看未修的紅燈得看第二輪與診斷階段。
+機器閒著的時候一次都不紅，所以**機器忙是放大器**，跟 `docs/agents/flaky.md` 說的一樣。
+
+紅的那幾次把當下的狀態逐 100ms 記下來，五秒之內每一筆都一樣：
+
+| 讀的東西 | 值 |
+| --- | --- |
+| frond 收到的事件 | `pointerdown`、`selection`、`pointerup`——**click 確實進了 iframe** |
+| 外層 `document.activeElement` | `BODY`，從頭到尾沒變 |
+| 外層 `document.hasFocus()` | `true`——不是整個視窗失去焦點 |
+| iframe 的 `contentDocument.hasFocus()` | `false` |
+| `#viewport` 裡的 frame 數與哪一個是 `data-frond-page` | 沒變過——不是 iframe 被換掉 |
+
+接著在同一個位置再按一次：`activeElement` 立刻變成那個 iframe，`contentDocument.hasFocus()`
+變 `true`。所以掉的是**這一次 click 的焦點轉移**，不是有什麼還沒完成。
+
+**繞法**
+
+重按，不是重等。等待對這一條沒有用——沒有東西在路上。
+
+驗證的方式是把修好與沒修的兩棵樹**並排跑在同一份負載底下**，並且在修好那邊的重試路徑上放一個
+計數器——因為單看「修完沒再紅」證不了什麼：怪癖本來就可能整輪都不出現。上表兩輪合起來，修好那邊
+共**踩到四次、四次都是第二下 click 就把焦點放進去、run 全綠**，而第二輪同一份負載下未修那邊紅了
+一趟。那四筆才是「重按有效」的直接證據。
+
+⚠️ 這四筆是在重試間隔還設成「至少 700ms」的時候收集的。後來量到兩次 `mouse.click()` 不論間隔
+多短都不會併成 double-click（`clickCount: 1`），所以間隔改成 Playwright 自己的 ramp（從 100ms
+起）——新設定下還沒觀察到真實發作，只用「把第一次強制失敗」的探針確認過它照樣救得回來
+（firefox 439ms，chromium 903ms，webkit 899ms）。
+
+**frond 是否需要處理**
+
+不需要。焦點要不要跟著 click 走是引擎的事，frond 沒有插手的餘地：它的 `pointerdown` 是
+`passive`，唯一會 `preventDefault` 的是連結的 `click` 與被取消的 `touchend`，都不在這條路上。
+對 Tidemarks 的讀者也沒有後果——方向鍵在外層 document 上另有一份 listener（見 app 的
+`paging.spec.ts`〈the arrow keys turn pages with focus outside the book〉），焦點沒進去的時候
+翻頁仍然走得通。
+
+**哪個測試會抓到**
+
+沒有測試在守這一條，因為它不是 frond 的行為。要處理它的是測試自己：
+`tests/browser/support/harness.ts` 的 `clickIntoPage` 會一直按到焦點真的落進 frame 為止，
+`input-events.spec.ts` 的三條 key 測試與 `turn.spec.ts` 的〈and the focus goes with it〉都用它。
+
+**環境**
+
+`Dockerfile` 的映像（`mcr.microsoft.com/playwright:v1.61.1-noble`），firefox 的 Linux 建置，
+容器內執行。

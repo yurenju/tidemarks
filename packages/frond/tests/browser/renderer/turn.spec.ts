@@ -3,7 +3,7 @@
 // itself is pure — `turnPlacement`, in tests/node/renderer/geometry.test.ts — and what needs an
 // engine is that the frames exist and move.
 import { expect, test, type Page } from "@playwright/test";
-import { mountFixture, openHarness, peeksReady } from "../support/harness.ts";
+import { clickIntoPage, mountFixture, openHarness, peeksReady } from "../support/harness.ts";
 
 test.beforeEach(async ({ page }) => {
   await openHarness(page);
@@ -172,16 +172,14 @@ test.describe("dragging a page across", () => {
     // is inside a frame, so nobody answers the press at all.
     await mountPlainBook(page);
     await peeksReady(page);
-    await page.mouse.click(400, 300);
+    // The precondition is the click's own doing rather than frond's, and firefox sometimes
+    // takes the click without moving the focus — so `clickIntoPage` clicks again until it
+    // does (#34). The assertion at the end is a bare one: that half is frond's, and it
+    // happens inside `commitTurn()`.
+    await clickIntoPage(page);
 
     const inThePage = () =>
       page.evaluate(() => document.activeElement?.hasAttribute("data-frond-page") === true);
-
-    // Polled, because this one is the click's own doing rather than frond's: the click has
-    // been delivered, but focus crossing into the frame is the engine's to finish, and on a
-    // loaded machine it is not always finished by the next command (#34). The assertion at
-    // the end is not polled — that one is frond's, and it happens inside `commitTurn()`.
-    await expect.poll(inThePage).toBe(true);
 
     await page.evaluate(() => frond.beginTurn("next", "right"));
     await page.evaluate(() => frond.moveTurn(800));
