@@ -219,6 +219,7 @@ for B in chromium firefox webkit; do
 
   playwright-cli -s=$B eval "async () => { await document.querySelector('.viewer-mount iframe').contentDocument.fonts.ready }"
   playwright-cli -s=$B screenshot --filename=$SHOTS/$B-reader.png   # 檔名會變成 alt text
+  playwright-cli -s=$B eval "$MEASURE"    # 要寫進說明的數字，跟圖同一趟，見下面那條
   playwright-cli -s=$B close
 done
 
@@ -228,6 +229,27 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
 **那段 bash 連同填好的操作一起貼進 PR 說明，收在 `<details>` 裡。** 它就是「做法」本身——以前那裡放
 的是一段文字描述，現在貼上去的東西跟實際跑過的是同一份。收起來是因為它是重現用的，不是判讀用的
 （見〈內文怎麼排〉）；**文字還在**，三十天後圖被刪了它照樣活著。
+
+### ⚠️ 數字跟圖是同一趟，不是兩支腳本
+
+PR 說明要圖，也要量到的數字，而兩者是**同一組操作**走出來的：匯入書、寫進 IndexedDB、開書、reload、
+resize。那組 setup 在三家引擎裡跑一遍要兩分鐘上下，而它跟你想量什麼、想拍什麼完全無關。
+
+實際發生過的事：一支 `shots.sh` 拍完圖（122 秒），接著另寫一支 `measure2.sh` 去量數字（137 秒）——
+兩支的 SEED 一樣、`stock()` 一樣、三家引擎 × 三個視窗的迴圈一樣，**唯一的差別是最後一行**一個
+`screenshot`、一個 `eval`。那 137 秒量的是兩分鐘前就在畫面上的東西。
+
+所以量測寫成一段 `$MEASURE`，跟 `screenshot` 並排放在同一個迴圈裡。開瀏覽器之前先想清楚這一趟要帶
+回來什麼，比回頭再開一次便宜得多。
+
+### ⚠️ 不要手寫 node 的 playwright script
+
+要在 host 上量版面的時候，直覺是寫一支 `import { chromium } from "playwright"` 的 `.mjs`。**在這台
+機器上那條路每次都要修**：`playwright` 這個名字不在相依裡（要 `@playwright/test`），瀏覽器不在預設
+位置（在 `~/.cache/ms-playwright/`），而那底下的目錄名還會變（`chrome-linux` 對上 `chrome-linux64`）。
+實測是五次 tool call 才跑得起來，量到的東西跟 `playwright-cli eval` 一模一樣。
+
+用 `playwright-cli`。它已經知道瀏覽器在哪。
 
 六件會踩到的事，骨架裡每一件都對應一行：
 
@@ -310,6 +332,16 @@ gh run watch <run-id> --interval 30 --exit-status  # 卡在這裡等它跑完
 gh run view <run-id> --json conclusion,jobs -q '.conclusion, (.jobs[]|"\(.name)\t\(.conclusion)")'
 ```
 
+⚠️ **不要寫成 `sleep 420; gh run list`。** 這件事在這個 repo 的 session 紀錄裡是最大的一筆時間：所有
+session 的工具時間加起來 13.3 小時，其中 **34% 是前景 `sleep` 輪詢 CI**，115 次。單一 session 的極端值
+是 96 分鐘。
+
+一輪 CI 八分鐘，那八分鐘省不掉，`sleep` 多付的是**間隔尾巴那一段**——固定間隔平均要多等半個間隔，而
+實際寫出來的是 `sleep 420` 這種量級。`gh run watch --exit-status` 一結束就回來，寫起來還比較短。
+
+而真正的槓桿不在等的方式，在**推了幾輪**。上面那 96 分鐘是十幾輪 CI 疊出來的，不是等錯了方法。
+push 之前在本機收斂到什麼程度，決定要動用幾次那八分鐘。
+
 **Checks API 那一整組都不要用**，改用上面的 `gh run`。這不是設定漏開：fine-grained token 的權限
 清單裡**沒有 Checks 這一格**，所以去設定頁找也找不到，`gh run view` 自己吐的那句
 「it is not currently possible to create a fine-grained PAT with the `checks:read` permission」
@@ -358,17 +390,22 @@ file on disk」——書根本沒進去，跟被斷言的那顆按鈕無關。
 2. **在本機容器裡重現**。挑那一個 engine、那一支測試就好，不必跑整套：
 
    ```bash
-   podman build --tag tidemarks-test .
-   podman run --rm --init localhost/tidemarks-test npm run test:browser -w app -- --project=chromium -g "那支測試的名字"
+   ./scripts/test-in-container.sh --only=app --project=chromium -g "那支測試的名字"
    ```
 
    改完再跑一次同一行確認，然後三家都跑一遍確認沒有打到別人（`--project=chromium --project=webkit`，
    **逗號分隔不吃**，要重複寫 `--project`）。
 
-   直接呼叫 `podman` 而不是 `./scripts/test-in-container.sh`，是因為那支腳本會先跑 frond 那套，而
-   `-g` 在 frond 那邊match 不到任何測試，Playwright 會當成錯誤直接中止。整套要跑的時候才用腳本。
+   **`--only=app` 不能省。** 少了它，腳本會先跑 frond 那套，而 `-g`（或一個 app 底下的檔案路徑）在
+   frond 那邊 match 不到任何測試，Playwright 當成錯誤直接中止，app 那半根本輪不到。
 
-   測試檔在映像裡是 `COPY . .` 進去的，所以**改完要重 build**（layer 有 cache，通常十幾秒）。
+   指定檔案的時候路徑**相對於那個 package**：`tests/browser/reader/paging.spec.ts`，不是
+   `packages/app/tests/…`。Playwright 的 cwd 在 package 裡，寫成全路徑一樣是 `No tests found`，而那句
+   錯誤看起來像「這支測試不存在」。
+
+   測試檔在映像裡是 `COPY . .` 進去的，所以**改完要重 build**——腳本自己會做，一趟大約十幾秒。這也是
+   為什麼這裡叫的是腳本而不是 `podman run`：直接下 podman 跳過的不只是 build，還有 issue #185 的比對，
+   而它擋的正是「跑的不是你磁碟上這份 code」。
 
 ### 紅的不是你造成的時候
 

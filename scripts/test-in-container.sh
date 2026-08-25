@@ -25,6 +25,20 @@
 # Usage:
 #   ./scripts/test-in-container.sh                     # all three
 #   ./scripts/test-in-container.sh --project=firefox   # remaining arguments pass to playwright
+#   ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/marks.spec.ts
+#
+# **`--only=` exists so that naming one spec file is possible at all.** The remaining arguments
+# go to both browser suites, so a path under `packages/app/tests/` matches nothing on frond's
+# side, and Playwright treats "no tests found" as an error and stops the script before the app's
+# half runs. Without a way to drop the other suite, the only way to iterate on a single spec was
+# to bypass this script and call the container engine directly — which skips the build and the
+# staleness check below, and so answers about an image that may not hold the code on disk.
+#
+# What it is worth: a full run is three or four minutes on a laptop and up to nine when the
+# engines are slow, against roughly forty seconds for one spec in one engine. That difference is
+# paid on every edit, so it decides the shape of the loop rather than trimming it. Narrow while
+# the code is still moving; run the whole thing once before the commit, and again before the
+# pull request. See CLAUDE.md's 〈測試分層〉.
 #
 # Playwright is invoked through each workspace's own script rather than as `npx playwright
 # test`, because a package configures the browsers for itself and its config sits beside its
@@ -36,6 +50,21 @@
 # container. Evidence for a pull request is captured on the host with playwright-cli instead —
 # see docs/adr/0007-pr-evidence-is-captured-on-the-host.md.
 set -euo pipefail
+
+# Parsed before the image is built, so a typo fails in under a second rather than after it.
+# Only the leading argument is examined: everything after it belongs to Playwright, and one of
+# its own arguments could legitimately contain this string.
+suites=all
+case "${1:-}" in
+    --only=app | --only=frond)
+        suites="${1#--only=}"
+        shift
+        ;;
+    --only=*)
+        echo "Unknown suite '${1#--only=}'. It is --only=app or --only=frond." >&2
+        exit 1
+        ;;
+esac
 
 source "$(dirname "${BASH_SOURCE[0]}")/container.sh"
 
@@ -79,16 +108,26 @@ fi
 #
 # Naming the same script CI's `test` job runs is what closes it. The renderer build it repeats
 # costs 0.6s against an image that already has one.
-if [[ -z "${CI:-}" ]]; then
+#
+# `--only=` skips them too. The ordering argument above is about which failure you read first
+# when you are running everything; someone who has named one spec file is not reading a list.
+# `npm test` on the host is seconds and covers the same ground.
+if [[ "$suites" != all ]]; then
+    echo "==> skipping the Node tests (--only=${suites}; run 'npm test' on the host)"
+elif [[ -z "${CI:-}" ]]; then
     echo "==> running the Node tests (Vitest, every package)"
     "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm test
 else
     echo "==> skipping the Node tests (CI runs them in the 'test' job)"
 fi
 
-echo "==> running frond's browser tests (Playwright)"
-"$ENGINE" run "${run_args[@]}" --network=none "$IMAGE_NAME" \
-    npm run test:browser -w @yurenju/frond -- "$@"
+if [[ "$suites" == all || "$suites" == frond ]]; then
+    echo "==> running frond's browser tests (Playwright)"
+    "$ENGINE" run "${run_args[@]}" --network=none "$IMAGE_NAME" \
+        npm run test:browser -w @yurenju/frond -- "$@"
+fi
 
-echo "==> running the app's browser tests (Playwright)"
-exec "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
+if [[ "$suites" == all || "$suites" == app ]]; then
+    echo "==> running the app's browser tests (Playwright)"
+    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
+fi

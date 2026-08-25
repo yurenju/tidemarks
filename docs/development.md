@@ -26,6 +26,15 @@ commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一�
 Scrubber。那一層的斷言是**容器裡的數字**（字型與引擎版本都固定），所以入口是 `test:container`
 而不是 `test:browser`——在 host 上跑出來的紅綠燈，跟 CI 說的不是同一件事。
 
+**一邊改一邊跑的時候不要用全套**，它是三家引擎 × 兩個 package，一趟三到九分鐘。narrow 的寫法是同一支
+腳本加 `--only=`（27 秒，其中 18 秒是建映像與比對）：
+
+```sh
+./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
+```
+
+路徑相對於那個 package（Playwright 的 cwd 在裡面）。順序是改的時候跑窄的、commit 之前跑一次全套。
+
 第三層在 host 上用 playwright-cli 跑（[agents/verify.md](agents/verify.md)），蓋自動化蓋不到的：
 需登入的 sync、真機手勢、手上有版權的實際書。
 
