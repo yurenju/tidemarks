@@ -108,7 +108,7 @@ export async function settled(page: Page): Promise<void> {
   // starts loading, so counting frames would say only that a mount had begun — frond marks a
   // peek once it is laid out and pointed at its page, and a drag started before that gets no
   // preview (frond ADR-0013). Waiting here is what keeps a spec from racing that.
-  await expect(page.locator(".viewer-mount iframe[data-frond-peek]").first()).toBeAttached({
+  await expect(page.locator(PEEK_FRAME).first()).toBeAttached({
     timeout: 30_000,
   });
 
@@ -275,6 +275,40 @@ export function readerFrame(page: Page) {
 export const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
 
 /**
+ * A page waiting beside the one on screen, **laid out and ready to be dragged in**. frond only
+ * marks a frame this way once it has been scrolled to the page it is there to show.
+ */
+export const PEEK_FRAME = ".viewer-mount iframe[data-frond-peek]";
+
+/**
+ * Waits until the reader has `expected` pages laid out and ready to be dragged in.
+ *
+ * **What a turn spec has to wait for before asking for its second turn** (#23). A turn only
+ * slides if the page it is bringing in is already laid out; without one the app deliberately
+ * turns outright instead (`commandTurn`, `hasPreview`), and a spec tracing that turn sees a
+ * page that never moved. Landing the previous turn does not imply it: committing a turn hands
+ * the frame the reader just left to the side behind them, and at the start of a book there is
+ * nothing on that side to hand forward — so the page ahead has to be **mounted**, a document
+ * load the click that follows can easily beat.
+ *
+ * ⚠️ **It only bites there.** `takeTurn` marks the outgoing frame as a peek synchronously, and
+ * `refreshNeighbours` re-points a peek showing the same section by scrolling it, without ever
+ * taking the mark off — so a turn *inside* a section leaves two marked frames in the DOM the
+ * instant it commits, and this returns immediately. Reach for it where a mount is what is being
+ * waited for, which is a book that has just been opened; anywhere else it guards nothing.
+ *
+ * No default: `expected` is 1 at the very start of a book, 2 once there is a page on either
+ * side, and a caller that has not worked out which is not ready to wait. frond's own harness has
+ * this wait for the same reason and under the same name
+ * (`packages/frond/tests/browser/support/harness.ts`) but defaults to 1, so a call copied from
+ * one side to the other must not silently mean something else. It cannot be shared across the
+ * package boundary either: that one asks frond's test harness, this one has only the DOM.
+ */
+export async function peeksReady(page: Page, expected: number): Promise<void> {
+  await expect(page.locator(PEEK_FRAME)).toHaveCount(expected, { timeout: 30_000 });
+}
+
+/**
  * Drags a finger across the book, the way a reader turns a page (ADR-0024).
  *
  * ## Why the events are dispatched rather than driven
@@ -427,13 +461,40 @@ export async function pageOffset(page: Page): Promise<number> {
 }
 
 /**
- * What the page did while `act` ran: where it sat on every frame, and how many frames were lit.
+ * Every place the page was put while `act` ran, and how many frames were lit each time.
  *
  * **The only way to see an animation from out here.** `pageOffset()` is one reading over a CDP
  * round trip, and a turn that lasts 220ms is over before a poll built out of those can be
- * trusted to have caught the middle of it — a suite that asserts on such a poll goes red on a
- * busy machine and tells nobody anything. So the sampling happens on the page, one reading per
- * `requestAnimationFrame`, and only the collected list crosses the socket.
+ * trusted to have caught the middle of it. So the recording happens on the page, and only the
+ * collected lists cross the socket.
+ *
+ * ## Why it watches the app rather than the screen (#23)
+ *
+ * This used to sample once per `requestAnimationFrame` over a fixed 1200ms, which reads as the
+ * honest thing to do — it is what the reader sees. What it actually measures is **how many
+ * frames the machine had to give**, and that is a property of the machine, not of the app.
+ * Caught in the act on a loaded container: nine callbacks in the whole window, one of them
+ * inside the 220ms the turn was supposed to last, so a turn that crossed the entire screen came
+ * back as a single displacement of ten pixels and the spec went red. The app was faultless.
+ *
+ * Two things replace it, and both are needed. It records **one entry per placement the app
+ * makes** — every write to the frame's `style`, taken from the value that write replaced, so a
+ * placement counts even if the next line of the same function overwrote it. And it stops when
+ * **the turn is over** rather than when a stopwatch says so, because a machine that is not
+ * painting stretches those 220ms into seconds of wall clock and a fixed window closes over the
+ * middle of them.
+ *
+ * What that buys is assertions that no longer depend on the frame budget at all: the last thing
+ * the app does before committing is to place the page at the full extent, and it reveals the
+ * page behind it before moving either — so the displacement and the two lit frames are both
+ * certain to be in here even when the whole turn happened in one frame. Only the *count* of
+ * entries still follows the machine, which is why nothing asserts on it.
+ *
+ * **The two lists line up in order, not in time.** An offset is the value a write replaced;
+ * the frame count beside it is read when the batch carrying that write is delivered, which is
+ * later. Each list is honest about its own extremes — which is all either assertion asks — but
+ * `frames[i]` is not the number of frames lit at `offsets[i]`, and a spec that read them as a
+ * pair would be reading something that never happened.
  *
  * `act` is driven from here rather than inside the page because it is a real click on a real
  * button: what is being tested includes the wiring from that button to the turn.
@@ -441,45 +502,97 @@ export async function pageOffset(page: Page): Promise<number> {
 export async function traceTurn(
   page: Page,
   act: () => Promise<void>,
-  { ms = 1200 }: { ms?: number } = {},
 ): Promise<{ offsets: number[]; frames: number[] }> {
   await page.evaluate(
-    ({ ms, selector }) => {
+    ({ selector }) => {
+      const mount = document.querySelector(".viewer-mount");
+      if (mount === null) throw new Error("no reader to trace a turn in");
+
+      // The frame the reader is on **now**, held rather than looked up again: it is the one
+      // that slides away, and by the time the turn is over it is not the page any more.
+      const leaving = document.querySelector(selector);
+      if (leaving === null) throw new Error("no page frame to trace a turn on");
+
       const offsets: number[] = [];
       const frames: number[] = [];
       const trace = { offsets, frames };
       (window as unknown as { __turnTrace?: typeof trace }).__turnTrace = trace;
 
-      const startedAt = performance.now();
-      const step = (now: number) => {
-        const current = document.querySelector(selector);
-        const mount = document.querySelector(".viewer-mount");
-        if (current !== null) {
-          const transform = getComputedStyle(current).transform;
-          offsets.push(transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41);
-        }
-        if (mount !== null) {
-          frames.push(
-            [...mount.querySelectorAll("iframe")].filter(
-              (frame) => getComputedStyle(frame).visibility === "visible",
-            ).length,
-          );
-        }
-        if (now - startedAt < ms) requestAnimationFrame(step);
+      // The x of a `style` attribute's transform. Read out of the attribute text rather than off
+      // the element, because the values that matter are ones the element no longer holds — see
+      // the note about `oldValue` below.
+      const displacement = (style: string | null): number => {
+        const found = /translate\((-?[\d.]+)px/.exec(style ?? "");
+        return found === null ? 0 : Number(found[1]);
       };
-      requestAnimationFrame(step);
+
+      const lit = () =>
+        [...mount.querySelectorAll("iframe")].filter(
+          (frame) => getComputedStyle(frame).visibility === "visible",
+        ).length;
+
+      const put = (style: string | null) => {
+        offsets.push(displacement(style));
+        frames.push(lit());
+      };
+
+      // Where everything stood before the turn was asked for, so that a turn which never moves
+      // anything is a list of resting positions rather than an empty one.
+      put(leaving.getAttribute("style"));
+
+      const observer = new MutationObserver((records) => {
+        // **Every value the frame passed through, including the ones it held for no time at
+        // all.** A batch of mutations arrives as one callback, so reading the element here would
+        // report only where it ended up — and the last frame of a turn writes the full extent
+        // and then commits, which puts it straight back to nothing, both inside a single task.
+        // On a machine with one frame to spare that *is* the whole turn, and the reading would
+        // be of a page that never moved. `oldValue` is what each write replaced, so the list
+        // holds every placement whether or not it survived long enough to be seen.
+        for (const record of records) {
+          if (record.target === leaving) put(record.oldValue);
+        }
+        put(leaving.getAttribute("style"));
+      });
+      observer.observe(mount, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style"],
+        attributeOldValue: true,
+      });
+      (window as unknown as { __turnTraceStop?: () => void }).__turnTraceStop = () =>
+        observer.disconnect();
     },
-    { ms, selector: PAGE_FRAME },
+    { selector: PAGE_FRAME },
   );
 
   await act();
-  await page.waitForTimeout(ms);
 
-  return await page.evaluate(
-    () =>
+  // And now wait for the turn to be over: the page has been somewhere other than where it rests,
+  // and has come back. A turn that never moves the page at all — the outright switch the app
+  // falls back to when the page ahead has not laid out — fails here rather than in an assertion
+  // about a list of zeroes, which is a truer account of what went wrong.
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const trace = (window as unknown as { __turnTrace?: { offsets: number[] } }).__turnTrace;
+          if (trace === undefined || trace.offsets.length === 0) return false;
+          return (
+            trace.offsets.some((offset) => offset !== 0) &&
+            trace.offsets[trace.offsets.length - 1] === 0
+          );
+        }),
+      { timeout: 15_000, message: "the page never left where it rests, or never came back" },
+    )
+    .toBe(true);
+
+  return await page.evaluate(() => {
+    (window as unknown as { __turnTraceStop?: () => void }).__turnTraceStop?.();
+    return (
       (window as unknown as { __turnTrace?: { offsets: number[]; frames: number[] } })
-        .__turnTrace ?? { offsets: [], frames: [] },
-  );
+        .__turnTrace ?? { offsets: [], frames: [] }
+    );
+  });
 }
 
 /** How many of the three frames are actually being painted. Two of them, mid-turn. */
