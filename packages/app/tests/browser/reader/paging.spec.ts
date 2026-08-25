@@ -6,6 +6,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
+  bothPeeksReady,
   openBook,
   openPanel,
   pageOffset,
@@ -134,21 +135,30 @@ test.describe("a turn asked for by a button", () => {
   test("slides the page away and brings the next one in behind it", async ({ page }) => {
     await openBook(page, BOOKS.horizontal);
 
-    // The first turn of a session is thrown away: until the neighbouring frames have laid out
-    // there is nothing to slide in, and that turn deliberately falls back to switching outright
-    // (`hasPreview`). `turn-pacing.spec.ts` discards its first turn for the same reason.
+    // The first turn of a session is thrown away, the way `turn-pacing.spec.ts` throws its own
+    // away: a turn slides only if the page it is bringing in is already laid out, and everything
+    // that happens once — the first frames laying out, whatever the engine had yet to compile —
+    // happens during that one.
     const before = await visibleText(page);
     await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
+    // And then wait for the page ahead, which landing that turn does not imply: committing one
+    // hands the frame just left to the side behind the reader, so at the start of a book the
+    // side ahead has nothing handed to it and a fresh document has to be mounted. A turn asked
+    // for before it lands switches outright (`hasPreview`) and slides nothing.
+    await bothPeeksReady(page);
 
     const middle = await visibleText(page);
     const trace = await traceTurn(page, async () => {
       await page.getByRole("button", { name: "Next page" }).click();
     });
 
-    // It travelled, rather than being replaced in place — several frames of it, not one.
-    expect(trace.offsets.filter((offset) => offset !== 0).length).toBeGreaterThan(2);
+    // It travelled, rather than being replaced in place: a page that is swapped between two
+    // frames is never put anywhere but where it rests, so a displacement of most of the screen
+    // is the whole claim. **How many of them there were is not asserted** — that is the count of
+    // frames the machine had to give, and a loaded one gives few (#23).
+    //
     // And it travelled *leftwards*: a left-opening book's next page comes in from the right, so
     // the page being left slides off towards the left. This is the assertion carrying the whole
     // point — the reverse sign is what turning back looks like.
@@ -174,6 +184,7 @@ test.describe("a turn asked for by a button", () => {
     await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
+    await bothPeeksReady(page);
 
     const trace = await traceTurn(page, async () => {
       await page.getByRole("button", { name: "Next page" }).click();
