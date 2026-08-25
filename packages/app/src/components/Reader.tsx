@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n, MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { EpubBook } from "@yurenju/frond/epub";
 import {
@@ -14,8 +14,9 @@ import {
 import { db } from "../lib/db";
 import { recallPosition, rememberPosition } from "../lib/position-store";
 import { sortByBookOrder } from "../lib/export";
-import { downloadBookFile, notePosition, scheduleSync } from "../lib/sync";
-import type { Annotation } from "../lib/types";
+import { downloadBookFile, notePosition, scheduleSync, subscribePulledProgress } from "../lib/sync";
+import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
+import type { Annotation, Progress } from "../lib/types";
 import {
   FONT_FAMILIES,
   frondLayout,
@@ -223,6 +224,69 @@ const fontFamilyLabel = (i18n: I18n, choice: FontChoice): string => {
   return found ? i18n._(found.label) : "";
 };
 
+/**
+ * How long ago the other device wrote its position, in words.
+ *
+ * Coarse on purpose. The reading is taken once, when the banner appears, and never refreshed
+ * (`lib/elsewhere.ts`) — a grain of minutes and hours is one a stale reading survives, where
+ * "5 minutes ago" refreshed to the second would not.
+ */
+function elsewhereWhen(i18n: I18n, elapsed: Elapsed): string {
+  if (elapsed.unit === "now") {
+    return i18n._(
+      msg({
+        message: "Just now",
+        comment:
+          "On the banner about a position read on another device: that position was written less than a minute ago. Also what a position written slightly in the future says, since the two devices' clocks need not agree.",
+      }),
+    );
+  }
+  const { count } = elapsed;
+  if (elapsed.unit === "minutes") {
+    return i18n._(
+      msg({
+        message: plural(count, { one: "# minute ago", other: "# minutes ago" }),
+        comment:
+          "On the banner about a position read on another device: how long ago it was written. Whole minutes, under an hour.",
+      }),
+    );
+  }
+  if (elapsed.unit === "hours") {
+    return i18n._(
+      msg({
+        message: plural(count, { one: "# hour ago", other: "# hours ago" }),
+        comment:
+          "On the banner about a position read on another device: how long ago it was written. Whole hours, under a day.",
+      }),
+    );
+  }
+  return i18n._(
+    msg({
+      message: plural(count, { one: "# day ago", other: "# days ago" }),
+      comment:
+        "On the banner about a position read on another device: how long ago it was written. Whole days.",
+    }),
+  );
+}
+
+/**
+ * The three things that happen every time the reader's position changes, in the order they have
+ * to happen in.
+ *
+ * Written once here because a page turn is not the only thing that moves the position: turning
+ * down an offer from another device writes one too, and that write is the whole of what the
+ * refusal means (`lib/elsewhere.ts`). Two call sites that must agree are one function.
+ */
+function recordPosition(position: Progress): void {
+  // Not `db.progress.put` on its own: that write is unawaited, and a reload landing before it
+  // commits used to come back holding the page before this one (#173).
+  rememberPosition(position);
+  // Also handed to sync as a plain value, so switching app can push it without waiting on an
+  // IndexedDB read first (`beaconPositions`).
+  notePosition(position);
+  scheduleSync();
+}
+
 export default function Reader({
   bookId,
   onClose,
@@ -255,6 +319,28 @@ export default function Reader({
   const markCount = annotations.length;
   const [chrome, setChrome] = useState<Chrome>("down");
   const chromeUp = chrome !== "down";
+  /**
+   * Where this device has the reader, as the last `relocate` left it.
+   *
+   * A ref rather than state: nothing renders from it, and it is read from inside a sync
+   * callback that closed over its scope long before the page turn it needs to know about.
+   */
+  const positionRef = useRef<Progress | null>(null);
+  /**
+   * A position from another device, offered but not taken, and how long ago it was written.
+   *
+   * **Held here, not read back from Dexie when the reader answers.** The pull has already
+   * written it there, and the next page turn on this device writes over it — so by the time a
+   * banner that has been on screen for a minute is answered, the row it is about may be gone.
+   * A copy up here is what makes the offer outlive the sync that produced it.
+   *
+   * **The elapsed reading is taken once, here, rather than computed as the banner draws.** A
+   * `Date.now()` in the markup would be re-read on every unrelated render — a page turn, the
+   * chrome going up — so the wording would stand still and then jump a step at whatever moment
+   * the reader happened to do something else, which is harder to explain than either a frozen
+   * reading or a ticking one (`lib/elsewhere.ts`).
+   */
+  const [elsewhere, setElsewhere] = useState<{ position: Progress; elapsed: Elapsed } | null>(null);
   /**
    * Whether the section on screen lays out vertically, which the type panel needs in order to
    * take the column choice away: frond cannot paginate a vertically-written book in more than
@@ -1137,6 +1223,10 @@ export default function Reader({
 
       const saved = await recallPosition(bookId);
       if (cancelled) return;
+      // What a pull is compared against until the first `relocate` names a page — and, until
+      // this line runs, what its absence means is "this device does not know where it is yet",
+      // which is why the offer is held back rather than made against nothing.
+      positionRef.current = saved ?? null;
       // The last percentage we knew, so a `relocate` arriving before the index is built does
       // not overwrite a real reading position with 0.
       let lastPercentage = saved?.percentage ?? 0;
@@ -1232,13 +1322,8 @@ export default function Reader({
               lastReadAt: now,
               dirtyAt: now,
             };
-            // Not `db.progress.put` on its own: that write is unawaited, and a reload landing
-            // before it commits used to come back holding the page before this one (#173).
-            rememberPosition(position);
-            // Also handed to sync as a plain value, so switching app can push it without
-            // waiting on an IndexedDB read first (`beaconPositions`).
-            notePosition(position);
-            scheduleSync();
+            positionRef.current = position;
+            recordPosition(position);
           },
           // The geometry is valid again — a resize or a settings change moves every
           // rectangle without moving the reader, so `relocate` alone would miss it.
@@ -1498,6 +1583,59 @@ export default function Reader({
     const id = setTimeout(() => setFontToast(null), FONT_TOAST_MS);
     return () => clearTimeout(id);
   }, [fontToast]);
+
+  /**
+   * Listen for a position arriving from another device while this book is open.
+   *
+   * **An offer already standing is never taken away by a later pull** — only replaced by a
+   * fresher one. It is the reader's to answer, and a banner that vanished on its own would take
+   * the other device's position with it (`lib/elsewhere.ts`).
+   */
+  useEffect(() => {
+    setElsewhere(null);
+    // The previous book's position is not a yardstick for this one, and the open below will not
+    // replace it for a while. Left standing, a pull landing in between would measure the new
+    // book's position against the old book's page.
+    positionRef.current = null;
+    return subscribePulledProgress((rows) => {
+      const arrived = rows.find((row) => row.bookId === bookId);
+      const here = positionRef.current;
+      // Nothing to measure against yet — the open is still downloading or parsing. Saying
+      // nothing is right: the position is about to be picked up by the open itself, and a
+      // refusal would have nothing of this device's to write in its place.
+      if (arrived === undefined || here === null) return;
+      const offer = positionFromElsewhere(here, arrived);
+      if (offer === null) return;
+      setElsewhere({ position: offer, elapsed: elapsedSince(offer.lastReadAt, Date.now()) });
+    });
+  }, [bookId]);
+
+  /** Take the offer. The `relocate` that follows writes the position, as it does for any move. */
+  const goElsewhere = () => {
+    if (elsewhere === null) return;
+    void rendererRef.current?.goToCfi(elsewhere.position.cfi);
+    setElsewhere(null);
+  };
+
+  /**
+   * Turn the offer down — **by writing where the reader is**, not by hiding the banner.
+   *
+   * The pull put the other device's position into Dexie before this banner ever appeared. Close
+   * the banner without writing and the reader who said "stay here" gets that other position
+   * back the next time they open the book, which is the opposite of what they pressed. Staying
+   * here has to be a write, and it is the same write a page turn makes.
+   */
+  const stayHere = () => {
+    const here = positionRef.current;
+    // Never null while a banner is up — the offer is only made once this device knows where it
+    // is (above), which is the same guard that keeps this from being a button that does nothing.
+    if (here === null) return;
+    const now = Date.now();
+    const kept = { ...here, lastReadAt: now, dirtyAt: now };
+    positionRef.current = kept;
+    recordPosition(kept);
+    setElsewhere(null);
+  };
 
   // There is no relayout when the chrome comes up, and there must not be one: the bars are laid
   // over the book rather than beside it, so the viewer keeps its size and the book keeps its
@@ -1844,6 +1982,53 @@ export default function Reader({
             ⋯
           </button>
         </nav>
+
+        {/* A position from another device, and the two ways of answering it.
+
+            **In the chrome's grid but not one of its bars**: it never slides, never hides, and
+            is not part of 〈找〉 — the reader did not ask for it and cannot dismiss it with a
+            tap on the page. It sits in a row of its own under the top bar, which is a fixed
+            place in both states, so raising the chrome does not move it and lowering the chrome
+            does not put it under anything. The cost is a bar's worth of space above it while
+            the chrome is down, which reads as an inset from the top edge.
+
+            `role="status"` rather than an alert: it is worth reading out when the reader gets
+            to it, and worth nothing interrupting them for. */}
+        {elsewhere !== null && (
+          <div className="elsewhere" role="status" data-testid="elsewhere">
+            <div className="elsewhere-said">
+              <p className="elsewhere-line">
+                {elsewhere.position.chapterLabel === null ? (
+                  <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.">
+                    You were reading at {Math.round(elsewhere.position.percentage * 100)}% somewhere
+                    else
+                  </Trans>
+                ) : (
+                  <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.">
+                    You were reading “{elsewhere.position.chapterLabel}” somewhere else
+                  </Trans>
+                )}
+              </p>
+              <p className="elsewhere-when">
+                {elsewhereWhen(i18n, elsewhere.elapsed)}
+                {" · "}
+                {Math.round(elsewhere.position.percentage * 100)}%
+              </p>
+            </div>
+            <div className="elsewhere-answers">
+              <button className="primary" onClick={goElsewhere}>
+                <Trans comment="Button on the banner about a position read on another device: moves the book to that position. Short — it sits beside 'Stay here'.">
+                  Go there
+                </Trans>
+              </button>
+              <button className="ghost" onClick={stayHere}>
+                <Trans comment="Button on the banner about a position read on another device: keeps the page currently on screen, and makes this device's position the one that wins. Short — it sits beside 'Go there'.">
+                  Stay here
+                </Trans>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* The book, between the two bars. It catches nothing — the pointer goes through to
             the page underneath, which is what lets a tap anywhere put the chrome away. */}

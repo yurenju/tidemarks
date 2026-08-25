@@ -287,6 +287,31 @@ export function compareCfi(a: Cfi, b: Cfi): CfiComparison {
   return byStart === "equal" ? comparePaths(endOf(a), endOf(b)) : byStart;
 }
 
+/**
+ * A CFI's two ends, each as a position in its own right.
+ *
+ * `compareCfi()` orders two CFIs against each other, which answers "which comes first" but
+ * never "does this one lie inside that one" — a point that falls within a range still gets an
+ * order, deliberately, so the ordering stays usable. A consumer asking about containment
+ * (is the reader's position on the page this range covers?) needs the range's ends as
+ * positions it can compare against, and building them means the join below: a range is a
+ * shared prefix plus two tails, and gluing a tail on happens **inside the prefix's last
+ * segment**. Done wrongly it lands in a different document.
+ *
+ * That join is this layer's knowledge, so it is answered here rather than reconstructed from
+ * `CfiRange`'s three fields on the far side of the package boundary.
+ *
+ * **A point's ends are both itself** — the same reading `compareCfi()` already takes of a
+ * point as a range whose ends coincide. It means a caller holding either kind asks once
+ * instead of branching first.
+ */
+export function rangeEndpoints(cfi: Cfi): { start: CfiPoint; end: CfiPoint } {
+  return {
+    start: { kind: "point", path: startOf(cfi) },
+    end: { kind: "point", path: endOf(cfi) },
+  };
+}
+
 function startOf(cfi: Cfi): CfiPath {
   return cfi.kind === "point" ? cfi.path : concat(cfi.parent, cfi.start);
 }

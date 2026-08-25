@@ -129,11 +129,36 @@ async function pushDirty(snapshotAt: number) {
   );
 }
 
+const progressListeners = new Set<(rows: Progress[]) => void>();
+
+/**
+ * The positions a pull just wrote, handed to whoever is showing one.
+ *
+ * The reader asks where the book was left **once**, when it opens, and after that nothing tells
+ * it that a position arrived from another device — the row lands in Dexie and the page on
+ * screen stays where it was. Worse, the next page turn writes a newer `lastReadAt` over it, so
+ * what the other device read is gone without either screen mentioning it (`lib/elsewhere.ts`).
+ *
+ * **Every pull, not only the one a return to the foreground triggers.** The question the
+ * subscriber asks is "is this position somewhere other than the page I am on", and that is
+ * neither more nor less true for a pull the debounce started — while a tab left open on one
+ * device is read from another, which is the whole case.
+ *
+ * Only the rows that won their merge are passed on: a remote position that lost to the local
+ * one was never written, and offering it would be offering the reader a position behind the
+ * one they are sitting at.
+ */
+export function subscribePulledProgress(cb: (rows: Progress[]) => void): () => void {
+  progressListeners.add(cb);
+  return () => progressListeners.delete(cb);
+}
+
 async function pull() {
   const cursor = await getSyncCursor();
   const remote = await fetchJson<PullResponse>(`/api/sync?since=${cursor}`);
 
   const coversToFetch: string[] = [];
+  const arrivedProgress: Progress[] = [];
   await db.transaction(
     "rw",
     [db.books, db.progress, db.annotations, db.readingSessions],
@@ -159,7 +184,10 @@ async function pull() {
       for (const rp of remote.progress) {
         const local = await db.progress.get(rp.bookId);
         const winner = mergeProgress(local, rp);
-        if (winner === rp) await db.progress.put(rp);
+        if (winner === rp) {
+          await db.progress.put(rp);
+          arrivedProgress.push(rp);
+        }
       }
       for (const ra of remote.annotations) {
         const local = await db.annotations.get(ra.id);
@@ -172,6 +200,11 @@ async function pull() {
       }
     },
   );
+
+  // After the transaction, so a subscriber reading Dexie back sees what it is being told about.
+  if (arrivedProgress.length > 0) {
+    for (const cb of progressListeners) cb(arrivedProgress);
+  }
 
   // covers are part of shelf sync (small images); epub bodies stay lazy
   for (const id of coversToFetch) {

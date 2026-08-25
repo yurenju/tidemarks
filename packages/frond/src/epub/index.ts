@@ -15,7 +15,7 @@ export type { NavigationDocument, NavigationVehicle, TocItem } from "./toc.ts";
 // Where a TOC item points is expressed with it, so the parser's product type is on
 // the public face (`toc.ts`'s `TocItem.target`).
 export type { ResolvedHref } from "./resource-path.ts";
-export { compareCfi, parseCfi, serializeCfi, CfiParseError } from "./cfi.ts";
+export { compareCfi, parseCfi, rangeEndpoints, serializeCfi, CfiParseError } from "./cfi.ts";
 export type {
   Cfi,
   CfiAssertion,

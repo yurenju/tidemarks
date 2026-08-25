@@ -31,6 +31,21 @@ msgstr "‹ 書架"
 msgid "auth.passkey.rpIdUnset"
 msgstr "（沒有設定）"
 
+#. On the banner about a position read on another device: how long ago it was written. Whole days.
+#: src/components/Reader.tsx
+msgid "{count, plural, one {# day ago} other {# days ago}}"
+msgstr "{count, plural, other {# 天前}}"
+
+#. On the banner about a position read on another device: how long ago it was written. Whole hours, under a day.
+#: src/components/Reader.tsx
+msgid "{count, plural, one {# hour ago} other {# hours ago}}"
+msgstr "{count, plural, other {# 小時前}}"
+
+#. On the banner about a position read on another device: how long ago it was written. Whole minutes, under an hour.
+#: src/components/Reader.tsx
+msgid "{count, plural, one {# minute ago} other {# minutes ago}}"
+msgstr "{count, plural, other {# 分鐘前}}"
+
 #. One half of the line under the typeface control, reporting which carried faces this device already holds. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog. The two halves are joined with '・'.
 #: src/components/TypographyForm.tsx
 msgid "{face} is on this device"
@@ -276,6 +291,11 @@ msgstr "字型下載進度"
 msgid "Font is on this device"
 msgstr "字型已在這台裝置上"
 
+#. Button on the banner about a position read on another device: moves the book to that position. Short — it sits beside 'Stay here'.
+#: src/components/Reader.tsx
+msgid "Go there"
+msgstr "移過去"
+
 #. How long the code lasts. The value comes from what the Worker actually enforces, so it is not a rounded promise.
 #. js-lingui-explicit-id
 #: worker/email.ts
@@ -329,6 +349,11 @@ msgstr "跳到書中位置"
 #: src/lib/book-status.ts
 msgid "Just added"
 msgstr "剛剛加進來的"
+
+#. On the banner about a position read on another device: that position was written less than a minute ago. Also what a position written slightly in the future says, since the two devices' clocks need not agree.
+#: src/components/Reader.tsx
+msgid "Just now"
+msgstr "剛剛"
 
 #. The way out of the delete confirmation: change nothing. Deliberately not 'Cancel' — it says what happens to the book, which is that it stays.
 #: src/components/AboutDrawer.tsx
@@ -671,6 +696,11 @@ msgstr "標準（1.6）"
 msgid "authorize.unknownClient.body"
 msgstr "請從你的 agent 重新連線一次。"
 
+#. Button on the banner about a position read on another device: keeps the page currently on screen, and makes this device's position the one that wins. Short — it sits beside 'Go there'.
+#: src/components/Reader.tsx
+msgid "Stay here"
+msgstr "留在這裡"
+
 #. Button that runs a sync round now, rather than waiting for the next one. Same word as the section heading above it, and the same entry.
 #. Heading of the section shown once the reader is signed in. It holds the sync status and the buttons for keys and signing out.
 #: src/components/AccountPanel.tsx
@@ -883,3 +913,15 @@ msgstr "不想付、又想要兩台裝置？同步這半邊可以自己架。"
 #: src/components/AccountPanel.tsx
 msgid "You cannot subscribe yet, and the price is not settled."
 msgstr "還不能訂閱，價格也還沒定。"
+
+#. Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.
+#. placeholder {0}: elsewhere.position.chapterLabel
+#: src/components/Reader.tsx
+msgid "You were reading “{0}” somewhere else"
+msgstr "你在別的地方讀到「{0}」"
+
+#. Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.
+#. placeholder {0}: Math.round(elsewhere.position.percentage * 100)
+#: src/components/Reader.tsx
+msgid "You were reading at {0}% somewhere else"
+msgstr "你在別的地方讀到 {0}%"
