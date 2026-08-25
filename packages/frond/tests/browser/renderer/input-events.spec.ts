@@ -348,7 +348,13 @@ test.describe("cancelling the browser's own action for one press", () => {
 
     await dragAcrossText(page);
 
-    expect((await selectedText(page)).length).toBeGreaterThan(0);
+    // One drag, and the reading of it is polled: the selection was read in the command after
+    // the drag, so a selection that merely arrived late failed this too. **The drag is not
+    // retried**, unlike the click in `clickIntoPage` — that one retries a precondition, while
+    // dragging again here would retry the proposition. A frond that cancelled the selection
+    // some of the time is exactly what this test is here to report (docs/agents/flaky.md's
+    // second row), and "one drag out of several selected something" would not report it.
+    await expect.poll(async () => (await selectedText(page)).length).toBeGreaterThan(0);
   });
 
   /**

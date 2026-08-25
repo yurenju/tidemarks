@@ -201,9 +201,13 @@ export async function clickIntoPage(page: Page): Promise<void> {
         return frame?.contentDocument?.hasFocus() ?? false;
       }),
     ).toBe(true);
-    // Long enough between attempts that two of them are never one double-click, which would
-    // select a word under the pointer and put a selection into specs that never asked for one.
-  }).toPass({ intervals: [700, 700, 1000, 1000], timeout: 5000 });
+    // Playwright's own retry ramp, which starts at 100ms — the clicks are deliberately not
+    // spaced out to keep them apart. Two of them close together do not become a double-click:
+    // `mouse.click()` sends `clickCount: 1` every time, and measured on all three engines at
+    // gaps from 0ms to 700ms, both clicks arrive as `click` with `detail: 1`, no `dblclick`
+    // fires and nothing is selected. Spacing them would only spend the budget that the
+    // attempts need, on the loaded machine where this is the one thing that helps.
+  }).toPass({ timeout: 5000 });
 }
 
 /**
