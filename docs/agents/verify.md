@@ -48,20 +48,37 @@ npm run dev
 
 ## 把一本書弄進 reader
 
-走真人那條路——點「匯入 epub」，然後上傳：
+走真人那條路——點 `Import epub`，然後上傳：
 
 ```bash
 playwright-cli open --browser chromium --persistent http://localhost:5001/
-playwright-cli click "getByRole('button', { name: '匯入 epub' })"
+playwright-cli click "getByRole('button', { name: 'Import epub' })"
 playwright-cli upload "$PWD/tests/books/kusamakura-vertical-japanese.epub"
 playwright-cli click "getByRole('button', { name: '草枕', exact: true })"
 ```
 
-最後那行的 `exact: true` 不能省：書架上每本書有兩顆按鈕（封面本身，以及開詳情的「草枕 的詳情」），
+⚠️ **介面文案是英文，書名不是。** 這兩行的差別不是筆誤：`Import epub` 是 Tidemarks 自己的文案，而
+英文是原文（[ADR-0031](../adr/0031-english-is-the-source-and-chinese-becomes-a-translation.md)），
+所以程式碼裡寫的、畫面上出現的都是它；`草枕` 是那本 epub 自己的書名，跟介面語言無關。**用中文去選
+介面上的按鈕會找不到**，而失敗的樣子很難認——見下面〈按鈕找不到的時候〉。
+
+最後那行的 `exact: true` 不能省：書架上每本書有兩顆按鈕（封面本身，以及開詳情的 `About 草枕`），
 不加就兩個都中，playwright 的 strict mode 會擋下來什麼也不點。
 
 書從硬碟任何地方來都可以，**不必先搬進 repo**。公版書在 `tests/books/`（直排日文的草枕、橫排英文的
 Alice）；手上有版權的書用你自己的路徑，那些**永遠不要 commit**。
+
+上面這四行連同底下三個坑，[`scripts/pr-evidence.sh`](../../scripts/pr-evidence.sh) 都收好了，
+`source` 進來三行就到同一個位置：
+
+```bash
+source scripts/pr-evidence.sh
+pw_fresh chromium chromium
+pw_import chromium "$PWD/tests/books/kusamakura-vertical-japanese.epub"
+pw_open_book chromium "草枕"
+```
+
+那支檔案是為了開 PR 截圖寫的，但「把書弄進 reader」這件事兩邊是同一件，所以這裡也用它。
 
 三件事會踩到：
 
@@ -75,6 +92,25 @@ Alice）；手上有版權的書用你自己的路徑，那些**永遠不要 com
   ```
 
   那句 `find(...)` 不能省，理由見下一節。
+
+## 按鈕找不到的時候
+
+**第一個動作是 `playwright-cli snapshot`，不是改選擇器。** 它印的是當下畫面的 aria 樹，上面有每顆按鈕
+實際的名字，所以「名字不對」跟「那顆按鈕根本不在畫面上」一眼就分得開——而這兩件事要做的處置完全相反。
+
+三個常見的原因：
+
+- **用中文去選介面上的按鈕。** 見上面那條：介面文案是英文。
+- **`upload` 前面漏了打開檔案選擇器的 `click`。** ⚠️ **失敗的 playwright-cli 離開碼是 0**，錯誤只印
+  在 stdout 的 `### Error`，所以前一行失敗不會擋住後一行，`set -e` 也攔不到。少了那個 click，
+  `upload` 會安靜地什麼也不做，錯誤延到兩行以後才以
+  `getByTestId('book-open') does not match any elements` 的樣子出現。那句話讀起來像「書還在匯入」，
+  於是就去加 `sleep`——加多久都沒用，因為書架從頭到尾是空的。snapshot 會直接顯示 `No books yet.`。
+- **在 reader 裡找〈找〉那一層的按鈕。** 它預設是收起來的，見下面那節。
+
+⚠️ 順帶一條：**發現這份文件裡的選擇器跟程式碼對不上，就順手把這裡改掉**，跟著手上那個改動一起
+commit。只改你剛好撞到的那一個，不必去掃全部。文件裡的選擇器沒有測試在守，唯一會發現它過期的人就是
+下一個照著做的人——而上面〈把一本書弄進 reader〉那幾行就這樣過期過一次。
 
 ## 翻頁，以及怎麼問「畫面現在在哪」
 
@@ -136,7 +172,7 @@ playwright-cli --raw eval "() => { const f = [...document.querySelectorAll('.vie
 ## 在 reader 裡按不到「書架」「目錄」「排版」
 
 進了 reader 之後 `snapshot` 只看得到兩顆翻頁按鈕跟 iframe，找不到回書架的路。那不是壞掉：〈找〉那一層
-（`‹ 書架`、`⋯`、目錄、筆記、排版）**預設是收起來的**，停在畫面外並且 `visibility: hidden`，所以
+（`‹ Shelf`、`⋯`、目錄、筆記、排版）**預設是收起來的**，停在畫面外並且 `visibility: hidden`，所以
 pointer、鍵盤與 screen reader 一律碰不到它（[Reader.tsx](../../packages/app/src/components/Reader.tsx)
 的 `chrome`）。
 
@@ -144,7 +180,7 @@ pointer、鍵盤與 screen reader 一律碰不到它（[Reader.tsx](../../packag
 
 ```bash
 playwright-cli run-code "async (page) => { await page.mouse.click(640, 360) }"
-playwright-cli click "getByRole('button', { name: '‹ 書架' })"
+playwright-cli click "getByRole('button', { name: '‹ Shelf' })"
 ```
 
 翻頁會把它收回去，所以每次要用都得重新點一下。要確認它上來了沒，看 `.chrome` 的 `data-up`：
@@ -152,6 +188,10 @@ playwright-cli click "getByRole('button', { name: '‹ 書架' })"
 ```bash
 playwright-cli --raw eval "() => document.querySelector('.chrome').getAttribute('data-up')"
 ```
+
+**`file:` 開不起來。** 想把一份 `/tmp` 的 html 丟進瀏覽器對照的時候（例如把量到的數字排成一張表看），
+`goto file:///tmp/…` 會被擋掉：`Access to "file:" protocol is blocked`。要看那種東西就丟進
+`packages/app/public/` 由 dev server 送出來，看完刪掉。
 
 **不要用 `playwright-cli navigate` 回書架。** 書架與 reader 是同一個 hash route 的兩個狀態
 （`#/` 與 `#/book/<id>`），導到 `http://localhost:5001/` 不帶 hash，SPA 不會重載也不會換畫面，看起來就

@@ -224,7 +224,7 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
 
-**27 秒**（其中 18 秒是建映像與比對，9 秒是真的跑測試），對上全套的三到九分鐘。`--only=frond` 同理。
+**21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上全套實測的 **6 分 46 秒**。`--only=frond` 同理。
 路徑**相對於那個 package**（`tests/browser/…`，不是 `packages/app/tests/browser/…`），因為 Playwright
 的 cwd 在 package 裡。
 
@@ -326,8 +326,5 @@ agent。
 **開完 PR 要盯 CI 到綠**，紅了就查、就修；不是自己造成的（環境層那類）另開 issue 用 `Refs #N` 指過去，
 不要混進這個 diff。做法見 `docs/agents/pull-requests.md`。
 
-⚠️ **等的方式是 `gh run watch <run-id> --exit-status`，不是 `sleep N; gh run list`。** 一輪 CI 八分鐘，
-那八分鐘省不掉；`sleep` 省不掉的是**多睡的那一段**——固定間隔的輪詢平均要多等半個間隔，而實際寫出來的
-是 `sleep 420` 這種量級。`gh run watch` 一結束就回來。
-
-真正的槓桿不在等的方式，在**推了幾輪**。push 之前該在本機收斂到什麼程度，決定了要動用幾次那八分鐘。
+⚠️ **等的方式是 `gh run watch <run-id> --exit-status`，不是 `sleep N; gh run list`。** 一輪 CI 八分鐘
+省不掉，`sleep` 多付的是間隔的尾巴。真正的槓桿是少推幾輪，不是換一種等法。

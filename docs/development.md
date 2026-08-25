@@ -26,8 +26,8 @@ commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一�
 Scrubber。那一層的斷言是**容器裡的數字**（字型與引擎版本都固定），所以入口是 `test:container`
 而不是 `test:browser`——在 host 上跑出來的紅綠燈，跟 CI 說的不是同一件事。
 
-**一邊改一邊跑的時候不要用全套**，它是三家引擎 × 兩個 package，一趟三到九分鐘。narrow 的寫法是同一支
-腳本加 `--only=`（27 秒，其中 18 秒是建映像與比對）：
+**一邊改一邊跑的時候不要用全套**，它是三家引擎 × 兩個 package，實測一趟 6 分 46 秒。narrow 的寫法是
+同一支腳本加 `--only=`（21 秒，其中 18 秒是建映像與比對）：
 
 ```sh
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts

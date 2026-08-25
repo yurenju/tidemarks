@@ -34,11 +34,15 @@
 # to bypass this script and call the container engine directly — which skips the build and the
 # staleness check below, and so answers about an image that may not hold the code on disk.
 #
-# What it is worth: a full run is three or four minutes on a laptop and up to nine when the
-# engines are slow, against roughly forty seconds for one spec in one engine. That difference is
-# paid on every edit, so it decides the shape of the loop rather than trimming it. Narrow while
-# the code is still moving; run the whole thing once before the commit, and again before the
-# pull request. See CLAUDE.md's 〈測試分層〉.
+# What it is worth, measured on this project: a full run is 6m46s (787 renderer assertions, then
+# 341 app ones across three engines), against 21s for one spec in one engine — of which 18s is
+# building the image and checking it, so the tests themselves are seconds. That difference is
+# paid on every edit, so it decides the shape of the loop rather than trimming it.
+#
+# Narrow while the code is still moving; run the whole thing once before the commit, and again
+# before the pull request. One engine is one engine: the full run that produced the numbers above
+# also caught two failures in Firefox that no chromium-only run could have seen. See the testing
+# section of CLAUDE.md.
 #
 # Playwright is invoked through each workspace's own script rather than as `npx playwright
 # test`, because a package configures the browsers for itself and its config sits beside its
@@ -65,6 +69,17 @@ case "${1:-}" in
         exit 1
         ;;
 esac
+
+# Written anywhere else it would be handed to Playwright, which reads it as a filename pattern
+# and answers `No tests found` — an error about the wrong thing entirely, and one that reads as
+# "that spec does not exist". Cheaper to say so.
+for arg in "$@"; do
+    if [[ "$arg" == --only=* ]]; then
+        echo "--only= has to come first, before the arguments meant for Playwright." >&2
+        echo "    ./scripts/test-in-container.sh ${arg} ${*/${arg}/}" >&2
+        exit 1
+    fi
+done
 
 source "$(dirname "${BASH_SOURCE[0]}")/container.sh"
 
