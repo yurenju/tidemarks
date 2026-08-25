@@ -2,9 +2,10 @@
 // decisions (those are pure: `push.test.ts` here, `src/lib/merge.test.ts` on the device, and
 // `src/lib/sync-payload.test.ts` for what goes on the wire).
 //
-// Two tests, and only for the class of bug the pure ones structurally cannot see: a column that
-// does not exist in the schema, and a `bind()` list that has drifted out of step with its `?N`
-// placeholders. Both typecheck cleanly and both fail in production. They carry the three
+// Only for the class of bug the pure ones structurally cannot see: a column that does not exist
+// in the schema, a `bind()` list that has drifted out of step with its `?N` placeholders, and a
+// `WHERE` whose edge is off by one row. All three typecheck cleanly and all three fail in
+// production. The first two carry the three
 // columns #129 added, because a reading speed the device measured and the server silently
 // dropped would look exactly like a reader who never read anything.
 import { env, SELF } from "cloudflare:test";
@@ -117,5 +118,37 @@ describe("sync", () => {
     });
     const body = (await pulled.json()) as { readingSessions: ReadingSession[] };
     expect(body.readingSessions).toEqual([session]);
+  });
+
+  // The pull selects on `updated_at > ?` rather than filtering in JS, so the cursor edge is now
+  // a property of the SQL and only a real database can be asked about it. It has to be strict:
+  // the cursor a pull hands back is a server clock reading, and a row written in that same
+  // millisecond carries exactly that value — `>=` would hand it back on every sync for as long
+  // as the reader kept the app open. Devices ask far more often than they used to
+  // (`src/lib/sync-gate.ts`), which is what makes a resend-every-time worth a test.
+  //
+  // **The two rows are written straight to D1 with times of our choosing**, rather than pushed
+  // and then read back through the cursor the pull returns. That cursor is taken after the
+  // query it reports on, so it always lands a millisecond or two past anything a push in the
+  // same test wrote — an off-by-one at the boundary would never be sitting on the boundary,
+  // and the test would pass either way while looking like it had checked.
+  it("does not hand back a row whose time is exactly the cursor", async () => {
+    const { DB } = testEnv();
+    const at = (bookId: string, updatedAt: number) =>
+      DB.prepare(
+        `INSERT INTO progress (book_id, user_id, cfi, page_range, percentage, chapter_label, last_read_at, updated_at)
+         VALUES (?1, ?2, ?3, NULL, ?4, NULL, ?5, ?6)`,
+      ).bind(bookId, USER, "epubcfi(/6/14!/4/2/1:0)", 0.1, updatedAt, updatedAt);
+    await DB.batch([at("book-at-cursor", 1000), at("book-after-cursor", 1001)]);
+
+    const pulled = await SELF.fetch("https://tidemarks.test/api/sync?since=1000", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const body = (await pulled.json()) as { progress: Progress[] };
+
+    // One of the two, and the one whose time is past the cursor rather than on it. Asserting
+    // the whole list rather than the absence of the first row also catches a `WHERE` that
+    // matched nothing at all, which would pass any test that only checked for absence.
+    expect(body.progress.map((p) => p.bookId)).toEqual(["book-after-cursor"]);
   });
 });
