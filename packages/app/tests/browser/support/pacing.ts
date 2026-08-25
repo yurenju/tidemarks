@@ -41,23 +41,43 @@ export interface FramePacing {
   readonly intervals: number;
   /** The median interval, in ms. This is the "when it is going well" number. */
   readonly p50: number;
-  /** The 95th percentile, in ms. This is where stutter shows up first. */
+  /**
+   * The 95th percentile, in ms — where stutter shows up first when reading the report.
+   * **Reported, not asserted on**, and for the opposite reason to `longest`: a segment holds
+   * every measured turn's intervals end to end, so the regression this suite exists to catch —
+   * one hitch per turn — is a few percent of them and passes any percentile. See `jumps`.
+   */
   readonly p95: number;
   /**
    * The single worst interval, in ms. **Reported, not asserted on** — on a machine running
    * several browsers at once this is the scheduler's number rather than the app's, which is what
-   * issue #61 was. `turn-pacing.spec.ts`'s `JUMP_FRAMES` says what took its place.
+   * issue #61 was. `jumps` below is what took its place.
    */
   readonly longest: number;
   /** How many intervals ran longer than one and a half frames — i.e. dropped at least one. */
   readonly dropped: number;
   /** Those as a share of all intervals, 0 to 1. */
   readonly droppedShare: number;
+  /**
+   * How many intervals were long enough to read as a jump rather than as a dropped frame — see
+   * `JUMP_FACTOR`.
+   *
+   * **A count, and it is compared against the number of turns rather than against the number of
+   * samples.** Both other shapes have been tried and neither works. The worst interval goes red
+   * when the scheduler takes one slice from a browser sharing four cores with three others, which
+   * is the flake issue #61 was. A share of the samples cannot go red at all for the regression
+   * this is here to catch: a segment holds *every* measured turn's intervals end to end, so a
+   * turn that hitches once each time is six long intervals out of the drag's 138 — 4.3%, under
+   * any percentile a benchmark would put a ceiling on.
+   */
+  readonly jumps: number;
 }
 
 export interface TurnPacing {
   /** What one frame takes on this machine, measured while idle. */
   readonly frame: number;
+  /** How many turns the numbers below are made of. The thrown-away warm-up is not counted. */
+  readonly turns: number;
   /** The page following the finger. */
   readonly follow: FramePacing;
   /** The tail after the finger lifts: the easing, the commit, and the reshuffle behind it. */
@@ -67,6 +87,8 @@ export interface TurnPacing {
 export interface CommandPacing {
   /** What one frame takes on this machine, measured while idle. */
   readonly frame: number;
+  /** How many turns the numbers below are made of. The thrown-away warm-up is not counted. */
+  readonly turns: number;
   /** The `TURN_COMMAND_MS` easing, from a standstill. */
   readonly slide: FramePacing;
   /** The commit and frond re-pointing the frames either side. */
@@ -78,6 +100,16 @@ const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
 
 /** An interval longer than this many frames has dropped one. */
 const DROP_FACTOR = 1.5;
+
+/**
+ * And an interval longer than *this* many frames reads as a jump rather than as a dropped frame.
+ *
+ * A page that hitches for a fifth of a second during a 180ms settle has not eased anywhere — it
+ * has jumped. Fourteen frames is about that, and the number was calibrated when this was a
+ * ceiling on the worst interval in the run; what changed in issue #61 is not the number but what
+ * is counted with it (`FramePacing.jumps`).
+ */
+const JUMP_FACTOR = 14;
 
 /**
  * The labels the drivers stamp into the trace, so the repaints can be split the same way the
@@ -333,6 +365,7 @@ const commandPlan = ({ turns = 12, key = "ArrowRight" }: CommandOptions): Plan =
 /** Splits a driven run into its two halves, thrown-away first turn already dropped. */
 function halves(sampled: DrivenTurns): {
   frame: number;
+  turns: number;
   first: FramePacing;
   second: FramePacing;
 } {
@@ -347,6 +380,7 @@ function halves(sampled: DrivenTurns): {
   const measured = sampled.spans.slice(1);
   return {
     frame: round(frame),
+    turns: measured.length,
     first: summarise(
       measured.flatMap((span) => intervalsIn(span.from, span.handover)),
       frame,
@@ -363,8 +397,8 @@ export async function measureTurnPacing(
   page: Page,
   options: TurnOptions = {},
 ): Promise<TurnPacing> {
-  const { frame, first, second } = halves(await drive(page, dragPlan(options)));
-  return { frame, follow: first, settle: second };
+  const { frame, turns, first, second } = halves(await drive(page, dragPlan(options)));
+  return { frame, turns, follow: first, settle: second };
 }
 
 /** Turns the page with the arrow key and times every frame of it. */
@@ -372,8 +406,8 @@ export async function measureCommandPacing(
   page: Page,
   options: CommandOptions = {},
 ): Promise<CommandPacing> {
-  const { frame, first, second } = halves(await drive(page, commandPlan(options)));
-  return { frame, slide: first, reshuffle: second };
+  const { frame, turns, first, second } = halves(await drive(page, commandPlan(options)));
+  return { frame, turns, slide: first, reshuffle: second };
 }
 
 function summarise(intervals: number[], frame: number): FramePacing {
@@ -389,6 +423,7 @@ function summarise(intervals: number[], frame: number): FramePacing {
     longest: round(Math.max(0, ...intervals)),
     dropped,
     droppedShare: intervals.length === 0 ? 0 : round(dropped / intervals.length, 3),
+    jumps: intervals.filter((gap) => gap > frame * JUMP_FACTOR).length,
   };
 }
 
@@ -538,7 +573,8 @@ async function tracePaints(
 export function describePacing(pacing: TurnPacing | CommandPacing): string {
   const line = (name: string, segment: FramePacing) =>
     `${name}: p50 ${segment.p50}ms, p95 ${segment.p95}ms, longest ${segment.longest}ms, ` +
-    `dropped ${segment.dropped}/${segment.intervals} (${Math.round(segment.droppedShare * 100)}%)`;
+    `dropped ${segment.dropped}/${segment.intervals} (${Math.round(segment.droppedShare * 100)}%), ` +
+    `jumps ${segment.jumps}/${pacing.turns} turns`;
 
   const segments =
     "follow" in pacing
