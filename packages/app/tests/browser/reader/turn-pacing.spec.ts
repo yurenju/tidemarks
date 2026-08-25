@@ -76,12 +76,30 @@ test.use({ hasTouch: true });
 test.setTimeout(120_000);
 
 /**
- * An interval this many frames long has dropped enough to be seen.
+ * An interval this many frames long reads as a jump rather than as a dropped frame.
  *
  * A page that hitches for a fifth of a second during a 180ms settle has not eased anywhere —
- * it has jumped. Nothing in a turn is allowed to take that long on any of the frames.
+ * it has jumped. What is held under this ceiling is each segment's p95.
+ *
+ * ## Read off the p95, not off the single worst interval
+ *
+ * It used to be the worst interval in the whole run, and **that number belongs to the machine
+ * rather than to the app** (issue #61). Measured on a four-core container shaped like CI, with
+ * four browsers painting at once: the worst interval landed between 267ms and 1067ms in 13 runs
+ * out of 20, on a random turn each time and in either half — while the same measurement on a
+ * quiet machine came back with a worst interval of 17ms, an order of magnitude *inside* this
+ * ceiling. A max over four hundred intervals asks "did the scheduler ever take a slice from us",
+ * and on a `fullyParallel` suite the answer is yes.
+ *
+ * The p95 asks the question this ceiling was written for instead: **does a turn jump every
+ * time.** A segment is only ten to twenty intervals long, so a hitch that happens once per turn
+ * — a geometry read that stopped being cached, a layout moved onto the turn's critical path — is
+ * five to ten percent of the samples and goes red here. A single stolen slice is a quarter of one
+ * percent and does not. The other failure shape, a turn that has started laying out per frame,
+ * never showed up in this ceiling anyway: it makes every frame a little late rather than one
+ * frame enormously late, and the drop ceilings below are what catch it.
  */
-const LONGEST_FRAMES = 14;
+const JUMP_FRAMES = 14;
 
 /**
  * How much of a segment may drop a frame before this counts as a stutter rather than noise.
@@ -127,9 +145,11 @@ test("a page turn keeps its frames", async ({ page }) => {
   // And the tail: the easing, the commit, and frond re-pointing the frames either side.
   expect(pacing.settle.droppedShare).toBeLessThanOrEqual(SETTLE_DROP_CEILING);
 
-  // No single frame anywhere in the turn may be long enough to read as a jump.
-  const longest = Math.max(pacing.follow.longest, pacing.settle.longest);
-  expect(longest).toBeLessThanOrEqual(pacing.frame * LONGEST_FRAMES);
+  // And no half of the turn may be spending a twentieth of its frames long enough to read as a
+  // jump. The worst single interval is still printed above; it is the report's, not an
+  // assertion's — see `JUMP_FRAMES`.
+  const jumpy = Math.max(pacing.follow.p95, pacing.settle.p95);
+  expect(jumpy).toBeLessThanOrEqual(pacing.frame * JUMP_FRAMES);
 });
 
 test("a turn nobody dragged keeps its frames too", async ({ page }) => {
@@ -152,8 +172,8 @@ test("a turn nobody dragged keeps its frames too", async ({ page }) => {
   // And the commit behind it.
   expect(pacing.reshuffle.droppedShare).toBeLessThanOrEqual(RESHUFFLE_DROP_CEILING);
 
-  const longest = Math.max(pacing.slide.longest, pacing.reshuffle.longest);
-  expect(longest).toBeLessThanOrEqual(pacing.frame * LONGEST_FRAMES);
+  const jumpy = Math.max(pacing.slide.p95, pacing.reshuffle.p95);
+  expect(jumpy).toBeLessThanOrEqual(pacing.frame * JUMP_FRAMES);
 });
 
 /**

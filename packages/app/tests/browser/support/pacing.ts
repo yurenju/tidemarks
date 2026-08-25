@@ -43,7 +43,11 @@ export interface FramePacing {
   readonly p50: number;
   /** The 95th percentile, in ms. This is where stutter shows up first. */
   readonly p95: number;
-  /** The single worst interval, in ms. */
+  /**
+   * The single worst interval, in ms. **Reported, not asserted on** — on a machine running
+   * several browsers at once this is the scheduler's number rather than the app's, which is what
+   * issue #61 was. `turn-pacing.spec.ts`'s `JUMP_FRAMES` says what took its place.
+   */
   readonly longest: number;
   /** How many intervals ran longer than one and a half frames — i.e. dropped at least one. */
   readonly dropped: number;
