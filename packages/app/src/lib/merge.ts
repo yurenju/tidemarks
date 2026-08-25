@@ -45,9 +45,3 @@ export function dedupeSessions(
 export function clearableDirty<T extends { dirtyAt?: number }>(rows: T[], snapshotAt: number): T[] {
   return rows.filter((r) => r.dirtyAt !== undefined && r.dirtyAt <= snapshotAt);
 }
-
-// Pull cursor boundary: strictly greater-than, so a row whose server time
-// equals the cursor is never re-sent.
-export function rowsSince<T>(rows: T[], getTime: (row: T) => number, cursor: number): T[] {
-  return rows.filter((r) => getTime(r) > cursor);
-}

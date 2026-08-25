@@ -1,15 +1,9 @@
 // The device's side of a sync conflict: which copy wins on which timestamp, a deletion that
-// must not be resurrected, and the two cursor edges. The server's side of the same fight is
-// worker/push.test.ts, and the SQL that carries it worker/sync.integration.test.ts.
+// must not be resurrected, and the edge a push snapshot is taken at. The server's side of the
+// same fight is worker/push.test.ts, and the SQL that carries it — including the cursor the
+// pull selects on — worker/sync.integration.test.ts.
 import { describe, expect, it } from "vitest";
-import {
-  clearableDirty,
-  dedupeSessions,
-  mergeAnnotation,
-  mergeBook,
-  mergeProgress,
-  rowsSince,
-} from "./merge";
+import { clearableDirty, dedupeSessions, mergeAnnotation, mergeBook, mergeProgress } from "./merge";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "./types";
 
 function prog(over: Partial<Progress>): Progress {
@@ -129,16 +123,5 @@ describe("clearableDirty (clear after push)", () => {
       { id: "c", dirtyAt: undefined },
     ];
     expect(clearableDirty(rows, 200).map((r) => r.id)).toEqual(["a"]);
-  });
-});
-
-describe("rowsSince (pull cursor boundary)", () => {
-  it("is strictly greater-than: a row at exactly the cursor is not re-sent", () => {
-    const rows = [
-      { id: "a", t: 100 },
-      { id: "b", t: 200 },
-      { id: "c", t: 201 },
-    ];
-    expect(rowsSince(rows, (r) => r.t, 200).map((r) => r.id)).toEqual(["c"]);
   });
 });

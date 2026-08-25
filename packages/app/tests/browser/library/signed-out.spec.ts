@@ -11,10 +11,12 @@ import { BOOKS, openBook, settled } from "../support/library.js";
  * ## Why here rather than in Vitest
  *
  * The proposition is "`syncNow` and `beaconPositions` send nothing", and both are reached from
- * `App.tsx`'s own triggers — app open, and each edge of `visibilitychange`. A Node test would
- * have to stand in for Dexie, for the triggers and for `fetch`, and would then be asserting
- * about the stand-ins. What it protects against is someone adding a fourth trigger that skips
- * the check, and only the real app has the triggers in it.
+ * `App.tsx`'s own triggers — app open, either edge of `visibilitychange`, a window regaining
+ * focus or the network coming back, and any tap or keystroke on the interface. A Node test
+ * would have to stand in for Dexie, for the triggers and for `fetch`, and would then be
+ * asserting about the stand-ins. What it protects against is someone adding one more trigger
+ * that skips the check — the list above has grown once already — and only the real app has the
+ * triggers in it.
  *
  * ## Why it counts `/auth` as well
  *

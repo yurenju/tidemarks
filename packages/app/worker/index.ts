@@ -11,7 +11,6 @@
 // left unprotected by an edit in this file.
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { rowsSince } from "../src/lib/merge";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
 import { handleAuth, json, sessionUserId, type Env } from "./auth";
 import { handleAuthorize, READ_SCOPE } from "./authorize";
@@ -205,18 +204,53 @@ async function loadAll(env: Env, userId: string) {
   };
 }
 
-// ponytail: full-table scan per user + rowsSince in JS keeps the cursor
-// boundary in one tested function; switch to SQL WHERE updated_at > ? if a
-// library ever outgrows it
+/**
+ * Everything written since the caller's cursor.
+ *
+ * **Strictly greater-than**, so a row whose server time is exactly the cursor is never sent
+ * twice — the cursor is a server clock reading (`updated_at`), and the next pull carries it
+ * back unchanged.
+ *
+ * A push still reads whole tables below, because it has to compare every incoming row against
+ * whatever the server holds, however old. A pull has no such need, and it is the one that runs
+ * whenever the reader picks a device up.
+ *
+ * ponytail: no index on (user_id, updated_at), so D1 still reads the user's rows and discards
+ * them — this saves the transfer, not the scan. Add one when `reading_sessions`, the only
+ * table here without a ceiling, grows enough to show up.
+ */
+async function loadSince(env: Env, userId: string, since: number) {
+  const [books, progress, annotations, sessions] = await Promise.all([
+    env.DB.prepare("SELECT * FROM books WHERE user_id = ? AND updated_at > ?")
+      .bind(userId, since)
+      .all<BookRow>(),
+    env.DB.prepare("SELECT * FROM progress WHERE user_id = ? AND updated_at > ?")
+      .bind(userId, since)
+      .all<ProgressRow>(),
+    env.DB.prepare("SELECT * FROM annotations WHERE user_id = ? AND updated_at > ?")
+      .bind(userId, since)
+      .all<AnnotationRow>(),
+    env.DB.prepare("SELECT * FROM reading_sessions WHERE user_id = ? AND updated_at > ?")
+      .bind(userId, since)
+      .all<SessionRow>(),
+  ]);
+  return {
+    books: books.results,
+    progress: progress.results,
+    annotations: annotations.results,
+    sessions: sessions.results,
+  };
+}
+
 async function pullSync(env: Env, userId: string, url: URL): Promise<Response> {
   const since = Number(url.searchParams.get("since") ?? 0) || 0;
-  const all = await loadAll(env, userId);
+  const changed = await loadSince(env, userId, since);
   return json({
     cursor: Date.now(),
-    books: rowsSince(all.books, (r) => r.updated_at, since).map(bookToWire),
-    progress: rowsSince(all.progress, (r) => r.updated_at, since).map(progressToWire),
-    annotations: rowsSince(all.annotations, (r) => r.updated_at, since).map(annotationToWire),
-    readingSessions: rowsSince(all.sessions, (r) => r.updated_at, since).map(sessionToWire),
+    books: changed.books.map(bookToWire),
+    progress: changed.progress.map(progressToWire),
+    annotations: changed.annotations.map(annotationToWire),
+    readingSessions: changed.sessions.map(sessionToWire),
   });
 }
 

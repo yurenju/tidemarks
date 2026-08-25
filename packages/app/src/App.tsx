@@ -17,6 +17,7 @@ import {
 import { registerUiFonts } from "./lib/ui-font";
 import { activateLocale, i18n } from "./lib/i18n";
 import { saveLocale, type Locale } from "./lib/locale";
+import { createSyncGate } from "./lib/sync-gate";
 import { beaconPositions, syncNow } from "./lib/sync";
 import { forgetStaleFonts } from "./lib/web-font-store";
 
@@ -90,17 +91,50 @@ export default function App() {
     void registerUiFonts();
   }, []);
 
-  // Sync triggers: app open, and both edges of visibility. Coming back pulls what other
-  // devices wrote; leaving pushes this device's last page turn, which is the one an agent in
-  // the app the reader just switched to is about to be asked about (`beaconPositions`).
+  // Sync triggers: app open, every way the reader can arrive, and anything they do once they
+  // are here. Arriving pulls what other devices wrote; leaving pushes this device's last page
+  // turn, which is the one an agent in the app the reader just switched to is about to be
+  // asked about (`beaconPositions`).
+  //
+  // **Every one of these is something that happened in this tab**, because that is all there
+  // is: nothing tells a browser that another device wrote a position. `lib/sync-gate.ts` is
+  // why that is enough, and what it leaves uncovered.
+  //
+  // `focus` and `online` are not spare wheels on `visibilitychange`. Switching windows on a
+  // desktop leaves the tab visible throughout, so visibility never changes and only `focus`
+  // fires — which is the whole of why a desktop could sit on a stale position indefinitely.
   useEffect(() => {
     void syncNow();
+    const allow = createSyncGate();
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void syncNow();
-      else beaconPositions();
+      if (document.visibilityState !== "visible") beaconPositions();
+      else if (allow("resumed")) void syncNow();
+    };
+    const onResumed = () => {
+      if (allow("resumed")) void syncNow();
+    };
+    const onActivity = () => {
+      if (allow("activity")) void syncNow();
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onResumed);
+    window.addEventListener("online", onResumed);
+    // Capture, because a React handler that calls `stopPropagation` — the scrubber does —
+    // would otherwise leave a tap on it looking like nobody was here.
+    //
+    // **Nothing the reader does inside the book reaches these**, and it does not need to: the
+    // book is an iframe, so its taps stay in it (frond's `section-view.ts`), and every page
+    // turn already schedules a sync of its own. What these two are for is everything that
+    // touches the interface without writing anything — a shelf, a panel, a settings screen.
+    window.addEventListener("pointerdown", onActivity, true);
+    window.addEventListener("keydown", onActivity, true);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onResumed);
+      window.removeEventListener("online", onResumed);
+      window.removeEventListener("pointerdown", onActivity, true);
+      window.removeEventListener("keydown", onActivity, true);
+    };
   }, []);
 
   // Hash is the source of truth so refresh and back/forward return to the same screen.
