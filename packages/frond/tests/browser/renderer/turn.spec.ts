@@ -176,7 +176,12 @@ test.describe("dragging a page across", () => {
 
     const inThePage = () =>
       page.evaluate(() => document.activeElement?.hasAttribute("data-frond-page") === true);
-    expect(await inThePage()).toBe(true);
+
+    // Polled, because this one is the click's own doing rather than frond's: the click has
+    // been delivered, but focus crossing into the frame is the engine's to finish, and on a
+    // loaded machine it is not always finished by the next command (#34). The assertion at
+    // the end is not polled — that one is frond's, and it happens inside `commitTurn()`.
+    await expect.poll(inThePage).toBe(true);
 
     await page.evaluate(() => frond.beginTurn("next", "right"));
     await page.evaluate(() => frond.moveTurn(800));
