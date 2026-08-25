@@ -18,6 +18,27 @@ package 佈局怎麼變都不用回頭改它。
 `npm install` 順便會把 git 的 `core.hooksPath` 指到 `.githooks/`，那裡的 pre-commit 會對即將
 commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一定是格式化過的。
 
+### 在 git worktree 裡開工的時候
+
+這個專案常以 worktree 開發，而 `node_modules` 在主 checkout 底下，worktree 只有原始碼。所以
+`npm run typecheck` 會給你 `tsc: not found`，`oxlint` 同理（`npx prettier --check` 反而跑得動）。
+
+⚠️ **這個錯誤訊息不好認**：npm 把 `tsc: not found` 印在很前面，底下還接著一大段 npm 自己的錯誤，
+所以 `grep "error TS"` 什麼都抓不到——看起來就像「跑過了、沒有型別錯誤」。量到過同一個坑撞三次。
+
+最省事的是**回主 checkout 跑**。要在容器裡跑也行，但**得先把映像建到最新**：
+
+```sh
+podman build -t tidemarks-test . && podman run --rm --init tidemarks-test npm run typecheck
+```
+
+少了 `build` 那一半就沒有意義——`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，
+不是你剛改的那份。
+
+⚠️ **`tidemarks-test` 是共用的 tag**（`scripts/container.sh`），主 checkout 與這台機器上每個
+worktree 用的都是它。建下去會蓋掉別人正在用的那一份，所以有別人在跑的時候用
+`TIDEMARKS_TEST_IMAGE=tidemarks-test-<你的分支>` 換一個名字。
+
 ## 測試分層
 
 `npm test` 蓋純邏輯：方向反轉、TOC 攤平、highlight 裁切、settings 對映。
@@ -34,6 +55,7 @@ Scrubber。那一層的斷言是**容器裡的數字**（字型與引擎版本�
 ```
 
 路徑相對於那個 package（Playwright 的 cwd 在裡面）。順序是改的時候跑窄的、commit 之前跑一次全套。
+（⚠️ 這個順序**不適用於查 flaky**，理由見 [agents/flaky.md](agents/flaky.md)。）
 
 第三層在 host 上用 playwright-cli 跑（[agents/verify.md](agents/verify.md)），蓋自動化蓋不到的：
 需登入的 sync、真機手勢、手上有版權的實際書。
