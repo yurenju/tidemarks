@@ -215,6 +215,28 @@ build 環境裡，錯了不會紅燈，會變成一次「部署成功、但指�
 
 frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅，先看 frond 的失敗才知道是哪一層。
 
+#### 一邊改一邊跑的時候，跑窄的那一支
+
+⚠️ **不要每改一行就 `npm run test:container`。** 那一支是三家引擎 × 兩個 package 的全套，一趟三到
+九分鐘；改到一半的時候你要的不是全套，是剛剛那支測試。narrow 的寫法是同一支腳本加 `--only=`：
+
+```bash
+./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
+```
+
+**21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上全套實測的 **6 分 46 秒**。`--only=frond` 同理。
+路徑**相對於那個 package**（`tests/browser/…`，不是 `packages/app/tests/browser/…`），因為 Playwright
+的 cwd 在 package 裡。
+
+順序是**先窄後寬**：改的時候跑窄的，commit 之前跑一次全套，開 PR 之前再跑一次。
+
+⚠️ **輸出一定要存檔再看**（`| tee /tmp/…/ct.log`），不要為了換一個 `grep` 就重跑。實際發生過：同一個
+失敗連跑三趟，只為了先 `tail -60`、再 `grep -B30`、再 `grep -A25`，七分鐘沒有跑到任何新的 code。
+
+`--only=` 存在的理由本身也值得知道：沒有它的時候，指定單一測試檔會讓 frond 那半 match 不到東西、
+Playwright 當成錯誤中止整支腳本，所以以前的做法是**繞過腳本直接下 `podman run`**——而那樣就跳過了
+建映像與 issue #185 的比對，跑的可能不是你磁碟上的 code。
+
 以上講的是**東西放在哪一層**。**一條測試該不該存在**是另一個問題：每個測試都要說得出它測到的角度，
 而那個角度是其他層次測不到的，答不出來就刪。加測試之前先讀那一份——尤其「同一個命題在上層最多留
 一條接線」那條，它是最常被違反的。見 `docs/agents/testing.md`。
@@ -303,3 +325,6 @@ agent。
 
 **開完 PR 要盯 CI 到綠**，紅了就查、就修；不是自己造成的（環境層那類）另開 issue 用 `Refs #N` 指過去，
 不要混進這個 diff。做法見 `docs/agents/pull-requests.md`。
+
+⚠️ **等的方式是 `gh run watch <run-id> --exit-status`，不是 `sleep N; gh run list`。** 一輪 CI 八分鐘
+省不掉，`sleep` 多付的是間隔的尾巴。真正的槓桿是少推幾輪，不是換一種等法。

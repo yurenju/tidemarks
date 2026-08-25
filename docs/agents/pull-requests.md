@@ -198,49 +198,160 @@ pr-image 的 URL 兩件事都不受影響，圖真的內嵌得進去，所以那
 [ADR-0007](../adr/0007-pr-evidence-is-captured-on-the-host.md)；圖為什麼落在 repo 外面、傳上去而不是
 commit，見 [ADR-0008](../adr/0008-pr-images-are-hosted-not-committed.md)。
 
-前提是 dev server 要先起著（`npm run dev`，5001）。骨架長這樣，**中間那段每次現寫**：
+前提是 dev server 要先起著（`npm run dev`，5001）。**同時開著好幾個 worktree 的時候 5001 會被占住，
+而 `npm run dev` 是直接掛掉，不是換一個 port 繼續**（[vite.config.ts](../../packages/app/vite.config.ts)
+把 `strictPort` 開著，理由寫在那裡）。掛掉是好事——真的往上飄的話它會坐到 5002，也就是 API 的位置，
+而畫面上看不出來。
+
+要換 port 走 `PORT`，別去傳 vite 的旗標：
 
 ```bash
-SHOTS=$(mktemp -d)                       # 圖落在 repo 外面：它們要傳上去，不是 commit 進來
+PORT=5011 npm run dev
+```
+
+換了 port 就把網址一起換掉，下面那支 `pr-evidence.sh` 讀的是 `TIDEMARKS_URL`：
+
+```bash
+export TIDEMARKS_URL=http://localhost:5011/
+```
+
+⚠️ 換了 port 之後 **sync 那半不會通**：`/api` 與 `/auth` 是 proxy 到 5002 的 `wrangler dev`，那個位置
+寫死在 config 裡。只截書架與閱讀的圖不受影響，要驗登入就得把 5001 空出來。
+
+骨架長這樣。**把瀏覽器弄到「可以拍」的那幾行 `source` 進來，中間那段每次現寫**：
+
+```bash
+source scripts/pr-evidence.sh
+SHOTS=$(mktemp -d)                # 圖落在 repo 外面：它們要傳上去，不是 commit 進來
 
 for B in chromium firefox webkit; do
-  # open 兩次是必要的，理由在下面那條 delete-data
-  playwright-cli -s=$B open --browser $B --persistent http://localhost:5001/
-  playwright-cli -s=$B delete-data       # 上一輪的書還躺在 profile 裡，不清會混進這次的圖
-  playwright-cli -s=$B open --browser $B --persistent http://localhost:5001/
-  playwright-cli -s=$B resize 1000 700   # 跟 playwright.config.ts 的 viewport 對齊
-                                         # touch-only 的 UI 改用 --device，見下面那條
+  pw_fresh "$B" "$B"              # 乾淨的 profile、語言釘成 en
+  playwright-cli -s=$B resize 1000 700          # 跟 playwright.config.ts 的 viewport 對齊
+                                                # touch-only 的 UI 改用 --device，見下面那條
+  pw_import "$B" "$PWD/tests/books/kusamakura-vertical-japanese.epub"
+  pw_open_book "$B" "草枕"        # 省略書名就開書架上第一本
 
   # ── 這次要走的操作，從這裡開始 ──
-  playwright-cli -s=$B click "getByRole('button', { name: '匯入 epub' })"
-  playwright-cli -s=$B upload "$PWD/tests/books/kusamakura-vertical-japanese.epub"
-  playwright-cli -s=$B click "getByTestId('book-open').first()"   # 不是書名，見下面那條
   # ── 到這裡結束 ──
 
-  playwright-cli -s=$B eval "async () => { await document.querySelector('.viewer-mount iframe').contentDocument.fonts.ready }"
+  pw_fonts_ready "$B"
   playwright-cli -s=$B screenshot --filename=$SHOTS/$B-reader.png   # 檔名會變成 alt text
+  playwright-cli -s=$B eval "$MEASURE"    # 要寫進說明的數字，跟圖同一趟，見下面那條
   playwright-cli -s=$B close
 done
 
 pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 說明
 ```
 
+[`scripts/pr-evidence.sh`](../../scripts/pr-evidence.sh) 只收**每次都一樣的那一段**：開一個乾淨的
+瀏覽器、釘語言、把書放進去、打開它。拍的是什麼仍然每次現寫，因為那正是這件事的內容。**這不是把證據
+變成一套固定的測試**——那是 `capture-shots.sh` 的巡檢，它在容器裡跑、目的完全不同（ADR-0027）。
+
+為什麼要有這支檔案：這幾行在這個專案的 session 紀錄裡被重寫了三十次以上，而**下面八條坑，每一條都
+住在這幾行裡**。5001 被占、`delete-data` 排錯邊、用中文選英文按鈕、`upload` 前面漏了 click——寫進
+函式一次，下一個人就不必再從錯誤訊息裡一條一條摸回來。
+
+⚠️ 下面那八條還是要讀。`pr-evidence.sh` 擋掉的是「照著做會踩到」，擋不掉「你自己寫變體時踩回去」，
+而**錯誤訊息長什麼樣**仍然要認得——它們多半不指向真正的原因。
+
 **那段 bash 連同填好的操作一起貼進 PR 說明，收在 `<details>` 裡。** 它就是「做法」本身——以前那裡放
 的是一段文字描述，現在貼上去的東西跟實際跑過的是同一份。收起來是因為它是重現用的，不是判讀用的
 （見〈內文怎麼排〉）；**文字還在**，三十天後圖被刪了它照樣活著。
 
-六件會踩到的事，骨架裡每一件都對應一行：
+### ⚠️ 數字跟圖是同一趟，不是兩支腳本
 
-- **開書要點 `getByTestId('book-open')`，不能用書名選。** 這一行原本寫成
+PR 說明要圖，也要量到的數字，而兩者是**同一組操作**走出來的：匯入書、寫進 IndexedDB、開書、reload、
+resize。那組 setup 在三家引擎裡跑一遍要兩分鐘上下，而它跟你想量什麼、想拍什麼完全無關。
+
+實際發生過的事：一支 `shots.sh` 拍完圖（122 秒），接著另寫一支 `measure2.sh` 去量數字（137 秒）——
+兩支的 SEED 一樣、`stock()` 一樣、三家引擎 × 三個視窗的迴圈一樣，**唯一的差別是最後一行**一個
+`screenshot`、一個 `eval`。那 137 秒量的是兩分鐘前就在畫面上的東西。
+
+所以量測寫成一段 `$MEASURE`，跟 `screenshot` 並排放在同一個迴圈裡。開瀏覽器之前先想清楚這一趟要帶
+回來什麼，比回頭再開一次便宜得多。
+
+### ⚠️ 要在 host 上量東西就用 playwright-cli，不要自己寫 node script
+
+想量「這個元素現在多寬」的時候，第一個反射通常是寫一支 `import { chromium } from "playwright"` 的
+`.mjs`。**這條路在這台機器上一定會卡兩次，而且每次卡的地方一樣：**
+
+1. `playwright` 這個名字不在相依裡（只有 `@playwright/test`），而且從 repo 以外的目錄跑還會多一層
+   `Cannot find module`——script 通常寫在暫存目錄，所以兩件事會一起發生。
+2. 瀏覽器不在 npm 預設的位置，要自己指 `executablePath` 進 `~/.cache/ms-playwright/`。而那底下**有
+   兩份**，長得很像但不是同一個：
+
+   ```
+   chromium-1232/chrome-linux64/chrome
+   chromium_headless_shell-1232/chrome-headless-shell-linux64/chrome-headless-shell
+   ```
+
+這不是推測，是三次各自發生過的事：`pr-55-mobile-testing`（在 code-review 的 sub agent 裡）、
+`mattpocock-skills-issue-66`、以及 folis 的 `frontend-ui-ux-review`。三次都靠 `ls ~/.cache/ms-playwright/`
+加一發 `sed` 修好，**兩次修出來的路徑還不一樣**，三次都沒有寫下來，所以第三次還是從頭摸。
+
+`playwright-cli eval` 量到的是同一個 `getBoundingClientRect()`，而它已經知道瀏覽器在哪。issue 66 那個
+session 一小時之後就在用它做同一件事——所以問題不是不知道有這個工具，是**想到的順序不對**。
+
+真的需要 playwright 的 `page` 物件（例如要開 CDP session 問字型）也不必自己寫 script，
+`playwright-cli run-code` 收的就是 `async (page) => {…}`；做法見 [verify.md](verify.md) 的
+〈CLI 問不出來的東西〉。
+
+八件會踩到的事。前七件 `pr-evidence.sh` 已經處理掉了——**寫在這裡是為了讓你認得它們的錯誤訊息**，
+以及自己寫變體時知道哪幾行不能動：
+
+- **介面上的按鈕用英文選，書名不要。** `Import epub`、`‹ Shelf`、`About <書名>` 都是 Tidemarks 自己
+  的文案，而英文是原文（[ADR-0031](../adr/0031-english-is-the-source-and-chinese-becomes-a-translation.md)），
+  所以畫面上出現的就是它——**中文選不到**。書名是那本 epub 自己的字，跟介面語言無關，`草枕` 就是
+  `草枕`。
+
+  ⚠️ **這一條害過人，而且是從這份文件害的。** 骨架裡曾經寫著 `{ name: '匯入 epub' }`，那是 i18n 之前
+  的字；改成英文原文之後沒有人回來更新這裡，於是照著複製貼上的人拿到一個選不到東西的選擇器，而**下
+  一行的錯誤訊息指向別的地方**（見下一條）。
+
+  所以連帶一條規矩：**發現這份文件裡的選擇器跟程式碼對不上，就順手把這裡改掉**，跟著你手上那個
+  改動一起 commit。不必去掃全部，只改你剛好撞到的那一個——這跟 CLAUDE.md 的〈一次只改手上那個檔案〉
+  是同一個節奏。文件裡的選擇器沒有測試在守，唯一會發現它過期的人就是下一個照著做的人。
+
+  **同一件事的另一半：截圖裡的語言要自己釘。** app 的語言是從 `navigator.languages` 挑的
+  （[locale.ts](../../packages/app/src/lib/locale.ts) 的 `loadLocale`），所以不釘的話，畫面上是哪種
+  語言由**這台機器**決定，不由 app 決定——同一個 PR 換一台機器截就換一種語言，而可比性正是這些圖存在
+  的理由。容器裡那兩份 Playwright 設定各釘一行 `en`（CLAUDE.md 的〈瀏覽器那層怎麼找東西〉），host 上
+  沒有設定檔可釘，所以骨架自己寫進 `localStorage`，然後 `goto` 一次讓它生效。釘 `en` 是因為英文是原文，
+  不可能缺詞條。要看中文或日文的畫面就把那一行的值改掉。
+
+- **一步沒中，後面照樣跑完，而錯誤會出現在別的地方。** ⚠️ **失敗的 playwright-cli 離開碼是 0**，
+  錯誤只印在 stdout 的 `### Error`——實測過，`set -e`、`||`、`$?` 三個都攔不到它。所以整串會踩在一個
+  沒發生的步驟上跑完。骨架裡最容易中的是 `upload`：**它需要前一行的 `click` 先把檔案選擇器打開**，
+  少了那個 click，同一個原因會長出兩種完全不同的症狀。
+
+  ```
+  # 症狀一：upload 自己抱怨，但講的不是真正的原因
+  The tool "browser_file_upload" can only be used when there is related modal state present.
+
+  # 症狀二：upload 安靜地什麼也沒做，錯誤延到兩行以後才爆
+  Error: "getByTestId('book-open').first()" does not match any elements.
+  ```
+
+  症狀二特別會騙人，它讀起來像「書還在匯入、等一下就好」，於是就去加 `sleep`——加到幾秒都沒用，因為
+  書架**從頭到尾是空的**。四個 session 各自被這兩句話帶偏過。
+
+  `pr-evidence.sh` 的每一次呼叫都走一個 `pw()`，它讀 stdout 找 `### Error`，中了就把整段印到 stderr
+  並回 1——那是唯一拿得到的訊號。自己寫的時候要嘛照做，要嘛**不要把輸出導掉**（`>/dev/null 2>&1`
+  一加，整串跑完只剩一張看起來像「書沒進去」的圖，連錯誤都看不到）。
+
+  另一個習慣是**一沒中就先 `playwright-cli snapshot`**。snapshot 印的是當下畫面的 aria 樹，上面那次
+  一跑就看到 `paragraph: No books yet.`——書架是空的，跟按鈕的名字無關，一行定案。
+
+- **開書要點 `getByTestId('book-open')`，不能用書名選**（`pw_open_book`）**。** 這一行原本寫成
   `getByRole('button', { name: '草枕' })`，那會選到兩個東西：
 
   ```
   strict mode violation: getByRole('button', { name: '草枕' }) resolved to 2 elements:
-      1) <button title="開啟 草枕" class="book-cover" data-testid="book-open">
-      2) <button aria-label="草枕 的詳情" class="ghost book-more" data-testid="book-more">
+      1) <button title="Open 草枕" class="book-cover" data-testid="book-open">
+      2) <button aria-label="About 草枕" class="ghost book-more" data-testid="book-more">
   ```
 
-  `getByRole` 的 `name` 預設是**子字串**比對，所以卡片角落那顆 ⋯ 的 `aria-label`（`草枕 的詳情`）也
+  `getByRole` 的 `name` 預設是**子字串**比對，所以卡片角落那顆 ⋯ 的 `aria-label`（`About 草枕`）也
   被書名選中，strict mode 於是兩個都不點。**書名選不動任何一本書，換一本書也一樣**，這不是 `草枕`
   這三個字的問題。
 
@@ -262,14 +373,14 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
   一輪的最小組合是**引擎 × 直式／橫式 × 直排書／橫排書**，外加一張拖曳進行中的（手指還沒放開、
   顏色列還沒出現的那個狀態）。⚠️ 從 host 用滑鼠拖曳在 Firefox 上不會產生 pointer 事件，所以它那張
   只能停在長按。
-- **`--persistent` 不能省。** Tidemarks 把 epub body 存成 Blob，而暫時性 profile 存不進去——WebKit 上匯入
+- **`--persistent` 不能省**（`pw_fresh`）**。** Tidemarks 把 epub body 存成 Blob，而暫時性 profile 存不進去——WebKit 上匯入
   會直接失敗（`Error preparing Blob/File data to be stored in object store`）。
-- **`delete-data` 也不能省，而且要夾在兩次 `open` 中間。** `--persistent` 的另一面是資料會留到下一輪，
+- **`delete-data` 也不能省，而且要夾在兩次 `open` 中間**（`pw_fresh`）**。** `--persistent` 的另一面是資料會留到下一輪，
   上次匯入的書會出現在這次的書架裡。這一行有兩件事要順著它排：**session 沒開著的時候它什麼也不做**
   （不會報錯，只是沒清到），**清完它會把 browser 關掉**。所以順序是開一次給它東西刪、清、再開一次
   拿來用。這一段原本寫成 `delete-data` 在 `open` 前面，照著跑出來的圖，書架上會多一本上一輪讀到一半
   的書——而那種錯誤看起來完全像是這次改動造成的。
-- **截圖前要等 `fonts.ready`，不要用 `sleep` 猜。** 少了這一步會截到排版還在飛的畫面：每個字畫在同一
+- **截圖前要等 `fonts.ready`，不要用 `sleep` 猜**（`pw_fonts_ready`）**。** 少了這一步會截到排版還在飛的畫面：每個字畫在同一
   個位置，跟字型壞掉長得一模一樣。實測 firefox 上 `sleep 3` 不夠。
 - **數字用 `eval` 量**，跟 spec 裡的 `expect` 量的是同一個 `getBoundingClientRect()`：
 
@@ -309,6 +420,9 @@ gh run list --branch <你的分支> --limit 5          # 拿 run id
 gh run watch <run-id> --interval 30 --exit-status  # 卡在這裡等它跑完
 gh run view <run-id> --json conclusion,jobs -q '.conclusion, (.jobs[]|"\(.name)\t\(.conclusion)")'
 ```
+
+⚠️ **不要寫成 `sleep 420; gh run list`。** 一輪 CI 八分鐘，那八分鐘省不掉；`sleep` 多付的是間隔的
+尾巴，而 `gh run watch --exit-status` 一結束就回來，寫起來還比較短。
 
 **Checks API 那一整組都不要用**，改用上面的 `gh run`。這不是設定漏開：fine-grained token 的權限
 清單裡**沒有 Checks 這一格**，所以去設定頁找也找不到，`gh run view` 自己吐的那句
@@ -358,17 +472,22 @@ file on disk」——書根本沒進去，跟被斷言的那顆按鈕無關。
 2. **在本機容器裡重現**。挑那一個 engine、那一支測試就好，不必跑整套：
 
    ```bash
-   podman build --tag tidemarks-test .
-   podman run --rm --init localhost/tidemarks-test npm run test:browser -w app -- --project=chromium -g "那支測試的名字"
+   ./scripts/test-in-container.sh --only=app --project=chromium -g "那支測試的名字"
    ```
 
    改完再跑一次同一行確認，然後三家都跑一遍確認沒有打到別人（`--project=chromium --project=webkit`，
    **逗號分隔不吃**，要重複寫 `--project`）。
 
-   直接呼叫 `podman` 而不是 `./scripts/test-in-container.sh`，是因為那支腳本會先跑 frond 那套，而
-   `-g` 在 frond 那邊match 不到任何測試，Playwright 會當成錯誤直接中止。整套要跑的時候才用腳本。
+   **`--only=app` 不能省。** 少了它，腳本會先跑 frond 那套，而 `-g`（或一個 app 底下的檔案路徑）在
+   frond 那邊 match 不到任何測試，Playwright 當成錯誤直接中止，app 那半根本輪不到。
 
-   測試檔在映像裡是 `COPY . .` 進去的，所以**改完要重 build**（layer 有 cache，通常十幾秒）。
+   指定檔案的時候路徑**相對於那個 package**：`tests/browser/reader/paging.spec.ts`，不是
+   `packages/app/tests/…`。Playwright 的 cwd 在 package 裡，寫成全路徑一樣是 `No tests found`，而那句
+   錯誤看起來像「這支測試不存在」。
+
+   測試檔在映像裡是 `COPY . .` 進去的，所以**改完要重 build**——腳本自己會做，一趟大約十幾秒。這也是
+   為什麼這裡叫的是腳本而不是 `podman run`：直接下 podman 跳過的不只是 build，還有 issue #185 的比對，
+   而它擋的正是「跑的不是你磁碟上這份 code」。
 
 ### 紅的不是你造成的時候
 

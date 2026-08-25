@@ -154,15 +154,15 @@ gh api repos/yurenju/tidemarks/actions/runs/<run-id>/jobs -q '.jobs[] | "\(.name
 ## 想知道一條 flake 有多敏感
 
 `--repeat-each` 比重跑整套 CI 快得多。**在容器裡跑**，理由跟平常一樣（[CLAUDE.md](../../CLAUDE.md)
-的〈測試分層〉：host 上的數字跟 CI 說的不是同一件事）。`test-in-container.sh` 會把參數同時餵給兩個
-package，所以指定單一檔案的時候不能用它——直接對同一個映像下指令：
+的〈測試分層〉：host 上的數字跟 CI 說的不是同一件事）。指定單一檔案要帶 `--only=`，否則參數會同時餵
+給兩個 package，而 frond 那半 match 不到東西就中止整支腳本：
 
 ```bash
-./scripts/test-in-container.sh --project=firefox
+./scripts/test-in-container.sh --only=app --project=firefox tests/browser/reader/paging.spec.ts
 ```
 
-那一趟會把映像建到最新。接著要幾次就幾次（引擎照 `scripts/container.sh` 的順序，podman 優先、docker
-是 fallback，兩個的參數在這裡一樣）：
+那一趟會把映像建到最新。**接下來的重複才直接對映像下指令**：code 不會再變，重跑幾十次不必每次重建
+與比對（引擎照 `scripts/container.sh` 的順序，podman 優先、docker 是 fallback，兩個的參數在這裡一樣）：
 
 ```bash
 podman run --rm --init tidemarks-test npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
