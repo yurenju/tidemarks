@@ -164,8 +164,13 @@ test.describe("a vertical book", () => {
     //
     // **Both handles, not just this one.** A row nearly as wide as a phone does not fit beside a
     // vertical column, and it used to be clamped back across the middle of the passage — where
-    // whichever bead it landed on stopped being pressable. Placing it at one end of the passage
-    // instead is what makes "clears both" a rule this layout can actually keep.
+    // whichever bead it landed on stopped being pressable.
+    //
+    // Which stage places it here is deliberately not asserted: a selection this size may still
+    // find a side of the passage, or may take the resting line and climb off the bead standing
+    // on it. Both are the rule keeping its promise, and pinning the stage would make this test
+    // fail on a font change that moved the column. What every stage but the last one owes the
+    // reader is this, and a selection would have to reach across the screen to reach the last.
     // The row's presence is the premise, so it is asserted rather than defaulted: a regression
     // where it never appears would otherwise satisfy "clears both handles" trivially.
     await expect(page.locator(".highlight-toolbar")).toBeVisible();

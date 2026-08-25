@@ -61,9 +61,9 @@ test.describe("drawing a highlight", () => {
     const toolbar = (await page.locator(".highlight-toolbar").boundingBox())!;
     const viewport = page.viewportSize()!;
 
-    // The whole point of anchoring to the selection instead of pinning to the bottom of the
-    // screen: Android Chrome's native contextual-search bar occupies that strip and cannot be
-    // measured from JS (`lib/toolbar-position.ts`).
+    // On-screen whichever stage placed it: beside the passage, or on the resting line near the
+    // bottom edge when no side of the passage is clear (`lib/toolbar-position.ts`). A row that
+    // is off the screen is a row with no colours the reader can press.
     expect(toolbar.x).toBeGreaterThanOrEqual(0);
     expect(toolbar.y).toBeGreaterThanOrEqual(0);
     expect(toolbar.x + toolbar.width).toBeLessThanOrEqual(viewport.width);
