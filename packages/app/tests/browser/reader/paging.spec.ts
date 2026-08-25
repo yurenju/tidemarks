@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
-  bothPeeksReady,
+  peeksReady,
   openBook,
   openPanel,
   pageOffset,
@@ -147,7 +147,7 @@ test.describe("a turn asked for by a button", () => {
     // hands the frame just left to the side behind the reader, so at the start of a book the
     // side ahead has nothing handed to it and a fresh document has to be mounted. A turn asked
     // for before it lands switches outright (`hasPreview`) and slides nothing.
-    await bothPeeksReady(page);
+    await peeksReady(page, 2);
 
     const middle = await visibleText(page);
     const trace = await traceTurn(page, async () => {
@@ -184,7 +184,7 @@ test.describe("a turn asked for by a button", () => {
     await page.getByRole("button", { name: "Next page" }).click();
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect.poll(async () => await pageOffset(page)).toBe(0);
-    await bothPeeksReady(page);
+    await peeksReady(page, 2);
 
     const trace = await traceTurn(page, async () => {
       await page.getByRole("button", { name: "Next page" }).click();

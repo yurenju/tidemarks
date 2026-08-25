@@ -281,7 +281,7 @@ export const PAGE_FRAME = ".viewer-mount iframe[data-frond-page]";
 export const PEEK_FRAME = ".viewer-mount iframe[data-frond-peek]";
 
 /**
- * Waits until the reader has a page ready on **both** sides of the one on screen.
+ * Waits until the reader has `expected` pages laid out and ready to be dragged in.
  *
  * **What a turn spec has to wait for before asking for its second turn** (#23). A turn only
  * slides if the page it is bringing in is already laid out; without one the app deliberately
@@ -291,13 +291,21 @@ export const PEEK_FRAME = ".viewer-mount iframe[data-frond-peek]";
  * nothing on that side to hand forward — so the page ahead has to be **mounted**, a document
  * load the click that follows can easily beat.
  *
- * Two, because the specs that need this have turned forward once from the start of a book, so
- * there is a page on either side. Counting is what makes the wait mean anything: the frame left
- * behind is marked synchronously, so "at least one peek" is already true the instant the turn
- * lands and would wait for nothing.
+ * ⚠️ **It only bites there.** `takeTurn` marks the outgoing frame as a peek synchronously, and
+ * `refreshNeighbours` re-points a peek showing the same section by scrolling it, without ever
+ * taking the mark off — so a turn *inside* a section leaves two marked frames in the DOM the
+ * instant it commits, and this returns immediately. Reach for it where a mount is what is being
+ * waited for, which is a book that has just been opened; anywhere else it guards nothing.
+ *
+ * No default: `expected` is 1 at the very start of a book, 2 once there is a page on either
+ * side, and a caller that has not worked out which is not ready to wait. frond's own harness has
+ * this wait for the same reason and under the same name
+ * (`packages/frond/tests/browser/support/harness.ts`) but defaults to 1, so a call copied from
+ * one side to the other must not silently mean something else. It cannot be shared across the
+ * package boundary either: that one asks frond's test harness, this one has only the DOM.
  */
-export async function bothPeeksReady(page: Page): Promise<void> {
-  await expect(page.locator(PEEK_FRAME)).toHaveCount(2, { timeout: 30_000 });
+export async function peeksReady(page: Page, expected: number): Promise<void> {
+  await expect(page.locator(PEEK_FRAME)).toHaveCount(expected, { timeout: 30_000 });
 }
 
 /**
@@ -481,6 +489,12 @@ export async function pageOffset(page: Page): Promise<number> {
  * page behind it before moving either — so the displacement and the two lit frames are both
  * certain to be in here even when the whole turn happened in one frame. Only the *count* of
  * entries still follows the machine, which is why nothing asserts on it.
+ *
+ * **The two lists line up in order, not in time.** An offset is the value a write replaced;
+ * the frame count beside it is read when the batch carrying that write is delivered, which is
+ * later. Each list is honest about its own extremes — which is all either assertion asks — but
+ * `frames[i]` is not the number of frames lit at `offsets[i]`, and a spec that read them as a
+ * pair would be reading something that never happened.
  *
  * `act` is driven from here rather than inside the page because it is a real click on a real
  * button: what is being tested includes the wiring from that button to the turn.
