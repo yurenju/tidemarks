@@ -155,9 +155,10 @@
 /* The window
    ----------
    Where things sit, and nothing about how big a finger is. Written narrow-first, so each of
-   these adds rather than undoes. 390 is the floor rather than a breakpoint, and 1680 needs no
-   rule at all: the large book's `clamp` has already stopped growing by then, which is exactly
-   what "more space buys columns, not size" means. */
+   these adds rather than undoes. 390 is the floor rather than a breakpoint, and there is no
+   rule above 1024 at all: the shelf stops at `.library`'s `max-width` and the reader's book
+   gains nothing from a fourth step, so past that point the same screen is simply centred in
+   more desk. A width query above a cap would have nothing to say. */
 
 /* ≥ 600 — a narrow window on a desktop, a phone in landscape, a split screen. */
 @media (min-width: 600px) {
@@ -166,8 +167,10 @@
     padding: var(--space-4);
   }
 
-  .reading-now-actions .primary {
-    flex: 0 0 auto;
+  /* Room on the row for where the reader had got to, beside the title. Below this the row is
+     already carrying a cover, a title and the screen's one action. */
+  .reading-now .book-status {
+    display: flex;
   }
 
   .error {
@@ -195,8 +198,11 @@
     padding: var(--space-5) var(--space-6) 0;
   }
 
+  .mark-card {
+    margin: var(--space-6) var(--space-6) 0;
+  }
+
   .reading-now {
-    gap: var(--space-6);
     padding: var(--space-6) var(--space-6) 0;
   }
 
@@ -241,32 +247,6 @@
      the panel's *siblings* — a popup cannot push what it is portalled beside. */
   .reader[data-panel] .reader-body {
     padding-right: var(--panel-width);
-  }
-}
-
-/* ≥ 1280 — two columns, and the book in progress stays put while the wall scrolls past it.
-   `:has()`, so a shelf with nothing in progress is not a 500px empty column beside a squeezed
-   wall: with no `.reading-now` inside, the grid never switches on. */
-@media (min-width: 1280px) {
-  .shelf:has(.reading-now) {
-    display: grid;
-    grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-4);
-  }
-
-  /* Sticky rather than fixed, and only at this width: the block is shorter than any window
-     this wide, so it can never cover the wall it is beside. Below 1280 the two are stacked and
-     sticking one to the top would just park it on the covers — and a phone's height is the
-     scarce thing there, not its width. */
-  .shelf:has(.reading-now) .reading-now {
-    position: sticky;
-    top: var(--space-6);
-    padding-right: 0;
-  }
-
-  .shelf:has(.reading-now) .cover-wall {
-    padding-left: 0;
   }
 }
 

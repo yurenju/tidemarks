@@ -1,6 +1,6 @@
 // Not a test: this is the screen sweep (defined in CONTEXT.md), which walks every screen the app
 // has and photographs it for a person to look at. It compares nothing — no baselines, no pixel
-// comparison — so green means only that all 27 steps still run, and a screen can break without a
+// comparison — so green means only that all 28 steps still run, and a screen can break without a
 // red light anywhere. What it guards is the walk itself; the assertions live in tests/browser/.
 import { test, expect, type Page } from "@playwright/test";
 import { rm } from "node:fs/promises";
@@ -22,7 +22,7 @@ import { BOOKS_DIR, segment, settled } from "../browser/support/library.js";
  * `playwright.sweep.config.ts` pins the interface language. Both halves were missing at once
  * (#30): the messages moved to English (ADR-0031) while these steps still named the Chinese
  * ones, and nothing was pinning the language either, so which of the two was wrong could not
- * be read off a failure. Ten of the twenty-seven steps photographed the screen before the
+ * be read off a failure. Ten of the twenty-eight steps photographed the screen before the
  * click for a day.
  *
  * Book titles and chapter names are the exception, and not really one: those are the epub's own
@@ -76,7 +76,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   /**
    * One screen: put the app into a state, then photograph it.
    *
-   * Failures are collected instead of thrown. The 27 steps are one continuous journey, so a
+   * Failures are collected instead of thrown. The 28 steps are one continuous journey, so a
    * broken step usually takes several later ones down with it — the first sweep had one bad
    * text selection fail four steps at once — and seeing all four together is what says they
    * have one cause. Throwing on the first would report one, and the next run would report the
@@ -377,10 +377,20 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     }
   });
 
-  await step("shelf-reading-now", async () => {
+  // The shelf's other state, and the one it is now built around: a marked passage on the card,
+  // with the book in progress as a row under it. The empty half of the same pair — books, but
+  // nothing marked in any of them — is what `shelf-four-books` above is a picture of.
+  await step("shelf-mark-card", async () => {
     await page.goto("/#/");
+    await expect(page.getByTestId("mark-card")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("reading-now")).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(600);
+  });
+
+  await step("shelf-mark-writing", async () => {
+    await page.getByTestId("mark-note").click();
+    await expect(page.getByTestId("mark-note-input")).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(300);
   });
 
   // ---- the reader, vertical Japanese --------------------------------------

@@ -3,17 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import { currentlyReading, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
-
+import { markVar } from "../lib/highlights";
+import { detectScript, LINE_LENGTH } from "../lib/line-length";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
-import type { BookRecord, Progress, ReadingSession } from "../lib/types";
+import type { Annotation, BookRecord, Progress, ReadingSession } from "../lib/types";
 import { Wordmark } from "./Wordmark";
 
 interface Shelf {
   books: BookRecord[];
   progress: Map<string, Progress>;
   sessions: Map<string, ReadingSession[]>;
+  /** Every passage the reader has marked, newest first. See `MarkCard`. */
+  marks: Annotation[];
 }
 
 export default function Library({
@@ -32,6 +35,7 @@ export default function Library({
     books: [],
     progress: new Map(),
     sessions: new Map(),
+    marks: [],
   });
   const [order, setOrder] = useState<ShelfOrder>(loadShelfOrder);
   const [error, setError] = useState<string | null>(null);
@@ -41,21 +45,36 @@ export default function Library({
   // Ordering happens below, in `sortShelf`, so the query no longer asks for one: the default
   // order reads `progress` as well as `books`, which no single Dexie index can answer.
   async function reload() {
-    const [allBooks, progress, sessions] = await Promise.all([
+    const [allBooks, progress, sessions, annotations] = await Promise.all([
       db.books.toArray(),
       db.progress.toArray(),
       db.readingSessions.toArray(),
+      db.annotations.toArray(),
     ]);
     const books = allBooks.filter((b) => !b.deletedAt);
     const sessionMap = new Map<string, ReadingSession[]>();
     for (const s of sessions) {
       sessionMap.set(s.bookId, [...(sessionMap.get(s.bookId) ?? []), s]);
     }
+    // A mark belongs to a book, so a deleted book takes its marks off the shelf with it — the
+    // rows are still there as tombstones until sync has carried them away.
+    const onTheShelf = new Set(books.map((b) => b.id));
     setShelf({
       books,
       progress: new Map(progress.map((p) => [p.bookId, p])),
       sessions: sessionMap,
+      marks: annotations
+        .filter((a) => a.deletedAt === null && onTheShelf.has(a.bookId))
+        .sort((a, b) => b.createdAt - a.createdAt),
     });
+  }
+
+  /** The note on one marked passage, written from the shelf rather than from inside the book. */
+  async function saveNote(id: string, note: string) {
+    const now = Date.now();
+    await db.annotations.update(id, { note, updatedAt: now, dirtyAt: now });
+    await reload();
+    scheduleSync();
   }
 
   useEffect(() => {
@@ -106,13 +125,17 @@ export default function Library({
     saveShelfOrder(next);
   }
 
-  const ordered = sortShelf(shelf.books, shelf.progress, order, i18n.locale);
+  // The wall is every book, the one in progress included. It used to be filtered out to avoid
+  // showing a book twice, and the filter was a silent exception to the shelf's default order,
+  // which puts that book in the first square anyway. Nothing reads as a duplicate now that the
+  // row above is a row: one is an action, the other is a book on a shelf.
+  const wall = sortShelf(shelf.books, shelf.progress, order, i18n.locale);
   // The one book the reader is in the middle of. Picked from the whole shelf rather than from
   // the order in front of them: ordering by title changes where a book sits on the wall, not
   // which one they were reading last night.
   const reading = currentlyReading(shelf.books, shelf.progress);
-  const wall = reading === null ? ordered : ordered.filter((b) => b.id !== reading.id);
   const now = Date.now();
+  const byId = new Map(shelf.books.map((b) => [b.id, b]));
 
   function lines(book: BookRecord): string[] {
     return statusLines(i18n, shelf.progress.get(book.id), shelf.sessions.get(book.id) ?? [], now);
@@ -187,10 +210,19 @@ export default function Library({
           </Trans>
         </p>
       ) : (
-        // One box around the two, so a wide window can put them side by side. Below 1280 it is
-        // a plain block and the two stack exactly as they did; there is no second layout to
-        // keep in step, only a grid that switches on when there is room for one.
+        // One column, and one large block in it. The marked passage is that block; a second one
+        // under it read as "the notes on the book below" whatever the card said the source was,
+        // because two blocks stacked in one column is itself the claim that they go together.
         <div className="shelf">
+          {shelf.marks.length > 0 ? (
+            <MarkCard marks={shelf.marks} books={byId} onNote={saveNote} />
+          ) : (
+            <p className="empty" data-testid="marks-empty">
+              <Trans comment="Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.">
+                Nothing marked yet. A passage you mark while reading comes back to you here.
+              </Trans>
+            </p>
+          )}
           {reading !== null && (
             <ReadingNow
               book={reading}
@@ -240,11 +272,142 @@ function useCoverUrl(cover: Blob | null): string | null {
 }
 
 /**
- * The book the reader is in the middle of, large enough that choosing it is not a decision.
+ * One marked passage at a time, with a way back and forward through the rest.
  *
- * It is the whole answer to the shelf's question most of the time — a reader with one book on
- * the go opens that one — so it gets the cover at a size worth looking at, the two lines that
- * say where they are, and a verb.
+ * **This is the shelf's main block**, and it is here because a marked passage otherwise only
+ * exists inside the book it came from: the notes panel shows one book's marks and only while
+ * that book is open, so a sentence the reader thought worth keeping was never in front of them
+ * again unless they went back for it.
+ *
+ * One at a time rather than three across, and that is a layout decision rather than a
+ * preference: three columns show at a glance that the passages come from different books, and
+ * they cut each passage to a third of the width, which a long one does not survive.
+ *
+ * **The source carries the same weight as a title on this screen.** The cover and the bold
+ * title are what keep the passage attached to the book it is from — a small grey line of
+ * attribution beside a larger title elsewhere on the screen hands the sentence to the wrong
+ * book, and the reader has no way to know.
+ */
+function MarkCard({
+  marks,
+  books,
+  onNote,
+}: {
+  marks: Annotation[];
+  books: Map<string, BookRecord>;
+  onNote: (id: string, note: string) => void;
+}) {
+  const { t } = useLingui();
+  // Where in the list, counted without a bound: the modulo below turns it into a position, so
+  // walking off either end comes back round rather than stopping. Wrapping is a placeholder for
+  // a decision that needs a shelf with more marks on it than this one has to make.
+  const [at, setAt] = useState(0);
+  // Which mark is open for writing, rather than a bare flag: the flag would follow the reader
+  // onto the next card and open its note as well.
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const index = ((at % marks.length) + marks.length) % marks.length;
+  // In range by construction — the modulo above says so, and the caller renders an empty line
+  // instead of this card when there is nothing to show.
+  const mark = marks[index]!;
+  const book = books.get(mark.bookId);
+  const coverUrl = useCoverUrl(book?.cover ?? null);
+
+  const notePlaceholder = t({
+    message: "What did this make you think?",
+    comment:
+      "Placeholder in the empty note box under a marked passage on the shelf. An invitation to write, not a label — the box is empty because the reader has not written anything on this passage yet.",
+  });
+
+  return (
+    <section
+      className="mark-card"
+      data-testid="mark-card"
+      data-mark-id={mark.id}
+      style={{ borderLeftColor: markVar(mark.color) }}
+    >
+      <p className="mark-source">
+        <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
+        <strong data-testid="mark-book">{book?.title}</strong>
+      </p>
+      {/* The book's own words, so the reader's own line-length ceiling applies — the same
+          number the page they marked it on was set to, read off `line-length.ts` rather than
+          written out here. */}
+      <blockquote
+        className="mark-quote"
+        data-testid="mark-quote"
+        style={{ maxWidth: `${LINE_LENGTH[detectScript(mark.text)].ceiling}em` }}
+      >
+        {mark.text}
+      </blockquote>
+      {editingId === mark.id || mark.note === "" ? (
+        // Keyed on the mark, so flipping to the next card brings that card's note rather than
+        // the text left in the box. Committed on the way out: there is no Save here, because
+        // the card is not a form and leaving it is what finishing a thought looks like.
+        <textarea
+          key={mark.id}
+          className="mark-note-input"
+          data-testid="mark-note-input"
+          defaultValue={mark.note}
+          autoFocus={editingId === mark.id}
+          placeholder={notePlaceholder}
+          aria-label={notePlaceholder}
+          onBlur={(e) => {
+            if (e.target.value !== mark.note) onNote(mark.id, e.target.value);
+            setEditingId(null);
+          }}
+        />
+      ) : (
+        <button className="mark-note" data-testid="mark-note" onClick={() => setEditingId(mark.id)}>
+          {mark.note}
+        </button>
+      )}
+      <div className="mark-nav">
+        <button
+          className="ghost"
+          onClick={() => setAt(at - 1)}
+          aria-label={t({
+            message: "Previous passage",
+            comment:
+              "Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage marked after this one. 'Passage' is a stretch of the book the reader marked.",
+          })}
+        >
+          ‹
+        </button>
+        <span className="mark-count" data-testid="mark-count">
+          {t({
+            message: `${{ position: index + 1 }} of ${{ total: marks.length }}`,
+            comment:
+              "Where the reader is in their marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many there are.",
+          })}
+        </span>
+        <button
+          className="ghost"
+          onClick={() => setAt(at + 1)}
+          aria-label={t({
+            message: "Next passage",
+            comment:
+              "Screen-reader name for the › button on the shelf's card, which steps on to the passage marked before this one. 'Passage' is a stretch of the book the reader marked.",
+          })}
+        >
+          ›
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The book the reader is in the middle of, as one row.
+ *
+ * **A row rather than a block, and the marked passage above it is why.** Two blocks in one
+ * column read as one thing with a heading, whichever of them came first — the passage was read
+ * as a note on the book beside it even when the card named a different book. Labels and rules
+ * between them did not touch that, because the reading comes from the arrangement. One block
+ * on the screen, and the question does not arise.
+ *
+ * The cover stays, small: it is still the fastest way to recognise a book. What goes is the
+ * size — this is one action with the book's name on it, not a shelf of one.
  */
 function ReadingNow({
   book,
@@ -263,7 +426,7 @@ function ReadingNow({
   return (
     <section className="reading-now" data-testid="reading-now" data-book-id={book.id}>
       <button
-        className="book-cover reading-now-cover"
+        className="book-cover"
         onClick={onOpen}
         title={t({
           message: `Open ${{ title: book.title }}`,
@@ -275,27 +438,27 @@ function ReadingNow({
       </button>
       <div className="reading-now-info">
         <h2 data-testid="reading-now-title">{book.title}</h2>
-        <p className="reading-now-author">{book.author}</p>
-        <StatusLines lines={lines} testId="reading-now-status" />
-        <div className="reading-now-actions">
-          <button className="primary" onClick={onOpen} data-testid="continue-reading">
-            <Trans comment="The main button on the one book the reader is in the middle of. It reopens that book at the position they left.">
-              Keep reading
-            </Trans>
-          </button>
-          <button
-            className="ghost"
-            onClick={onAbout}
-            aria-label={t({
-              message: `About ${{ title: book.title }}`,
-              comment:
-                "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
-            })}
-          >
-            ⋯
-          </button>
-        </div>
+        {/* **The first line only**, which is where they are. The second is a sense of how long
+            is left, and on a row it arrives as a fragment of a sentence with the end cut off —
+            it belongs under the cover on the wall, where it has a line of its own. */}
+        <StatusLines lines={lines.slice(0, 1)} testId="reading-now-status" />
       </div>
+      <button className="primary" onClick={onOpen} data-testid="continue-reading">
+        <Trans comment="The main button on the one book the reader is in the middle of. It reopens that book at the position they left.">
+          Keep reading
+        </Trans>
+      </button>
+      <button
+        className="ghost"
+        onClick={onAbout}
+        aria-label={t({
+          message: `About ${{ title: book.title }}`,
+          comment:
+            "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
+        })}
+      >
+        ⋯
+      </button>
     </section>
   );
 }

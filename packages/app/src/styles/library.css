@@ -1,13 +1,29 @@
 /* Library */
+
+/* **Where the shelf stops widening**, and the number comes from the passage on the card: a
+   quoted line is the book's own text, so it stops at the reader's own ceiling (ADR-0012, 40
+   ideographs). 640px of quote at `--type-body`, plus the card's padding and ink rule, plus the
+   page's own margins at their widest — measured rather than derived, in
+   `docs/specs/device-sizing/measurements.md`.
+
+   Everything the shelf holds shares it: the card, the row, and the wall are one width and one
+   pair of edges, so a 2560px display gets a shelf rather than a shelf stretched across a
+   billboard. This is also what makes a fourth width breakpoint unnecessary — past this point
+   nothing on the screen changes, which is what a cap means. */
 .library {
   min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: 2rem;
   display: flex;
   flex-direction: column;
+  max-width: 736px;
+  margin-inline: auto;
+  /* The header's rule reaches both edges of the shelf rather than of the window, which is what
+     says the shelf is a piece of paper on a desk and not the desk. */
+  width: 100%;
 }
 
-/* The shelf is written for the narrowest window first and widened by the four queries in
+/* The shelf is written for the narrowest window first and widened by the two width queries in
    `device.css`. Written the other way round, every phone rule is an undo of a desktop one, and
    the undo is what gets forgotten.
 
@@ -81,68 +97,186 @@
   white-space: nowrap;
 }
 
-/* The book the reader is in the middle of, at a size that makes choosing it unnecessary. */
+/* One marked passage, and the shelf's only large block. The ink rule down the side is the
+   colour the reader marked it in, the same rule the notes panel draws — a passage found here is
+   recognisably the one they made in the book. `border-left-color` is set on the element, from
+   the mark's own ink. */
+.mark-card {
+  margin: var(--space-5) var(--space-4) 0;
+  padding: var(--space-4);
+  border-left: 3px solid var(--mark-indigo);
+  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
+  background: var(--surface-sunken);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* **The source, at the weight of a title.** The cover and the bold name together are what stop
+   the passage being read as belonging to whichever book has the largest name on the screen. */
+.mark-source {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--type-lede);
+  line-height: var(--leading-title);
+}
+
+/* A thumbnail rather than a cover: it is here to be recognised at a glance beside the name, not
+   to be looked at. The box is held open even with no artwork in it, so the name sits on the
+   same line whether the book has a cover or not. */
+.mark-cover {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  aspect-ratio: 1 / 1.42;
+  border: 1px solid var(--line-firm);
+  border-radius: var(--radius-control);
+  background: var(--surface-cover);
+  overflow: hidden;
+}
+
+.mark-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The book's words. `max-width` is set on the element in ems, from `lib/line-length.ts` — 40
+   for an ideographic book, 30 for a Latin one — so this rule carries the reading and not the
+   number. */
+.mark-quote {
+  margin: 0;
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+}
+
+/* What the reader wrote, and the box they write it in. Same size and colour either way: the
+   two are the same words at two moments, and a note that changes weight when it is opened
+   reads as two different things. */
+.mark-note,
+.mark-note-input {
+  font-family: inherit;
+  font-size: var(--type-ui);
+  line-height: var(--leading-text);
+  color: var(--text-muted);
+}
+
+/* Prose that happens to be pressable, so the button rules that suit a label are undone: it
+   wraps, it fills the row, and it carries no fill of its own until a pointer is over it. */
+.mark-note {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+  min-height: 0;
+}
+
+.mark-note:hover {
+  border: none;
+  text-decoration: underline;
+}
+
+.mark-note-input {
+  min-height: 3rem;
+  resize: vertical;
+  padding: 0.4rem;
+  background: var(--surface-page);
+  border: 1px solid var(--line-actionable);
+}
+
+/* Back and forward, and where in the pile this one is. At the foot of the card rather than at
+   its sides: the arrows belong to the card, and a control floating beside it would have to be
+   kept clear of a quote whose length is the book's business. */
+.mark-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+/* The height comes free from `button`'s own `min-height: var(--tap-min)`; the width does not,
+   because the face is one character. Both directions have to answer to the hand (ADR-0023). */
+.mark-nav button {
+  min-width: var(--tap-min);
+}
+
+.mark-count {
+  font-family: var(--font-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+}
+
+/* The book the reader is in the middle of: one row, carrying the one action on the screen.
+   Everything on it is small — this is a verb with a book's name on it, not a shelf of one.
+   Why it is a row rather than the block it used to be is argued over `ReadingNow` in
+   `components/Library.tsx`, and it is about the card above rather than about this row. */
 .reading-now {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: center;
   padding: var(--space-5) var(--space-4) 0;
 }
 
-/* Both classes, so this width wins over `.book-cover`'s 100% wherever the two rules end up
-   sitting in the file. The cover is the one thing on this screen worth looking at, and 100% of
-   a flex row is the whole shelf.
-
-   132px on a phone, 272px on a wide desktop, and 26vw in between. Before this the large book
-   was a fixed 196px while the wall grew with the window, and at 1680 the two were 22px apart —
-   the shelf had a main character nobody could pick out.
-
-   **26vw and not the 16vw the design gives**, and the difference was found by measuring: at
-   16vw the slope is so shallow that 600 and 820 both sit on the 132px floor, where a wall cover
-   is 126px. The invariant — *the large book is at least twice the area of one on the wall* —
-   was broken at exactly the two widths nobody looks at, by the change that exists to keep it.
-   It holds from 820 up now. Below that the two are not competing anyway: the large book has a
-   row of its own, its title, and the only action on the screen. */
-.book-cover.reading-now-cover {
+/* Two classes, so this beats `.book-cover`'s own `width: 100%` wherever the two rules end up
+   sitting. 26px wide is 37 tall at the cover's proportions, which is what keeps the row itself
+   under 48 while 〈Keep reading〉 still takes the whole target a finger needs. */
+.reading-now .book-cover {
   flex: 0 0 auto;
-  width: clamp(8.25rem, 26vw, 17rem);
+  width: 1.625rem;
 }
 
+/* Title and position on one line, and the title is the half that gives way: a long one is
+   clipped, the two words saying where the reader is are not. */
 .reading-now-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex: 1;
   min-width: 0;
 }
 
-/* The one title on the shelf that scales with the window rather than with the type scale: it
-   is a picture of the book as much as it is a label, and it has to hold its own next to a
-   cover that is now three times the size it was. */
 .reading-now-info h2 {
   margin: 0;
-  font-size: clamp(1.3125rem, 3.4vw, 2.25rem);
+  font-size: var(--type-body);
   line-height: var(--leading-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.reading-now-author {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--type-ui);
-}
-
-.reading-now-actions {
-  display: flex;
-  align-items: center;
+/* Laid out along the row rather than stacked, because this is a row — and **not on a phone at
+   all**, which is a question about the window rather than about the hand (ADR-0023). Four things
+   on one line at 390px is not a row, it is an overflow: the title was squeezed to nothing and the
+   ⋯ went off the right edge. What is given up is the least of the four, and it is not lost — the
+   same book's card is on the wall a few pixels below, with both lines under it. `device.css`
+   puts it back at 600. */
+.reading-now .book-status {
+  display: none;
+  flex: 0 1 auto;
+  flex-direction: row;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  min-width: 0;
 }
 
-/* On a phone this is the only action on the screen, so it takes the width to say so — and 48px
-   rather than 44, because a target that is the whole point of the screen can afford to be the
-   most comfortable thing on it. From 600 up it goes back to being a button beside a `⋯`. */
-.reading-now-actions .primary {
-  flex: 1;
-  min-height: 48px;
+/* The clip goes on the line rather than on the box around it: `text-overflow` acts on an
+   element's own inline content, so a box holding a `<span>` cuts the words off flush with no
+   ellipsis to say it did. */
+.reading-now .book-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* **The row is sized by the window; this target is sized by the hand** (ADR-0023). The row came
+   down to a row's height, and `--tap-min` is still whatever a finger needs on this machine —
+   the two numbers answer different questions and neither stands in for the other. */
+.reading-now .primary {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
 }
 
 /* Covers, at the size a cover is for. **A wider window buys more columns, not bigger covers**:
@@ -155,9 +289,12 @@
    to keep in step with five paddings. The order is unchanged and it is the order that makes a
    book findable; which row it lands on was never stable across devices anyway.
 
-   `gap` and `padding` are restated at 600 and 820 in `device.css`, and at 1280 the wall is
-   given a column of its own beside 〈繼續讀〉. Change them here and the wide window keeps the
-   old figures. */
+   `gap` and `padding` are restated at 600 and 820 in `device.css`. Change them here and the
+   wide window keeps the old figures.
+
+   **The book in progress is on this wall too**, in whatever square the order puts it. It used
+   to be filtered out; the row above is an action rather than a second copy of the shelf, so
+   there is nothing to filter. */
 .cover-wall {
   display: grid;
   /* `1fr` as the ceiling and the real ceiling — 132px — moved onto the card, which looks like
