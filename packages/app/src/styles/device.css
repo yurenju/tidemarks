@@ -173,6 +173,15 @@
   .error {
     margin: 0 var(--space-5);
   }
+
+  /* How long ago the other device wrote that position, which `reader.css` leaves out below this
+     line. Here there is room for it beside the two answers however long ago it was — at 393px
+     there was not, and the banner grew a third row for it exactly when the reader had left the
+     book alone long enough for the wording to get long. Width rather than pointer, because what
+     decides it is whether a row fits (ADR-0023). */
+  .elsewhere-elapsed {
+    display: inline;
+  }
 }
 
 /* ≥ 820 — tablet width. Room to breathe, still one column. */

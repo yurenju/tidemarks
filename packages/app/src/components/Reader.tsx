@@ -1996,26 +1996,36 @@ export default function Reader({
             to it, and worth nothing interrupting them for. */}
         {elsewhere !== null && (
           <div className="elsewhere" role="status" data-testid="elsewhere">
-            <div className="elsewhere-said">
-              <p className="elsewhere-line">
-                {elsewhere.position.chapterLabel === null ? (
-                  <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.">
-                    You were reading at {Math.round(elsewhere.position.percentage * 100)}% somewhere
-                    else
-                  </Trans>
-                ) : (
-                  <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.">
-                    You were reading “{elsewhere.position.chapterLabel}” somewhere else
-                  </Trans>
-                )}
-              </p>
-              <p className="elsewhere-when">
-                {elsewhereWhen(i18n, elsewhere.elapsed)}
-                {" · "}
-                {Math.round(elsewhere.position.percentage * 100)}%
-              </p>
-            </div>
-            <div className="elsewhere-answers">
+            <p className="elsewhere-line">
+              {elsewhere.position.chapterLabel === null ? (
+                <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.">
+                  You were reading at {Math.round(elsewhere.position.percentage * 100)}% somewhere
+                  else
+                </Trans>
+              ) : (
+                <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.">
+                  You were reading “{elsewhere.position.chapterLabel}” somewhere else
+                </Trans>
+              )}
+            </p>
+            {/* **How long ago goes, how far in stays** — the span is what a narrow screen drops
+                (`styles/reader.css`). The sentence names a chapter, and a chapter can run for
+                thirty pages: without the percentage a reader already inside that chapter is
+                offered a move to somewhere the words on screen cannot tell apart from where they
+                are. How long ago is the part that can be spared, and it is also the part whose
+                length decides whether this fits beside the answers.
+
+                Beside the sentence rather than under it, which is a row saved everywhere — and
+                on a phone it is the row that keeps the banner off a fifth of the screen. */}
+            <p className="elsewhere-when">
+              <span className="elsewhere-elapsed">{elsewhereWhen(i18n, elsewhere.elapsed)} · </span>
+              {Math.round(elsewhere.position.percentage * 100)}%
+            </p>
+            {/* **The pair is one thing and wraps as one.** Left loose among the other pieces, a
+                393px screen fitted the timestamp and 〈Go there〉 on one row and pushed 〈Stay
+                here〉 onto another — two answers to one question, on separate lines, one of them
+                looking like the answer to something else. */}
+            <div className="elsewhere-actions">
               <button className="primary" onClick={goElsewhere}>
                 <Trans comment="Button on the banner about a position read on another device: moves the book to that position. Short — it sits beside 'Stay here'.">
                   Go there
