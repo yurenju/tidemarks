@@ -37,9 +37,10 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "top nav"
+    "elsewhere elsewhere"
     "gap gap"
     "bottom bottom";
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   pointer-events: none;
   transition: right var(--chrome-motion) ease-out;
 }
@@ -54,6 +55,111 @@
 
 .chrome-gap {
   grid-area: gap;
+}
+
+/* A position that arrived from another device, and the two ways of answering it.
+   ------------------------------------------------------------------------------
+   **A row of the chrome's grid, but not one of the bars.** It is not part of 〈找〉: it does not
+   slide, it does not hide, and a tap on the page does not put it away, because the reader never
+   asked for it and it is holding something that the next page turn would otherwise overwrite
+   (`lib/elsewhere.ts`). So it takes its pointer events unconditionally — the box above it is
+   `pointer-events: none` and every bar grants its own.
+
+   Its row sits under the top bar in both arrangements, and the bars keep their space while they
+   are down (`visibility: hidden`, not `display: none`). That is what makes this a **fixed**
+   place: raising the chrome does not shift the banner, and lowering it does not slide a bar
+   over it. The price is a bar's worth of clear space above it in 〈讀〉, which reads as an inset
+   from the top edge rather than as a gap.
+
+   Raised, hairlined, no cast — the same pair as the bars (ADR-0028), and for the same reason
+   there are no shadows anywhere in the sheet (ADR-0022). A radius here where the bars have
+   none: this one has corners the reader can see, since it stops short of every edge. */
+.elsewhere {
+  grid-area: elsewhere;
+  pointer-events: auto;
+  /* **A card, not a fourth bar.** Left to fill the width it measured 1873px on a 1920 window,
+     with the sentence ending at 324 and the answers starting at 1650 — a white band across the
+     whole screen holding one short line, which is the loudest thing ADR-0020 allows anywhere
+     near a book. The bars may span everything because they are 〈找〉; this is not 〈找〉, it does
+     not slide away, and looking like a bar says it is the same kind of thing.
+
+     **Centred, and that is not symmetry for its own sake.** A vertical book starts at the right
+     and a horizontal one at the left, so the reader's eye begins at opposite edges depending on
+     the book — the middle is the only place that does not favour one of them, and the only one
+     this layer can pick without asking frond which way the book runs.
+
+     **44rem is a measure, not a sum of the parts.** It is the width at which the sentence, the
+     timestamp and the two answers still share one row at every wording this can carry — measured
+     652 x 67 at 1000, 1280, 1600 and 1920. Narrower than that they wrap, which is the hand-held
+     arrangement and is meant to happen there; there is no single number for where that starts,
+     because the timestamp's length is part of it.
+
+     The 8px gutter is narrower than the bars' 16px, and only ever applies below 44rem: a phone
+     is where the card's own padding is already taking a bite out of a 393px screen, and where
+     the bars it might have lined up with are not on screen anyway. */
+  max-width: min(44rem, calc(100% - 2 * var(--space-2)));
+  margin: var(--space-2) auto;
+  padding: var(--space-3);
+  /* The tight one of the system's two (`docs/design-system.md`), not the page's 1.8: this is a
+     card holding one line and two buttons, not prose. On a phone it is the difference between
+     spending 16px of a 659px screen on leading and spending 9px. */
+  line-height: var(--leading-title);
+  background: var(--surface-raised);
+  /* What a focus ring's halo is cut out of here — see `:focus-visible` in `controls.css`. */
+  --halo: var(--surface-raised);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--radius-surface);
+  /* **Three pieces on one level, and the width decides how they fall.** The sentence, how far
+     in, and the two answers: one row where they fit, and on a phone the first two on one row
+     with the answers under them. Grouping any two of them in a box of their own fixes an
+     arrangement that should be the screen's to choose — the first attempt stacked the sentence
+     over how-far-in and was 143px tall over a 700px window, and the thing it covers is the book
+     (ADR-0020). The one grouping that stays is `.elsewhere-actions`, because two answers to one
+     question must never land on separate rows. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The sentence. `1 1 0` so a long chapter name gives up width to the answers rather than pushing
+   them onto a row of their own — the answers are the part that must stay reachable. */
+.elsewhere-line {
+  flex: 1 1 0;
+  min-width: 14rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.elsewhere-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* How long ago, and how far in. `nowrap` because breaking these few words over two lines would
+   make the row they sit on taller than the answers beside them, and that row is what the
+   banner's height is. */
+.elsewhere-when {
+  margin: 0;
+  white-space: nowrap;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+}
+
+/* **How long ago is not shown on a narrow screen** — `styles/device.css` brings it back at
+   600px. It is the piece that can be spared (the sentence already says where the other device
+   got to), and on a 393px screen it is also the piece that decides whether the banner is two
+   rows or three — not by its own length alone: "Just now · 7%" left room for the answers beside
+   it and the banner measured 103px, while "12 minutes ago · 7%" did not and it measured 132px, a
+   fifth of the screen. A banner whose height depends on how long ago someone put their tablet
+   down is not a layout.
+
+   **The percentage stays**, which is why this is a span rather than the whole line. It is the
+   only thing that separates two positions inside one long chapter, and it is a fixed two or
+   three characters, so it costs nothing to keep. */
+.elsewhere-elapsed {
+  display: none;
 }
 
 .chrome-bottom {
