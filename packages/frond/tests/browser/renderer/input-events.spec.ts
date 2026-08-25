@@ -4,7 +4,7 @@
 // with the events is policy (ADR-0002), and the last group guards that line.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { mountFixture, openHarness, type EventRecord } from "../support/harness.js";
+import { clickIntoPage, mountFixture, openHarness, type EventRecord } from "../support/harness.js";
 
 /**
  * ## Why this is indispensable
@@ -387,14 +387,14 @@ test.describe("key events", () => {
   /**
    * While focus is inside the iframe, the outer document's keyup receives nothing at all —
    * which is exactly why arrow-key paging stops working once frond is wired up. So this
-   * test sends focus in with a real click and waits for it to land (`focusContent`), and
+   * test sends focus in with real clicks, until one of them lands it (`clickIntoPage`), and
    * only then presses a key: receiving events while focus is outside proves nothing about
    * this outlet.
    */
   test("arrow keys still get out while focus is inside the iframe", async ({ page }) => {
     await mountFixture(page, "vertical-japanese");
 
-    await focusContent(page);
+    await clickIntoPage(page);
     await page.keyboard.press("ArrowLeft");
 
     const down = await waitForKeyEvent(page, "keydown");
@@ -407,7 +407,7 @@ test.describe("key events", () => {
 
   test("carries the modifier key state", async ({ page }) => {
     await mountFixture(page, "vertical-japanese");
-    await focusContent(page);
+    await clickIntoPage(page);
     await page.keyboard.press("Shift+ArrowRight");
 
     const event = await waitForKeyEvent(page, "keydown");
@@ -442,7 +442,7 @@ test.describe("frond makes no decisions about input", () => {
   test("arrow keys do not turn the page", async ({ page }) => {
     const before = await mountFixture(page, "vertical-japanese");
 
-    await focusContent(page);
+    await clickIntoPage(page);
     await page.keyboard.press("ArrowLeft");
     await page.keyboard.press("ArrowRight");
 
@@ -575,44 +575,6 @@ async function prependLink(page: Page): Promise<{ x: number; y: number }> {
 
   expect(at).not.toBeNull();
   return at!;
-}
-
-/**
- * Clicks the content and waits until focus has really arrived inside the iframe.
- *
- * A key pressed while focus is still outside goes to the shell page, where nothing is
- * listening — and the test then fails at `waitForKeyEvent`, reading as "the outlet dropped
- * the event" when what went wrong was the press. That is the shape of the flake in #34: a
- * key spec red on firefox, green on a rerun, with the other two engines green in the same
- * round.
- *
- * The content document's own `hasFocus()` is what gets polled rather than the shell page's
- * `activeElement`. Both name the same frame, and `activeElement` is the right reading where
- * the question is which frame holds the focus (`turn.spec.ts` asks it that way). This one
- * is asked from inside, so it also waits on the frame's own realm having caught up and on
- * the window being focused at all — which is what a press needs and the outer reading does
- * not promise.
- *
- * This also splits the two causes apart for whoever reads the next red run (see
- * docs/agents/flaky.md). On these three paths frond never moves the focus itself — the one
- * place it does is a turn (`SectionView.takeFocus`), and no key test turns a page — so red
- * here means the click's focus never landed, which is the test's own race. Red at the
- * assertion below it, with focus confirmed, means the events really are not getting out,
- * and that would be frond's defect rather than the spec's.
- */
-async function focusContent(page: Page): Promise<void> {
-  await page.mouse.click(400, 300);
-
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const frame = document.querySelector(
-          "#viewport iframe[data-frond-page]",
-        ) as HTMLIFrameElement | null;
-        return frame?.contentDocument?.hasFocus() ?? false;
-      }),
-    )
-    .toBe(true);
 }
 
 async function waitForEvent(page: Page, name: string): Promise<PointerPayload> {

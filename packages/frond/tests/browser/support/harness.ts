@@ -165,6 +165,48 @@ export async function peeksReady(page: Page, expected = 1): Promise<void> {
 }
 
 /**
+ * Clicks the middle of the book and does not return until focus is inside the page frame.
+ *
+ * A reader who has touched the book has the focus in a frame, and several specs need that
+ * state: the key events only leave the iframe when the keyboard is pointed at it, and a turn
+ * can only carry the focus across if there was one to carry.
+ *
+ * **The click is retried, not just waited on.** Firefox delivers a click into the frame and
+ * then, occasionally, does not move the focus with it — measured under contention: frond's
+ * own recording shows `pointerdown` / `pointerup` arriving inside the frame while the outer
+ * `document.activeElement` stays on `BODY`, and it stays there for as long as anything waits
+ * (five seconds, in the run this was caught in). A second click lands the focus immediately.
+ * So waiting alone cannot fix it — there is nothing still in flight to wait for — which is
+ * what #34 turned out to be, in both of its shapes: pressing a key straight after the click
+ * read as "the outlet dropped the event", and polling for the focus first read as "the focus
+ * never landed". The press was never delivered anywhere in either.
+ *
+ * The content document's own `hasFocus()` is what gets read rather than the shell page's
+ * `activeElement`. Both name the same frame, but this one is asked from inside, so it also
+ * covers the frame's own realm having caught up and the window being focused at all — which
+ * is what a press needs and the outer reading does not promise.
+ *
+ * Red here now means every one of the clicks failed to move the focus, which would be a
+ * different fault from the one measured. Red at a spec's own assertion, with this having
+ * returned, means the focus is where it should be and the product is what is wrong.
+ */
+export async function clickIntoPage(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.mouse.click(400, 300);
+    expect(
+      await page.evaluate(() => {
+        const frame = document.querySelector(
+          "#viewport iframe[data-frond-page]",
+        ) as HTMLIFrameElement | null;
+        return frame?.contentDocument?.hasFocus() ?? false;
+      }),
+    ).toBe(true);
+    // Long enough between attempts that two of them are never one double-click, which would
+    // select a word under the pointer and put a selection into specs that never asked for one.
+  }).toPass({ intervals: [700, 700, 1000, 1000], timeout: 5000 });
+}
+
+/**
  * The prefix that names ADR-0007's second layer — the public-domain books at the root of
  * the monorepo, in `tests/books/`.
  *
