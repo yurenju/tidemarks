@@ -109,8 +109,8 @@ export function localDay(at: number): string {
  * How long ago the reader marked something, as one of a fixed set of rungs.
  *
  * A rung rather than a date, because the card is asking the reader to notice a distance, not to
- * look something up: "上個月" is the part that makes them reach for what they were thinking
- * then, and 7 月 14 日 is not. The words for each rung are the component's business — this only
+ * look something up: "last month" is the part that makes them reach back for what they were
+ * thinking then, and "14 July" is not. The words are the component's business — this only
  * says which rung.
  */
 export type RelativeAge =

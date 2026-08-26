@@ -40,9 +40,12 @@ function lww<T extends { updatedAt: number; deletedAt: number | null }>(
 export function mergeAnnotation(local: Annotation | undefined, remote: Annotation): Annotation {
   const won = lww(local, remote);
   const shown = latest(local?.lastShownAt, remote.lastShownAt);
-  // Written back only when there is something to say, so a row that has never reached the card
-  // stays exactly as it arrived rather than growing a null.
-  return shown === null ? won : { ...won, lastShownAt: shown };
+  // **The winner is handed back untouched when it already says this**, and callers lean on
+  // that: both sides of sync ask "did the merge produce anything new" by identity, and a fresh
+  // object every time would have them rewrite an unchanged row on every round — the server
+  // stamping `updated_at = now` as it went, which sends every other device to fetch it again.
+  if (shown === null || (won.lastShownAt ?? null) === shown) return won;
+  return { ...won, lastShownAt: shown };
 }
 
 /**

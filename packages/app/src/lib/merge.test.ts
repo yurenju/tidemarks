@@ -123,6 +123,20 @@ describe("mergeAnnotation (lastShownAt merges on its own)", () => {
   it("takes the remote viewing when there is no local copy at all", () => {
     expect(mergeAnnotation(undefined, ann({ lastShownAt: 700 })).lastShownAt).toBe(700);
   });
+
+  // Both sides of sync ask "did this produce anything new" by identity. A merge that built a
+  // fresh object every time would answer yes forever, and every already-seen passage would be
+  // rewritten on every round — the server stamping `updated_at = now` as it went, which sends
+  // every other device off to fetch a row that has not changed.
+  it("hands back the winner itself when the viewing is already on it", () => {
+    const local = ann({ updatedAt: 300, lastShownAt: 900 });
+    const remote = ann({ updatedAt: 100, lastShownAt: 400 });
+    expect(mergeAnnotation(local, remote)).toBe(local);
+
+    const older = ann({ updatedAt: 100, lastShownAt: 400 });
+    const newer = ann({ updatedAt: 300, lastShownAt: 900 });
+    expect(mergeAnnotation(older, newer)).toBe(newer);
+  });
 });
 
 describe("mergeBook (LWW by updatedAt, tombstone)", () => {

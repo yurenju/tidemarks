@@ -142,31 +142,57 @@
   object-fit: cover;
 }
 
-/* The book's words, and a way back to where they came from. `max-width` is set on the element
-   in ems, from `lib/line-length.ts` — 40 for an ideographic book, 30 for a Latin one — so this
-   rule carries the reading and not the number.
-
-   Prose that happens to be pressable, like `.mark-note` below: the button rules that suit a
-   label are undone so it wraps, fills the row, and carries no fill of its own. */
-.mark-quote {
-  display: block;
+/* **The three things on this card that can be pressed, and none of them looks like a button.**
+   Two are the book's words and one is the reader's, so a fill and a border would make all three
+   read as controls parked on a passage. The button rules that suit a label are undone in one
+   place rather than three, because they are undone for one reason. */
+.mark-source-link,
+.mark-quote,
+.mark-note {
   width: 100%;
   margin: 0;
   padding: 0;
   border: none;
   background: none;
   text-align: start;
-  white-space: pre-wrap;
   font-family: inherit;
+  min-height: 0;
+}
+
+.mark-source-link:hover,
+.mark-quote:hover,
+.mark-note:hover {
+  border: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-actionable);
+}
+
+/* The cover and the name, pressable together: they are the book saying which book it is, so
+   they lead back to it the way the passage below them does. `width` is given back, because this
+   one sits in a row beside the age rather than filling a line of its own. */
+.mark-source-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: inherit;
+}
+
+/* The book's words, and a way back to where they came from. `max-width` is set on the element
+   in ems, from `lib/line-length.ts` — 40 for an ideographic book, 30 for a Latin one — so this
+   rule carries the reading and not the number. */
+.mark-quote {
+  display: block;
+  white-space: pre-wrap;
   font-size: var(--type-body);
   line-height: var(--leading-text);
   color: var(--text-body);
 
-  /* **Seven lines, held open whether the passage fills them or not.** Held open is what keeps
-     the card one height while the reader flicks through the five, and seven is the number
-     because a poem must not be cut: the last line is usually the whole of it, and the poems on
-     this shelf run to seven. Prose past seven loses its tail and keeps its opening, which is
-     the part doing the work here — the card is a way back into the book, not the book. */
+  /* **Held open whether the passage fills it or not**, which is what keeps the card one height
+     while the reader flicks through the five. Why the count is what it is — and what it costs a
+     long poem — is on `--mark-quote-lines` in `tokens.css`. */
   height: calc(var(--mark-quote-lines) * var(--leading-text) * 1em);
   overflow: hidden;
   /* The tail fades rather than stopping mid-stroke. Always on, and it costs a short passage
@@ -175,15 +201,9 @@
   mask-image: linear-gradient(to bottom, #000 calc(100% - 2.2em), transparent 100%);
 }
 
-.mark-quote:hover {
-  border: none;
-  text-decoration: underline;
-  text-decoration-color: var(--line-actionable);
-}
-
 /* How long ago the reader marked it, at the far end of the source line. A distance rather than
-   a date, because reaching for what they were thinking two months ago is the thing this card is
-   for, and 7 月 14 日 does not ask anyone to do that. `--font-control`, because it is the
+   a date, because reaching back for what they were thinking two months ago is what this card is
+   for, and "14 July" does not ask anyone to do that. `--font-control`, because it is the
    interface talking rather than the book. */
 .mark-when {
   margin-inline-start: auto;
@@ -210,27 +230,14 @@
   height: calc(var(--mark-note-lines) * var(--leading-text) * 1em);
 }
 
-/* Prose that happens to be pressable, so the button rules that suit a label are undone: it
-   wraps, it fills the row, and it carries no fill of its own until a pointer is over it.
-   Clamped at the same count the box is tall, and nothing is lost by it — pressing opens the
+/* Clamped at the same count the box is tall, and nothing is lost by it — pressing opens the
    box, and the box holds the whole note. */
 .mark-note {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: var(--mark-note-lines);
   overflow: hidden;
-  width: 100%;
-  border: none;
-  background: none;
-  padding: 0;
-  text-align: start;
   white-space: normal;
-  min-height: 0;
-}
-
-.mark-note:hover {
-  border: none;
-  text-decoration: underline;
 }
 
 .mark-note-input {

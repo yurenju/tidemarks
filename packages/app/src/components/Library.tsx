@@ -269,6 +269,9 @@ export default function Library({
             // appears is worse than one that appears a moment later.
             batch.length > 0 && (
               <MarkCard
+                // A new batch is a new card, so it arrives at the first of five with nothing
+                // left over from the last five — no half-written note, no position part-way in.
+                key={batch.map((m) => m.id).join()}
                 batch={batch}
                 books={byId}
                 onNote={saveNote}
@@ -413,10 +416,27 @@ function MarkCard({
       data-mark-id={mark.id}
       style={{ borderLeftColor: markVar(mark.color) }}
       {...useFlick(step)}
+      // Arrows turn the card too, but only once focus is inside it — bound here rather than on
+      // the window so they still mean what they always mean everywhere else on the shelf. The
+      // note box is excluded along with the flick: inside it an arrow moves the caret.
+      onKeyDown={(e) => {
+        if (isWriting(e.target)) return;
+        if (e.key === "ArrowLeft") step(-1);
+        else if (e.key === "ArrowRight") step(1);
+      }}
     >
       <p className="mark-source">
-        <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
-        <strong data-testid="mark-book">{book?.title}</strong>
+        {/* Cover and title together, and pressable together: they are the book's own name, so
+            they lead back to the book like the passage below them does. The age beside them is
+            the interface talking and stays out of it. */}
+        <button
+          className="mark-source-link"
+          data-testid="mark-source-link"
+          onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+        >
+          <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
+          <strong data-testid="mark-book">{book?.title}</strong>
+        </button>
         <span className="mark-when" data-testid="mark-when">
           {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
         </span>
@@ -491,14 +511,10 @@ function MarkCard({
             that can be emptied becomes a thing owed, and a reader who falls behind on it starts
             avoiding the screen it lives on. Pressing this is the reader asking; not pressing it
             costs them nothing and leaves nothing behind. */}
-        <button
-          className="mark-repick"
-          data-testid="mark-repick"
-          onClick={() => {
-            setAt(0);
-            onRepick();
-          }}
-        >
+        {/* No resetting the position from in here. The draw is a read of Dexie away, so doing
+            it on the press would step back to the first of the *old* five and swap them out a
+            moment later; the card is keyed on the batch instead, and arrives already at one. */}
+        <button className="mark-repick" data-testid="mark-repick" onClick={onRepick}>
           <Trans comment="Button at the foot of the shelf's card. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared.">
             Show me another five
           </Trans>
@@ -515,17 +531,22 @@ function MarkCard({
  * too — has this press become a drag — and two answers to it would let a movement be a flick
  * here and a tap there. Vertical travel is left alone entirely: the shelf scrolls, and a card
  * that claimed downward drags would stop it.
+ *
+ * ⚠️ **Not while the reader is in the note box.** These are bound to the whole card so a flick
+ * can start anywhere on it, and dragging sideways across a note to select a few words is
+ * exactly the shape of a flick — without this the card would turn out from under someone
+ * mid-sentence, taking the box and the words in it along.
  */
 function useFlick(step: (d: number) => void) {
   const from = useRef<{ x: number; y: number } | null>(null);
   return {
     onPointerDown: (e: React.PointerEvent) => {
-      from.current = { x: e.clientX, y: e.clientY };
+      from.current = isWriting(e.target) ? null : { x: e.clientX, y: e.clientY };
     },
     onPointerUp: (e: React.PointerEvent) => {
       const start = from.current;
       from.current = null;
-      if (!start) return;
+      if (!start || isWriting(e.target)) return;
       const dx = e.clientX - start.x;
       // A drag that went further down the page than along it was a scroll that happened to
       // begin on the card.
@@ -533,6 +554,11 @@ function useFlick(step: (d: number) => void) {
       step(dx < 0 ? 1 : -1);
     },
   };
+}
+
+/** Whether this event landed in the note box, where a sideways drag and an arrow are the reader's. */
+function isWriting(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement;
 }
 
 /**

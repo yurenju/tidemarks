@@ -190,7 +190,7 @@ test("today's five are the same five after a reload", async ({ page }) => {
   expect(second.texts).toEqual(first.texts);
 });
 
-test("asking for another five starts again at the first of them", async ({ page }) => {
+test("asking for another five replaces today's five for good", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
@@ -204,9 +204,13 @@ test("asking for another five starts again at the first of them", async ({ page 
 
   await page.getByTestId("mark-repick").click();
   await expect(page.getByTestId("mark-count")).toHaveText("1 of 5");
-  // **There is no way to clear the card, and that is deliberate** — anything that can be
-  // emptied becomes a thing owed. Asking for more is the only control here.
-  await expect(card(page)).toBeVisible();
+  const drawn = await walkBatch(page);
+
+  // **The new five are today's five now** — the press is the reader asking for more, not a
+  // peek that a reload undoes. Which is also why there is no way to clear the card: anything
+  // that can be emptied becomes a thing owed.
+  await page.reload();
+  expect((await walkBatch(page)).texts).toEqual(drawn.texts);
 });
 
 test("the passage on the card carries its own book's line-length ceiling", async ({ page }) => {
@@ -232,7 +236,7 @@ test("the passage on the card carries its own book's line-length ceiling", async
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
-test("pressing the passage opens the book it came from", async ({ page }) => {
+test("the book's own words on the card go back to the book", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
@@ -240,9 +244,16 @@ test("pressing the passage opens the book it came from", async ({ page }) => {
   await seedMarks(page, [{ bookId: alice, text: LATIN, note: "", createdAt: 1_000 }]);
   await page.reload();
 
-  // The book's own words go back to the book; the reader's own note opens for writing. Both
-  // presses live on this card, so which is which has to be legible from the words themselves.
+  // **Both halves of the same rule, which is why they are one test**: the book's words — the
+  // passage, and the cover and title naming it — go back to the book, while the reader's own
+  // note opens for writing. Two presses on one card, so which is which has to be legible from
+  // what is pressed.
   await page.getByTestId("mark-quote").click();
+  await expect(page.locator(".reader")).toBeVisible();
+  expect(page.url()).toContain(`#/book/${alice}`);
+
+  await page.goBack();
+  await page.getByTestId("mark-source-link").click();
   await expect(page.locator(".reader")).toBeVisible();
   expect(page.url()).toContain(`#/book/${alice}`);
 });
