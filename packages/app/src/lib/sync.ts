@@ -153,12 +153,36 @@ export function subscribePulledProgress(cb: (rows: Progress[]) => void): () => v
   return () => progressListeners.delete(cb);
 }
 
+const annotationListeners = new Set<(bookIds: Set<string>) => void>();
+
+/**
+ * The books a pull just wrote marks for, handed to whoever is showing them.
+ *
+ * Same shape of problem as the positions above, and the same reason for existing: the reader's
+ * copy of a book's marks is read when the book opens, and a note made on another device lands in
+ * Dexie with nothing on screen mentioning it (`components/Reader.tsx`).
+ *
+ * **Which books rather than which rows.** A subscriber has to re-read the whole table for its
+ * book anyway — a mark deleted elsewhere has to leave the panel, and that is an absence no
+ * arriving row can express — so the rows themselves would be thrown away. What the subscriber
+ * cannot work out for itself is whether this round wrote anything at all, and that is what stops
+ * a re-read from replacing state on every empty round: several a minute, each one a fresh array
+ * that sends the highlight layer measuring rectangles again.
+ *
+ * A tombstone is a row like any other, so a mark deleted elsewhere names its book here too.
+ */
+export function subscribePulledAnnotations(cb: (bookIds: Set<string>) => void): () => void {
+  annotationListeners.add(cb);
+  return () => annotationListeners.delete(cb);
+}
+
 async function pull() {
   const cursor = await getSyncCursor();
   const remote = await fetchJson<PullResponse>(`/api/sync?since=${cursor}`);
 
   const coversToFetch: string[] = [];
   const arrivedProgress: Progress[] = [];
+  const markedBooks = new Set<string>();
   await db.transaction(
     "rw",
     [db.books, db.progress, db.annotations, db.readingSessions],
@@ -192,7 +216,10 @@ async function pull() {
       for (const ra of remote.annotations) {
         const local = await db.annotations.get(ra.id);
         const winner = mergeAnnotation(local, ra);
-        if (winner === ra) await db.annotations.put(ra);
+        if (winner === ra) {
+          await db.annotations.put(ra);
+          markedBooks.add(ra.bookId);
+        }
       }
       const ids = new Set((await db.readingSessions.toCollection().primaryKeys()) as string[]);
       for (const rs of dedupeSessions(ids, remote.readingSessions as ReadingSession[])) {
@@ -204,6 +231,9 @@ async function pull() {
   // After the transaction, so a subscriber reading Dexie back sees what it is being told about.
   if (arrivedProgress.length > 0) {
     for (const cb of progressListeners) cb(arrivedProgress);
+  }
+  if (markedBooks.size > 0) {
+    for (const cb of annotationListeners) cb(markedBooks);
   }
 
   // covers are part of shelf sync (small images); epub bodies stay lazy
