@@ -21,6 +21,31 @@ import {
  * half that can rot without a single assertion going red. The numbers it prints are the ones to
  * compare a change against — run it before touching the turn, run it after, and read the two.
  *
+ * ## Why nothing here asserts on a dropped-frame share any more
+ *
+ * ⚠️ **Do not add one back.** A dropped-frame share measures how many frames the machine felt
+ * like handing out, not what the app did with them: the same code that drops 0 of 159 intervals
+ * running alone drops up to 100% of them on a machine that is oversubscribed, and a turn that
+ * had started laying out per frame looks exactly the same (issue #71). There is no absolute
+ * ceiling that catches the regression and tolerates a saturated machine, so the share is
+ * **reported and not asserted on**.
+ *
+ * ### What that costs, stated exactly
+ *
+ * The regression the share stood in for is the compositor layers going away, which takes a drag
+ * from 4 repaints to 22. That one is still guarded — but by **one test on one engine**: the drag
+ * paint count below, Chromium only, because the trace it reads has no equivalent in the other
+ * two. So on firefox and webkit this file is now down to the jump counts and the sampler floor.
+ *
+ * **And a command turn has no equivalent guard at all**, not even on Chromium. Taking the layers
+ * away leaves an arrow-key turn at the same 2 repaints it measures with them
+ * (`COMMAND_PAINTS_PER_TURN_CEILING`, docs/specs/desktop-page-turn/measurements.md §4), so its
+ * paint ceiling has no measured bad end to sit below and is arithmetic rather than a bracket.
+ * Nothing that used to watch a command turn's smoothness watches it now.
+ *
+ * That is the accepted cost of issue #71, not an oversight — a benchmark that goes red because
+ * the machine was busy gets muted and then deleted, and a muted one guards nothing either.
+ *
  * ## Both ways of turning a page are here
  *
  * A drag and a command turn (an arrow key, a page button) are two different animations, and for
@@ -32,18 +57,14 @@ import {
  * Each is measured in two halves — see the header of `support/pacing.ts` for why, and for what
  * each half is called.
  *
- * ## Why the thresholds are so loose
+ * ## Why what is left is a count and not a threshold
  *
- * They are a floor, not a target. When the drag baseline was taken the settle segment dropped
- * between 1% and 7% of its intervals, across both engines and across running alone and running
- * inside the full parallel suite; the ceilings below sit around four times above the worst of
- * those.
- *
- * That gap is deliberate. This suite runs `fullyParallel`, so several browsers are painting at
- * once on the same cores, and a threshold set to what a quiet machine produces would go red
- * because CI was busy — a benchmark that cries wolf gets deleted. What these catch is the kind
- * of regression that is visible to the eye: a turn that has started laying out per frame, or
- * synchronously reading geometry it used to have cached.
+ * This suite runs `fullyParallel`, so several browsers are painting at once on the same cores,
+ * and any threshold read against a share of the samples is really read against the scheduler.
+ * The two things asserted on here are counted instead: how many intervals were long enough to
+ * read as a *jump* rather than as a dropped frame, compared against the number of turns — a turn
+ * that hitches every single time is the regression the eye sees — and how many times the browser
+ * repainted per turn.
  *
  * **For a number rather than a light**, run this alone, where nothing else is competing:
  *
@@ -75,26 +96,7 @@ test.use({ hasTouch: true });
 // idle cadence ahead of each.
 test.setTimeout(120_000);
 
-/**
- * How much of a segment may drop a frame before this counts as a stutter rather than noise.
- *
- * They differ because the segments do, and they pair up: the two halves where something is
- * *moving* were clean at the baseline (0 dropped intervals, drag and arrow key alike), so
- * anything much above nothing there is new. The two *tails* already drop a few when the machine
- * is busy, and their ceilings sit above the worst of those rather than at it.
- *
- * **The arrow key's two are the drag's numbers, not its own.** Its measured worst across the
- * three engines was 0 dropped intervals in the slide and 4 of 299 in the reshuffle, which would
- * justify something far tighter — but a threshold set near a quiet machine's result is the kind
- * that goes red because CI was busy, and this suite runs `fullyParallel`. Taking the drag's
- * already-loose pair keeps one story for both paths rather than inventing a second.
- */
-const FOLLOW_DROP_CEILING = 0.15;
-const SLIDE_DROP_CEILING = 0.15;
-const SETTLE_DROP_CEILING = 0.3;
-const RESHUFFLE_DROP_CEILING = 0.3;
-
-test("a page turn keeps its frames", async ({ page }) => {
+test("a page turn eases rather than jumping", async ({ page }) => {
   await openBook(page, BOOKS.horizontal);
 
   const pacing = await measureTurnPacing(page);
@@ -109,37 +111,41 @@ test("a page turn keeps its frames", async ({ page }) => {
   // the sampler, not about the app**: a segment holds every turn's intervals end to end, so a
   // total says nothing about whether each individual turn produced frames — five silent turns
   // and one noisy one clear this as easily as six ordinary ones. What it does catch is a run
-  // that sampled little or nothing, which would otherwise report a dropped share of zero and
-  // read as the best possible turn.
+  // that sampled little or nothing, which would otherwise report no jumps at all and read as the
+  // best possible turn.
   //
-  // Fifty rather than something smaller, because the assertions below are a ratio and a count
-  // over these samples: at a couple of dozen intervals one unlucky one is already a tenth of the
-  // drop ceiling. Measured against it, the sampler returns 138 here and 156 in the arrow key's
-  // slide at the shape CI runs, and 80 with three other browsers painting on the same four cores.
+  // **One interval per turn, not a fixed count.** A fixed floor is the same mistake as the
+  // dropped-frame ceiling above, one level down: it goes red when the machine hands out fewer
+  // frames, which is a fact about the machine. The floor this replaces was 50, against a
+  // measured 138 here — so the frame interval only had to stretch to about 2.2x before the run
+  // failed as "too few frames sampled", and issue #71 measured intervals stretching far further
+  // than that. Against turns, the same run has to lose 95% of its frames before it trips.
+  //
+  // Measured for headroom: 138 and 136 at the shape CI runs, and the worst real run seen while
+  // making this change was webkit's settle at 84 over six turns, still fourteen times the floor.
   expect(
     pacing.follow.intervals,
     "too few frames sampled while the finger was down",
-  ).toBeGreaterThan(50);
-  expect(pacing.settle.intervals, "too few frames sampled after the release").toBeGreaterThan(50);
+  ).toBeGreaterThan(pacing.turns);
+  expect(pacing.settle.intervals, "too few frames sampled after the release").toBeGreaterThan(
+    pacing.turns,
+  );
 
-  // The page under the finger. This is the segment that was clean when the baseline was taken,
-  // and the one a reader notices first, because their thumb is the reference.
-  expect(pacing.follow.droppedShare).toBeLessThanOrEqual(FOLLOW_DROP_CEILING);
-
-  // And the tail: the easing, the commit, and frond re-pointing the frames either side.
-  expect(pacing.settle.droppedShare).toBeLessThanOrEqual(SETTLE_DROP_CEILING);
-
-  // And a turn may not jump *every time*: fewer intervals long enough to read as a jump than
-  // there were turns. One stolen slice out of six turns passes, six of six does not, and the
-  // number of samples the machine handed out does not enter into it — see `FramePacing.jumps`
-  // for why neither the worst interval nor a percentile can say this.
+  // A turn may not jump *every time*: fewer intervals long enough to read as a jump than there
+  // were turns. One stolen slice out of six turns passes, six of six does not, and the number of
+  // samples the machine handed out does not enter into it — see `FramePacing.jumps` for why
+  // neither the worst interval nor a percentile can say this.
+  //
+  // The first of the two is the page under the finger, which is the one a reader notices first,
+  // because their thumb is the reference; the second is the tail — the easing, the commit, and
+  // frond re-pointing the frames either side.
   expect(pacing.follow.jumps, "the page jumped under the finger on every turn").toBeLessThan(
     pacing.turns,
   );
   expect(pacing.settle.jumps, "the tail jumped on every turn").toBeLessThan(pacing.turns);
 });
 
-test("a turn nobody dragged keeps its frames too", async ({ page }) => {
+test("a turn nobody dragged eases rather than jumping too", async ({ page }) => {
   await openBook(page, BOOKS.horizontal);
 
   const pacing = await measureCommandPacing(page);
@@ -149,16 +155,20 @@ test("a turn nobody dragged keeps its frames too", async ({ page }) => {
   console.log(`\ncommand turn pacing\n${report}\n`);
 
   // The slide is short — `TURN_COMMAND_MS` is about thirteen frames at 60Hz — which is why
-  // twelve turns are measured rather than the drag's six. Same floor, same reason as above.
-  expect(pacing.slide.intervals, "too few frames sampled during the slide").toBeGreaterThan(50);
-  expect(pacing.reshuffle.intervals, "too few frames sampled after the slide").toBeGreaterThan(50);
+  // twelve turns are measured rather than the drag's six. Same floor, same reason as above, and
+  // it scales with the turn count on its own because that is what it is written against.
+  expect(pacing.slide.intervals, "too few frames sampled during the slide").toBeGreaterThan(
+    pacing.turns,
+  );
+  expect(pacing.reshuffle.intervals, "too few frames sampled after the slide").toBeGreaterThan(
+    pacing.turns,
+  );
 
-  // The easing itself. Nothing is pushing this one, so a dropped frame here is the app's own.
-  expect(pacing.slide.droppedShare).toBeLessThanOrEqual(SLIDE_DROP_CEILING);
-
-  // And the commit behind it.
-  expect(pacing.reshuffle.droppedShare).toBeLessThanOrEqual(RESHUFFLE_DROP_CEILING);
-
+  // The easing itself, and the commit behind it. Same shape as the drag's pair above — but note
+  // that for a command turn these two are the *whole* of what is left. The drag has a paint
+  // count with a measured bad end behind it; this path does not, because taking the compositor
+  // layers away does not change an arrow-key turn's repaints at all
+  // (`COMMAND_PAINTS_PER_TURN_CEILING`). Below a jump, a command turn's smoothness is unwatched.
   expect(pacing.slide.jumps, "the slide jumped on every turn").toBeLessThan(pacing.turns);
   expect(pacing.reshuffle.jumps, "the commit jumped on every turn").toBeLessThan(pacing.turns);
 });

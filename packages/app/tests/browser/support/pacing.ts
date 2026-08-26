@@ -56,7 +56,12 @@ export interface FramePacing {
   readonly longest: number;
   /** How many intervals ran longer than one and a half frames — i.e. dropped at least one. */
   readonly dropped: number;
-  /** Those as a share of all intervals, 0 to 1. */
+  /**
+   * Those as a share of all intervals, 0 to 1. **Reported, not asserted on** — it says how many
+   * frames the machine felt like handing out, and the same code that drops none running alone
+   * drops all of them on an oversubscribed one, which is also what a turn laying out per frame
+   * looks like (issue #71). The repaint counts below are what guard that regression instead.
+   */
   readonly droppedShare: number;
   /**
    * How many intervals were long enough to read as a jump rather than as a dropped frame — see
@@ -69,6 +74,11 @@ export interface FramePacing {
    * this is here to catch: a segment holds *every* measured turn's intervals end to end, so a
    * turn that hitches once each time is six long intervals out of the drag's 138 — 4.3%, under
    * any percentile a benchmark would put a ceiling on.
+   *
+   * **It is harder to trip on a busy machine than a share is, not immune to one.** A machine
+   * that stalls for `JUMP_FACTOR` frames — about 233ms at 60Hz — once in every measured turn
+   * fails this, and the scheduler can do that. What it cannot do is fail it the way a share
+   * fails, where merely painting slower throughout is enough.
    */
   readonly jumps: number;
 }
