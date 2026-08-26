@@ -19,12 +19,31 @@
 # After sourcing, available are:
 #   ENGINE           podman or docker
 #   REPO_ROOT        the absolute path of the repo root
-#   IMAGE_NAME       the image name
-#   container_build  builds the image, then refuses to return unless it holds the working
-#                    directory (issue #185)
+#   IMAGE_NAME       the tag to build; the image's id once container_build has run
+#   container_build  builds the image, refuses to return unless it holds the working directory
+#                    (issue #185), and repoints IMAGE_NAME at the id it checked
 
-IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# One image per checkout, so two of them stop overwriting each other's tag.
+#
+# The name used to be `tidemarks-test` from everywhere on the machine, which cost two things.
+# Correctness, addressed by `container_build` pinning the image id below rather than by this name.
+# And work: a build from one checkout leaves every other checkout's tag pointing at an image that
+# is no longer theirs, so their next run rebuilds — the tags took turns rather than coexisting.
+#
+# Keyed on the checkout's directory name, so `podman images` still says which worktree an image
+# belongs to. Lowercased because a tag may not carry uppercase: a clone in `~/src/Tidemarks` would
+# otherwise fail every run with `repository name must be lowercase`, an error that never mentions
+# the directory.
+#
+# **Names can still collide** — two clones both called `tidemarks` is the realistic case, not two
+# worktrees. That costs the rebuilds above and nothing else, because what a run is pointed at is an
+# image id by then. `TIDEMARKS_TEST_IMAGE` is there for whoever wants to separate them anyway.
+#
+# What it costs: images accumulate rather than replace one another, so a deleted worktree leaves
+# one behind. Cleanup is in docs/development.md.
+IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test-$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]')}"
 
 # The requirement is that running the tests needs no root-equivalent access, and **podman is the
 # shortest way to meet it** — run by a non-root user it is rootless already, with nothing to
@@ -260,4 +279,19 @@ container_build() {
 
     echo "==> checking ${IMAGE_NAME} holds this working directory"
     container_verify_source
+
+    # From here on the caller is pointed at an image id, not at the tag it just checked.
+    #
+    # Everything above proves a property of an *image*; a tag is a machine-wide mutable name that
+    # happens to point at one right now. The runs come minutes later, and anything that builds the
+    # same name in between — another checkout, another terminal in this one — moves the name and
+    # leaves the run reporting on code nobody here has: green, with no sign of it in the output.
+    # Measured, before the name became per-checkout: two parallel runs, one of which read back a
+    # spec name and line number belonging to the other.
+    #
+    # An id cannot be moved, so the window closes rather than narrowing. Which also means the tag
+    # above is now a convenience for reading `podman images` rather than something correctness
+    # rests on, and hand-run containers are the case left over: `podman run … tidemarks-test-<dir>`
+    # out of docs/agents/flaky.md resolves the name again, every time.
+    IMAGE_NAME="$("$ENGINE" image inspect --format '{{.Id}}' "$IMAGE_NAME")"
 }
