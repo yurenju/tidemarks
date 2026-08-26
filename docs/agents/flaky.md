@@ -207,7 +207,22 @@ flaky 這類工作要修的病往往正是「斷言斷到了機器的性質」�
 與比對（引擎照 `scripts/container.sh` 的順序，podman 優先、docker 是 fallback，兩個的參數在這裡一樣）：
 
 ```bash
-podman run --rm --init tidemarks-test npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
+podman run --rm --init "tidemarks-test-$(basename "$PWD")" npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
+```
+
+⚠️ **映像名一定要帶目錄名，不要寫死 `tidemarks-test`。** 一個 checkout 一個映像是 `scripts/container.sh`
+的預設，理由寫在那裡。
+
+⚠️ **而且這一段是唯一還在用名字的地方，所以它是唯一還會中的地方。** `test-in-container.sh` 比對完之後
+就改用 image id，id 搬不走；你手動下的 `podman run` 每一趟都重新解析一次那個名字。所以只要同一個
+checkout 裡有另一個 terminal（或另一個 agent）跑了 `test-in-container.sh`，你這個重複幾十次的迴圈
+**會從中間某一趟開始跑另一份 build**，而輸出不會有任何徵兆。查 flake 的時候這件事特別致命——你正在
+數的是紅幾次，而那個比例可能跨了兩份 code。
+
+要釘死就先把 id 抓下來，之後對 id 下指令：
+
+```bash
+IMG=$(podman image inspect --format '{{.Id}}' "tidemarks-test-$(basename "$PWD")")
 ```
 
 frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh` 的註解。
@@ -218,7 +233,7 @@ frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh
 原樣，另一邊把改過的檔案 bind-mount 進去，第二邊的成本是 0 秒。
 
 ```sh
-podman run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" tidemarks-test …
+podman run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" "tidemarks-test-$(basename "$PWD")" …
 ```
 
 ⚠️ **前提是那個映像裡沒有你的修法。** 上一段叫你先跑一次 `test-in-container.sh`，而那一趟會把映像
