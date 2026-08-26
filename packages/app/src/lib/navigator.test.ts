@@ -1,23 +1,9 @@
-// Which way is forward, and when a press is not a page turn at all: the direction a book
-// declares or reveals, the edge a page arrives from, and what is left of a release. Arithmetic
-// over a fake pager — the same turns made by a real finger are
+// Which way is forward: the direction a book declares or reveals, which page a left/right input
+// asks for, and which edge a page arrives from. Arithmetic only — how a run of pointer events
+// adds up to one of these is gesture.test.ts, and the same turns made by a real finger are
 // packages/app/tests/browser/reader/drag.spec.ts and tap.spec.ts.
-//
-// The `pager.next` / `pager.prev` spies below are not the mock-was-called shape that
-// docs/agents/testing.md says to delete: the pager is this module's output boundary, so which
-// of the two was called is the result, not the path taken to it. Deciding between them is the
-// whole job.
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createDirection, createNavigator } from "./navigator";
-import type { Pager } from "./navigator";
-
-// Two methods is the whole fake now. The section-crossing cases this file used to carry —
-// "at the end of a vertical section, walk to the next spine item" and the scroll-state
-// arithmetic underneath them — are gone because frond's next()/previous() cross sections
-// themselves.
-function fakePager(): Pager {
-  return { next: vi.fn(), prev: vi.fn() };
-}
 
 describe("Turn direction — one answer per book, not per section", () => {
   it("takes the direction the book declares", () => {
@@ -73,43 +59,29 @@ describe("Turn direction — one answer per book, not per section", () => {
 });
 
 describe("Navigator direction inversion (single source of truth)", () => {
+  // It answers rather than acts: the turn itself is played out by whoever asked, which is what
+  // lets one place decide that any turn also puts the chrome away (`lib/gesture.ts`).
   it("horizontal book: left = prev, right = next", () => {
-    const pager = fakePager();
-    const nav = createNavigator(pager, { rtl: false });
-    nav.onSide("left");
-    expect(pager.prev).toHaveBeenCalledOnce();
-    nav.onSide("right");
-    expect(pager.next).toHaveBeenCalledOnce();
+    const nav = createNavigator({ rtl: false });
+    expect(nav.onSide("left")).toBe("prev");
+    expect(nav.onSide("right")).toBe("next");
   });
 
   it("vertical book opens right-to-left: left = next, right = prev", () => {
-    const pager = fakePager();
-    const nav = createNavigator(pager, { rtl: true });
-    nav.onSide("left");
-    expect(pager.next).toHaveBeenCalledOnce();
-    nav.onSide("right");
-    expect(pager.prev).toHaveBeenCalledOnce();
-  });
-
-  it("next() and prev() are the un-inverted pair, for callers that already know", () => {
-    // The Scrubber and the notes sheet jump; only physical input needs inverting.
-    const pager = fakePager();
-    const nav = createNavigator(pager, { rtl: true });
-    nav.next();
-    expect(pager.next).toHaveBeenCalledOnce();
-    nav.prev();
-    expect(pager.prev).toHaveBeenCalledOnce();
+    const nav = createNavigator({ rtl: true });
+    expect(nav.onSide("left")).toBe("next");
+    expect(nav.onSide("right")).toBe("prev");
   });
 });
 
 describe("Navigator drag direction (the one place the book's direction is applied)", () => {
   it("a leftward drag on a horizontal book asks for the next page, and it comes in from the right", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
+    const nav = createNavigator({ rtl: false });
     expect(nav.dragTowards(-40)).toEqual({ towards: "next", from: "right" });
   });
 
   it("a rightward drag on the same book asks for the previous one, from the left", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
+    const nav = createNavigator({ rtl: false });
     expect(nav.dragTowards(40)).toEqual({ towards: "prev", from: "left" });
   });
 
@@ -117,7 +89,7 @@ describe("Navigator drag direction (the one place the book's direction is applie
     // The half that trips people: the edge is geometry (the page follows the finger, so it
     // arrives from behind the finger) and only the identity of the page is the book's to
     // decide. Inverting both would bring the next page in from the side it is leaving towards.
-    const nav = createNavigator(fakePager(), { rtl: true });
+    const nav = createNavigator({ rtl: true });
     expect(nav.dragTowards(-40)).toEqual({ towards: "prev", from: "right" });
     expect(nav.dragTowards(40)).toEqual({ towards: "next", from: "left" });
   });
@@ -125,13 +97,13 @@ describe("Navigator drag direction (the one place the book's direction is applie
 
 describe("Navigator commanded turns (a button or a key, with no finger to take the edge from)", () => {
   it("a left-opening book brings its next page in from the right", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
+    const nav = createNavigator({ rtl: false });
     expect(nav.edgeFor("next")).toBe("right");
     expect(nav.edgeFor("prev")).toBe("left");
   });
 
   it("and a right-opening book brings it in from the left", () => {
-    const nav = createNavigator(fakePager(), { rtl: true });
+    const nav = createNavigator({ rtl: true });
     expect(nav.edgeFor("next")).toBe("left");
     expect(nav.edgeFor("prev")).toBe("right");
   });
@@ -141,95 +113,10 @@ describe("Navigator commanded turns (a button or a key, with no finger to take t
     // direction — and a reader who turns forward by hand and then by button must not see the
     // page arrive from two different sides. In a left-opening book the forward drag is leftward.
     for (const rtl of [false, true]) {
-      const nav = createNavigator(fakePager(), { rtl });
+      const nav = createNavigator({ rtl });
       const forward = nav.dragTowards(rtl ? 40 : -40);
       expect(forward.towards).toBe("next");
       expect(nav.edgeFor("next")).toBe(forward.from);
     }
-  });
-});
-
-describe("Navigator pointer end (what is left of a press that was not a drag)", () => {
-  it("a tap is the caller's to spend, wherever it landed", () => {
-    // No zones any more (ADR-0024): tapping does not turn pages, so where the finger came down
-    // decides nothing. What the caller spends it on is the chrome.
-    const pager = fakePager();
-    const nav = createNavigator(pager, { rtl: false });
-
-    expect(nav.onPointerEnd({ dx: 2, dy: 2, ms: 90, isLink: false })).toEqual({
-      tap: true,
-      unclaimed: true,
-    });
-    expect(pager.next).not.toHaveBeenCalled();
-    expect(pager.prev).not.toHaveBeenCalled();
-  });
-
-  it("a tap on a link belongs to the link", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.onPointerEnd({ dx: 2, dy: 2, ms: 90, isLink: true })).toEqual({
-      tap: true,
-      unclaimed: false,
-    });
-  });
-
-  it("a press that travelled is not a tap, and the release has nothing left to decide", () => {
-    // It was a drag, and the page it turned was turned while the finger was still down
-    // (`beginTurn`). What must not happen here is a second turn on top of it.
-    const pager = fakePager();
-    const nav = createNavigator(pager, { rtl: false });
-
-    expect(nav.onPointerEnd({ dx: -90, dy: 0, ms: 200, isLink: false })).toEqual({
-      tap: false,
-      unclaimed: false,
-    });
-    expect(pager.next).not.toHaveBeenCalled();
-    expect(pager.prev).not.toHaveBeenCalled();
-  });
-
-  it("a press held past the long-press threshold is not a tap either", () => {
-    // Half a second of holding still is where both phone platforms start selecting text. The
-    // reader is choosing a passage, not asking for the interface — which is why this one is
-    // not unclaimed.
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.onPointerEnd({ dx: 1, dy: 1, ms: 900, isLink: false })).toEqual({
-      tap: false,
-      unclaimed: false,
-    });
-  });
-});
-
-describe("Navigator press start (whose tap this is)", () => {
-  // The press has only landed; the gesture is still unknown. The one question at this
-  // moment is whether the browser should be stopped from acting on it as a tap of its own —
-  // Chrome for Android otherwise selects a word out of a plain tap and raises a search bar
-  // over the book, and that bar cannot be taken back down afterwards (#36).
-  const press = {
-    pointerType: "touch",
-    isLink: false,
-  };
-
-  it("a finger landing on the page loses the browser's tap, wherever it landed", () => {
-    // Where used to be the third condition, back when the middle band turned nothing and so
-    // had nothing to protect. Both halves turn a page now, so every press has something.
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.preventsTapDefault(press)).toBe(true);
-  });
-
-  it("a mouse is left alone: its click turns no page, and it has no tap to cancel", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.preventsTapDefault({ ...press, pointerType: "mouse" })).toBe(false);
-  });
-
-  it("a stylus is a finger here too", () => {
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.preventsTapDefault({ ...press, pointerType: "pen" })).toBe(true);
-  });
-
-  it("a press on a link is left alone, or the footnote under it stops opening", () => {
-    // The condition carrying the most weight, and more so now that it is one of only two:
-    // cancelling the tap takes its `click` away, and the click is how frond recognises a
-    // link. Answering true here would leave every footnote marker in the book dead.
-    const nav = createNavigator(fakePager(), { rtl: false });
-    expect(nav.preventsTapDefault({ ...press, isLink: true })).toBe(false);
   });
 });
