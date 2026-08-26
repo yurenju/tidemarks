@@ -1,10 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { currentlyReading, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
 import { markVar } from "../lib/highlights";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
+import { pickBatch, relativeAge, restoreBatch, localDay, type RelativeAge } from "../lib/revisit";
+import { loadStoredBatch, noteShown, saveStoredBatch } from "../lib/revisit-store";
 import { shelfProjection, type Shelf } from "../lib/shelf";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
@@ -18,7 +22,12 @@ export default function Library({
   onOpenAbout,
   reloadToken,
 }: {
-  onOpen: (bookId: string) => void;
+  /**
+   * `cfiRange` when the reader asked for one passage in particular — a card on the shelf. The
+   * book opens there instead of at the position it was left at, which is somewhere else
+   * entirely once they have read on past it.
+   */
+  onOpen: (bookId: string, cfiRange?: string) => void;
   onOpenSettings: () => void;
   onOpenAbout: (bookId: string) => void;
   /** Changes when something outside the shelf wrote to the same rows — a restored backup. */
@@ -34,18 +43,32 @@ export default function Library({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  /**
+   * Today's five, held as ids rather than rows.
+   *
+   * The rows are looked up out of `shelf.marks` on every render, so a note written on a card
+   * shows up on it without the batch being drawn again — and being drawn again is exactly what
+   * must not happen while the reader is part-way through the five. `null` means not yet drawn
+   * this visit, which is different from an empty batch.
+   */
+  const [batchIds, setBatchIds] = useState<string[] | null>(null);
 
   // Ordering happens below, in `sortShelf`, so the query no longer asks for one: the default
   // order reads `progress` as well as `books`, which no single Dexie index can answer. What the
   // four tables mean once they are here is `shelf.ts`.
-  async function reload() {
+  async function reload(): Promise<Shelf> {
     const [books, progress, sessions, annotations] = await Promise.all([
       db.books.toArray(),
       db.progress.toArray(),
       db.readingSessions.toArray(),
       db.annotations.toArray(),
     ]);
-    setShelf(shelfProjection({ books, progress, sessions, annotations }));
+    const next = shelfProjection({ books, progress, sessions, annotations });
+    setShelf(next);
+    // Handed back as well as set, because a draw needs the rows *now*: `lastShownAt` was
+    // written to Dexie while the reader flicked through the last five, and state here is a
+    // render behind. Drawing from what is in state would deal the same five again.
+    return next;
   }
 
   /** The note on one marked passage, written from the shelf rather than from inside the book. */
@@ -63,6 +86,53 @@ export default function Library({
       if (s.status === "synced") reload();
     });
   }, [reloadToken]);
+
+  /**
+   * Today's five: the ones already drawn today if there are any, and a fresh draw if not.
+   *
+   * Held to for the rest of the day on purpose. The reader may not be able to say yet why a
+   * passage stayed with them, and a card that changed under them every time they came back to
+   * the shelf would never give them the chance to.
+   */
+  useEffect(() => {
+    if (batchIds !== null || shelf.marks.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const kept = restoreBatch(await loadStoredBatch(), shelf.marks, localDay(Date.now()));
+      if (cancelled) return;
+      if (kept) {
+        setBatchIds(kept.map((m) => m.id));
+        return;
+      }
+      const drawn = pickBatch(shelf.marks);
+      await saveStoredBatch(drawn, Date.now());
+      if (!cancelled) setBatchIds(drawn.map((m) => m.id));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shelf.marks, batchIds]);
+
+  /** The reader asking for another five. Not a way to clear the ones showing — see `MarkCard`. */
+  async function repick() {
+    const fresh = await reload();
+    const drawn = pickBatch(fresh.marks);
+    await saveStoredBatch(drawn, Date.now());
+    setBatchIds(drawn.map((m) => m.id));
+  }
+
+  // Stable, because the card records a viewing from an effect keyed on which passage is showing:
+  // a new function every render would record one on every render instead.
+  const markShown = useCallback((id: string) => {
+    void noteShown(id, Date.now()).then(() => scheduleSync());
+  }, []);
+
+  const marksById = new Map(shelf.marks.map((m) => [m.id, m]));
+  // A mark can go between the draw and the render — deleted, or its book was. Dropping it is
+  // not a reason to redraw the other four.
+  const batch = (batchIds ?? [])
+    .map((id) => marksById.get(id))
+    .filter((m): m is Annotation => m !== undefined);
 
   const { t, i18n } = useLingui();
 
@@ -194,7 +264,22 @@ export default function Library({
         // because two blocks stacked in one column is itself the claim that they go together.
         <div className="shelf">
           {shelf.marks.length > 0 ? (
-            <MarkCard marks={shelf.marks} books={byId} onNote={saveNote} />
+            // Nothing at all until the draw comes back, rather than a placeholder card: it is
+            // one read of Dexie away, and a card that changes what it says a moment after it
+            // appears is worse than one that appears a moment later.
+            batch.length > 0 && (
+              <MarkCard
+                // A new batch is a new card, so it arrives at the first of five with nothing
+                // left over from the last five — no half-written note, no position part-way in.
+                key={batch.map((m) => m.id).join()}
+                batch={batch}
+                books={byId}
+                onNote={saveNote}
+                onShown={markShown}
+                onRepick={repick}
+                onOpenPassage={onOpen}
+              />
+            )
           ) : (
             <p className="empty" data-testid="marks-empty">
               <Trans comment="Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.">
@@ -251,46 +336,72 @@ function useCoverUrl(cover: Blob | null): string | null {
 }
 
 /**
- * One marked passage at a time, with a way back and forward through the rest.
+ * The day's five marked passages, one at a time, with a way through the rest of them.
  *
  * **This is the shelf's main block**, and it is here because a marked passage otherwise only
  * exists inside the book it came from: the notes panel shows one book's marks and only while
  * that book is open, so a sentence the reader thought worth keeping was never in front of them
  * again unless they went back for it.
  *
- * One at a time rather than three across, and that is a layout decision rather than a
- * preference: three columns show at a glance that the passages come from different books, and
- * they cut each passage to a third of the width, which a long one does not survive.
+ * ⚠️ **Five drawn by `revisit.ts`, not the five most recent.** The passages that most need to
+ * come back are the ones the reader has forgotten, and those are the oldest — a list that began
+ * at the newest put them at the far end, past a dozen presses nobody makes. What is on screen
+ * is the front of a queue ordered by how long ago the card last showed each one, which is also
+ * why a passage marked this morning arrives here tomorrow: it has never been shown at all.
+ *
+ * One at a time rather than five across, and that is a layout decision rather than a
+ * preference: five columns show at a glance that the passages come from different books, and
+ * they cut each passage to a fifth of the width, which a long one does not survive.
  *
  * **The source carries the same weight as a title on this screen.** The cover and the bold
  * title are what keep the passage attached to the book it is from — a small grey line of
  * attribution beside a larger title elsewhere on the screen hands the sentence to the wrong
  * book, and the reader has no way to know.
+ *
+ * **Two kinds of press, and the words say which is which**: the book's own words go back to the
+ * book, and the reader's own note opens for writing. A card with one target would have to give
+ * up one of them, and both are the point — the passage is here to be reached again, and the
+ * thought it raises is worth catching while it is there.
  */
 function MarkCard({
-  marks,
+  batch,
   books,
   onNote,
+  onShown,
+  onRepick,
+  onOpenPassage,
 }: {
-  marks: Annotation[];
+  batch: Annotation[];
   books: Map<string, BookRecord>;
   onNote: (id: string, note: string) => void;
+  onShown: (id: string) => void;
+  onRepick: () => void;
+  onOpenPassage: (bookId: string, cfiRange: string) => void;
 }) {
-  const { t } = useLingui();
-  // Where in the list, counted without a bound: the modulo below turns it into a position, so
-  // walking off either end comes back round rather than stopping. Wrapping is a placeholder for
-  // a decision that needs a shelf with more marks on it than this one has to make.
+  const { t, i18n } = useLingui();
   const [at, setAt] = useState(0);
   // Which mark is open for writing, rather than a bare flag: the flag would follow the reader
   // onto the next card and open its note as well.
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const index = ((at % marks.length) + marks.length) % marks.length;
-  // In range by construction — the modulo above says so, and the caller renders an empty line
-  // instead of this card when there is nothing to show.
-  const mark = marks[index]!;
+  // In range by construction — `at` is only ever moved by `step`, and the caller renders an
+  // empty line instead of this card when the batch is empty.
+  const index = Math.min(at, batch.length - 1);
+  const mark = batch[index]!;
   const book = books.get(mark.bookId);
   const coverUrl = useCoverUrl(book?.cover ?? null);
+
+  // **Reaching a card is what counts as having seen it, not being dealt one.** Stamping all
+  // five when the batch is drawn buries the four the reader never flicked to: they would sit at
+  // the back of the queue for a full round having never been in front of anyone. This way an
+  // unreached passage is still owed a turn, and comes back tomorrow.
+  useEffect(() => {
+    onShown(mark.id);
+  }, [mark.id, onShown]);
+
+  // No wrapping. The batch is five and it has two ends, and an arrow that comes back round
+  // makes those ends unfindable — the reader cannot tell a full circuit from a stuck card.
+  const step = (d: number) => setAt(Math.min(Math.max(index + d, 0), batch.length - 1));
 
   const notePlaceholder = t({
     message: "What did this make you think?",
@@ -304,21 +415,44 @@ function MarkCard({
       data-testid="mark-card"
       data-mark-id={mark.id}
       style={{ borderLeftColor: markVar(mark.color) }}
+      {...useFlick(step)}
+      // Arrows turn the card too, but only once focus is inside it — bound here rather than on
+      // the window so they still mean what they always mean everywhere else on the shelf. The
+      // note box is excluded along with the flick: inside it an arrow moves the caret.
+      onKeyDown={(e) => {
+        if (isWriting(e.target)) return;
+        if (e.key === "ArrowLeft") step(-1);
+        else if (e.key === "ArrowRight") step(1);
+      }}
     >
       <p className="mark-source">
-        <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
-        <strong data-testid="mark-book">{book?.title}</strong>
+        {/* Cover and title together, and pressable together: they are the book's own name, so
+            they lead back to the book like the passage below them does. The age beside them is
+            the interface talking and stays out of it. */}
+        <button
+          className="mark-source-link"
+          data-testid="mark-source-link"
+          onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+        >
+          <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
+          <strong data-testid="mark-book">{book?.title}</strong>
+        </button>
+        <span className="mark-when" data-testid="mark-when">
+          {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
+        </span>
       </p>
       {/* The book's own words, so the reader's own line-length ceiling applies — the same
           number the page they marked it on was set to, read off `line-length.ts` rather than
-          written out here. */}
-      <blockquote
+          written out here. Pressing it goes back to where it came from, which the saved
+          position cannot do: that is where they stopped reading, not where this is. */}
+      <button
         className="mark-quote"
         data-testid="mark-quote"
         style={{ maxWidth: `${LINE_LENGTH[detectScript(mark.text)].ceiling}em` }}
+        onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
       >
         {mark.text}
-      </blockquote>
+      </button>
       {editingId === mark.id || mark.note === "" ? (
         // Keyed on the mark, so flipping to the next card brings that card's note rather than
         // the text left in the box. Committed on the way out: there is no Save here, because
@@ -344,37 +478,159 @@ function MarkCard({
       <div className="mark-nav">
         <button
           className="ghost"
-          onClick={() => setAt(at - 1)}
+          disabled={index === 0}
+          onClick={() => step(-1)}
           aria-label={t({
             message: "Previous passage",
             comment:
-              "Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage marked after this one. 'Passage' is a stretch of the book the reader marked.",
+              "Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage before this one in today's five. 'Passage' is a stretch of the book the reader marked.",
           })}
         >
           ‹
         </button>
         <span className="mark-count" data-testid="mark-count">
           {t({
-            message: `${{ position: index + 1 }} of ${{ total: marks.length }}`,
+            message: `${{ position: index + 1 }} of ${{ total: batch.length }}`,
             comment:
-              "Where the reader is in their marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many there are.",
+              "Where the reader is in today's marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many were drawn for today.",
           })}
         </span>
         <button
           className="ghost"
-          onClick={() => setAt(at + 1)}
+          disabled={index === batch.length - 1}
+          onClick={() => step(1)}
           aria-label={t({
             message: "Next passage",
             comment:
-              "Screen-reader name for the › button on the shelf's card, which steps on to the passage marked before this one. 'Passage' is a stretch of the book the reader marked.",
+              "Screen-reader name for the › button on the shelf's card, which steps on to the next passage in today's five. 'Passage' is a stretch of the book the reader marked.",
           })}
         >
           ›
+        </button>
+        {/* **A way to ask for more, and deliberately not a way to clear these away.** Anything
+            that can be emptied becomes a thing owed, and a reader who falls behind on it starts
+            avoiding the screen it lives on. Pressing this is the reader asking; not pressing it
+            costs them nothing and leaves nothing behind. */}
+        {/* No resetting the position from in here. The draw is a read of Dexie away, so doing
+            it on the press would step back to the first of the *old* five and swap them out a
+            moment later; the card is keyed on the batch instead, and arrives already at one. */}
+        <button className="mark-repick" data-testid="mark-repick" onClick={onRepick}>
+          <Trans comment="Button at the foot of the shelf's card, beside the ‹ › arrows and the position counter. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row with the arrows on a phone.">
+            Another five
+          </Trans>
         </button>
       </div>
     </section>
   );
 }
+
+/**
+ * Turning the card with a thumb: a flick past the slop, in either direction along the row.
+ *
+ * `TAP_SLOP_PX` rather than a number of its own, because the question is the one the book asks
+ * too — has this press become a drag — and two answers to it would let a movement be a flick
+ * here and a tap there. Vertical travel is left alone entirely: the shelf scrolls, and a card
+ * that claimed downward drags would stop it.
+ *
+ * ⚠️ **Not while the reader is in the note box.** These are bound to the whole card so a flick
+ * can start anywhere on it, and dragging sideways across a note to select a few words is
+ * exactly the shape of a flick — without this the card would turn out from under someone
+ * mid-sentence, taking the box and the words in it along.
+ */
+function useFlick(step: (d: number) => void) {
+  const from = useRef<{ x: number; y: number } | null>(null);
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      from.current = isWriting(e.target) ? null : { x: e.clientX, y: e.clientY };
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      const start = from.current;
+      from.current = null;
+      if (!start || isWriting(e.target)) return;
+      const dx = e.clientX - start.x;
+      // A drag that went further down the page than along it was a scroll that happened to
+      // begin on the card.
+      if (Math.abs(dx) <= FLICK_MIN_PX || Math.abs(dx) <= Math.abs(e.clientY - start.y)) return;
+      step(dx < 0 ? 1 : -1);
+    },
+  };
+}
+
+/** Whether this event landed in the note box, where a sideways drag and an arrow are the reader's. */
+function isWriting(target: EventTarget | null): boolean {
+  return target instanceof HTMLTextAreaElement;
+}
+
+/**
+ * How far a thumb travels before the card turns.
+ *
+ * Larger than `TAP_SLOP_PX`, which is the point where a press stops being a tap: between the
+ * two, a movement is neither — not a press on the quote (which would leave the shelf) and not
+ * yet a turn. That gap is deliberate, because both of the things it sits between are wrong to
+ * do by accident.
+ */
+const FLICK_MIN_PX = 40;
+
+/**
+ * The words for each rung of `relativeAge`.
+ *
+ * Descriptors declared out here rather than `t({...})` calls inside the component, and that is
+ * forced rather than chosen: lingui's macro only rewrites its own `t`, so a helper handed one
+ * as an argument extracts nothing and the strings never reach a catalog. `Record<RelativeAge,
+ * ...>` keeps the exhaustiveness a `switch` would have given — a new rung fails to compile.
+ */
+const AGE_LABELS: Record<RelativeAge, MessageDescriptor> = {
+  justNow: msg({
+    message: "Just now",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.",
+  }),
+  today: msg({
+    message: "Today",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: earlier today.",
+  }),
+  yesterday: msg({
+    message: "Yesterday",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: the day before.",
+  }),
+  thisWeek: msg({
+    message: "This week",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: two to seven days back.",
+  }),
+  lastWeek: msg({
+    message: "Last week",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: one to two weeks back.",
+  }),
+  thisMonth: msg({
+    message: "This month",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: two to four weeks back.",
+  }),
+  lastMonth: msg({
+    message: "Last month",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: one to two months back.",
+  }),
+  thisYear: msg({
+    message: "This year",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: two months to a year back.",
+  }),
+  lastYear: msg({
+    message: "Last year",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: one to two years back.",
+  }),
+  longAgo: msg({
+    message: "Years ago",
+    comment:
+      "How long ago the reader marked the passage showing on the shelf's card: more than two years, the far end of the scale. Vague on purpose \u2014 past a certain distance the exact count stops meaning anything.",
+  }),
+};
 
 /**
  * The book the reader is in the middle of, as one row.

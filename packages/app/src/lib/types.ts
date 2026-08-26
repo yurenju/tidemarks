@@ -61,6 +61,21 @@ export interface Annotation {
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+  /**
+   * When the shelf's revisit card last put this passage in front of the reader.
+   *
+   * `null` (or missing, on a row written before this field existed) means it never has, and
+   * `revisit.ts` reads that as the front of the queue rather than the back — a passage marked
+   * this morning and a passage imported from years ago are both unseen, and both are owed a
+   * turn before anything the card has already shown.
+   *
+   * ⚠️ **Showing a card does not touch `updatedAt`, and this field does not merge with the
+   * rest of the row.** Annotations are last-write-wins on `updatedAt`, so if looking at a card
+   * counted as a write, opening the shelf on one device would beat a note written on another.
+   * `mergeAnnotation` takes the later of the two `lastShownAt` values independently of who won
+   * the row; seeing is monotonic, so the later one is always right.
+   */
+  lastShownAt?: number | null;
   dirtyAt?: number;
 }
 

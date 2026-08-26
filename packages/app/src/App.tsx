@@ -38,6 +38,15 @@ export default function App() {
   // Bumped to make the shelf re-read storage after a backup lands on top of it.
   const [reloadToken, setReloadToken] = useState(0);
   /**
+   * The passage the reader tapped on the shelf's card, on its way to the book it is from.
+   *
+   * Here rather than in the hash because it is not an address: it says how this book was
+   * reached, not where the reader is, and it is spent the moment the book lays out. Putting it
+   * in the route would make a reload land back on the passage rather than where they had read
+   * on to, and would leave a stale one on every link they shared.
+   */
+  const [openAt, setOpenAt] = useState<{ bookId: string; cfiRange: string } | null>(null);
+  /**
    * The interface language, already chosen and activated before this component existed
    * (`main.tsx`). Held here only so that changing it re-renders — Lingui itself is the store.
    */
@@ -52,6 +61,13 @@ export default function App() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  // A passage tapped on the shelf is spent as soon as the reader leaves that book. Without
+  // this, opening the same book later — off the wall, or with the back button — would land
+  // them on the passage again instead of where they had actually read on to.
+  useEffect(() => {
+    if (openAt !== null && openAt.bookId !== bookId) setOpenAt(null);
+  }, [bookId, openAt]);
 
   // The theme, and the one piece of it that lives outside the stylesheet: the colour the
   // platform paints its own system bar in. That bar sits directly above the reader's top bar,
@@ -209,6 +225,7 @@ export default function App() {
       ) : bookId ? (
         <Reader
           bookId={bookId}
+          openAt={openAt?.bookId === bookId ? openAt.cfiRange : undefined}
           onClose={() => goTo({ kind: "shelf" })}
           onOpenAbout={() => openDrawer({ kind: "about", bookId })}
           settings={settings}
@@ -219,7 +236,10 @@ export default function App() {
       ) : (
         <Library
           reloadToken={reloadToken}
-          onOpen={(id) => goTo({ kind: "book", bookId: id })}
+          onOpen={(id, cfiRange) => {
+            setOpenAt(cfiRange ? { bookId: id, cfiRange } : null);
+            goTo({ kind: "book", bookId: id });
+          }}
           onOpenSettings={() => goTo({ kind: "settings", tab: "typography" })}
           onOpenAbout={(id) => openDrawer({ kind: "about", bookId: id })}
         />

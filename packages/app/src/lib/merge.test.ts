@@ -90,6 +90,55 @@ describe("mergeAnnotation (LWW by updatedAt, tombstone)", () => {
   });
 });
 
+// The shelf's card stamps `lastShownAt` without touching `updatedAt`, so the two halves of an
+// annotation are written on different devices at different moments. Plain LWW would let one
+// erase the other, and which one would depend on the order sync happened to run in.
+describe("mergeAnnotation (lastShownAt merges on its own)", () => {
+  it("keeps a note written here and a viewing recorded elsewhere", () => {
+    const local = ann({ note: "what I thought", updatedAt: 300 });
+    const remote = ann({ note: "", updatedAt: 100, lastShownAt: 900 });
+    const merged = mergeAnnotation(local, remote);
+    expect(merged.note).toBe("what I thought");
+    expect(merged.lastShownAt).toBe(900);
+  });
+
+  it("keeps a viewing recorded here when the remote row wins", () => {
+    const local = ann({ updatedAt: 100, lastShownAt: 900 });
+    const remote = ann({ note: "theirs", updatedAt: 300 });
+    const merged = mergeAnnotation(local, remote);
+    expect(merged.note).toBe("theirs");
+    expect(merged.lastShownAt).toBe(900);
+  });
+
+  it("takes the later of two viewings", () => {
+    const local = ann({ updatedAt: 100, lastShownAt: 500 });
+    const remote = ann({ updatedAt: 100, lastShownAt: 200 });
+    expect(mergeAnnotation(local, remote).lastShownAt).toBe(500);
+  });
+
+  it("leaves a passage the card has never shown without the field", () => {
+    expect(mergeAnnotation(ann({}), ann({})).lastShownAt).toBeUndefined();
+  });
+
+  it("takes the remote viewing when there is no local copy at all", () => {
+    expect(mergeAnnotation(undefined, ann({ lastShownAt: 700 })).lastShownAt).toBe(700);
+  });
+
+  // Both sides of sync ask "did this produce anything new" by identity. A merge that built a
+  // fresh object every time would answer yes forever, and every already-seen passage would be
+  // rewritten on every round — the server stamping `updated_at = now` as it went, which sends
+  // every other device off to fetch a row that has not changed.
+  it("hands back the winner itself when the viewing is already on it", () => {
+    const local = ann({ updatedAt: 300, lastShownAt: 900 });
+    const remote = ann({ updatedAt: 100, lastShownAt: 400 });
+    expect(mergeAnnotation(local, remote)).toBe(local);
+
+    const older = ann({ updatedAt: 100, lastShownAt: 400 });
+    const newer = ann({ updatedAt: 300, lastShownAt: 900 });
+    expect(mergeAnnotation(older, newer)).toBe(newer);
+  });
+});
+
 describe("mergeBook (LWW by updatedAt, tombstone)", () => {
   it("a locally deleted book is not resurrected by an older remote copy", () => {
     const local = book({ updatedAt: 200, deletedAt: 200 });

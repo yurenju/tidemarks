@@ -1,9 +1,16 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { Annotation, BookRecord, Progress, ReadingSession } from "./types";
 
+/**
+ * The odds and ends that belong to this device rather than to the reader.
+ *
+ * `value` is a number or a string because the two things in here are: the sync cursor is a
+ * timestamp, and the day's revisit batch is JSON. Nothing in this table syncs — the schema is
+ * keyed on `key` alone, so a new kind of value needs no version of its own.
+ */
 export interface MetaRow {
   key: string;
-  value: number;
+  value: number | string;
 }
 
 /**
@@ -62,7 +69,8 @@ db.version(3).stores({
 });
 
 export async function getSyncCursor(): Promise<number> {
-  return (await db.meta.get("syncCursor"))?.value ?? 0;
+  const stored = (await db.meta.get("syncCursor"))?.value;
+  return typeof stored === "number" ? stored : 0;
 }
 
 export async function setSyncCursor(value: number): Promise<void> {

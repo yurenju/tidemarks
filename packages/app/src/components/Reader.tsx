@@ -270,6 +270,7 @@ async function readAnnotations(bookId: string): Promise<Annotation[]> {
 
 export default function Reader({
   bookId,
+  openAt,
   onClose,
   onOpenAbout,
   settings,
@@ -278,6 +279,19 @@ export default function Reader({
   resolvedTheme,
 }: {
   bookId: string;
+  /**
+   * Where to open, when the reader arrived asking for somewhere in particular.
+   *
+   * The shelf's revisit card is the one caller: tapping a passage there means "put me back
+   * where this came from", which the saved position cannot answer — it is wherever they stopped
+   * reading, and the passage may be a hundred pages behind it. Given to frond's `start` rather
+   * than jumped to after the first layout, so the page arrives already in the right place.
+   *
+   * `undefined` for every other way in, and the saved position stands. **It does not become the
+   * saved position**: opening a card is a visit, and the reader's place in the book is still
+   * where they left it until they turn a page.
+   */
+  openAt?: string;
   onClose: () => void;
   /** Opens 〈書的詳情〉 over the book (`#/book/<id>?d=about/<id>`). */
   onOpenAbout: () => void;
@@ -1121,7 +1135,10 @@ export default function Reader({
             { script: bookScript, rootFontSize: readRootFontSize() },
             facts,
           ),
-        ...(saved?.cfi ? { start: { cfi: saved.cfi } } : {}),
+        // A passage asked for from the shelf beats the saved position, and only for this
+        // layout: `positionRef` above still holds where the reader actually was, so the sitting
+        // and the next pull are measured against that and not against where they looked.
+        ...((openAt ?? saved?.cfi) ? { start: { cfi: (openAt ?? saved?.cfi)! } } : {}),
         on: {
           load: (event) => {
             setVerticalBook(event.writingMode === "vertical-rl");

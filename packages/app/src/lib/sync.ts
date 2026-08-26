@@ -3,7 +3,14 @@
 import { msg } from "@lingui/core/macro";
 import { i18n } from "./i18n";
 import { db, getSyncCursor, setSyncCursor } from "./db";
-import { clearableDirty, dedupeSessions, mergeAnnotation, mergeBook, mergeProgress } from "./merge";
+import {
+  annotationRowLost,
+  clearableDirty,
+  dedupeSessions,
+  mergeAnnotation,
+  mergeBook,
+  mergeProgress,
+} from "./merge";
 import { isEmptyPayload, syncPayload, toSyncBook, type SyncPayload } from "./sync-payload";
 import type { Progress, ReadingSession } from "./types";
 import { apiFetch } from "./api";
@@ -216,10 +223,18 @@ async function pull() {
       for (const ra of remote.annotations) {
         const local = await db.annotations.get(ra.id);
         const winner = mergeAnnotation(local, ra);
-        if (winner === ra) {
-          await db.annotations.put(ra);
-          markedBooks.add(ra.bookId);
-        }
+        // **Written and announced are two different questions**, because an annotation now has
+        // two halves that are settled apart from each other (`mergeAnnotation`).
+        //
+        // Written: anything the local row does not already say. Not `winner === ra` — a pull can
+        // lose the words and still carry a later viewing of them, and the merge then returns
+        // neither of its two arguments. When the local row won, the merge kept its `dirtyAt`
+        // with it, so it still goes up on the next push.
+        if (winner !== local) await db.annotations.put(winner);
+        // Announced: only when the words themselves changed. A subscriber wakes to re-read a
+        // whole book's marks and re-measure their rectangles, and a passage the shelf's card
+        // happened to show on another device looks no different on this one.
+        if (!annotationRowLost(local, ra)) markedBooks.add(ra.bookId);
       }
       const ids = new Set((await db.readingSessions.toCollection().primaryKeys()) as string[]);
       for (const rs of dedupeSessions(ids, remote.readingSessions as ReadingSession[])) {

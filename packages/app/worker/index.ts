@@ -127,6 +127,7 @@ interface AnnotationRow {
   client_updated_at: number;
   updated_at: number;
   deleted_at: number | null;
+  last_shown_at: number | null;
 }
 
 interface SessionRow {
@@ -162,6 +163,7 @@ function annotationToWire(r: AnnotationRow): Annotation {
     createdAt: r.created_at,
     updatedAt: r.client_updated_at,
     deletedAt: r.deleted_at,
+    lastShownAt: r.last_shown_at,
   };
 }
 
@@ -307,10 +309,13 @@ async function pushSync(request: Request, env: Env, userId: string): Promise<Res
   for (const a of plan.annotations) {
     statements.push(
       env.DB.prepare(
-        `INSERT INTO annotations (id, user_id, book_id, cfi_range, text, note, color, created_at, client_updated_at, updated_at, deleted_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        // `last_shown_at` only ever goes forward: `resolvePush` has already merged it, but a
+        // push that crossed with another device's would otherwise move it backwards here.
+        `INSERT INTO annotations (id, user_id, book_id, cfi_range, text, note, color, created_at, client_updated_at, updated_at, deleted_at, last_shown_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
          ON CONFLICT (user_id, id) DO UPDATE SET
-           note = ?6, color = ?7, client_updated_at = ?9, updated_at = ?10, deleted_at = ?11`,
+           note = ?6, color = ?7, client_updated_at = ?9, updated_at = ?10, deleted_at = ?11,
+           last_shown_at = NULLIF(MAX(COALESCE(last_shown_at, 0), COALESCE(?12, 0)), 0)`,
       ).bind(
         a.id,
         userId,
@@ -323,6 +328,7 @@ async function pushSync(request: Request, env: Env, userId: string): Promise<Res
         a.updatedAt,
         now,
         a.deletedAt,
+        a.lastShownAt ?? null,
       ),
     );
   }

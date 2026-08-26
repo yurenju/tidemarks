@@ -142,47 +142,109 @@
   object-fit: cover;
 }
 
-/* The book's words. `max-width` is set on the element in ems, from `lib/line-length.ts` — 40
-   for an ideographic book, 30 for a Latin one — so this rule carries the reading and not the
-   number. */
-.mark-quote {
+/* **The three things on this card that can be pressed, and none of them looks like a button.**
+   Two are the book's words and one is the reader's, so a fill and a border would make all three
+   read as controls parked on a passage. The button rules that suit a label are undone in one
+   place rather than three, because they are undone for one reason. */
+.mark-source-link,
+.mark-quote,
+.mark-note {
+  width: 100%;
   margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: start;
+  font-family: inherit;
+  min-height: 0;
+}
+
+.mark-source-link:hover,
+.mark-quote:hover,
+.mark-note:hover {
+  border: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-actionable);
+}
+
+/* The cover and the name, pressable together: they are the book saying which book it is, so
+   they lead back to it the way the passage below them does. `width` is given back, because this
+   one sits in a row beside the age rather than filling a line of its own. */
+.mark-source-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: inherit;
+}
+
+/* The book's words, and a way back to where they came from. `max-width` is set on the element
+   in ems, from `lib/line-length.ts` — 40 for an ideographic book, 30 for a Latin one — so this
+   rule carries the reading and not the number. */
+.mark-quote {
+  display: block;
+  white-space: pre-wrap;
   font-size: var(--type-body);
   line-height: var(--leading-text);
+  color: var(--text-body);
+
+  /* **Held open whether the passage fills it or not**, which is what keeps the card one height
+     while the reader flicks through the five. Why the count is what it is — and what it costs a
+     long poem — is on `--mark-quote-lines` in `tokens.css`. */
+  height: calc(var(--mark-quote-lines) * var(--leading-text) * 1em);
+  overflow: hidden;
+  /* The tail fades rather than stopping mid-stroke. Always on, and it costs a short passage
+     nothing: the text is at the top of a fixed box, so a three-line quote ends well above the
+     band this touches. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.2em), transparent 100%);
+}
+
+/* How long ago the reader marked it, at the far end of the source line. A distance rather than
+   a date, because reaching back for what they were thinking two months ago is what this card is
+   for, and "14 July" does not ask anyone to do that. `--font-control`, because it is the
+   interface talking rather than the book. */
+.mark-when {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* What the reader wrote, and the box they write it in. Same size and colour either way: the
    two are the same words at two moments, and a note that changes weight when it is opened
-   reads as two different things. */
+   reads as two different things.
+
+   **And the same height**, which is the other half of holding the card still: a passage that
+   has been written on and one that has not are the same shape, so flicking between them moves
+   nothing. */
 .mark-note,
 .mark-note-input {
   font-family: inherit;
   font-size: var(--type-ui);
   line-height: var(--leading-text);
   color: var(--text-muted);
+  height: calc(var(--mark-note-lines) * var(--leading-text) * 1em);
 }
 
-/* Prose that happens to be pressable, so the button rules that suit a label are undone: it
-   wraps, it fills the row, and it carries no fill of its own until a pointer is over it. */
+/* Clamped at the same count the box is tall, and nothing is lost by it — pressing opens the
+   box, and the box holds the whole note. */
 .mark-note {
-  display: block;
-  width: 100%;
-  border: none;
-  background: none;
-  padding: 0;
-  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--mark-note-lines);
+  overflow: hidden;
   white-space: normal;
-  min-height: 0;
-}
-
-.mark-note:hover {
-  border: none;
-  text-decoration: underline;
 }
 
 .mark-note-input {
-  min-height: 3rem;
-  resize: vertical;
+  /* No dragging it taller: the height of this box is what keeps the five cards one size, and a
+     reader who stretched it would have the card jump on the next flick. The whole note is
+     reachable by scrolling inside it. */
+  resize: none;
   padding: 0.4rem;
   background: var(--surface-page);
   border: 1px solid var(--line-actionable);
@@ -208,6 +270,31 @@
   font-family: var(--font-control);
   font-size: var(--type-note);
   color: var(--text-muted);
+  /* The counter changes on every flick and the arrows must not shift under the thumb when it
+     does — 1/5 and 5/5 are not the same width in a proportional face. */
+  font-variant-numeric: tabular-nums;
+  /* And it never breaks across two lines. On a phone the row is tight enough that "1 of 5"
+     wrapped to "1 of" over "5", which grew the row — and the row growing is the card growing,
+     which is the one thing this card is not allowed to do. */
+  white-space: nowrap;
+}
+
+/* Another five, at the far end of the row from the arrows. **It is the only control here that
+   adds anything, and there is deliberately none that takes anything away**: a card that could
+   be cleared would become a thing owed, and a reader behind on it starts avoiding the screen.
+   Quiet, because it is an offer rather than the thing to do next. */
+.mark-repick {
+  margin-inline-start: auto;
+  font-family: var(--font-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--line-actionable);
+  padding-inline: 0.75rem;
+  /* It gives way before the counter and the arrows do: those two are how the reader moves
+     through the five, and this is an offer. */
+  min-width: 0;
+  white-space: nowrap;
 }
 
 /* The book the reader is in the middle of: one row, carrying the one action on the screen.
