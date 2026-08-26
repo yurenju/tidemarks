@@ -45,6 +45,13 @@ import {
   type TurnFacts,
 } from "../lib/gesture";
 import { LONG_PRESS_MS } from "../lib/touch";
+import {
+  initialChrome,
+  isPanel,
+  nextChrome,
+  type ChromeEvent,
+  type PanelKind,
+} from "../lib/chrome";
 import { selectionEnds, type Point, type Rect, type SelectionEnds } from "../lib/selection-handles";
 import {
   BOUNCE_FRACTION,
@@ -83,25 +90,10 @@ import SelectionLayer from "./SelectionLayer";
 import Scrubber from "./Scrubber";
 
 /**
- * Which of the reader's three states is standing, and — when it is 〈找〉 — which panel is up.
- *
- * One value rather than a flag per layer, because **the states are exclusive and the exclusion
- * is the whole point** (CONTEXT.md 〈chrome〉). Five independent flags is what the reader used
- * to be, and none of them could answer "what is the reader doing right now"; a panel that
- * implies the bar it rose from cannot fall out of step with it if there is only one value to
- * be out of step.
- *
- * 〈標〉 is not in here. It is not this component's to enter: a selection arrives from frond, and
- * what it does to this value is put it back to `"down"`.
- */
-type Chrome = "down" | "up" | PanelKind;
-
-/** The three panels 〈找〉 can raise. A separate name so nothing can ask to "open the bar". */
-const PANEL_KINDS = ["toc", "notes", "layout"] as const;
-type PanelKind = (typeof PANEL_KINDS)[number];
-
-/**
  * What the one panel calls itself while it is showing each of the three.
+ *
+ * The state the three are is `lib/chrome.ts`'s; this is what they are *called*, which stays here
+ * because moving it would move a catalog entry into `lib/`.
  *
  * The `data-testid` is here rather than at the call site because it is the same question the
  * title answers — which of the three is up — and answering it twice is how the two drift apart.
@@ -134,17 +126,6 @@ const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string 
     testId: "panel-layout",
   },
 };
-
-/**
- * Whether one of the three is standing open — the one fact the *layout* turns on: on a desk the
- * book gives up a column to it, on a hand-held the entries and the Scrubber step aside for it.
- *
- * Written off the list rather than as a third spelling of the union. The type, the toggle and
- * this question all have to name the same three panels, and two of them can already only be
- * wrong together.
- */
-const isPanel = (chrome: Chrome): chrome is PanelKind =>
-  (PANEL_KINDS as readonly string[]).includes(chrome);
 
 // How long the applied/unavailable toast stays before it clears itself. Long enough to read a
 // short line, short enough not to sit over the page.
@@ -320,8 +301,16 @@ export default function Reader({
   // Named rather than read inline in the bar button, so the catalog carries `{markCount}`
   // instead of a bare `{0}` that says nothing to whoever translates it.
   const markCount = annotations.length;
-  const [chrome, setChrome] = useState<Chrome>("down");
+  /**
+   * Which of the reader's states is standing, which panel it last showed, and which note is being
+   * written. One value with one writer: `lib/chrome.ts` owns every rule about how it changes, and
+   * what is left here is naming the event that just happened (CONTEXT.md 〈chrome〉).
+   */
+  const [chromeState, setChromeState] = useState(initialChrome);
+  const { chrome, panelKind, editing: editingId } = chromeState;
   const chromeUp = chrome !== "down";
+  /** Hands one event to the chrome machine. */
+  const sendChrome = (event: ChromeEvent) => setChromeState((now) => nextChrome(now, event));
   /**
    * Where this device has the reader, as the last `relocate` left it.
    *
@@ -406,7 +395,6 @@ export default function Reader({
   // rather than a pair of numbers kept in step with the height of two bars — see `Panel`.
   const panelHostRef = useRef<HTMLDivElement>(null);
   const [toolbarPos, setToolbarPos] = useState<ToolbarPlacement | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [fraction, setFraction] = useState(0);
   // The Scrubber stays disabled until frond has built the whole-book index: before that
   // `fraction` is undefined and a jump to one cannot be resolved.
@@ -645,7 +633,7 @@ export default function Reader({
       if (!anchor || !ends) return;
 
       // 〈標〉 displaces 〈找〉, same as the browser-drawn route below.
-      setChrome("down");
+      sendChrome({ kind: "selectionArrived" });
       setSelection({
         cfiRange: facts.cfi,
         text: facts.text,
@@ -704,12 +692,10 @@ export default function Reader({
           commandTurn(intent.towards);
           return;
         case "lowerChrome":
-          setChrome("down");
+          sendChrome({ kind: "turned" });
           return;
         case "toggleChrome":
-          // One toggle, no timer: a chrome that withdraws on its own takes the table of contents
-          // away from a reader who was still reading it (ADR-0020).
-          setChrome((now) => (now === "down" ? "up" : "down"));
+          sendChrome({ kind: "tapped" });
           return;
         case "beginSelection": {
           const facts = rendererRef.current?.rangeFromPoints(intent.at, intent.at, "word");
@@ -743,8 +729,7 @@ export default function Reader({
           dropSelection();
           return;
         case "openNote":
-          setChrome("notes");
-          setEditingId(intent.annotationId);
+          sendChrome({ kind: "openNote", id: intent.annotationId });
           return;
       }
     }
@@ -1192,7 +1177,7 @@ export default function Reader({
             // 〈標〉 displaces 〈找〉, with no exception made for either. The colour row is placed
             // against the selection's own rectangles (`toolbar-position`), and one more layer
             // for it to dodge is one more way that placement comes out wrong.
-            setChrome("down");
+            sendChrome({ kind: "selectionArrived" });
             const container = mountRef.current?.getBoundingClientRect();
             if (!container) return;
             // The rectangles come with the event, so there is no CFI round trip here.
@@ -1614,17 +1599,14 @@ export default function Reader({
     scheduleSync();
     setAnnotations((prev) => sortByBookOrder([...prev, annotation]));
     dismissSelection();
-    if (withNote) {
-      setChrome("notes");
-      setEditingId(annotation.id);
-    }
+    if (withNote) sendChrome({ kind: "openNote", id: annotation.id });
   }
 
   async function saveNote(id: string, note: string) {
     const now = Date.now();
     await db.annotations.update(id, { note, updatedAt: now, dirtyAt: now });
     setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, note } : a)));
-    setEditingId(null);
+    sendChrome({ kind: "noteSaved" });
     scheduleSync();
   }
 
@@ -1641,18 +1623,9 @@ export default function Reader({
   const chapterLabel = chapterAt(sectionIndex, chapters)?.label ?? null;
 
   /** Raises a panel, or drops it back to the bare bar if it was already the one showing. */
-  const togglePanel = (panel: PanelKind) => setChrome((now) => (now === panel ? "up" : panel));
+  const togglePanel = (panel: PanelKind) => sendChrome({ kind: "togglePanel", panel });
   // `styles/reader.css` draws both arrangements; this only says which state the reader is in.
   const panelOpen = isPanel(chrome);
-
-  // Which face the one panel is wearing. It has to outlive `chrome` falling back to `"up"`,
-  // because Base UI keeps the popup mounted while it slides out — read straight from `chrome`,
-  // the panel would blank its own contents and spend the whole exit sliding an empty box off
-  // the screen. A ref rather than state: nothing re-renders on the strength of this, it is only
-  // ever read in the same pass that wrote it.
-  const panelKindRef = useRef<PanelKind>("toc");
-  if (isPanel(chrome)) panelKindRef.current = chrome;
-  const panelKind = panelKindRef.current;
 
   // Where each chapter begins on the axis, for a finger to land on. The TOC says which section
   // a chapter starts at; turning that into a position takes the character counts behind the
@@ -1968,7 +1941,7 @@ export default function Reader({
           replay its entrance, and the column it stands in never moves. */}
       <Panel
         open={panelOpen}
-        onClose={() => setChrome("up")}
+        onClose={() => sendChrome({ kind: "panelDismissed" })}
         title={PANEL_FACES[panelKind].title}
         testId={PANEL_FACES[panelKind].testId}
         container={panelHostRef}
@@ -1987,7 +1960,7 @@ export default function Reader({
                   disabled={item.path === ""}
                   onClick={() => {
                     void renderer?.goTo({ path: item.path, fragment: item.fragment });
-                    setChrome("down");
+                    sendChrome({ kind: "jumped" });
                   }}
                 >
                   {item.label}
@@ -2013,9 +1986,9 @@ export default function Reader({
                 editing={editingId === a.id}
                 onJump={() => {
                   void renderer?.goToCfi(a.cfiRange);
-                  setChrome("down");
+                  sendChrome({ kind: "jumped" });
                 }}
-                onEdit={() => setEditingId(a.id)}
+                onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
                 onSave={(note) => saveNote(a.id, note)}
                 onRemove={() => removeAnnotation(a)}
               />
