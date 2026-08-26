@@ -59,6 +59,14 @@ const CSS = IMPORTED.map((path) => read(new URL(path, ENTRY))).join("\n");
 const SET_ONLY_AT_RUNTIME = new Set([
   // `HighlightLayer` — which of the four inks this mark was made in.
   "--mark",
+  // `MarkCard` — the same four inks, on the shelf: the colour the quotation marks around a
+  // revisited passage are drawn in. Read with a fallback, because the card is styled by class
+  // and a passage could in principle reach the sheet without one.
+  "--mark-ink",
+  // `MarkCard` — how wide that passage is allowed to run, in ems, which depends on the script it
+  // is written in (`lib/line-length.ts`). The stylesheet cannot see the text, and the closing
+  // quotation mark has to stand at the edge this draws.
+  "--mark-quote-ceiling",
   // `SelectionLayer` — how far the wash reaches back from a handle's bead, so its stem can be
   // drawn across the colour rather than stopping at the edge of it. A line's width depends on
   // the type the reader set and on the book's own CSS, so the stylesheet cannot hold it.

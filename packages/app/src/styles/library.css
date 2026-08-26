@@ -1,22 +1,24 @@
 /* Library */
 
-/* **Where the shelf stops widening**, and the number comes from the passage on the card: a
-   quoted line is the book's own text, so it stops at the reader's own ceiling (ADR-0012, 40
-   ideographs). 640px of quote at `--type-body`, plus the card's padding and ink rule, plus the
-   page's own margins at their widest — measured rather than derived, in
-   `docs/specs/device-sizing/measurements.md`.
+/* **Where the shelf stops widening.** It used to stop at 736, and 736 was the passage's number:
+   a quoted line is the book's own text, so it stops at the reader's ceiling (ADR-0012, 40
+   ideographs) plus the card's padding — measured in `docs/specs/device-sizing/measurements.md`.
+   The wall of covers inherited that ceiling and got five columns on any display, which is the
+   passage's number being spent on something that is not the passage.
 
-   Everything the shelf holds shares it: the card, the row, and the wall are one width and one
-   pair of edges, so a 2560px display gets a shelf rather than a shelf stretched across a
-   billboard. This is also what makes a fourth width breakpoint unnecessary — past this point
-   nothing on the screen changes, which is what a cap means. */
+   So the two numbers came apart. **736 stayed, and moved onto the reading**: the card holds its
+   own words in a 736 column (`.mark-card` below), and so do the row and the shelf's two verbs.
+   1440 is this one — the width past which a wall of covers is a billboard rather than a shelf.
+
+   A cap is still what makes a fourth width breakpoint unnecessary: past this point nothing on
+   the screen changes, which is what a cap means. */
 .library {
   min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: 2rem;
   display: flex;
   flex-direction: column;
-  max-width: 736px;
+  max-width: 1440px;
   margin-inline: auto;
   /* The header's rule reaches both edges of the shelf rather than of the window, which is what
      says the shelf is a piece of paper on a desk and not the desk. */
@@ -97,19 +99,101 @@
   white-space: nowrap;
 }
 
-/* One marked passage, and the shelf's only large block. The ink rule down the side is the
-   colour the reader marked it in, the same rule the notes panel draws — a passage found here is
-   recognisably the one they made in the book. `border-left-color` is set on the element, from
-   the mark's own ink. */
+/* One marked passage, and the shelf's only large block.
+   ====================================================
+   It used to carry a rule of ink down its left side — the colour the reader marked the passage
+   in, the same rule the notes panel draws. A rule can only sit on the edge of its box, and at
+   820 the box becomes the shelf's full width while the reading inside it stays in a
+   `--reading-column` (`device.css`): the edge ends up a long way from the words, pointing at
+   nothing. **So the ink is carried by a pair of quotation marks instead**, at every width rather
+   than only where the rule failed — one card, one way of saying it.
+
+   Two numbers do the arranging, and they are the only things `device.css` restates: how far in
+   the reading sits, and how far the marks hang out of it. Everything below is written in terms
+   of the pair, so the wide card is those two values and no second copy of these rules. */
 .mark-card {
+  --mark-card-inset: var(--space-4);
+  --mark-quote-size: 2.2rem;
+  /* **The mark hangs outside the reading, and on a phone the reading's edge is the box's edge**,
+     so it hangs over the card and into the page's own margin. That is the same rule the wide card
+     follows, not a second arrangement for small screens: what changes with the window is how much
+     room there is between the two edges, never which edge the mark answers to. Tucking it inside
+     instead was tried and it sat on the cover thumbnail. */
+  --mark-quote-hang: calc(var(--mark-card-inset) + 0.55rem);
+
+  position: relative;
   margin: var(--space-5) var(--space-4) 0;
-  padding: var(--space-4);
-  border-left: 3px solid var(--mark-indigo);
-  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
+  padding-block: var(--space-4);
+  padding-inline: var(--mark-card-inset);
+  border-radius: var(--radius-surface);
   background: var(--surface-sunken);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* **The pair that says this is quoted, and in which colour it was quoted.** Directional, and set
+   outside the reading rather than in it: they are the card quoting the book, not the author's own
+   punctuation, and a mark inside the text would be read as the latter.
+
+   `--mark-ink` is set on the element by `MarkCard`, from the mark's own colour — a custom
+   property rather than the `border-left-color` it replaces, because a border's colour cannot
+   become a glyph's, and this glyph is now the only thing carrying the ink.
+
+   The offsets are in `em`, which inside a pseudo-element is the mark's own size, so both marks
+   keep their relationship to the glyph when `device.css` grows it.
+
+   **Both marks are placed off the card's fixed edges, and neither is placed off the source
+   line.** That line looks like the obvious thing to measure down from, and it is the one part of
+   this card whose height nothing here decides: it is as tall as the cover thumbnail
+   (`aspect-ratio`, below), and taller again whenever a long book title wraps. Everything under
+   the quote is a number — the note's held-open height, the row of arrows, the gaps between them
+   — so the closing mark counts up from the bottom instead, and a long title then moves it with
+   the passage rather than through it.
+
+   ⚠️ One term in that sum is a **floor rather than a height**: `--tap-min` is what the arrows are
+   guaranteed, not what they come out at. A button carries the UA's own type size, so on a fine
+   pointer the row lands a couple of pixels over the 32px floor and the mark sits that far low.
+   The browser test holds the whole sum inside the band between the passage and the note, which
+   is the thing that matters; a drift big enough to leave that band would be a real move rather
+   than this rounding.
+
+   It is not simply set at the end of the quote because that box is clipped and masked: a mark on
+   the last line would fade out along with the passage's tail. */
+.mark-card::before,
+.mark-card::after {
+  position: absolute;
+  font-size: var(--mark-quote-size);
+  line-height: 1;
+  color: var(--mark-ink, var(--mark-indigo));
+  opacity: 0.55;
+  /* They lie over padding that the quote and the note are pressable across. */
+  pointer-events: none;
+}
+
+.mark-card::before {
+  content: "\201C" / "";
+  top: calc(var(--space-4) - 0.17em);
+  left: calc(var(--mark-card-inset) - var(--mark-quote-hang));
+}
+
+/* **The right edge it answers to is the passage's, not the card's.** They are not the same line:
+   the quote runs to its own ceiling in ems — 40 for an ideographic book, 30 for a Latin one
+   (`lib/line-length.ts`, published here as `--mark-quote-ceiling` by `MarkCard`) — and the card's
+   reading column is wider than either. Anchored to the card, the mark on a Latin passage stood a
+   quarter of the shelf clear of the words it was closing, which is the fault it was brought in to
+   fix. `max()` keeps it against the card's own edge on a phone, where the column is the narrower
+   of the two. */
+.mark-card::after {
+  content: "\201D" / "";
+  bottom: calc(
+    var(--space-4) + var(--tap-min) + 0.7rem + var(--mark-note-lines) * var(--leading-text) *
+      var(--type-ui) + 1.4rem + 2px + 0.9rem - 0.54em
+  );
+  right: calc(
+    var(--mark-card-inset) - var(--mark-quote-hang) +
+      max(0px, 100% - 2 * var(--mark-card-inset) - var(--mark-quote-ceiling))
+  );
 }
 
 /* **The source, at the weight of a title.** The cover and the bold name together are what stop
@@ -145,7 +229,11 @@
 /* **The three things on this card that can be pressed, and none of them looks like a button.**
    Two are the book's words and one is the reader's, so a fill and a border would make all three
    read as controls parked on a passage. The button rules that suit a label are undone in one
-   place rather than three, because they are undone for one reason. */
+   place rather than three, because they are undone for one reason.
+
+   ⚠️ The note takes its surface and its inset back below, and that is not this rule being
+   half-hearted: what it is given back is a **sheet of paper**, which is what separates the
+   reader's words from the book's, and it still carries none of the shapes that mean "control". */
 .mark-source-link,
 .mark-quote,
 .mark-note {
@@ -162,9 +250,29 @@
 .mark-source-link:hover,
 .mark-quote:hover,
 .mark-note:hover {
-  border: none;
   text-decoration: underline;
   text-decoration-color: var(--line-actionable);
+}
+
+/* ⚠️ **The two that have no edge of their own**, and this cannot be folded back into the rule
+   above: the note has a real border now — it is the sheet the reader's words sit on — and a
+   `border: none` carrying a pseudo-class beats the rule that draws it however late that rule
+   comes. The sheet would lose its edge under the pointer, and gain 2px of content box doing it
+   (`box-sizing: border-box`), so the note would twitch as the pointer crossed it. */
+.mark-source-link:hover,
+.mark-quote:hover {
+  border: none;
+}
+
+/* ⚠️ **And the sheet has to say so twice**, because `button:hover` in `controls.css` carries a
+   pseudo-class of its own and outranks the rule that draws it — arriving later is not enough.
+   Left alone, a pointer resting on a written note washed the paper in `--fill-selected` and lit
+   its edge in `--tide`: the fill and the border that the reset a few rules up exists to keep off
+   this card, arriving together on the one thing here that is the reader's own writing. The
+   underline says it can be pressed, and that is the whole of what hover has to say. */
+.mark-note:hover {
+  background: var(--surface-page);
+  border-color: var(--line-hair);
 }
 
 /* The cover and the name, pressable together: they are the book saying which book it is, so
@@ -178,6 +286,22 @@
   min-width: 0;
   color: var(--text-primary);
   font-size: inherit;
+}
+
+/* **A long title is clipped, and how long ago is not.** The name gives way because it is the
+   half that has somewhere else to be — the same book's cover is on the wall below with the whole
+   of it under the square. Left to itself it ran off the end of the row and printed over 〈剛剛〉,
+   which is the one thing on this line that cannot be read from anywhere else on the screen.
+
+   The clip goes on the name rather than on the button around it: `text-overflow` acts on an
+   element's own inline content, so a box holding a `<strong>` cuts the letters off flush with no
+   ellipsis to say that it did. `.reading-now-info h2` is the same three lines for the same
+   reason. */
+.mark-source-link strong {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The book's words, and a way back to where they came from. `max-width` is set on the element
@@ -220,14 +344,29 @@
 
    **And the same height**, which is the other half of holding the card still: a passage that
    has been written on and one that has not are the same shape, so flicking between them moves
-   nothing. */
+   nothing. The surface's own padding is added to that height rather than taken out of it, so
+   the words still get the three lines the token asks for.
+
+   **On its own surface, and that is what tells it from the passage above it.** The two were a
+   size and a shade apart and nothing else, which on a screen of prose is not a difference the
+   eye catches — both read as one column of text that got quieter. They are not the same kind of
+   thing: the passage is the book's and belongs to the card's own paper, the note is the
+   reader's and gets a sheet of its own laid on top. */
 .mark-note,
 .mark-note-input {
   font-family: inherit;
   font-size: var(--type-ui);
   line-height: var(--leading-text);
   color: var(--text-muted);
-  height: calc(var(--mark-note-lines) * var(--leading-text) * 1em);
+  /* Three lines, plus the sheet's own inset, plus its two hairlines — `box-sizing: border-box`
+     means `height` pays for all three, and a sum that forgot the border clipped 2px off the
+     descenders of the third line. */
+  height: calc(var(--mark-note-lines) * var(--leading-text) * 1em + 1.4rem + 2px);
+  margin-top: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface-page);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--radius-surface);
 }
 
 /* Clamped at the same count the box is tall, and nothing is lost by it — pressing opens the
@@ -245,9 +384,10 @@
      reader who stretched it would have the card jump on the next flick. The whole note is
      reachable by scrolling inside it. */
   resize: none;
-  padding: 0.4rem;
-  background: var(--surface-page);
-  border: 1px solid var(--line-actionable);
+  /* The one thing that changes when the note is opened: the sheet's edge firms up to say it can
+     be written on. Everything else — the surface, the inset, the height — is shared with the
+     closed state above, because the two are the same words at two moments. */
+  border-color: var(--line-actionable);
 }
 
 /* Back and forward, and where in the pile this one is. At the foot of the card rather than at

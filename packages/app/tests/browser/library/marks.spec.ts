@@ -291,6 +291,73 @@ test("the passage on the card carries its own book's line-length ceiling", async
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
+test("the closing quotation mark stands at the passage's edge, not the card's", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
+    { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
+  ]);
+  // Wide enough that the card's box and the passage inside it are different widths — which is
+  // the whole of what this asks. Below the shelf's own cap they are the same edge and any
+  // arrangement passes.
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.reload();
+
+  /** Where the mark sits, against the passage it closes and the note under it. */
+  const closing = () =>
+    card(page).evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const quote = node.querySelector(".mark-quote")!.getBoundingClientRect();
+      const note = node.querySelector(".mark-note, .mark-note-input")!.getBoundingClientRect();
+      const mark = getComputedStyle(node, "::after");
+      const bottom = box.bottom - parseFloat(mark.bottom);
+      return {
+        // **That there is a mark at all**, which nothing else here would notice: `content` is one
+        // declaration, and the alt-text form it is written in (`"…" / ""`) is dropped whole by a
+        // parser that does not know it. Every other figure below still reads back fine off a
+        // pseudo-element that draws nothing, so this test would stay green in a world with no
+        // quotation marks on the card.
+        drawn: mark.content,
+        // Its own box, from the two sides it is anchored to.
+        pastQuoteRight: box.right - parseFloat(mark.right) - quote.right,
+        belowQuote: bottom - quote.bottom,
+        aboveNoteBottom: note.bottom - bottom,
+      };
+    });
+
+  // Both books, for the reason given over the ceiling test above: 40em and 30em are 160px apart
+  // at this type size, and it is their disagreement that catches a mark placed off the wrong edge.
+  const seen = new Map<string, Awaited<ReturnType<typeof closing>>>();
+  for (let i = 0; i < 2; i++) {
+    seen.set((await page.getByTestId("mark-quote").textContent())!, await closing());
+    if (i === 0) await card(page).getByRole("button", { name: "Next passage" }).click();
+  }
+
+  for (const text of [LATIN, HAN]) {
+    const at = seen.get(text)!;
+    expect(at.drawn).toContain("”");
+    // Clear of the last line rather than over it, by about a hand's width.
+    expect(at.pastQuoteRight).toBeGreaterThan(0);
+    expect(at.pastQuoteRight).toBeLessThan(60);
+    // **Inside the band between the passage and the reader's own sheet**, and bounded from both
+    // sides on purpose: a sum that overshoots puts the mark back inside the quote, and one that
+    // falls short drops it onto the note — and only one of those two moves a one-sided assertion
+    // can see. It is also the whole guard on that sum's softest term, `--tap-min`, which is what
+    // the row of arrows is promised rather than what it measures.
+    expect(at.belowQuote).toBeGreaterThan(0);
+    expect(at.aboveNoteBottom).toBeGreaterThan(0);
+  }
+  // And it is the *same* hand's width for both, which is the proposition the two books are here
+  // for: a mark placed off the card's own edge instead of the passage's lands at one distance for
+  // an ideographic passage and another 160px out for a Latin one, and both could still sit inside
+  // the bounds above.
+  expect(seen.get(LATIN)!.pastQuoteRight).toBeCloseTo(seen.get(HAN)!.pastQuoteRight, 1);
+});
+
 test("the book's own words on the card go back to the passage", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
@@ -399,7 +466,9 @@ test("the shelf stops widening, and centres in what is left", async ({ page }) =
 
   const shelfBox = async () => (await page.locator(".library").boundingBox())!;
 
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // Both above the shelf's own cap, so what is being asked is whether it stopped — 1280 is under
+  // it now that the wall of covers gets to spend the width the passage used to hold back.
+  await page.setViewportSize({ width: 1600, height: 900 });
   const narrow = await shelfBox();
   await page.setViewportSize({ width: 2560, height: 900 });
   const wide = await shelfBox();

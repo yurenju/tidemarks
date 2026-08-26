@@ -321,6 +321,14 @@ html[data-drawer="open"] {
      half doing the work here: the card is a way back into the book, not the book. */
   --mark-quote-lines: 5;
   --mark-note-lines: 3;
+
+  /* **How wide anything the reader reads is allowed to run on the shelf**, which is a different
+     question from how wide the shelf is (`.library` in `library.css`, and 1440). This is the
+     old shelf cap: 640px of quote at `--type-body` — 40 ideographs, ADR-0012 — plus the card's
+     padding, measured in `docs/specs/device-sizing/measurements.md`. It was the whole page's
+     number when the page had one; now it holds the card's reading, the row above the wall, and
+     the shelf's two verbs, while the wall of covers spends the rest. */
+  --reading-column: 736px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
