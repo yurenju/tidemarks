@@ -22,6 +22,7 @@ import {
   subscribePulledProgress,
 } from "../lib/sync";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
+import { entersVisit, leavesVisit } from "../lib/visit";
 import type { Annotation, Progress } from "../lib/types";
 import {
   FONT_FAMILIES,
@@ -212,7 +213,7 @@ function elsewhereWhen(i18n: I18n, elapsed: Elapsed): string {
       msg({
         message: "Just now",
         comment:
-          "On the banner about a position read on another device: that position was written less than a minute ago. Also what a position written slightly in the future says, since the two devices' clocks need not agree.",
+          "On the banner naming the reader's place in the book: that place was read less than a minute ago. Also what a position written slightly in the future says, since two devices' clocks need not agree.",
       }),
     );
   }
@@ -222,7 +223,7 @@ function elsewhereWhen(i18n: I18n, elapsed: Elapsed): string {
       msg({
         message: plural(count, { one: "# minute ago", other: "# minutes ago" }),
         comment:
-          "On the banner about a position read on another device: how long ago it was written. Whole minutes, under an hour.",
+          "On the banner naming the reader's place in the book: how long ago it was read. Whole minutes, under an hour.",
       }),
     );
   }
@@ -231,7 +232,7 @@ function elsewhereWhen(i18n: I18n, elapsed: Elapsed): string {
       msg({
         message: plural(count, { one: "# hour ago", other: "# hours ago" }),
         comment:
-          "On the banner about a position read on another device: how long ago it was written. Whole hours, under a day.",
+          "On the banner naming the reader's place in the book: how long ago it was read. Whole hours, under a day.",
       }),
     );
   }
@@ -239,7 +240,7 @@ function elsewhereWhen(i18n: I18n, elapsed: Elapsed): string {
     msg({
       message: plural(count, { one: "# day ago", other: "# days ago" }),
       comment:
-        "On the banner about a position read on another device: how long ago it was written. Whole days.",
+        "On the banner naming the reader's place in the book: how long ago it was read. Whole days.",
     }),
   );
 }
@@ -289,7 +290,7 @@ export default function Reader({
    *
    * `undefined` for every other way in, and the saved position stands. **It does not become the
    * saved position**: opening a card is a visit, and the reader's place in the book is still
-   * where they left it until they turn a page.
+   * where they left it until they read past it (`lib/visit.ts`).
    */
   openAt?: string;
   onClose: () => void;
@@ -344,6 +345,24 @@ export default function Reader({
    * callback that closed over its scope long before the page turn it needs to know about.
    */
   const positionRef = useRef<Progress | null>(null);
+  /**
+   * The progress a visit is defending, or `null` while the reader is simply reading.
+   *
+   * Set when they go back to a marked passage, and it holds what they had reached until they
+   * read past it again (`lib/visit.ts`). While it is set, `positionRef` above is frozen on it:
+   * the screen has moved, the reader's place in the book has not, and it is the place that a
+   * position arriving from another device is measured against.
+   */
+  const visitRef = useRef<Progress | null>(null);
+  /**
+   * The last position the screen reported, visit or not.
+   *
+   * Two refs rather than one because a visit splits the question in two: `positionRef` is what
+   * this device claims about the book, and this is where the reader is looking. 〈Stay here〉
+   * needs the second — during a visit the first is a hundred pages away, and writing it back
+   * would be the button doing nothing at all.
+   */
+  const screenRef = useRef<Progress | null>(null);
   /**
    * A position from another device, offered but not taken, and how long ago it was written.
    *
@@ -498,6 +517,11 @@ export default function Reader({
     // and 0 would be the claim that they are at the front of it.
     let openedAtFraction: number | null = null;
     let leftAtFraction: number | null = null;
+    // A visit belongs to the book it was made in. Left standing, the next book would open with
+    // the last one's page as the progress it was defending, and nothing in it would ever be
+    // written.
+    visitRef.current = null;
+    screenRef.current = null;
     setIndexed(false);
     setFraction(0);
     setSectionIndex(0);
@@ -1094,6 +1118,19 @@ export default function Reader({
       // fraction the index happens to report — which may not arrive until several pages in.
       openedAtFraction = saved?.percentage ?? null;
 
+      // **A passage asked for from the shelf opens a visit** — what they had reached is still
+      // theirs (`lib/visit.ts`). Decided here, before `attach()`, because the layout it is
+      // about emits the `relocate` that would otherwise write the passage over it.
+      //
+      // The page compared against is the stored one, and this is the single place that has no
+      // choice: the book has not laid out yet, so there is no `renderer.location` to ask. It
+      // describes whichever device and window last read this book, which is close enough for
+      // the question being asked — whether the passage is somewhere the reader had got to.
+      if (openAt !== undefined && saved !== undefined && entersVisit(saved.pageRange, openAt)) {
+        visitRef.current = saved;
+        setElsewhere({ position: saved, elapsed: elapsedSince(saved.lastReadAt, Date.now()) });
+      }
+
       const anns = await readAnnotations(bookId);
       if (cancelled) return;
       setAnnotations(anns);
@@ -1163,11 +1200,6 @@ export default function Reader({
             setSectionIndex(at.sectionIndex);
             setGeometry((tick) => tick + 1);
 
-            if (at.fraction !== undefined) {
-              openedAtFraction ??= at.fraction;
-              leftAtFraction = at.fraction;
-            }
-
             const now = Date.now();
             const position = {
               bookId,
@@ -1182,6 +1214,31 @@ export default function Reader({
               lastReadAt: now,
               dirtyAt: now,
             };
+            screenRef.current = position;
+
+            // **A visit moves the screen and nothing else.** Everything above this line is
+            // what the reader can see and has to keep up; everything below it is the claim
+            // that this is where they are in the book, and going back to a marked passage is
+            // not that claim (`lib/visit.ts`). Turning pages around the passage lands here
+            // too, and is refused for the same reason.
+            const kept = visitRef.current;
+            if (kept !== null) {
+              if (!leavesVisit(kept, position)) return;
+              visitRef.current = null;
+              // Only the banner this visit put up. One that arrived from another device in the
+              // meantime is an offer nobody has answered, and reading on is not an answer.
+              setElsewhere((banner) => (banner?.position === kept ? null : banner));
+            }
+
+            // Under the same gate: a visit is not ground covered, and counting the minutes
+            // spent in it against a displacement of zero would make the shelf report the
+            // reader as slower than they are (`lib/stats.ts`). A sitting spent entirely in one
+            // leaves both ends null, which is the shape that file already drops.
+            if (at.fraction !== undefined) {
+              openedAtFraction ??= at.fraction;
+              leftAtFraction = at.fraction;
+            }
+
             positionRef.current = position;
             recordPosition(position);
           },
@@ -1510,9 +1567,54 @@ export default function Reader({
     };
   }, [bookId]);
 
-  /** Take the offer. The `relocate` that follows writes the position, as it does for any move. */
+  /**
+   * Go back to a marked passage from the notes panel, holding on to where the reader had read.
+   *
+   * ⚠️ **The page is read from `renderer.location`, not from `positionRef`.** `relocate`
+   * de-duplicates on section, page, fraction and CFI, and `pageRange` is in none of them — so a
+   * reflow that leaves the reader on the same page of the same CFI is swallowed, and the stored
+   * range still describes the layout before it. Opening this very panel is that reflow on a
+   * desk, where the book gives up a column for it. Asking the stored range there would answer
+   * "somewhere else" about a passage in front of the reader's eyes, and raise a banner over it.
+   *
+   * The progress being defended still comes from `positionRef`: it is the whole row, and the
+   * banner names a chapter and a percentage that a location cannot give.
+   */
+  const visitPassage = (target: string) => {
+    // A second passage during a visit is still the same visit. What is being kept is where the
+    // reader stopped reading, and that did not change when they tapped another mark.
+    if (visitRef.current !== null) return;
+    const here = positionRef.current;
+    const at = rendererRef.current?.location;
+    // Nothing to defend, or nothing to measure against. Both mean the jump writes the passage
+    // as the position, the way it did before any of this existed — which is wrong, but it is
+    // the answer with the fewest moving parts for a case that needs a book on screen and no
+    // position in hand. `here` is null only before the first `relocate` of a book that has
+    // never been read, and there is no progress to lose there.
+    if (here === null || at === undefined) return;
+    if (!entersVisit(at.pageRange ?? null, target)) return;
+    visitRef.current = here;
+    // **An offer already standing is never taken away** — the invariant the pull subscriber
+    // above keeps, held from this side too. A position from another device is unanswered and
+    // unrecoverable once its banner goes (the pull that carried it will not fire again), and
+    // it is newer than what is being kept here, so it is also the more useful of the two to
+    // be looking at.
+    setElsewhere(
+      (banner) => banner ?? { position: here, elapsed: elapsedSince(here.lastReadAt, Date.now()) },
+    );
+  };
+
+  /**
+   * Take the offer. The `relocate` that follows writes the position, as it does for any move.
+   *
+   * **It ends a visit as well**, and has to: pressing this is the reader saying that is where
+   * they are. Left standing, a visit would swallow the very `relocate` this navigation causes
+   * whenever the offer is behind what is being kept — the reader accepts a position and this
+   * device records nothing.
+   */
   const goElsewhere = () => {
     if (elsewhere === null) return;
+    visitRef.current = null;
     void rendererRef.current?.goToCfi(elsewhere.position.cfi);
     setElsewhere(null);
   };
@@ -1524,15 +1626,24 @@ export default function Reader({
    * the banner without writing and the reader who said "stay here" gets that other position
    * back the next time they open the book, which is the opposite of what they pressed. Staying
    * here has to be a write, and it is the same write a page turn makes.
+   *
+   * **It ends a visit too, and that is the one move that carries progress backwards.** The rule
+   * during a visit is that progress only goes forward (`lib/visit.ts`), which is a rule about
+   * what happens on its own; a reader who presses this has said where they are, and being told
+   * "no, you are still a hundred pages on" is the button doing nothing.
    */
   const stayHere = () => {
-    const here = positionRef.current;
+    // Where the reader is looking, which during a visit is not what this device claims. Outside
+    // one the two are the same row.
+    const here = screenRef.current ?? positionRef.current;
     // Never null while a banner is up — the offer is only made once this device knows where it
     // is (above), which is the same guard that keeps this from being a button that does nothing.
     if (here === null) return;
     const now = Date.now();
     const kept = { ...here, lastReadAt: now, dirtyAt: now };
+    visitRef.current = null;
     positionRef.current = kept;
+    screenRef.current = kept;
     recordPosition(kept);
     setElsewhere(null);
   };
@@ -1871,7 +1982,14 @@ export default function Reader({
           </button>
         </nav>
 
-        {/* A position from another device, and the two ways of answering it.
+        {/* Where the reader's place in this book is, when it is not what is on screen, and the
+            two ways of answering that.
+
+            **Two sources, one banner.** A position that arrived from another device, and a
+            visit to a marked passage on this one (`lib/visit.ts`). It is one banner because it
+            is one sentence and one pair of answers: go to that place, or say this is the place.
+            Which source it came from changes nothing the reader has to decide, so the wording
+            names neither.
 
             **In the chrome's grid but not one of its bars**: it never slides, never hides, and
             is not part of 〈找〉 — the reader did not ask for it and cannot dismiss it with a
@@ -1886,13 +2004,12 @@ export default function Reader({
           <div className="elsewhere" role="status" data-testid="elsewhere">
             <p className="elsewhere-line">
               {elsewhere.position.chapterLabel === null ? (
-                <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.">
-                  You were reading at {Math.round(elsewhere.position.percentage * 100)}% somewhere
-                  else
+                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.">
+                  You were reading at {Math.round(elsewhere.position.percentage * 100)}%
                 </Trans>
               ) : (
-                <Trans comment="Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.">
-                  You were reading “{elsewhere.position.chapterLabel}” somewhere else
+                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.">
+                  You were reading “{elsewhere.position.chapterLabel}”
                 </Trans>
               )}
             </p>
@@ -1915,12 +2032,12 @@ export default function Reader({
                 looking like the answer to something else. */}
             <div className="elsewhere-actions">
               <button className="primary" onClick={goElsewhere}>
-                <Trans comment="Button on the banner about a position read on another device: moves the book to that position. Short — it sits beside 'Stay here'.">
+                <Trans comment="Button on the banner naming the reader's place in the book: moves the book to that place. Short — it sits beside 'Stay here'.">
                   Go there
                 </Trans>
               </button>
               <button className="ghost" onClick={stayHere}>
-                <Trans comment="Button on the banner about a position read on another device: keeps the page currently on screen, and makes this device's position the one that wins. Short — it sits beside 'Go there'.">
+                <Trans comment="Button on the banner naming the reader's place in the book: makes the page on screen the reader's place, whatever the banner named. Short — it sits beside 'Go there'.">
                   Stay here
                 </Trans>
               </button>
@@ -2050,6 +2167,7 @@ export default function Reader({
                 annotation={a}
                 editing={editingId === a.id}
                 onJump={() => {
+                  visitPassage(a.cfiRange);
                   void renderer?.goToCfi(a.cfiRange);
                   sendChrome({ kind: "jumped" });
                 }}

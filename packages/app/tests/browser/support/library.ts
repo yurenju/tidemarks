@@ -964,6 +964,53 @@ export function visibleText(page: Page): Promise<string> {
   return throughThePage(page, () => readVisibleText(page));
 }
 
+/**
+ * Gives a book a reading position, by writing the row a page turn leaves.
+ *
+ * **The one thing in this file that reaches past the app into IndexedDB**, and it is here rather
+ * than in a spec because two of them now want it. What it saves is reading several pages into a
+ * book, in three engines, to arrive at a state one `put` describes exactly — and where the
+ * reader had got to is setup for those specs, not the thing under test. The path that writes
+ * these rows for real is `reader/elsewhere.spec.ts`'s and `reader/paging.spec.ts`'s.
+ *
+ * `pageRange` is not optional on purpose: it is what makes a position a *page* rather than a
+ * point, and every rule that compares one against it (`lib/elsewhere.ts`, `lib/visit.ts`) goes
+ * quiet without it. A test seeding a position and then wondering why nothing happened would be
+ * a long afternoon.
+ */
+export async function seedProgress(
+  page: Page,
+  bookId: string,
+  at: { cfi: string; pageRange: string; percentage?: number },
+): Promise<void> {
+  await page.evaluate(
+    ([id, position]) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open("tidemarks");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction("progress", "readwrite");
+          tx.objectStore("progress").put({
+            bookId: id,
+            cfi: position.cfi,
+            pageRange: position.pageRange,
+            percentage: position.percentage ?? 0.3,
+            chapterLabel: null,
+            lastReadAt: 2_000,
+            dirtyAt: 2_000,
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    [bookId, at] as const,
+  );
+}
+
 function readVisibleText(page: Page): Promise<string> {
   return readerFrame(page)
     .locator("body")

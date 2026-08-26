@@ -31,17 +31,17 @@ msgstr "‹ 本棚"
 msgid "auth.passkey.rpIdUnset"
 msgstr "（未設定）"
 
-#. On the banner about a position read on another device: how long ago it was written. Whole days.
+#. On the banner naming the reader's place in the book: how long ago it was read. Whole days.
 #: src/components/Reader.tsx
 msgid "{count, plural, one {# day ago} other {# days ago}}"
 msgstr "{count, plural, other {# 日前}}"
 
-#. On the banner about a position read on another device: how long ago it was written. Whole hours, under a day.
+#. On the banner naming the reader's place in the book: how long ago it was read. Whole hours, under a day.
 #: src/components/Reader.tsx
 msgid "{count, plural, one {# hour ago} other {# hours ago}}"
 msgstr "{count, plural, other {# 時間前}}"
 
-#. On the banner about a position read on another device: how long ago it was written. Whole minutes, under an hour.
+#. On the banner naming the reader's place in the book: how long ago it was read. Whole minutes, under an hour.
 #: src/components/Reader.tsx
 msgid "{count, plural, one {# minute ago} other {# minutes ago}}"
 msgstr "{count, plural, other {# 分前}}"
@@ -301,7 +301,7 @@ msgstr "フォントの取得状況"
 msgid "Font is on this device"
 msgstr "フォントはこの端末にあります"
 
-#. Button on the banner about a position read on another device: moves the book to that position. Short — it sits beside 'Stay here'.
+#. Button on the banner naming the reader's place in the book: moves the book to that place. Short — it sits beside 'Stay here'.
 #: src/components/Reader.tsx
 msgid "Go there"
 msgstr "そこへ移動"
@@ -361,7 +361,7 @@ msgid "Just added"
 msgstr "追加したばかり"
 
 #. How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.
-#. On the banner about a position read on another device: that position was written less than a minute ago. Also what a position written slightly in the future says, since the two devices' clocks need not agree.
+#. On the banner naming the reader's place in the book: that place was read less than a minute ago. Also what a position written slightly in the future says, since two devices' clocks need not agree.
 #: src/components/Library.tsx
 #: src/components/Reader.tsx
 msgid "Just now"
@@ -738,7 +738,7 @@ msgstr "標準（1.6）"
 msgid "authorize.unknownClient.body"
 msgstr "お使いのエージェントから、もう一度接続してください。"
 
-#. Button on the banner about a position read on another device: keeps the page currently on screen, and makes this device's position the one that wins. Short — it sits beside 'Go there'.
+#. Button on the banner naming the reader's place in the book: makes the page on screen the reader's place, whatever the banner named. Short — it sits beside 'Go there'.
 #: src/components/Reader.tsx
 msgid "Stay here"
 msgstr "ここに残る"
@@ -991,14 +991,14 @@ msgstr "昨日"
 msgid "You cannot subscribe yet, and the price is not settled."
 msgstr "まだ購読はできません。価格も決まっていません。"
 
-#. Banner over the book, when the same book was read to a different place on another of the reader's devices. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. 'somewhere else' is deliberately vague: Tidemarks does not know which device it was.
+#. Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.
 #. placeholder {0}: elsewhere.position.chapterLabel
 #: src/components/Reader.tsx
-msgid "You were reading “{0}” somewhere else"
-msgstr "別の場所で「{0}」まで読んでいます"
+msgid "You were reading “{0}”"
+msgstr "「{0}」まで読んでいます"
 
-#. Banner over the book, when the same book was read to a different place on another of the reader's devices and that place cannot be named as a chapter. The value is a whole number. 'somewhere else' is deliberately vague — Tidemarks does not know which device it was.
+#. Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.
 #. placeholder {0}: Math.round(elsewhere.position.percentage * 100)
 #: src/components/Reader.tsx
-msgid "You were reading at {0}% somewhere else"
-msgstr "別の場所で {0}% まで読んでいます"
+msgid "You were reading at {0}%"
+msgstr "{0}% まで読んでいます"
