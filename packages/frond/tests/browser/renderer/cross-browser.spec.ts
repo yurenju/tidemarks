@@ -44,11 +44,14 @@ test.beforeEach(async ({ page }) => {
 test.describe("writing mode: the three engines have to agree", () => {
   const EXPECTED = [
     { fixture: "vertical-japanese", writingMode: "vertical-rl" },
+    // Books produced by InDesign declare it on `<body>`. A library reading only
+    // documentElement judges this one horizontal — spine wrote its own detectVerticalBook
+    // for exactly this (ADR-0002).
     { fixture: "writing-mode-on-body", writingMode: "vertical-rl" },
     // **This slot is this spec's toothiest case.** That book writes only the `-epub-` and
     // `-webkit-` prefixes and Firefox recognizes neither — without normalization it lays
-    // out `horizontal-tb` while the other two are `vertical-rl`. The three agreeing is
-    // itself the deliverable.
+    // out `horizontal-tb` while the other two are `vertical-rl` (《入境大廳》's shape,
+    // docs/browser-quirks.md). The three agreeing is itself the deliverable.
     { fixture: "writing-mode-prefixed-only", writingMode: "vertical-rl" },
     { fixture: "ppd-rtl-vertical", writingMode: "vertical-rl" },
     { fixture: "huge-single-section", writingMode: "horizontal-tb" },

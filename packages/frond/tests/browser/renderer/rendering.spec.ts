@@ -1,18 +1,24 @@
 // A book mounted in a real engine and judged by what the layout did, not by what the stylesheet
-// said: the writing mode that came out, the column geometry that follows from it, and the
-// interventions whose only symptom is a rectangle. The stylesheet-as-a-string half is next
-// door, in tests/node/renderer/css.test.ts, and it misses the forms real books are written in.
+// said: the declaration forms frond has to reach before a writing mode can be read at all, the
+// column geometry that follows from it, and the interventions whose only symptom is a rectangle.
+// The stylesheet-as-a-string half is next door, in tests/node/renderer/css.test.ts, and it
+// misses the forms real books are written in; which writing mode each fixture comes out as is
+// the EXPECTED table in cross-browser.spec.ts, since that is a number the three engines owe
+// each other.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, VIEWPORT_ID } from "../support/harness.js";
 
 /**
- * Rendering a book into a container, and recognizing its writing mode.
+ * Rendering a book into a container, and reaching the declaration that states its writing mode.
  *
- * Writing mode is this spec's centre of gravity, because it is **only answerable inside a
- * browser**: the criterion is the CSSOM, and string matching misses the forms books
- * actually use (ADR-0010, `docs/browser-quirks.md`). Each of the three declaration forms
- * has its own fixture, and they act as each other's controls.
+ * Writing mode is **only answerable inside a browser**: the criterion is the CSSOM, and string
+ * matching misses the forms books actually use (ADR-0010, `docs/browser-quirks.md`). The
+ * fixture-by-fixture table of which mode each one comes out as belongs to
+ * `cross-browser.spec.ts` — it is a value the three engines have to agree on, and that spec
+ * owns the ones they do. What is left here is what that table cannot express: an `@import`
+ * whose expansion has to happen **before** anything is measured, and what the mode then costs
+ * a reader — which axis the pages advance along.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -100,29 +106,6 @@ test.describe("with loads in flight, the container still holds one page", () => 
 });
 
 test.describe("detecting the writing mode", () => {
-  test("declared on <html>: vertical", async ({ page }) => {
-    const location = await mountFixture(page, "vertical-japanese");
-    expect(location.writingMode).toBe("vertical-rl");
-  });
-
-  test("declared on <body>: still recognized as vertical", async ({ page }) => {
-    // Books produced by InDesign have this shape. A library reading only documentElement
-    // judges it horizontal — spine wrote its own detectVerticalBook for exactly this
-    // (ADR-0002).
-    const location = await mountFixture(page, "writing-mode-on-body");
-    expect(location.writingMode).toBe("vertical-rl");
-  });
-
-  test("only -epub- and -webkit- prefixes: all three lay out vertically", async ({ page }) => {
-    // **This case only has teeth in Firefox.** That book has no unprefixed declaration and
-    // Firefox recognizes neither prefix, so without normalization it lays the whole book
-    // out horizontally (《入境大廳》's shape, docs/browser-quirks.md). The other two
-    // recognize the prefixes already, so what they prove here is "adding an unprefixed
-    // declaration did not break them".
-    const location = await mountFixture(page, "writing-mode-prefixed-only");
-    expect(location.writingMode).toBe("vertical-rl");
-  });
-
   test("declared in an @imported stylesheet: still recognized as vertical", async ({ page }) => {
     // A shape measured on real books (4 of the 34 in the sample, all from the same
     // Kadokawa/BookCreator toolchain): the content document only `<link>`s an aggregate
@@ -147,11 +130,6 @@ test.describe("detecting the writing mode", () => {
 
     expect(html).toContain("writing-mode: vertical-rl");
     expect(html).not.toContain("@import");
-  });
-
-  test("a book with no vertical declaration is horizontal", async ({ page }) => {
-    const location = await mountFixture(page, "huge-single-section");
-    expect(location.writingMode).toBe("horizontal-tb");
   });
 
   test("vertical pages advance along y, horizontal ones along x", async ({ page }) => {
@@ -183,17 +161,9 @@ test.describe("detecting the writing mode", () => {
 });
 
 test.describe("the pagination geometry", () => {
-  test("a vertical column's width equals one viewer height", async ({ page }) => {
-    // The machine-readable form of spine's "a vertical column's width must equal exactly one
-    // viewer height". The container is 800×600 with a 24 margin, so the iframe is 752×552,
-    // and vertical takes the height, 552.
-    await mountFixture(page, "vertical-japanese", { settings: { margin: 24 } });
-
-    const columnWidth = await page.evaluate(() => window.frond.computed("html", "column-width"));
-
-    expect(columnWidth).toBe("552px");
-  });
-
+  // The vertical half of this pair — a vertical column's width equalling one viewer height —
+  // is asserted in cross-browser.spec.ts, where the same 800×600 container is measured on all
+  // four of `column-width`, `column-count`, `width` and `height`.
   test("a horizontal column's width equals one viewer width", async ({ page }) => {
     await mountFixture(page, "huge-single-section", {
       settings: { margin: 24, columns: 1 },
