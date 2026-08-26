@@ -1127,14 +1127,24 @@ export class Renderer {
         continue;
       }
 
-      // A mount for this side is already on its way, and it is building the very section
-      // this turn wants. A second one would not make the preview arrive any sooner —
-      // whichever mount lands re-reads where the reader is by then — so one mount serves a
-      // whole run of turns rather than one being started, and discarded, per turn.
-      if (this.peekMounts[side] === wanted.sectionIndex) continue;
-
+      // Whatever stands here is of a section this side no longer wants — the same section is
+      // handled above — so it goes now rather than lingering behind whatever comes next.
       peek?.view.destroy();
       this.peeks[side] = undefined;
+
+      // A mount for this side is already on its way. A second one would not make the preview
+      // arrive any sooner — whichever mount lands re-reads where the reader is by then, and
+      // asks again if the answer has changed (`mountPeek`) — so one mount serves a whole run
+      // of turns rather than one being started, and discarded, per turn.
+      //
+      // **One a side, not one per section wanted.** A mount is a frame in the container from
+      // the moment it starts (`SectionView.mount` appends the frame and then waits for it to
+      // load), so letting a reader crossing section after section start a second one while the
+      // first is still building puts no ceiling on how many documents are in the container at
+      // once — it is bounded only by how fast they cross against how slowly a section mounts.
+      // With the peek above already gone, a side is one frame at most: a peek, or a mount.
+      if (this.peekMounts[side] !== undefined) continue;
+
       this.peekMounts[side] = wanted.sectionIndex;
       void this.mountPeek(side, wanted.sectionIndex, this.peekDocumentGeneration);
     }
@@ -1162,6 +1172,12 @@ export class Renderer {
     sectionIndex: number,
     generation: number,
   ): Promise<void> {
+    // The two ways out below leave this side with no peek and **do not ask again**, unlike the
+    // staleness check further down. That is deliberate: asking again would mount the very
+    // section that has just failed, and a side is only allowed one mount at a time — so the
+    // failure would come straight back, as fast as the machine can build a document. The side
+    // is not stuck, only empty: `peekMounts[side]` is cleared on both paths, so the reader's
+    // next move mounts a peek again.
     const section = this.book.readingOrder[sectionIndex];
     if (section === undefined) {
       this.peekMounts[side] = undefined;
@@ -1195,6 +1211,10 @@ export class Renderer {
       generation !== this.peekDocumentGeneration
     ) {
       view.destroy();
+      // Asking again is what makes "one mount a side" safe: while this one was building, the
+      // side was refused a mount of the section it moved on to, so nothing else would ever
+      // mount it. `peekMounts[side]` was cleared just above, so this side is free again.
+      if (!this.destroyed) this.refreshNeighbours();
       return;
     }
 

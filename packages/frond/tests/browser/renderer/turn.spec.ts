@@ -80,11 +80,64 @@ test.describe("the pages either side stay mounted", () => {
 
     await page.evaluate(() => frond.walkNext(30));
 
-    // Three is the steady state: the page and the two either side. The fourth allows for one
-    // mount still on its way at the moment the count is taken — what must not happen is a
-    // count that grows with the number of turns.
+    // Four is the whole container, not a tolerance. Three are the steady state — the page and
+    // the two either side — and the fourth is a frame being mounted, which is in the container
+    // from the moment the mount starts. **In this book that fourth can only be a peek's own
+    // mount**, not the reader's: nothing here crosses a section, so no turn mounts a page. The
+    // walk starts on the first page of the book, where there is nothing behind the reader, so
+    // the page they leave behind on the first turn is a peek that has to be built.
+    //
+    // Each peek side is held to one frame either way: a mount in flight there means the peek
+    // that stood there has already gone, and while it is in flight the side cannot start
+    // another (`refreshNeighbours`).
     const frames = await page.evaluate(() => frond.frames().length);
     expect(frames).toBeLessThanOrEqual(4);
+  });
+
+  test("turning back and forth over a section edge costs one mount a side, not one per turn", async ({
+    page,
+  }) => {
+    // The count above never crosses a section: it runs inside one, where the section a peek
+    // wants never changes, so nothing there ever asks for a second mount and the ceiling is
+    // never tested. This is the path that tests it. Standing on the first page of the second
+    // section, the page **behind** the reader is in the section before; one turn forward and
+    // it is in this one. So every turn here changes which section that side wants — and unlike
+    // reading straight through, neither turn waits for a document, because both pages are
+    // already in the section on screen.
+    //
+    // Before the mounts a side were made to take turns, that was unbounded: each turn started
+    // a mount for the section the side now wanted and left the previous one running, and a
+    // mount is a frame in the container from the moment it starts (`SectionView.mount` appends
+    // the frame and then waits for it to load). Measured on this book, 15 turns back and forth
+    // put **33 frames** in the container at once.
+    //
+    // The count is taken a turn at a time rather than once at the end, because by then the
+    // mounts that were in flight during the run have landed and been discarded.
+    //
+    // **Three, not four**, and this is the one place the tighter number can be asked for: both
+    // pages are inside the section on screen, so `loadSection` never has a page mount in flight
+    // to allow for. What is left is the reader's page and one frame a side.
+    //
+    // ⚠️ This drives the turns through `next()`/`previous()`, which is only one of the two ways
+    // a reader crosses a section edge. The other is dragging the page across and letting go:
+    // that takes the peek as the new page and calls `refreshNeighbours` straight away, off the
+    // queue and without waiting for any document, which is the faster of the two and the one a
+    // phone actually does. It goes through the same guard, and no test covers it.
+    await mountPlainBook(page);
+    await peeksReady(page);
+    await page.evaluate(() => frond.goToSection(1));
+
+    const peak = await page.evaluate(async () => {
+      let highest = 0;
+      for (let turn = 0; turn < 15; turn += 1) {
+        await frond.next();
+        await frond.previous();
+        highest = Math.max(highest, frond.frames().length);
+      }
+      return highest;
+    });
+
+    expect(peak).toBeLessThanOrEqual(3);
   });
 });
 
