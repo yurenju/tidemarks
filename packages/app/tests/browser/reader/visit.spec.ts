@@ -24,12 +24,30 @@ import { BOOKS, bookCards, openPanel, seedProgress, settled } from "../support/l
 /** The quote as it reads in the panel, and as the button carrying it is named. */
 const PASSAGE = "A passage marked earlier";
 
-/** Alice's sixth spine item is chapter one, and her eighth is chapter three. */
-const IN_CHAPTER_ONE = "epubcfi(/6/12!/4,/2/1:0,/2/1:8)";
+// Alice's sixth spine item is chapter one and her eighth is chapter three, and inside one of
+// them her prose begins at `/4/2/2/2/1` — body, the chapter's own `<section>`, then its first
+// block.
+//
+// ⚠️ **These were read off the book, not composed by hand.** An invented path parses and
+// compares like any other, so a mark written at `/4/2/1:0` — one step short of where the text
+// actually begins — sorts *before* the page it is printed on, and the reader gets told they are
+// somewhere else while looking straight at it. Not hypothetical: it is what the first version of
+// this file did, and all three engines caught it. To re-derive them, open the book and read
+// `pageRange` out of the position note in `localStorage`.
+const IN_CHAPTER_ONE = "epubcfi(/6/12!/4/2,/2/2/1:0,/2/2/1:8)";
 const CHAPTER_THREE = {
-  cfi: "epubcfi(/6/16!/4/2/1:0)",
+  cfi: "epubcfi(/6/16!/4/2/2/2/1:0)",
   // The page the reader had reached, which is what makes chapter one somewhere else.
-  pageRange: "epubcfi(/6/16!/4,/2/1:0,/2/1:40)",
+  pageRange: "epubcfi(/6/16!/4/2,/2/2/1:0,/12/1:0)",
+};
+
+/**
+ * The reader stopped at the top of chapter one — where `IN_CHAPTER_ONE` is the first line they
+ * are looking at, rather than something a hundred pages behind them.
+ */
+const CHAPTER_ONE = {
+  cfi: "epubcfi(/6/12!/4/2/2/2/1:0)",
+  pageRange: "epubcfi(/6/12!/4/2,/2/2/1:0,/12/1:0)",
 };
 
 function storedCfi(page: Page): Promise<string | null> {
@@ -123,9 +141,14 @@ test("a visit holds the reader's place until they hand it over", async ({ page }
 });
 
 test("a marked passage on the page in front of the reader is not a visit", async ({ page }) => {
-  // No position seeded: the book opens at its first page, and the mark is on it. Nothing has
-  // been left behind, so pressing it should pass without a word.
-  await arrive(page, null, "epubcfi(/6/2!/4,/2/1:0,/2/1:8)");
+  // **Opened in the middle of a chapter, on the page the mark is on.** The reader has left
+  // nothing behind, so pressing it should pass without a word.
+  //
+  // Chapter one rather than the title page, and that is not decoration: the title page is a
+  // section one page long, so "next page" there means mounting the next document — which on a
+  // loaded CI runner took longer than this waited for, and read as a turn that never happened.
+  // Inside a chapter the turn is a turn.
+  await arrive(page, CHAPTER_ONE, IN_CHAPTER_ONE);
   await expect.poll(() => storedCfi(page)).not.toBeNull();
   const here = (await storedCfi(page))!;
 
@@ -140,6 +163,13 @@ test("a marked passage on the page in front of the reader is not a visit", async
 
   // Not merely quiet: still reading. A visit entered silently would show up here, as a page
   // turn that never reached the position.
-  await page.getByRole("button", { name: "Next page" }).click();
-  await expect.poll(() => storedCfi(page)).not.toBe(here);
+  //
+  // Clicked until it lands, the way `openChrome` is: the panel is on its way out as this
+  // begins, and the book widening behind it is a reflow — a click sent into that is spent on
+  // nothing, and this would then be waiting for a turn nobody asked for. A visit entered by
+  // mistake is not rescued by clicking again, so the retry cannot hide the thing under test.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Next page" }).click();
+    expect(await storedCfi(page)).not.toBe(here);
+  }).toPass({ timeout: 15_000 });
 });

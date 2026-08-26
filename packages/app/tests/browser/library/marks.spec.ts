@@ -41,18 +41,22 @@ const IN_SECTION_ZERO = "epubcfi(/6/2!/4,/2/1:0,/2/1:8)";
 const IN_CHAPTER_THREE = "epubcfi(/6/16!/4,/2/1:0,/2/1:8)";
 
 /** A passage in chapter one, for the test that needs one *behind* where the reader had read. */
-const IN_CHAPTER_ONE = "epubcfi(/6/12!/4,/2/1:0,/2/1:8)";
+const IN_CHAPTER_ONE = "epubcfi(/6/12!/4/2,/2/2/1:0,/2/2/1:8)";
 
 /**
  * A reading position in chapter three, with the page it was on.
  *
- * The page is what makes it a position rather than a point: a passage is a visit only when it
- * is somewhere other than the page the reader had reached, and this one covers chapter three's
+ * The page is what makes it a position rather than a point: a passage is a visit only when it is
+ * somewhere other than the page the reader had reached, and this one covers chapter three's
  * opening and nothing in chapter one.
+ *
+ * ⚠️ Read off the book rather than composed — `/4/2/2/2/1` is where Alice's prose begins inside
+ * a chapter, and a path one step short of it sorts before the page it is printed on while
+ * parsing perfectly well. `reader/visit.spec.ts` has how to re-derive these.
  */
 const READ_TO_CHAPTER_THREE = {
-  cfi: "epubcfi(/6/16!/4/2/1:0)",
-  pageRange: "epubcfi(/6/16!/4,/2/1:0,/2/1:40)",
+  cfi: "epubcfi(/6/16!/4/2/2/2/1:0)",
+  pageRange: "epubcfi(/6/16!/4/2,/2/2/1:0,/12/1:0)",
   percentage: 0.3,
 };
 
