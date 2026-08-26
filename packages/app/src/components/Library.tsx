@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { currentlyReading, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
@@ -414,7 +414,11 @@ function MarkCard({
       className="mark-card"
       data-testid="mark-card"
       data-mark-id={mark.id}
-      style={{ borderLeftColor: markVar(mark.color) }}
+      // The mark's own ink, under a name the stylesheet can spend more than one way: a rule down
+      // the side on a phone, the pair of quotation marks on a wide shelf. It was `borderLeftColor`
+      // while the rule was the only thing carrying it, and a border's colour cannot become a
+      // glyph's.
+      style={{ "--mark-ink": markVar(mark.color) } as CSSProperties}
       {...useFlick(step)}
       // Arrows turn the card too, but only once focus is inside it — bound here rather than on
       // the window so they still mean what they always mean everywhere else on the shelf. The

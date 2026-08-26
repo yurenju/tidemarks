@@ -336,7 +336,9 @@ test("the shelf stops widening, and centres in what is left", async ({ page }) =
 
   const shelfBox = async () => (await page.locator(".library").boundingBox())!;
 
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // Both above the shelf's own cap, so what is being asked is whether it stopped — 1280 is under
+  // it now that the wall of covers gets to spend the width the passage used to hold back.
+  await page.setViewportSize({ width: 1600, height: 900 });
   const narrow = await shelfBox();
   await page.setViewportSize({ width: 2560, height: 900 });
   const wide = await shelfBox();

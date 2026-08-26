@@ -198,8 +198,36 @@
     padding: var(--space-5) var(--space-6) 0;
   }
 
+  /* **From here the shelf is wider than anything on it is meant to be read at**, and the two
+     numbers come apart: `.library` runs to 1440 and the wall of covers spends it, while what the
+     reader reads stops at `--reading-column`. These three carry reading, so they stop.
+
+     The card is the one that stops differently. It is a piece of the shelf, so its *box* runs the
+     whole width and the column is held inside it by padding that grows — a card that shrank to
+     736 would leave the wall below it starting at an edge the card never reaches, and a shelf
+     with two left edges. The other two have no box to speak of, so a plain cap is the whole of
+     it. */
+  /* **The card is the same card; it is given more room and told where to spend it.** Its box runs
+     the shelf's whole width, because it is a piece of the shelf — a card that shrank to the
+     reading column would leave the wall of covers below starting at an edge the card never
+     reaches, and a shelf with two left edges. The reading is held in the middle of that box by an
+     inset that grows with the page.
+
+     Three values, and `library.css` is written in terms of all three, so nothing about the card's
+     arrangement is stated twice. The marks grow with the card and now have somewhere to hang,
+     which is the one thing the phone could not give them. */
   .mark-card {
-    margin: var(--space-6) var(--space-6) 0;
+    --mark-card-inset: max(var(--space-6), calc((100% - var(--reading-column)) / 2));
+    --mark-quote-size: 3.5rem;
+    --mark-quote-hang: 2.2rem;
+
+    margin: var(--space-6) 0 0;
+  }
+
+  /* No box of their own to hold anything in, so a plain cap is the whole of it. */
+  .reading-now,
+  .shelf-actions {
+    max-width: var(--reading-column);
   }
 
   .reading-now {
