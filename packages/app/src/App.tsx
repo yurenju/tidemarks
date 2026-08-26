@@ -170,8 +170,18 @@ export default function App() {
     go({ screen: { kind: "settings", tab: "account" }, drawer: null });
   }, []);
 
+  // **The state moves with the hash, rather than waiting for `hashchange` to come back round.**
+  // That round trip is a browser event, so it lands a turn after any state set alongside it —
+  // and in that gap `route` still names the screen the reader just left. The passage tapped on
+  // the shelf's card was being thrown away in exactly that gap: `setOpenAt` applied, this
+  // render still said "shelf", and the effect above read that as having left the book.
+  //
+  // `hashchange` still arrives and still sets the route; it parses to the same value, so the
+  // second write says nothing new. Back and forward reach the app through that listener alone
+  // and are untouched by this.
   function go(next: Route) {
     window.location.hash = hashFor(next);
+    setRoute(next);
   }
 
   function goTo(screen: Screen) {

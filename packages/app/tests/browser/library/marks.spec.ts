@@ -7,7 +7,7 @@
 // does put them back in the book it came from.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, bookCards, importBook, settled } from "../support/library.js";
+import { BOOKS, bookCards, importBook, PAGE_FRAME, settled } from "../support/library.js";
 
 /** A passage the reader marked, written the way the reader's own highlight would write it. */
 interface Seed {
@@ -15,6 +15,32 @@ interface Seed {
   text: string;
   note: string;
   createdAt: number;
+  /** Where in the book this passage is. Section 0 unless a test needs somewhere further in. */
+  cfiRange?: string;
+}
+
+/** A passage in the first section, which is where a book opens anyway. */
+const IN_SECTION_ZERO = "epubcfi(/6/2!/4,/2/1:0,/2/1:8)";
+
+/**
+ * A passage several sections in, for the one test that asks *where* a tap lands.
+ *
+ * Alice's spine has eleven items and `chapter-3.xhtml` is the eighth, so the itemref step is
+ * `/6/16`. Anywhere past the front matter would do — what it has to be is somewhere a book
+ * never opens on its own, so that arriving there can only mean the passage was carried through.
+ */
+const IN_CHAPTER_THREE = "epubcfi(/6/16!/4,/2/1:0,/2/1:8)";
+
+/**
+ * That the reader is looking at chapter three rather than at the cover.
+ *
+ * The section is the assertion, not the exact sentence: walking a CFI down to a node inside a
+ * section is frond's own business and proven there. What is being asked here is whether the
+ * passage reached the renderer at all — and a book left to itself opens at the title page.
+ */
+async function landedInChapterThree(page: Page): Promise<void> {
+  const frame = page.frameLocator(PAGE_FRAME);
+  await expect(frame.locator("body")).toContainText(/Caucus-Race/, { timeout: 30_000 });
 }
 
 /**
@@ -27,7 +53,7 @@ interface Seed {
  */
 async function seedMarks(page: Page, seeds: Seed[]): Promise<void> {
   await page.evaluate(
-    (rows) =>
+    ([rows, zero]) =>
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open("tidemarks");
         open.onerror = () => reject(open.error);
@@ -39,7 +65,7 @@ async function seedMarks(page: Page, seeds: Seed[]): Promise<void> {
             store.put({
               id: `seed-${index}`,
               bookId: row.bookId,
-              cfiRange: "epubcfi(/6/2!/4,/2/1:0,/2/1:8)",
+              cfiRange: row.cfiRange ?? zero,
               text: row.text,
               note: row.note,
               color: "indigo",
@@ -55,7 +81,7 @@ async function seedMarks(page: Page, seeds: Seed[]): Promise<void> {
           tx.onerror = () => reject(tx.error);
         };
       }),
-    seeds,
+    [seeds, IN_SECTION_ZERO] as const,
   );
 }
 
@@ -236,12 +262,14 @@ test("the passage on the card carries its own book's line-length ceiling", async
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
-test("the book's own words on the card go back to the book", async ({ page }) => {
+test("the book's own words on the card go back to the passage", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
 
-  await seedMarks(page, [{ bookId: alice, text: LATIN, note: "", createdAt: 1_000 }]);
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000, cfiRange: IN_CHAPTER_THREE },
+  ]);
   await page.reload();
 
   // **Both halves of the same rule, which is why they are one test**: the book's words — the
@@ -251,11 +279,13 @@ test("the book's own words on the card go back to the book", async ({ page }) =>
   await page.getByTestId("mark-quote").click();
   await expect(page.locator(".reader")).toBeVisible();
   expect(page.url()).toContain(`#/book/${alice}`);
+  await landedInChapterThree(page);
 
   await page.goBack();
   await page.getByTestId("mark-source-link").click();
   await expect(page.locator(".reader")).toBeVisible();
   expect(page.url()).toContain(`#/book/${alice}`);
+  await landedInChapterThree(page);
 });
 
 test("a thought written on the shelf is still there after a reload", async ({ page }) => {
