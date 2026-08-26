@@ -5,19 +5,12 @@ import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
 import { markVar } from "../lib/highlights";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
+import { shelfProjection, type Shelf } from "../lib/shelf";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
-import type { Annotation, BookRecord, Progress, ReadingSession } from "../lib/types";
+import type { Annotation, BookRecord } from "../lib/types";
 import { Wordmark } from "./Wordmark";
-
-interface Shelf {
-  books: BookRecord[];
-  progress: Map<string, Progress>;
-  sessions: Map<string, ReadingSession[]>;
-  /** Every passage the reader has marked, newest first. See `MarkCard`. */
-  marks: Annotation[];
-}
 
 export default function Library({
   onOpen,
@@ -43,30 +36,16 @@ export default function Library({
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Ordering happens below, in `sortShelf`, so the query no longer asks for one: the default
-  // order reads `progress` as well as `books`, which no single Dexie index can answer.
+  // order reads `progress` as well as `books`, which no single Dexie index can answer. What the
+  // four tables mean once they are here is `shelf.ts`.
   async function reload() {
-    const [allBooks, progress, sessions, annotations] = await Promise.all([
+    const [books, progress, sessions, annotations] = await Promise.all([
       db.books.toArray(),
       db.progress.toArray(),
       db.readingSessions.toArray(),
       db.annotations.toArray(),
     ]);
-    const books = allBooks.filter((b) => !b.deletedAt);
-    const sessionMap = new Map<string, ReadingSession[]>();
-    for (const s of sessions) {
-      sessionMap.set(s.bookId, [...(sessionMap.get(s.bookId) ?? []), s]);
-    }
-    // A mark belongs to a book, so a deleted book takes its marks off the shelf with it — the
-    // rows are still there as tombstones until sync has carried them away.
-    const onTheShelf = new Set(books.map((b) => b.id));
-    setShelf({
-      books,
-      progress: new Map(progress.map((p) => [p.bookId, p])),
-      sessions: sessionMap,
-      marks: annotations
-        .filter((a) => a.deletedAt === null && onTheShelf.has(a.bookId))
-        .sort((a, b) => b.createdAt - a.createdAt),
-    });
+    setShelf(shelfProjection({ books, progress, sessions, annotations }));
   }
 
   /** The note on one marked passage, written from the shelf rather than from inside the book. */
