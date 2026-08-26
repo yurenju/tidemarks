@@ -38,22 +38,14 @@ import {
 } from "../lib/web-font-store";
 import { createDirection, createNavigator, type Navigator } from "../lib/navigator";
 import {
-  commitsTurn,
-  dampen,
-  isTap,
-  LONG_PRESS_MS,
-  startsDrag,
-  startsLongPressSelection,
-  TAP_SELECTION_GRACE_MS,
-  travelled,
-} from "../lib/touch";
-import {
-  handleAt,
-  selectionEnds,
-  type Point,
-  type Rect,
-  type SelectionEnds,
-} from "../lib/selection-handles";
+  createGestureMachine,
+  type GestureEvent,
+  type GestureIntent,
+  type GestureMachine,
+  type TurnFacts,
+} from "../lib/gesture";
+import { LONG_PRESS_MS } from "../lib/touch";
+import { selectionEnds, type Point, type Rect, type SelectionEnds } from "../lib/selection-handles";
 import {
   BOUNCE_FRACTION,
   BOUNCE_MS,
@@ -157,10 +149,6 @@ const isPanel = (chrome: Chrome): chrome is PanelKind =>
 // How long the applied/unavailable toast stays before it clears itself. Long enough to read a
 // short line, short enough not to sit over the page.
 const FONT_TOAST_MS = 2600;
-
-// The window the release speed is measured over. Long enough to have two or three moves in it
-// on a 60Hz screen, short enough that it is the flick and not the drag before it.
-const VELOCITY_WINDOW_MS = 90;
 
 // Where the page sits when no turn is moving it.
 const AT_REST: PageOffset = { x: 0, y: 0 };
@@ -310,6 +298,21 @@ export default function Reader({
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   const navRef = useRef<Navigator | null>(null);
+  /**
+   * What a run of pointer events means, in the one place that decides it.
+   *
+   * A ref for the same reason the navigator is one: it is built inside the effect that opens the
+   * book — it needs the book's direction — and read from listeners registered before that effect
+   * has got there.
+   */
+  const machineRef = useRef<GestureMachine | null>(null);
+  /**
+   * A page button or an arrow key asking for the page on that side.
+   *
+   * The buttons are rendered down in the markup and the machine that answers them lives in the
+   * effect, so this is the same arrangement as `handlesRef` and for the same reason.
+   */
+  const onSideRef = useRef<((side: "left" | "right") => void) | null>(null);
   const [renderer, setRenderer] = useState<Renderer | null>(null);
   const [title, setTitle] = useState("");
   const [toc, setToc] = useState<FlatTocItem[]>([]);
@@ -486,62 +489,27 @@ export default function Reader({
     setSectionIndex(0);
     setChapters([]);
 
-    // Where and when the pointer went down, and the two facts about that instant that decide
-    // what the press may become. frond deliberately does not pair a press with a release: how
-    // far counts as a drag and how long counts as a tap are ours (its ADR-0002).
-    //
-    // `hadSelection` is asked **at the press and only there**. A selection standing when the
-    // finger lands means the reader is adjusting it, and the page must not move; a selection
-    // that appears afterwards is the platform's own long press, and by then the page is already
-    // following the finger (docs/specs/swipe-to-turn/spec.md).
-    let press: {
-      x: number;
-      y: number;
-      at: number;
-      pointerType: string;
-      isLink: boolean;
-      hadSelection: boolean;
-    } | null = null;
-
-    // The selection the finger is currently making, and the point it is being made away from.
-    //
-    // **One field for two gestures**, because they are the same gesture from here: a long press
-    // fixes the anchor where the finger landed and extends from it, and dragging a handle fixes
-    // it at the *other* end and extends from that. Neither can be in progress while the page is
-    // being dragged — a press becomes one or the other and never both.
-    let selecting: { anchor: Point } | null = null;
-
     // The clock that turns a still finger into a selection. A timer rather than a test inside
     // `pointermove`, because a finger that is holding perfectly still sends no moves at all —
     // the one gesture this has to recognise is the one that would never be asked about.
+    //
+    // **It lives out here because the machine holds no timers** (`lib/gesture.ts`). Its firing is
+    // an event like any other, so every route that has to call it off is a transition with a name
+    // rather than a `clearTimeout` someone has to remember at six separate call sites.
     let longPress: ReturnType<typeof setTimeout> | undefined;
-    // Where the finger is now, for the timer to judge when it fires.
-    let at: Point = { x: 0, y: 0 };
 
     const cancelLongPress = (): void => {
       if (longPress !== undefined) clearTimeout(longPress);
       longPress = undefined;
     };
 
-    // The turn the finger is dragging, once it has travelled far enough to be one. `sign` is
-    // which way it is going, so that dragging back the other way can swap it for the other page
-    // rather than leaving the reader pushing against a page that has stopped.
-    let drag: { turn: TurnInProgress; sign: number } | null = null;
+    // The turn the finger is dragging, as frond made it. The machine names turns and is told back
+    // what they measured; the object itself never crosses that line, because faking one for a
+    // unit test would mean faking the parts hardest to be right about (`lib/gesture.ts`).
+    let dragTurn: TurnInProgress | null = null;
 
-    // The last few positions of the drag, for how fast it was going when the finger left. A
-    // flick is short and quick, and distance alone cannot tell it from a nudge.
-    let trail: { travel: number; at: number }[] = [];
-
-    const speedAtRelease = (): number => {
-      const last = trail[trail.length - 1];
-      const first = trail.find((sample) => last!.at - sample.at <= VELOCITY_WINDOW_MS);
-      if (last === undefined || first === undefined || first.at === last.at) return 0;
-
-      // Measured along the drag's own direction: a finger that turned back at the last moment
-      // was not flicking forward, and its speed should not carry the page over.
-      const advanced = Math.abs(last.travel) - Math.abs(first.travel);
-      return Math.max(0, advanced / (last.at - first.at));
-    };
+    const turnFacts = (): TurnFacts | null =>
+      dragTurn === null ? null : { extent: dragTurn.extent, atBoundary: dragTurn.atBoundary };
 
     /**
      * A turn from frond, with the highlight layer tied to the page it is drawn over.
@@ -585,18 +553,6 @@ export default function Reader({
           slideMarks(marksRef.current, AT_REST);
         },
       };
-    };
-
-    const beginDrag = (travel: number): { turn: TurnInProgress; sign: number } | null => {
-      const renderer = rendererRef.current;
-      const towards = navRef.current?.dragTowards(travel);
-      if (!renderer || towards === undefined) return null;
-
-      const turn = beginTurn(towards.towards, towards.from, renderer);
-      if (turn === undefined) return null;
-
-      trail = [];
-      return { turn, sign: Math.sign(travel) };
     };
 
     /**
@@ -655,33 +611,6 @@ export default function Reader({
         take ? turn.commit() : turn.cancel(),
       );
 
-    const endDrag = (): void => {
-      const held = drag;
-      drag = null;
-      if (held === null) return;
-
-      const { turn } = held;
-      const distance = Math.abs(trail[trail.length - 1]?.travel ?? 0);
-      const shown = turn.atBoundary
-        ? dampen(distance, turn.extent)
-        : Math.min(distance, turn.extent);
-      const take =
-        !turn.atBoundary &&
-        commitsTurn({ distance, extent: turn.extent, velocity: speedAtRelease() });
-
-      // **A page turn puts the chrome away**, this route included. Done before the animation
-      // rather than after it, so the bars are not still sliding over a page that has turned.
-      if (take) setChrome("down");
-      settleTurn(turn, shown, take ? turn.extent : 0, take);
-    };
-
-    // When the last tap ended, so a selection arriving just after it can be blamed on the
-    // browser rather than on the reader — phone browsers select a word on a plain tap, and
-    // frond reports that selection exactly as it reports a deliberate one. Zeroed on the next
-    // pointerdown: from that moment the reader is driving again.
-    let tappedAt = 0;
-    const withinTapGrace = () => tappedAt !== 0 && Date.now() - tappedAt < TAP_SELECTION_GRACE_MS;
-
     // Puts a selection away: the one this component is showing, and the browser's own if there
     // is one. The second half is frond's to do — a browser-drawn selection lives inside its
     // iframe — and it is harmless where the selection was ours, because there is nothing there
@@ -727,51 +656,107 @@ export default function Reader({
     };
 
     /**
-     * Extends the selection being made out to where the finger is now.
+     * Carries out one thing the gesture machine asked for.
      *
-     * `"char"` rather than `"word"`: the word granularity is spent on the first snap, and from
-     * then on the reader is choosing where the passage ends. The two platforms differ here —
-     * iOS extends by character, Android snaps to words — and character is the one the reader can
-     * always reach the other from. ⚠️ Whether it is fiddly on a real phone is one for the device
-     * trip; changing it is changing this argument.
+     * **Everything on the other side of the seam.** The machine decides *what* a run of pointer
+     * events means and says so in intents; this is the only place that touches frond, React state
+     * or a timer because of one. The switch is exhaustive over a flat union on purpose — a route
+     * added to `GestureIntent` later fails to compile here rather than failing on a phone.
      */
-    const extendTo = (point: Point): void => {
-      const anchor = selecting?.anchor;
-      if (anchor === undefined) return;
-      const facts = rendererRef.current?.rangeFromPoints(anchor, point, "char");
-      // A finger over a margin, a picture, or past the end of the column has moved off the text
-      // rather than to the end of it — the selection stays where the reader last had it.
-      if (facts) showRange(facts, true);
-    };
+    function runIntent(intent: GestureIntent): void {
+      switch (intent.kind) {
+        case "armLongPress":
+          longPress = setTimeout(() => send({ kind: "longPressFired" }), LONG_PRESS_MS);
+          return;
+        case "cancelLongPress":
+          cancelLongPress();
+          return;
+        case "beginTurn": {
+          const renderer = rendererRef.current;
+          // `undefined` from frond means there is no page that way. The machine hears about it on
+          // the next move, as a turn that is not there, and gets to ask for one again.
+          dragTurn =
+            renderer === null ? null : (beginTurn(intent.towards, intent.from, renderer) ?? null);
+          return;
+        }
+        case "moveTurn":
+          dragTurn?.moveTo(intent.distance);
+          return;
+        case "dropTurn": {
+          const held = dragTurn;
+          dragTurn = null;
+          held?.cancel();
+          return;
+        }
+        case "commitTurn": {
+          const held = dragTurn;
+          dragTurn = null;
+          if (held !== null) settleTurn(held, intent.from, intent.to, true);
+          return;
+        }
+        case "cancelTurn": {
+          const held = dragTurn;
+          dragTurn = null;
+          if (held !== null) settleTurn(held, intent.from, intent.to, false);
+          return;
+        }
+        case "commandTurn":
+          commandTurn(intent.towards);
+          return;
+        case "lowerChrome":
+          setChrome("down");
+          return;
+        case "toggleChrome":
+          // One toggle, no timer: a chrome that withdraws on its own takes the table of contents
+          // away from a reader who was still reading it (ADR-0020).
+          setChrome((now) => (now === "down" ? "up" : "down"));
+          return;
+        case "beginSelection": {
+          const facts = rendererRef.current?.rangeFromPoints(intent.at, intent.at, "word");
+          // A press on a margin, a picture, the gap between paragraphs: nothing to select, and
+          // the press carries on being whatever it would otherwise have been — which is what the
+          // machine has to be told, or it would spend the rest of the press extending nothing.
+          if (facts) showRange(facts, true);
+          else send({ kind: "selectionRefused" });
+          return;
+        }
+        case "extendSelection": {
+          // `"char"` rather than `"word"`: the word granularity is spent on the first snap, and
+          // from then on the reader is choosing where the passage ends. The two platforms differ
+          // — iOS extends by character, Android snaps to words — and character is the one the
+          // reader can always reach the other from. ⚠️ Whether it is fiddly on a real phone is one
+          // for the device trip; changing it is changing this argument.
+          const facts = rendererRef.current?.rangeFromPoints(intent.from, intent.to, "char");
+          // A finger over a margin, a picture, or past the end of the column has moved off the
+          // text rather than to the end of it — the selection stays where the reader last had it.
+          if (facts) showRange(facts, true);
+          return;
+        }
+        case "holdSelection":
+          setSelection((now) => (now === null ? null : { ...now, live: true }));
+          return;
+        case "settleSelection":
+          // 〈標〉 may stand up now the finger has finished (CONTEXT.md 〈chrome〉).
+          setSelection((now) => (now === null ? null : { ...now, live: false }));
+          return;
+        case "dropSelection":
+          dropSelection();
+          return;
+        case "openNote":
+          setChrome("notes");
+          setEditingId(intent.annotationId);
+          return;
+      }
+    }
 
-    /**
-     * A still finger, held past the threshold: the word under it becomes the selection.
-     *
-     * **The distance half of `startsLongPressSelection` is asked as the finger moves, not here.**
-     * Asking it once, when the timer fires, gets a still finger wrong in the ordinary case: a
-     * press drifts a few pixels while it settles, and if that drift is *downwards* it is not a
-     * page turn either (`startsDrag` is sideways-only, ADR-0024) — so the press would fail the
-     * distance test at the threshold, never be reconsidered, and do nothing at all however long
-     * it was held. Cancelling as soon as the finger genuinely travels says the same thing about
-     * the gesture and leaves nothing to fail late.
-     *
-     * The time half is the timer itself, so re-asking it could only ever produce a false
-     * negative from a coarse clock.
-     */
-    const beginLongPressSelection = (): void => {
-      const started = press;
-      longPress = undefined;
-      if (started === null || drag !== null || !ownSelectionRef.current) return;
-
-      const point = { x: started.x, y: started.y };
-      const facts = rendererRef.current?.rangeFromPoints(point, point, "word");
-      // A press on a margin, a picture, the gap between paragraphs: nothing to select, and the
-      // press carries on being whatever it would otherwise have been.
-      if (!facts) return;
-
-      selecting = { anchor: point };
-      showRange(facts, true);
-    };
+    /** Hands one event to the machine and carries out what comes back. */
+    function send(event: GestureEvent): boolean {
+      const machine = machineRef.current;
+      if (machine === null) return false;
+      const answer = machine.send(event);
+      for (const intent of answer.intents) runIntent(intent);
+      return answer.preventDefault;
+    }
 
     /**
      * What a press means, whichever surface it landed on.
@@ -790,173 +775,50 @@ export default function Reader({
       hasSelection: boolean;
       preventTapDefault?: () => void;
     }) => {
-      press = {
+      const prevent = send({
+        kind: "press",
         x: event.x,
         y: event.y,
-        at: Date.now(),
+        at: performance.now(),
         pointerType: event.pointerType,
         isLink: event.isLink,
-        hadSelection: event.hasSelection,
-      };
-      at = { x: event.x, y: event.y };
-      // The reader is driving from here on, so a selection is theirs again.
-      tappedAt = 0;
-
-      // A finger held still on the text chooses a word (ADR-0036). Only a finger, and only
-      // where the selection is ours to make: under a mouse the browser is still doing this.
-      cancelLongPress();
-      selecting = null;
-      if (ownSelectionRef.current && event.pointerType !== "mouse") {
-        longPress = setTimeout(beginLongPressSelection, LONG_PRESS_MS);
-      }
-
+        hasSelection: event.hasSelection,
+      });
       // The browser does not get to act on this press as a tap of its own — that is the search
       // bar in #36, and this is the only moment early enough to stop it. Must stay synchronous:
       // frond hands this over for the duration of the listener.
-      const start = { pointerType: event.pointerType, isLink: event.isLink };
-      if (navRef.current?.preventsTapDefault(start)) event.preventTapDefault?.();
+      if (prevent) event.preventTapDefault?.();
     };
 
     const onMove = (event: { x: number; y: number }) => {
-      const started = press;
-      if (started === null) return;
-      at = { x: event.x, y: event.y };
-
-      // The finger is making a selection: it is not going to turn a page with the same stroke.
-      if (selecting !== null) {
-        extendTo(at);
-        return;
-      }
-
-      // A finger that has travelled is no longer a still one, whichever way it went — so the
-      // press stops being a candidate for a selection now rather than failing the distance test
-      // when the timer fires (`beginLongPressSelection`). Asked of the raw travel and not of
-      // `startsDrag`, because a finger going down the page turns nothing and is still moving.
-      if (!startsLongPressSelection(event.x - started.x, event.y - started.y, LONG_PRESS_MS)) {
-        cancelLongPress();
-      }
-
-      // A mouse turns no page: the desktop has the edge buttons and the arrow keys, and a drag
-      // there is how text is selected.
-      //
-      // **Where the selection is ours, a standing one no longer stops the page.** That rule was
-      // the compensation for not knowing where the finger had landed — with the browser drawing
-      // the selection there was no way to tell "adjusting this end" from "turning the page", so
-      // every press while something was selected was read as the first. The handles are ours
-      // now and they claim their own presses (`SelectionLayer`), so a press anywhere else is
-      // what it looks like: a page turn, which takes the selection with it.
-      if (started.pointerType === "mouse") return;
-      if (!ownSelectionRef.current && started.hadSelection) return;
-
-      const dx = event.x - started.x;
-      const dy = event.y - started.y;
-      const travel = travelled(dx);
-
-      if (drag === null) {
-        if (!startsDrag(dx, dy)) return;
-        drag = beginDrag(travel);
-        if (drag === null) return;
-        // The press has become a page turn, so it is not going to become a selection — and
-        // whatever was selected goes with the page it was on. Done at the start of the drag
-        // rather than when it commits, because a drag that springs back has still spent this
-        // press: leaving the wash standing under a page the reader just pushed at reads as the
-        // selection having survived something it did not.
-        cancelLongPress();
-        dropSelection();
-      } else if (travel !== 0 && Math.sign(travel) !== drag.sign) {
-        // Dragged back past where it started and on the other way: that is the other page being
-        // asked for, so the turn is swapped rather than pinned at zero.
-        drag.turn.cancel();
-        drag = beginDrag(travel);
-        if (drag === null) return;
-      }
-
-      trail.push({ travel, at: performance.now() });
-      if (trail.length > 8) trail.shift();
-
-      const distance = Math.abs(travel);
-      drag.turn.moveTo(drag.turn.atBoundary ? dampen(distance, drag.turn.extent) : distance);
+      send({ kind: "move", x: event.x, y: event.y, at: performance.now(), turn: turnFacts() });
     };
 
     const onCancel = () => {
-      press = null;
-      cancelLongPress();
-      // The system took the finger away mid-selection — an edge gesture, a call. What has been
-      // selected so far stands and settles, exactly as if the finger had lifted: dropping it
-      // would be taking the reader's work away over something they did not do.
-      settleSelection();
-      const held = drag;
-      drag = null;
-      held?.turn.cancel();
-    };
-
-    /** The finger has finished with the selection, so 〈標〉 may stand up (CONTEXT.md 〈chrome〉). */
-    const settleSelection = (): void => {
-      if (selecting === null) return;
-      selecting = null;
-      setSelection((now) => (now === null ? null : { ...now, live: false }));
+      send({ kind: "cancel" });
     };
 
     const onRelease = (event: { x: number; y: number; isLink: boolean; hasSelection: boolean }) => {
-      const started = press;
-      press = null;
-      cancelLongPress();
-
-      // A selection was being made, and this press is spent on having made it. Nothing else may
-      // read the release: it neither raises the chrome nor puts the selection back down.
-      if (selecting !== null) {
-        settleSelection();
-        return;
-      }
-
-      if (drag !== null) {
-        endDrag();
-        return;
-      }
-
-      const dx = event.x - (started?.x ?? event.x);
-      const dy = event.y - (started?.y ?? event.y);
-      const ms = Date.now() - (started?.at ?? Date.now());
-
-      // A tap that landed on a highlight opens its note. The hit test is ours because the layer
+      // A tap that lands on a highlight opens its note. The hit test is ours because the layer
       // takes no pointer events — frond's coordinates and the painted boxes are already in the
-      // same system.
-      if (isTap(dx, dy, ms)) {
-        const hit = paintedRef.current.find((entry) =>
-          boxesContain({ x: event.x, y: event.y }, entry.targets),
-        );
-        if (hit) {
-          setChrome("notes");
-          setEditingId(hit.annotation.id);
-          return;
-        }
-      }
-
-      const result = navRef.current?.onPointerEnd({ dx, dy, ms, isLink: event.isLink });
-      if (result?.tap !== true) return;
-
-      // Whatever is selected after a tap was not chosen by that tap: either the browser took a
-      // word out of it (#36), or it was already there and the reader has just asked for it to go
-      // away. Tapping is the only way to put a selection down by hand now that it does not also
-      // turn the page.
-      tappedAt = Date.now();
-      // `hasSelection` is frond's answer about the browser's own selection, and where we draw
-      // our own that answer is permanently no — so what this component is showing has to be
-      // asked as well, or a tap would stop being the way to put a selection down on exactly the
-      // devices where it is the only way.
-      const dismissing =
-        started?.hadSelection === true || event.hasSelection || selectionRef.current !== null;
-      if (dismissing) dropSelection();
-
-      // And a tap nothing else has a claim on is what raises the chrome — or puts it back down,
-      // which is the same tap seen from the other state. One toggle, no timer: a chrome that
-      // withdraws on its own takes the table of contents away from a reader who was still
-      // reading it (ADR-0020).
-      //
-      // A tap that dismissed a selection is spent on that. One press, one thing.
-      if (result.unclaimed && !dismissing) {
-        setChrome((now) => (now === "down" ? "up" : "down"));
-      }
+      // same system — and it is measured here, at the moment of the release, rather than held by
+      // the machine: the boxes move with every page turn and every reflow.
+      const hit = paintedRef.current.find((entry) =>
+        boxesContain({ x: event.x, y: event.y }, entry.targets),
+      );
+      send({
+        kind: "release",
+        x: event.x,
+        y: event.y,
+        at: performance.now(),
+        isLink: event.isLink,
+        hasSelection: event.hasSelection,
+        // frond's `hasSelection` is about the browser's own selection, and where this component
+        // draws its own that answer is permanently no.
+        showingSelection: selectionRef.current !== null,
+        onHighlight: hit?.annotation.id ?? null,
+        turn: turnFacts(),
+      });
     };
 
     /**
@@ -967,35 +829,21 @@ export default function Reader({
      * container, so frond never sees the press and the margin's listeners are on a box the
      * press did not land in. The handle captures the pointer for the length of the drag, so
      * every move and the release come back here however far the finger travels.
-     *
-     * The end being dragged is the one that moves, so the anchor is **the other one** — which
-     * is the whole difference between this and a long press, and the reason both can share
-     * `selecting`.
      */
     handlesRef.current = (kind, end, point) => {
       const ends = selectionRef.current?.drawn?.ends;
       if (ends === undefined) return;
 
       switch (kind) {
-        case "down": {
-          // **Which handle, asked of the geometry rather than of the element.** A long press
-          // selects one word, and one word puts the two hit regions on top of each other; the
-          // press then goes to whichever button the DOM has on top, which need not be the one
-          // the reader was aiming at. `handleAt` answers with the nearer, and the element's own
-          // answer stands only where the point is outside both, which a press in the corner of
-          // a 44px square can be (31px from the centre against a radius of 22) — there the
-          // element that took the press is the better answer, not a worse one.
-          const grabbed = handleAt(point, ends) ?? end;
-          selecting = { anchor: grabbed === "start" ? ends.end.anchor : ends.start.anchor };
-          setSelection((now) => (now === null ? null : { ...now, live: true }));
+        case "down":
+          send({ kind: "handleDown", end, point, ends });
           return;
-        }
         case "move":
-          extendTo(point);
+          send({ kind: "handleMove", point });
           return;
         case "up":
         case "cancel":
-          settleSelection();
+          send({ kind: "strayRelease" });
           return;
       }
     };
@@ -1044,7 +892,9 @@ export default function Reader({
      * Without this the selection stays `live` for good: the colour row never appears, and the
      * only way out is a tap, which throws the selection away.
      */
-    const strayRelease = () => settleSelection();
+    const strayRelease = () => {
+      send({ kind: "strayRelease" });
+    };
     document.addEventListener("pointerup", strayRelease);
     document.addEventListener("pointercancel", strayRelease);
 
@@ -1114,22 +964,14 @@ export default function Reader({
       );
     };
 
-    // Read through a ref rather than closing over `attached`: the first `load` and
-    // `relocate` are emitted *inside* `attach()`, before it has returned anything to
-    // assign.
+    // An arrow key, or one of the two page buttons standing either side of the book. Both are
+    // rendered outside this effect, so they reach it the way the handles do.
     //
-    // **A page turn puts the chrome away**, whichever gesture asked for it — that is one half
-    // of how 〈找〉 ends (CONTEXT.md 〈chrome〉), and putting it here rather than at each caller
-    // is what stops a route being found later that turns a page with the interface still up.
-    const pager = {
-      next: () => {
-        setChrome("down");
-        commandTurn("next");
-      },
-      prev: () => {
-        setChrome("down");
-        commandTurn("prev");
-      },
+    // **A page turn puts the chrome away**, whichever route asked for it — that is one half of
+    // how 〈找〉 ends (CONTEXT.md 〈chrome〉). It is decided in the machine along with the turn
+    // itself, so a route found later cannot turn a page with the interface still up.
+    onSideRef.current = (side) => {
+      send({ kind: "side", side });
     };
 
     async function open() {
@@ -1204,9 +1046,15 @@ export default function Reader({
       // is already the final answer; for one that does not, it is left-to-right until a
       // section lays out vertically, and `load` rebuilds it that once.
       const direction = createDirection(book.metadata.pageProgressionDirection);
+      // The navigator and the machine are made together and replaced together: the machine asks
+      // the navigator which page a drag or a key is reaching for, and two of them disagreeing
+      // about which way the book opens is a book that turns forward one way by hand and the other
+      // way by key. Rebuilt at most once per book, when an undeclared one reveals itself vertical.
       const applyDirection = () => {
         setRtl(direction.rtl);
-        navRef.current = createNavigator(pager, { rtl: direction.rtl });
+        const nav = createNavigator({ rtl: direction.rtl });
+        navRef.current = nav;
+        machineRef.current = createGestureMachine(nav, { ownSelection: ownSelectionRef.current });
       };
       applyDirection();
 
@@ -1337,7 +1185,7 @@ export default function Reader({
             // A word the tap selected, not a passage the reader chose (#36). It arrives on
             // either side of `pointerup` depending on the browser, so it is caught here as
             // well as in the tap branch below.
-            if (withinTapGrace()) {
+            if (machineRef.current?.blamesTapForSelection(performance.now()) === true) {
               dropSelection();
               return;
             }
@@ -1370,8 +1218,8 @@ export default function Reader({
           pointerup: onRelease,
           keyup: (event) => {
             if (event.isComposing) return;
-            if (event.key === "ArrowLeft") navRef.current?.onSide("left");
-            if (event.key === "ArrowRight") navRef.current?.onSide("right");
+            if (event.key === "ArrowLeft") onSideRef.current?.("left");
+            if (event.key === "ArrowRight") onSideRef.current?.("right");
           },
           // frond reports where a link points and navigates nowhere itself. The book's own
           // table-of-contents page is the common case, and it needs no href repair now:
@@ -1421,8 +1269,8 @@ export default function Reader({
       const target = e.target as Element | null;
       if (target?.closest?.("input, select, textarea, [role='radiogroup']")) return;
 
-      if (e.key === "ArrowLeft") navRef.current?.onSide("left");
-      if (e.key === "ArrowRight") navRef.current?.onSide("right");
+      if (e.key === "ArrowLeft") onSideRef.current?.("left");
+      if (e.key === "ArrowRight") onSideRef.current?.("right");
     };
     document.addEventListener("keyup", onKeyUp);
 
@@ -1440,6 +1288,8 @@ export default function Reader({
       cancelLongPress();
       handlesRef.current = null;
       navRef.current = null;
+      machineRef.current = null;
+      onSideRef.current = null;
       rendererRef.current = null;
       setRenderer(null);
       attached?.destroy();
@@ -1837,7 +1687,7 @@ export default function Reader({
         <div className="viewer-wrap">
           <button
             className="page-btn"
-            onClick={() => navRef.current?.onSide("left")}
+            onClick={() => onSideRef.current?.("left")}
             aria-label={
               rtl
                 ? t({
@@ -1885,7 +1735,7 @@ export default function Reader({
           </div>
           <button
             className="page-btn"
-            onClick={() => navRef.current?.onSide("right")}
+            onClick={() => onSideRef.current?.("right")}
             aria-label={
               rtl
                 ? t({

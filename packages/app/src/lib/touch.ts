@@ -48,25 +48,6 @@ export const TAP_SELECTION_GRACE_MS = 400;
 export const LONG_PRESS_MS = 500;
 
 /**
- * Whether a press has become a long press asking to select text, rather than a page turn.
- *
- * This is the discriminator ADR-0036 revised ADR-0024 for: telling "held still to select" from
- * "slow swipe to turn". The two are mutually exclusive by construction — `startsDrag` claims the
- * press for a page turn the instant it travels past `TAP_SLOP_PX` sideways, whatever the clock
- * says, so a finger that is still inside the slop when the threshold elapses was never a swipe.
- * A finger that had already moved is turning a page and never reaches here.
- *
- * So time enters the decision only to *recognise a selection*, never to *refuse a turn* — the
- * reader who presses, hesitates and then swipes still moves past the slop and still turns the
- * page, which is the promise `startsDrag`'s time-blindness was there to keep.
- *
- * **The threshold is a guess** — ADR-0036 marks it for real-device measurement.
- */
-export function startsLongPressSelection(dx: number, dy: number, ms: number): boolean {
-  return ms >= LONG_PRESS_MS && Math.abs(dx) < TAP_SLOP_PX && Math.abs(dy) < TAP_SLOP_PX;
-}
-
-/**
  * Whether the page should start following the finger.
  *
  * **Time is deliberately not asked.** A rule of the shape "only if the finger moved within half
@@ -81,18 +62,6 @@ export function startsLongPressSelection(dx: number, dy: number, ms: number): bo
  */
 export function startsDrag(dx: number, dy: number): boolean {
   return Math.abs(dx) > TAP_SLOP_PX && Math.abs(dx) > Math.abs(dy);
-}
-
-/**
- * How far the drag itself has gone, which is not how far the finger has.
- *
- * The first `TAP_SLOP_PX` belong to deciding that this is a drag at all. Counting them into the
- * distance would make the page jump by that much the instant the drag begins; leaving them out
- * costs the page a fixed lag of the same size, which is the trade every platform makes.
- */
-export function travelled(dx: number): number {
-  if (Math.abs(dx) <= TAP_SLOP_PX) return 0;
-  return dx > 0 ? dx - TAP_SLOP_PX : dx + TAP_SLOP_PX;
 }
 
 /** Which edge the page coming in enters from, for a drag of this direction. */

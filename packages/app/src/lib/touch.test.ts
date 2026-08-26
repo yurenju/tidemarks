@@ -1,17 +1,10 @@
 // The thresholds a finger is judged against: tap, drag, flick, how far the page follows and how
 // far it may be pulled past the end. Numbers only — which page a drag is asking for is
-// navigator.test.ts, and the same gestures in three engines are
-// packages/app/tests/browser/reader/drag.spec.ts and real-touch.spec.ts.
+// navigator.test.ts, how a run of them adds up to a gesture is gesture.test.ts, and the same
+// gestures in three engines are packages/app/tests/browser/reader/drag.spec.ts and
+// real-touch.spec.ts.
 import { describe, expect, it } from "vitest";
-import {
-  commitsTurn,
-  dampen,
-  incomingEdge,
-  isTap,
-  startsDrag,
-  startsLongPressSelection,
-  travelled,
-} from "./touch";
+import { commitsTurn, dampen, incomingEdge, isTap, startsDrag } from "./touch";
 
 describe("isTap", () => {
   it("a quick press that stayed put is a tap", () => {
@@ -52,43 +45,6 @@ describe("startsDrag", () => {
     // then swipes gets the same page turn as one who swipes at once. Selection is ruled out by
     // whether anything is selected, not by a clock nobody can feel.
     expect(startsDrag(30, 0)).toBe(true);
-  });
-});
-
-describe("startsLongPressSelection", () => {
-  it("a finger held still past the threshold is asking to select", () => {
-    // The iPhone case (#51): long-press to select, then drag to extend — the press has to be
-    // read as a selection before the sideways drag can extend it rather than turn the page.
-    expect(startsLongPressSelection(2, -3, 500)).toBe(true);
-    expect(startsLongPressSelection(0, 0, 700)).toBe(true);
-  });
-
-  it("held still but not yet past the threshold is not one", () => {
-    expect(startsLongPressSelection(1, 1, 499)).toBe(false);
-  });
-
-  it("a finger that travelled past the slop is turning a page, not selecting", () => {
-    // Even held long: past the slop it is a swipe, and `startsDrag` has already claimed it. The
-    // two predicates never both fire — one needs travel past the slop, the other needs to stay
-    // inside it.
-    expect(startsLongPressSelection(20, 0, 700)).toBe(false);
-    expect(startsLongPressSelection(0, 20, 700)).toBe(false);
-    expect(startsDrag(20, 0)).toBe(true);
-    expect(startsLongPressSelection(20, 0, 700)).toBe(false);
-  });
-});
-
-describe("travelled", () => {
-  it("counts from where the drag began, not from where the finger went down", () => {
-    // Otherwise the page jumps by the slop the instant it is crossed.
-    expect(travelled(10)).toBe(0);
-    expect(travelled(30)).toBe(20);
-    expect(travelled(-30)).toBe(-20);
-  });
-
-  it("inside the slop there is no travel in either direction", () => {
-    expect(travelled(4)).toBe(0);
-    expect(travelled(-4)).toBe(0);
   });
 });
 
