@@ -1,8 +1,8 @@
 // The shelf's own card: one marked passage at a time, from whichever book it came from. Which
-// passage is next and where a line stops growing are settled elsewhere — the order is a sort and
-// the ceiling is `src/lib/line-length.ts` — so what is asked here is what only a browser can
-// answer: that the card really is what a reader sees first, and that the source on it is the
-// loudest book title on the screen.
+// passage is next and where a line stops growing are settled elsewhere — the order is a sort,
+// proven in `src/lib/shelf.test.ts`, and the ceiling is `src/lib/line-length.ts` — so what is
+// asked here is what only a browser can answer: that the card really is what a reader sees
+// first, and that the source on it is the loudest book title on the screen.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, settled } from "../support/library.js";

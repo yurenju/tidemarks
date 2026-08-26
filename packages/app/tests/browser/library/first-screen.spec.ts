@@ -1,53 +1,11 @@
-// The shape the shelf takes around real IndexedDB rows — a row for the book in progress, or none
-// — and the two doors into a book's details, from the shelf and from over the book. Which book
-// leads and what the lines beside it say are pure functions, exhausted in src/lib/book-status.test.ts.
+// What the shelf's first screen puts on the glass, one rule per test: the empty shelf's own
+// sentence, that the status lines a book carries really arrive on screen through i18n and the
+// cascade, that reading a book really does put it in the leading row, and the two doors into a
+// book's details. Which book leads and how those lines are worded are pure functions, exhausted
+// in src/lib/book-status.test.ts; which rows reach the screen at all is src/lib/shelf.test.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, openChrome, settled } from "../support/library.js";
-
-/**
- * The book the shelf leads with: one row, or none.
- *
- * What only a browser can answer is the shape of the screen — that the row is really absent in
- * the three cases where there is nobody to lead with, and that reading a book really does put it
- * there. The card above it is `marks.spec.ts`.
- */
-
-/**
- * Marks a book as read to the end, by writing the row the reader's own page turns would have.
- *
- * Straight into IndexedDB, which the support helpers otherwise avoid — every other spec goes
- * through the app's own path so that a broken import cannot sail past. There is no path to
- * "finished" here: it means turning every page of a real book, and the shelf's answer to a
- * finished book is exactly what this spec is about.
- */
-async function markFinished(page: Page, bookId: string): Promise<void> {
-  await page.evaluate(
-    ([id]) =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open("tidemarks");
-        open.onerror = () => reject(open.error);
-        open.onsuccess = () => {
-          const db = open.result;
-          const tx = db.transaction("progress", "readwrite");
-          tx.objectStore("progress").put({
-            bookId: id,
-            cfi: "epubcfi(/6/2!/4)",
-            pageRange: null,
-            percentage: 1,
-            chapterLabel: null,
-            lastReadAt: Date.now(),
-          });
-          tx.oncomplete = () => {
-            db.close();
-            resolve();
-          };
-          tx.onerror = () => reject(tx.error);
-        };
-      }),
-    [bookId],
-  );
-}
 
 async function bookIdOf(page: Page): Promise<string> {
   const id = await bookCards(page).first().getAttribute("data-book-id");
@@ -55,33 +13,21 @@ async function bookIdOf(page: Page): Promise<string> {
   return id!;
 }
 
-test("an empty shelf says so, and leads with nothing", async ({ page }) => {
+test("an empty shelf says so", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByTestId("shelf-empty")).toBeVisible();
-  await expect(page.getByTestId("reading-now")).toHaveCount(0);
 });
 
-test("a book nobody has opened stays on the wall", async ({ page }) => {
+// The wiring for the status lines: the words `statusLines` picks have to cross i18n and the
+// `StatusLines` component to land under a cover, next to a cascade that `device.css` wins on
+// import order alone. Which words, for which book, is book-status.test.ts.
+test("what the shelf says about a book reaches the screen", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
 
-  // Blowing an unopened book up to half the screen would read as the app telling the reader to
-  // get on with it.
-  await expect(page.getByTestId("reading-now")).toHaveCount(0);
   await expect(bookCards(page)).toHaveCount(1);
   await expect(page.getByTestId("book-status").first()).toContainText("Not opened yet");
-});
-
-test("a shelf where everything is finished leads with nothing", async ({ page }) => {
-  await page.goto("/");
-  await importBook(page, BOOKS.horizontal, /Alice/);
-  await markFinished(page, await bookIdOf(page));
-  await page.reload();
-
-  await expect(bookCards(page)).toHaveCount(1);
-  await expect(page.getByTestId("reading-now")).toHaveCount(0);
-  await expect(page.getByTestId("book-status").first()).toContainText("Finished");
 });
 
 test("the book the reader was in the middle of leads the shelf", async ({ page }) => {
