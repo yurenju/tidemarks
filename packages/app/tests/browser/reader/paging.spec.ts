@@ -215,6 +215,12 @@ test.describe("a turn asked for by a button", () => {
 });
 
 /**
+ * How long a turn is given to land. See the note in `turnForward` below for where the number
+ * comes from.
+ */
+const TURN_LANDS_MS = 15_000;
+
+/**
  * Turns forward `count` times, waiting for each turn to land before asking for the next.
  *
  * **The waiting is the point.** A click starts a turn rather than completing one — the page
@@ -228,13 +234,39 @@ test.describe("a turn asked for by a button", () => {
  *
  * This raced from the day turns were animated. It only ever lost once two specs ran at the same
  * time — which is to say it was invisible for exactly as long as CI ran one worker.
+ *
+ * ## Why both waits are given a budget of their own (#70)
+ *
+ * `expect.poll`'s default is five seconds, and five seconds here is **a claim about the
+ * machine, not about the app**. A turn is a click, a 220ms slide and a commit, and each round
+ * of the poll is an `evaluate` across the socket — so what is being timed is the app's work plus
+ * however long a loaded container took to schedule any of it. Measured on this suite, with the
+ * turns timed rather than only asserted on: three CI-shaped containers at once put three of 210
+ * turns past five seconds, the worst at 7.7s, and **every one of them turned the page** — the
+ * text arrived, late. It is most often the second turn (the slowest of 60 was 6.7s, against
+ * 3.6s for the third and 2.2s for the fourth); why that one is not recorded anywhere.
+ *
+ * **What settles that these are late turns rather than lost clicks is the A/B, not the timings
+ * above**: a click the app dropped would still be missing fifteen seconds later. Same loop,
+ * same machine, batches alternated — 9 of 360 tests flaky at the default, 0 of 240 at fifteen
+ * seconds, where the before-rate predicts about six.
+ *
+ * Fifteen seconds is a shade under twice the worst measured (7.7s), and the same number
+ * `traceTurn` waits for a turn to be over with. **What it costs is not nothing.** The
+ * assertions are untouched — the text still has to change, the page still has to come back to
+ * rest — but nothing else in `tests/browser/reader/` times a turn at all, so this default was,
+ * by accident, the only thing that would have caught turns getting slower. At fifteen seconds a
+ * ten-second turn passes in silence. A deliberate guard on that belongs with the other pacing
+ * claims (`turn-pacing.spec.ts`), not in a wait whose job is to keep a position spec honest.
  */
 async function turnForward(page: Page, count: number): Promise<void> {
   for (let turn = 0; turn < count; turn += 1) {
     const before = await visibleText(page);
     await page.getByRole("button", { name: "Next page" }).click();
-    await expect.poll(async () => await visibleText(page)).not.toBe(before);
-    await expect.poll(async () => await pageOffset(page)).toBe(0);
+    await expect
+      .poll(async () => await visibleText(page), { timeout: TURN_LANDS_MS })
+      .not.toBe(before);
+    await expect.poll(async () => await pageOffset(page), { timeout: TURN_LANDS_MS }).toBe(0);
   }
 }
 
