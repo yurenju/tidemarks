@@ -273,6 +273,10 @@
   /* The counter changes on every flick and the arrows must not shift under the thumb when it
      does — 1/5 and 5/5 are not the same width in a proportional face. */
   font-variant-numeric: tabular-nums;
+  /* And it never breaks across two lines. On a phone the row is tight enough that "1 of 5"
+     wrapped to "1 of" over "5", which grew the row — and the row growing is the card growing,
+     which is the one thing this card is not allowed to do. */
+  white-space: nowrap;
 }
 
 /* Another five, at the far end of the row from the arrows. **It is the only control here that
@@ -287,6 +291,10 @@
   background: none;
   border: 1px solid var(--line-actionable);
   padding-inline: 0.75rem;
+  /* It gives way before the counter and the arrows do: those two are how the reader moves
+     through the five, and this is an offer. */
+  min-width: 0;
+  white-space: nowrap;
 }
 
 /* The book the reader is in the middle of: one row, carrying the one action on the screen.

@@ -515,8 +515,8 @@ function MarkCard({
             it on the press would step back to the first of the *old* five and swap them out a
             moment later; the card is keyed on the batch instead, and arrives already at one. */}
         <button className="mark-repick" data-testid="mark-repick" onClick={onRepick}>
-          <Trans comment="Button at the foot of the shelf's card. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared.">
-            Show me another five
+          <Trans comment="Button at the foot of the shelf's card, beside the ‹ › arrows and the position counter. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row with the arrows on a phone.">
+            Another five
           </Trans>
         </button>
       </div>

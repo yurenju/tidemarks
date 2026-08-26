@@ -131,6 +131,11 @@ msgstr "ずっと無料"
 msgid "An app wants to connect to your shelf. You will come back here to confirm after signing in."
 msgstr "あるアプリがあなたの本棚に接続しようとしています。サインインすると、ここに戻って確認できます。"
 
+#. Button at the foot of the shelf's card, beside the ‹ › arrows and the position counter. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row with the arrows on a phone.
+#: src/components/Library.tsx
+msgid "Another five"
+msgstr "別の5つ"
+
 #. Refusal shown when a code is submitted for an address that was never sent one.
 #. js-lingui-explicit-id
 #: worker/auth.ts
@@ -668,11 +673,6 @@ msgstr "明朝体"
 #: src/components/SettingsScreen.tsx
 msgid "Settings"
 msgstr "設定"
-
-#. Button at the foot of the shelf's card. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared.
-#: src/components/Library.tsx
-msgid "Show me another five"
-msgstr "別の5つを引く"
 
 #. Button that submits the code from the email and finishes signing in.
 #. Heading of the sign-in section, shown when there is no account on this device yet.
