@@ -4,10 +4,19 @@
 // is `src/lib/line-length.ts`. What is asked here is what only a browser can answer: that the
 // card is what a reader meets first, that the source on it is the loudest title on the screen,
 // that it holds one height while they flick through it, and that pressing the passage really
-// does put them back in the book it came from.
+// does put them back in the book it came from — **without that arrival becoming where they had
+// read to**, which is this entrance's own wire into 〈回訪模式〉. The rule behind that one is
+// `src/lib/visit.test.ts`'s, and the reader's other way into it is `reader/visit.spec.ts`'s.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, bookCards, importBook, PAGE_FRAME, settled } from "../support/library.js";
+import {
+  BOOKS,
+  bookCards,
+  importBook,
+  PAGE_FRAME,
+  seedProgress,
+  settled,
+} from "../support/library.js";
 
 /** A passage the reader marked, written the way the reader's own highlight would write it. */
 interface Seed {
@@ -30,6 +39,26 @@ const IN_SECTION_ZERO = "epubcfi(/6/2!/4,/2/1:0,/2/1:8)";
  * never opens on its own, so that arriving there can only mean the passage was carried through.
  */
 const IN_CHAPTER_THREE = "epubcfi(/6/16!/4,/2/1:0,/2/1:8)";
+
+/** A passage in chapter one, for the test that needs one *behind* where the reader had read. */
+const IN_CHAPTER_ONE = "epubcfi(/6/12!/4/2,/2/2/1:0,/2/2/1:8)";
+
+/**
+ * A reading position in chapter three, with the page it was on.
+ *
+ * The page is what makes it a position rather than a point: a passage is a visit only when it is
+ * somewhere other than the page the reader had reached, and this one covers chapter three's
+ * opening and nothing in chapter one.
+ *
+ * ⚠️ Read off the book rather than composed — `/4/2/2/2/1` is where Alice's prose begins inside
+ * a chapter, and a path one step short of it sorts before the page it is printed on while
+ * parsing perfectly well. `reader/visit.spec.ts` has how to re-derive these.
+ */
+const READ_TO_CHAPTER_THREE = {
+  cfi: "epubcfi(/6/16!/4/2/2/2/1:0)",
+  pageRange: "epubcfi(/6/16!/4/2,/2/2/1:0,/12/1:0)",
+  percentage: 0.3,
+};
 
 /**
  * That the reader is looking at chapter three rather than at the cover.
@@ -286,6 +315,40 @@ test("the book's own words on the card go back to the passage", async ({ page })
   await expect(page.locator(".reader")).toBeVisible();
   expect(page.url()).toContain(`#/book/${alice}`);
   await landedInChapterThree(page);
+});
+
+test("opening a passage from the shelf leaves the reader's place in that book alone", async ({
+  page,
+}) => {
+  // **The bug this card shipped with.** The passage is handed to frond as where to lay out, and
+  // that layout emits the `relocate` every page turn emits — so the passage was written over the
+  // reader's progress before they had touched anything. Whether a jump counts as a visit is
+  // settled in `src/lib/visit.test.ts`; what only a browser can say is that the position written
+  // on the way in is held back at all.
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
+
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000, cfiRange: IN_CHAPTER_ONE },
+  ]);
+  await seedProgress(page, alice, READ_TO_CHAPTER_THREE);
+  await page.reload();
+
+  await page.getByTestId("mark-quote").click();
+  await expect(page.locator(".reader")).toBeVisible();
+  await expect(page.frameLocator(PAGE_FRAME).locator("body")).toContainText(/Rabbit-Hole/, {
+    timeout: 30_000,
+  });
+
+  // Back to the shelf and in again the ordinary way. The book has to open where they had read,
+  // not where they looked — and reading it back through the app's own front door is the
+  // assertion, because that is what the reader would do next.
+  await page.goBack();
+  await page.getByTestId("continue-reading").click();
+  await expect(page.frameLocator(PAGE_FRAME).locator("body")).toContainText(/Caucus-Race/, {
+    timeout: 30_000,
+  });
 });
 
 test("a thought written on the shelf is still there after a reload", async ({ page }) => {

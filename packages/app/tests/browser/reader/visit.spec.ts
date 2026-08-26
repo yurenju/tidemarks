@@ -1,0 +1,175 @@
+// Going back to a marked passage from inside the book, and what that does to the reader's place
+// in it.
+//
+// **Wiring tests.** Whether a jump begins a visit, and when one ends, is exhausted in
+// `src/lib/visit.test.ts` where it costs nothing. What only a browser can answer is the pair of
+// wires that file cannot reach: that the position written on every `relocate` is really held
+// back while a visit is on, and that the page the decision is taken against is the one on screen
+// — read from `renderer.location`, because the stored `pageRange` goes stale exactly here. The
+// notes panel takes a column from the book on a desk, and that reflow keeps the reader on the
+// same page of the same CFI, which is the shape `relocate` de-duplicates away.
+//
+// **The reader arrives already placed**, by seeding the position and the mark rather than by
+// reading four pages into the book to produce them. The path that writes those rows for real is
+// `highlights.spec.ts`'s and `elsewhere.spec.ts`'s; reading them here would cost a whole-book
+// index and a handful of turns per engine to reach a state two `put`s describe exactly.
+//
+// **Where the reader is, is read from the position note** rather than from the text on the page,
+// for the reason `elsewhere.spec.ts` gives: an empty `visibleText()` after a turn is a known
+// flake on two engines (#15, #46), and the note is written by the same `relocate` this is about.
+import type { Page } from "@playwright/test";
+import { expect, test } from "../support/fixtures.js";
+import { BOOKS, bookCards, openPanel, seedProgress, settled } from "../support/library.js";
+
+/** The quote as it reads in the panel, and as the button carrying it is named. */
+const PASSAGE = "A passage marked earlier";
+
+// Alice's sixth spine item is chapter one and her eighth is chapter three, and inside one of
+// them her prose begins at `/4/2/2/2/1` — body, the chapter's own `<section>`, then its first
+// block.
+//
+// ⚠️ **These were read off the book, not composed by hand.** An invented path parses and
+// compares like any other, so a mark written at `/4/2/1:0` — one step short of where the text
+// actually begins — sorts *before* the page it is printed on, and the reader gets told they are
+// somewhere else while looking straight at it. Not hypothetical: it is what the first version of
+// this file did, and all three engines caught it. To re-derive them, open the book and read
+// `pageRange` out of the position note in `localStorage`.
+const IN_CHAPTER_ONE = "epubcfi(/6/12!/4/2,/2/2/1:0,/2/2/1:8)";
+const CHAPTER_THREE = {
+  cfi: "epubcfi(/6/16!/4/2/2/2/1:0)",
+  // The page the reader had reached, which is what makes chapter one somewhere else.
+  pageRange: "epubcfi(/6/16!/4/2,/2/2/1:0,/12/1:0)",
+};
+
+/**
+ * The reader stopped at the top of chapter one — where `IN_CHAPTER_ONE` is the first line they
+ * are looking at, rather than something a hundred pages behind them.
+ */
+const CHAPTER_ONE = {
+  cfi: "epubcfi(/6/12!/4/2/2/2/1:0)",
+  pageRange: "epubcfi(/6/12!/4/2,/2/2/1:0,/12/1:0)",
+};
+
+function storedCfi(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith("tidemarks.position."));
+    if (key === undefined) return null;
+    return (JSON.parse(localStorage.getItem(key)!) as { cfi: string }).cfi;
+  });
+}
+
+/** Writes one marked passage straight into IndexedDB — the row a highlight leaves behind. */
+async function seedMark(page: Page, bookId: string, cfiRange: string): Promise<void> {
+  await page.evaluate(
+    ([id, range, text]) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open("tidemarks");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction("annotations", "readwrite");
+          tx.objectStore("annotations").put({
+            id: "visit-seed",
+            bookId: id,
+            cfiRange: range,
+            text,
+            note: "",
+            color: "indigo",
+            createdAt: 1_000,
+            updatedAt: 1_000,
+            deletedAt: null,
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    [bookId, cfiRange, PASSAGE] as const,
+  );
+}
+
+/**
+ * Imports Alice, seeds the reader's history into her, and opens her.
+ *
+ * The import is the app's own, so what is seeded is only what a reader would have done inside
+ * the book — the book itself is real.
+ */
+async function arrive(
+  page: Page,
+  position: { cfi: string; pageRange: string } | null,
+  mark: string,
+): Promise<void> {
+  await page.goto("/");
+  await page.locator('input[type="file"][accept=".epub"]').setInputFiles(BOOKS.horizontal);
+  const card = bookCards(page).filter({ hasText: /Alice/ });
+  await expect(card).toBeVisible({ timeout: 30_000 });
+
+  const bookId = (await card.getAttribute("data-book-id"))!;
+  await seedMark(page, bookId, mark);
+  if (position !== null) await seedProgress(page, bookId, position);
+  await card.getByTestId("book-open").click();
+  await expect(page.locator(".reader")).toBeVisible();
+  await settled(page);
+}
+
+/** Opens the notes panel and presses the passage in it. */
+async function jumpToPassage(page: Page): Promise<void> {
+  await openPanel(page, /Notes/);
+  await page.getByTestId("panel-notes").getByRole("button", { name: PASSAGE }).click();
+}
+
+test("a visit holds the reader's place until they hand it over", async ({ page }) => {
+  await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
+  await expect.poll(() => storedCfi(page)).not.toBeNull();
+  const away = (await storedCfi(page))!;
+
+  await jumpToPassage(page);
+
+  // The banner says where they had read to. It is the only way back, so it has to be up.
+  await expect(page.getByTestId("elsewhere")).toBeVisible();
+  expect(await storedCfi(page)).toBe(away);
+
+  // **The other half, and a separate break.** 〈Stay here〉 is the one move that carries progress
+  // backwards, and it is the only place the position is read off the screen rather than off what
+  // this device claims — during a visit those are two different rows, and a button that reached
+  // for the second would write the reader's place back over itself and look like it did nothing.
+  await page.getByTestId("elsewhere").getByRole("button", { name: "Stay here" }).click();
+  await expect(page.getByTestId("elsewhere")).toBeHidden();
+  await expect.poll(() => storedCfi(page)).not.toBe(away);
+});
+
+test("a marked passage on the page in front of the reader is not a visit", async ({ page }) => {
+  // **Opened in the middle of a chapter, on the page the mark is on.** The reader has left
+  // nothing behind, so pressing it should pass without a word.
+  //
+  // Chapter one rather than the title page, and that is not decoration: the title page is a
+  // section one page long, so "next page" there means mounting the next document — which on a
+  // loaded CI runner took longer than this waited for, and read as a turn that never happened.
+  // Inside a chapter the turn is a turn.
+  await arrive(page, CHAPTER_ONE, IN_CHAPTER_ONE);
+  await expect.poll(() => storedCfi(page)).not.toBeNull();
+  const here = (await storedCfi(page))!;
+
+  // ⚠️ **The panel takes a column from the book at this viewport**, so the book reflows under
+  // it. That reflow is why the decision reads `renderer.location` rather than the stored
+  // `pageRange`: `relocate` de-duplicates on section, page, fraction and CFI, none of which the
+  // reflow need change, so the stored range can still describe the wider layout — and a passage
+  // measured against it lands outside a page the reader is looking straight at.
+  await jumpToPassage(page);
+
+  await expect(page.getByTestId("elsewhere")).toBeHidden();
+
+  // Not merely quiet: still reading. A visit entered silently would show up here, as a page
+  // turn that never reached the position.
+  //
+  // Clicked until it lands, the way `openChrome` is: the panel is on its way out as this
+  // begins, and the book widening behind it is a reflow — a click sent into that is spent on
+  // nothing, and this would then be waiting for a turn nobody asked for. A visit entered by
+  // mistake is not rescued by clicking again, so the retry cannot hide the thing under test.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Next page" }).click();
+    expect(await storedCfi(page)).not.toBe(here);
+  }).toPass({ timeout: 15_000 });
+});
