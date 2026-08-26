@@ -14,8 +14,10 @@ const VARIANTS = [
   { key: "A", name: "736 cap (today)" },
   { key: "B", name: "Whole page widens" },
   { key: "C", name: "Only the wall widens" },
-  { key: "D", name: "Card beside the wall" },
-  { key: "E", name: "Wall-wide box, centred content" },
+  { key: "E", name: "Wall-wide box, rule at the page edge" },
+  { key: "F", name: "Wall-wide box, rule at the reading" },
+  { key: "G", name: "Wall-wide box, reading left with the wall" },
+  { key: "H", name: "Card at 736, centred" },
 ];
 
 /* Written as attribute selectors on `.library` so no variant needs its own JSX — the thing under
@@ -23,42 +25,63 @@ const VARIANTS = [
 const CSS = `
 .library[data-proto="B"],
 .library[data-proto="C"],
-.library[data-proto="D"],
-.library[data-proto="E"] { max-width: var(--proto-w); }
+.library[data-proto="E"],
+.library[data-proto="F"],
+.library[data-proto="G"],
+.library[data-proto="H"] { max-width: var(--proto-w); }
 
-/* C — the wall takes the whole width, everything that carries reading stays at 736 and keeps
-   the left edge, so the quote is not stranded in the middle of a wide page. */
-.library[data-proto="C"] .mark-card,
+/* The row and the shelf's two verbs stay at 736 in every variant from C on, so what changes
+   between them is the card and nothing else. */
 .library[data-proto="C"] .reading-now,
-.library[data-proto="C"] .shelf-actions { max-width: 736px; }
+.library[data-proto="C"] .shelf-actions,
+.library[data-proto="E"] .reading-now,
+.library[data-proto="E"] .shelf-actions,
+.library[data-proto="F"] .reading-now,
+.library[data-proto="F"] .shelf-actions,
+.library[data-proto="G"] .reading-now,
+.library[data-proto="G"] .shelf-actions,
+.library[data-proto="H"] .reading-now,
+.library[data-proto="H"] .shelf-actions { max-width: 736px; }
 
-/* E — C's question asked the other way round. The card's *box* runs the wall's full width, so the
-   shelf reads as one column of one width; what stays at 736 is the reading inside it, held in the
-   middle by padding that grows with the page. The ink rule stays out at the far left edge, which
-   is the part to judge: it is what says which colour the passage was marked in, and here it is a
-   long way from the words it belongs to. */
+/* C — the card keeps its whole box at 736 and its left edge, so it lines up with the covers
+   below it and the wall widens alone. */
+.library[data-proto="C"] .mark-card { max-width: 736px; }
+
+/* E — the box runs the wall's full width and the reading is held in the middle of it. The rule
+   stays out at the far edge, which is the thing to judge: it says which colour the passage was
+   marked in, and from there it is no longer pointing at anything. */
 .library[data-proto="E"] .mark-card {
   padding-inline: max(var(--space-6), calc((100% - 736px) / 2));
 }
 
-/* Everything else is C's, so the two variants differ in the card and nowhere else. */
-.library[data-proto="E"] .reading-now,
-.library[data-proto="E"] .shelf-actions { max-width: 736px; }
-
-/* D — two columns above 1000px: the card and the row on the left, the wall filling the rest.
-   Below that it falls back to B's stack, because a 26rem column would squeeze the quote. */
-@media (min-width: 1000px) {
-  .library[data-proto="D"] .shelf {
-    display: grid;
-    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
-    align-items: start;
-    column-gap: var(--space-4);
-  }
-  .library[data-proto="D"] .mark-card,
-  .library[data-proto="D"] .marks-empty { grid-column: 1; grid-row: 1; margin-inline: var(--space-4); }
-  .library[data-proto="D"] .reading-now { grid-column: 1; grid-row: 2; }
-  .library[data-proto="D"] .cover-wall { grid-column: 2; grid-row: 1 / span 2; }
+/* F — E with the rule brought in to stand at the left of the reading, where it points at the
+   words again. Drawn as a pseudo-element because the box's own border can only sit on the box's
+   edge; \`border-left-color: inherit\` picks up the mark's own ink, which \`MarkCard\` sets on the
+   element, so a passage marked in another colour still comes out in that colour. */
+.library[data-proto="F"] .mark-card {
+  position: relative;
+  padding-inline: max(var(--space-6), calc((100% - 736px) / 2));
+  border-left-style: none;
+  border-radius: var(--radius-surface);
 }
+.library[data-proto="F"] .mark-card::before {
+  content: "";
+  position: absolute;
+  top: var(--space-4);
+  bottom: var(--space-4);
+  left: calc(max(var(--space-6), (100% - 736px) / 2) - 0.9rem);
+  border-left: 3px solid;
+  border-left-color: inherit;
+}
+
+/* G — the box runs full width and the reading sits at its left edge rather than in the middle,
+   so the rule is where it always was and the quote starts on the same line as the first cover.
+   The empty half is on the right, which is where the wall's own leftover strip is. */
+.library[data-proto="G"] .mark-card > * { max-width: 704px; }
+
+/* H — no stretching at all: the same card as today, centred in the wide page instead of held to
+   the left. The rule stays against the reading, and nothing lines up with the wall below. */
+.library[data-proto="H"] .mark-card { max-width: 736px; margin-inline: auto; }
 
 .proto-bar {
   position: fixed;
