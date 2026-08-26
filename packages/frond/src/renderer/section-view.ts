@@ -250,66 +250,81 @@ export class SectionView {
     frame.style.visibility = "hidden";
     host.append(frame);
 
-    // Size it with a symmetric margin before loading. An axis-split margin needs the
-    // writing mode to map onto physical sides, and that cannot be read until the document
-    // has laid out — so the real size is measured again below, after the mode is read. A
-    // scalar margin computes the same both times, so that path has no second reflow.
-    //
-    // The reader's own margin, not the resolver's: this sizing happens before the fact the
-    // resolver answers from exists. Nothing has been laid out at this point either, so what
-    // it decides is how large a frame the document loads into, not where a single line
-    // falls.
-    sizeFrame(frame, host, marginInsets(settings.reader.margin, "horizontal-tb"));
+    // The frame is in the container from here on, so every exit below has to take it back
+    // out. Only a mounted instance's `destroy()` calls `frame.remove()`, and the exits that
+    // throw never produce an instance — so before this, a section that failed to load left
+    // its iframe behind, and `frames()` went on counting it once per attempt to reach it
+    // (issue #80). Appending before the load is not the thing to change: the document has to
+    // be in the tree to lay out at all.
+    try {
+      // Size it with a symmetric margin before loading. An axis-split margin needs the
+      // writing mode to map onto physical sides, and that cannot be read until the document
+      // has laid out — so the real size is measured again below, after the mode is read. A
+      // scalar margin computes the same both times, so that path has no second reflow.
+      //
+      // The reader's own margin, not the resolver's: this sizing happens before the fact the
+      // resolver answers from exists. Nothing has been laid out at this point either, so what
+      // it decides is how large a frame the document loads into, not where a single line
+      // falls.
+      sizeFrame(frame, host, marginInsets(settings.reader.margin, "horizontal-tb"));
 
-    await new Promise<void>((resolve, reject) => {
-      frame.addEventListener("load", () => resolve(), { once: true });
-      frame.addEventListener("error", () => reject(new Error(`${path}'s iframe failed to load`)), {
-        once: true,
+      await new Promise<void>((resolve, reject) => {
+        frame.addEventListener("load", () => resolve(), { once: true });
+        frame.addEventListener(
+          "error",
+          () => reject(new Error(`${path}'s iframe failed to load`)),
+          {
+            once: true,
+          },
+        );
+        frame.src = source.url;
       });
-      frame.src = source.url;
-    });
 
-    const document = frame.contentDocument;
-    if (document === null) {
-      throw new Error(`${path}'s contentDocument was unavailable after loading`);
+      const document = frame.contentDocument;
+      if (document === null) {
+        throw new Error(`${path}'s contentDocument was unavailable after loading`);
+      }
+
+      // Measure only once the fonts have loaded. Pagination is a function of the fonts: the
+      // line and page breaks measured before they arrive are provisional, and that set of
+      // numbers gets written into the page count and the positions. foliate also uses this
+      // in place of the unreliable `ResizeObserver` on Firefox (`docs/browser-quirks.md`
+      // table 1, #3).
+      await document.fonts.ready;
+
+      const reading = readWritingMode(document);
+      if (reading.kind === "unreadable") throw new WritingModeUnreadableError(path);
+
+      // **This is the moment the layout settings are settled**, and it is the last one before
+      // anything is laid out: the writing mode has just been read, and not a line has been
+      // broken yet. A consumer whose margin is a function of the writing mode gets its answer
+      // in for this layout — so there is no second one, and nothing to move the reader away
+      // from the position `attach()` is about to restore.
+      const settled = settleSettings(settings, reading.writingMode, host);
+
+      // Size it once more **before** measuring geometry: `metricsFor` reads the iframe's
+      // client size, and only now is it known which two sides an axis-split margin subtracts.
+      const insets = marginInsets(settled.margin, reading.writingMode);
+      sizeFrame(frame, host, insets);
+
+      const view = new SectionView(
+        frame,
+        source,
+        host,
+        document,
+        reading.writingMode,
+        metricsFor(frame, settled, reading.writingMode),
+        insets,
+      );
+      view.inkFloor = inkFloorFrom(settled);
+      view.applyLayout();
+      view.attachHooks(hooks);
+
+      return view;
+    } catch (error) {
+      frame.remove();
+      throw error;
     }
-
-    // Measure only once the fonts have loaded. Pagination is a function of the fonts: the
-    // line and page breaks measured before they arrive are provisional, and that set of
-    // numbers gets written into the page count and the positions. foliate also uses this
-    // in place of the unreliable `ResizeObserver` on Firefox (`docs/browser-quirks.md`
-    // table 1, #3).
-    await document.fonts.ready;
-
-    const reading = readWritingMode(document);
-    if (reading.kind === "unreadable") throw new WritingModeUnreadableError(path);
-
-    // **This is the moment the layout settings are settled**, and it is the last one before
-    // anything is laid out: the writing mode has just been read, and not a line has been
-    // broken yet. A consumer whose margin is a function of the writing mode gets its answer
-    // in for this layout — so there is no second one, and nothing to move the reader away
-    // from the position `attach()` is about to restore.
-    const settled = settleSettings(settings, reading.writingMode, host);
-
-    // Size it once more **before** measuring geometry: `metricsFor` reads the iframe's
-    // client size, and only now is it known which two sides an axis-split margin subtracts.
-    const insets = marginInsets(settled.margin, reading.writingMode);
-    sizeFrame(frame, host, insets);
-
-    const view = new SectionView(
-      frame,
-      source,
-      host,
-      document,
-      reading.writingMode,
-      metricsFor(frame, settled, reading.writingMode),
-      insets,
-    );
-    view.inkFloor = inkFloorFrom(settled);
-    view.applyLayout();
-    view.attachHooks(hooks);
-
-    return view;
   }
 
   /**
