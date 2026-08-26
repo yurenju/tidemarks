@@ -3,10 +3,12 @@
 // `lastShownAt`, proven exhaustively in `src/lib/revisit.test.ts`, and the line-length ceiling
 // is `src/lib/line-length.ts`. What is asked here is what only a browser can answer: that the
 // card is what a reader meets first, that the source on it is the loudest title on the screen,
-// that it holds one height while they flick through it, and that pressing the passage really
-// does put them back in the book it came from — **without that arrival becoming where they had
-// read to**, which is this entrance's own wire into 〈回訪模式〉. The rule behind that one is
-// `src/lib/visit.test.ts`'s, and the reader's other way into it is `reader/visit.spec.ts`'s.
+// that it holds one height while they flick through it, that the reader's answer lines up with
+// the passage it answers, that the wall below picks out whichever book is being quoted, and that
+// pressing the passage really does put them back in the book it came from — **without that
+// arrival becoming where they had read to**, which is this entrance's own wire into 〈回訪模式〉.
+// The rule behind that one is `src/lib/visit.test.ts`'s, and the reader's other way into it is
+// `reader/visit.spec.ts`'s.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
@@ -124,13 +126,20 @@ async function bookIdOf(page: Page, title: RegExp): Promise<string> {
 /**
  * The card, as a region to look inside.
  *
- * The two arrows are then found by the names they carry rather than by a testid of their own:
- * the testid says which block, the role and name say which control, and a name that goes missing
- * is the kind of break nobody reports (ADR-0021).
+ * The two steps through the batch are then found by the names they carry rather than by a testid
+ * of their own: the testid says which block, the role and name say which control, and a name that
+ * goes missing is the kind of break nobody reports (ADR-0021).
  */
 function card(page: Page) {
   return page.getByTestId("mark-card");
 }
+
+// ⚠️ `exact`, because Playwright matches an accessible name by substring by default — and the
+// largest button on this card carries the whole passage as its name. A seeded passage with the
+// word "next" in it would otherwise match two buttons and fail in strict mode.
+const nextPassage = (page: Page) => card(page).getByRole("button", { name: "Next", exact: true });
+const previousPassage = (page: Page) =>
+  card(page).getByRole("button", { name: "Previous", exact: true });
 
 /** How wide the quote is allowed to run, in ems of its own type size. */
 async function quoteEms(page: Page): Promise<number> {
@@ -142,13 +151,13 @@ async function quoteEms(page: Page): Promise<number> {
 
 /** Walks the whole batch, gathering what each card says and how tall the card stands. */
 async function walkBatch(page: Page): Promise<{ texts: string[]; heights: number[] }> {
-  const total = Number((await page.getByTestId("mark-count").textContent())!.split(" of ")[1]);
+  const total = Number((await page.getByTestId("mark-count").textContent())!.split("/")[1]!.trim());
   const texts: string[] = [];
   const heights: number[] = [];
   for (let i = 0; i < total; i++) {
     texts.push((await page.getByTestId("mark-quote").textContent())!);
     heights.push((await card(page).boundingBox())!.height);
-    if (i < total - 1) await card(page).getByRole("button", { name: "Next passage" }).click();
+    if (i < total - 1) await nextPassage(page).click();
   }
   return { texts, heights };
 }
@@ -184,7 +193,7 @@ test("nothing marked says what the slot is for", async ({ page }) => {
   await expect(page.getByTestId("mark-card")).toHaveCount(0);
 });
 
-test("the card draws five out of many, and stops at both ends", async ({ page }) => {
+test("the card draws five out of many, and goes round at both ends", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
@@ -193,20 +202,22 @@ test("the card draws five out of many, and stops at both ends", async ({ page })
   await page.reload();
 
   // Five of the twelve, and the count says so. Which five is `revisit.test.ts`.
-  await expect(page.getByTestId("mark-count")).toHaveText("1 of 5");
-  // **No wrapping.** The batch has two ends, and an arrow that came back round would make them
-  // unfindable — a reader cannot tell a full circuit from a card that has stopped responding.
-  await expect(card(page).getByRole("button", { name: "Previous passage" })).toBeDisabled();
+  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
 
-  await card(page).getByRole("button", { name: "Next passage" }).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("2 of 5");
-  await expect(card(page).getByRole("button", { name: "Previous passage" })).toBeEnabled();
+  // **The five go round.** They are a pile to leaf through rather than a list to work down, so
+  // neither end is a place to be stuck — and neither button ever goes dead, because a dead button
+  // is the card refusing rather than the pile ending. Where in the pile the reader is, is said by
+  // the count and the scale beside it.
+  await previousPassage(page).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("5 / 5");
 
-  for (let i = 0; i < 3; i++) {
-    await card(page).getByRole("button", { name: "Next passage" }).click();
-  }
-  await expect(page.getByTestId("mark-count")).toHaveText("5 of 5");
-  await expect(card(page).getByRole("button", { name: "Next passage" })).toBeDisabled();
+  await nextPassage(page).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
+
+  for (let i = 0; i < 4; i++) await nextPassage(page).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("5 / 5");
+  await expect(nextPassage(page)).toBeEnabled();
+  await expect(previousPassage(page)).toBeEnabled();
 });
 
 test("the card is one height all the way through the five", async ({ page }) => {
@@ -253,12 +264,12 @@ test("asking for another five replaces today's five for good", async ({ page }) 
   await seedMarks(page, manyMarks(alice, 12));
   await page.reload();
 
-  await card(page).getByRole("button", { name: "Next passage" }).click();
-  await card(page).getByRole("button", { name: "Next passage" }).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("3 of 5");
+  await nextPassage(page).click();
+  await nextPassage(page).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("3 / 5");
 
   await page.getByTestId("mark-repick").click();
-  await expect(page.getByTestId("mark-count")).toHaveText("1 of 5");
+  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
   const drawn = await walkBatch(page);
 
   // **The new five are today's five now** — the press is the reader asking for more, not a
@@ -285,13 +296,13 @@ test("the passage on the card carries its own book's line-length ceiling", async
   const seen = new Map<string, number>();
   for (let i = 0; i < 2; i++) {
     seen.set((await page.getByTestId("mark-quote").textContent())!, await quoteEms(page));
-    if (i === 0) await card(page).getByRole("button", { name: "Next passage" }).click();
+    if (i === 0) await nextPassage(page).click();
   }
   expect(seen.get(LATIN)).toBeCloseTo(30, 1);
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
-test("the closing quotation mark stands at the passage's edge, not the card's", async ({
+test("the reader's answer starts on the passage's line and the card stops with it", async ({
   page,
 }) => {
   await page.goto("/");
@@ -301,61 +312,52 @@ test("the closing quotation mark stands at the passage's edge, not the card's", 
     { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
     { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
   ]);
-  // Wide enough that the card's box and the passage inside it are different widths — which is
-  // the whole of what this asks. Below the shelf's own cap they are the same edge and any
-  // arrangement passes.
+  // Wider than the card is allowed to be, which is the whole of what this asks: below the cap the
+  // card fills what it is given and any arrangement passes.
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.reload();
 
-  /** Where the mark sits, against the passage it closes and the note under it. */
-  const closing = () =>
+  /** The two boxes that have to agree, and the one that must not move between passages. */
+  const edges = () =>
     card(page).evaluate((node) => {
-      const box = node.getBoundingClientRect();
       const quote = node.querySelector(".mark-quote")!.getBoundingClientRect();
-      const note = node.querySelector(".mark-note, .mark-note-input")!.getBoundingClientRect();
-      const mark = getComputedStyle(node, "::after");
-      const bottom = box.bottom - parseFloat(mark.bottom);
+      const note = node.querySelector(".mark-note-input")!.getBoundingClientRect();
       return {
-        // **That there is a mark at all**, which nothing else here would notice: `content` is one
-        // declaration, and the alt-text form it is written in (`"…" / ""`) is dropped whole by a
-        // parser that does not know it. Every other figure below still reads back fine off a
-        // pseudo-element that draws nothing, so this test would stay green in a world with no
-        // quotation marks on the card.
-        drawn: mark.content,
-        // Its own box, from the two sides it is anchored to.
-        pastQuoteRight: box.right - parseFloat(mark.right) - quote.right,
-        belowQuote: bottom - quote.bottom,
-        aboveNoteBottom: note.bottom - bottom,
+        quoteLeft: quote.left,
+        quoteRight: quote.right,
+        noteLeft: note.left,
+        noteRight: note.right,
       };
     });
 
-  // Both books, for the reason given over the ceiling test above: 40em and 30em are 160px apart
-  // at this type size, and it is their disagreement that catches a mark placed off the wrong edge.
-  const seen = new Map<string, Awaited<ReturnType<typeof closing>>>();
+  // Both books, because the two disagree by 160px at this type size: 40 ideographs against 30
+  // Latin ems (`src/lib/line-length.ts`). A left edge worked out from anything but the passage's
+  // own would land differently for one of them, and a card sized to whatever it was given would
+  // put the note somewhere different for each.
+  const seen = new Map<string, Awaited<ReturnType<typeof edges>>>();
   for (let i = 0; i < 2; i++) {
-    seen.set((await page.getByTestId("mark-quote").textContent())!, await closing());
-    if (i === 0) await card(page).getByRole("button", { name: "Next passage" }).click();
+    seen.set((await page.getByTestId("mark-quote").textContent())!, await edges());
+    if (i === 0) await nextPassage(page).click();
   }
 
   for (const text of [LATIN, HAN]) {
     const at = seen.get(text)!;
-    expect(at.drawn).toContain("”");
-    // Clear of the last line rather than over it, by about a hand's width.
-    expect(at.pastQuoteRight).toBeGreaterThan(0);
-    expect(at.pastQuoteRight).toBeLessThan(60);
-    // **Inside the band between the passage and the reader's own sheet**, and bounded from both
-    // sides on purpose: a sum that overshoots puts the mark back inside the quote, and one that
-    // falls short drops it onto the note — and only one of those two moves a one-sided assertion
-    // can see. It is also the whole guard on that sum's softest term, `--tap-min`, which is what
-    // the row of arrows is promised rather than what it measures.
-    expect(at.belowQuote).toBeGreaterThan(0);
-    expect(at.aboveNoteBottom).toBeGreaterThan(0);
+    // **Flush, not nearly flush.** This was 14.7px out when the indent was worked back from the
+    // quotation mark's size by a ratio, and nobody spots 14.7px as an arrangement — they read it
+    // as a mistake, which is worse than two things plainly apart.
+    expect(at.noteLeft).toBeCloseTo(at.quoteLeft, 0);
   }
-  // And it is the *same* hand's width for both, which is the proposition the two books are here
-  // for: a mark placed off the card's own edge instead of the passage's lands at one distance for
-  // an ideographic passage and another 160px out for a Latin one, and both could still sit inside
-  // the bounds above.
-  expect(seen.get(LATIN)!.pastQuoteRight).toBeCloseTo(seen.get(HAN)!.pastQuoteRight, 1);
+  // **And the answer is the same width for both**, which is what the card's width cap is for: the
+  // note is the reader's own writing and does not take the book's measure, so a card that sized
+  // itself to each passage would change shape on every flick. The ideographic passage is the one
+  // that reaches that edge, so for it the two agree exactly.
+  //
+  // ⚠️ **No number is written down for that edge.** It is `--reading-measure`, 40 of the reader's
+  // own body ems, which is a different figure on a coarse pointer and again if they turn their
+  // browser's text up — a `640` here would go on agreeing with a card that had stopped following
+  // the token, which is the bug these two lines exist for. The passage measures itself.
+  expect(seen.get(LATIN)!.noteRight).toBeCloseTo(seen.get(HAN)!.noteRight, 0);
+  expect(seen.get(HAN)!.noteRight).toBeCloseTo(seen.get(HAN)!.quoteRight, 0);
 });
 
 test("the book's own words on the card go back to the passage", async ({ page }) => {
@@ -427,16 +429,17 @@ test("a thought written on the shelf is still there after a reload", async ({ pa
   await page.reload();
 
   await page.getByTestId("mark-note-input").fill("Down the rabbit-hole again.");
-  // Committed on the way out: the card is not a form, and leaving it is what finishing looks
-  // like — so the assertion has to leave it too. Pressed on the age rather than on the quote,
-  // because the quote now leaves the shelf entirely.
-  await page.getByTestId("mark-when").click();
-  // The box turning back into the written line is what committed looks like from outside, and it
-  // is read back from the database — so reloading any earlier throws the write away with the page.
-  await expect(page.getByTestId("mark-note")).toContainText("Down the rabbit-hole again.");
-  await page.reload();
+  // **Written by the one filled button on the card**, which is also what moves the reader on: the
+  // thought is finished, so the card hands over the next passage rather than leaving them looking
+  // at the one they have just answered. With a single passage seeded, "on" comes back round to it.
+  await page.getByTestId("mark-save").click();
+  // That the button now offers to replace what is there is the write showing from outside, before
+  // anything has been read back — and it is the half a reload cannot tell apart from a box that
+  // simply kept its text.
+  await expect(page.getByTestId("mark-save")).toHaveText("Update");
 
-  await expect(page.getByTestId("mark-note")).toContainText("Down the rabbit-hole again.");
+  await page.reload();
+  await expect(page.getByTestId("mark-note-input")).toHaveValue("Down the rabbit-hole again.");
 });
 
 test("the source is the loudest book title on the first screen", async ({ page }) => {
@@ -458,6 +461,35 @@ test("the source is the loudest book title on the first screen", async ({ page }
   const sizeOf = (id: string) =>
     page.getByTestId(id).evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
   expect(await sizeOf("mark-book")).toBeGreaterThan(await sizeOf("reading-now-title"));
+});
+
+test("the book the card is quoting is the one picked out on the wall", async ({ page }) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+
+  // **A wire no single component can be asked about**, which is why it is here: the card owns
+  // where in the five it is, the wall owns the covers, and neither is inside the other — the card
+  // reports the book up to the shelf, which lights that book's square. Nothing else on any layer
+  // goes red if the two come apart; the wall simply stops answering the card.
+  await seedMarks(page, [
+    { bookId: chinese, text: HAN, note: "", createdAt: 2_000 },
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
+  ]);
+  await page.reload();
+
+  const quoting = async () => (await page.getByTestId("mark-book").textContent())!;
+  const litSquare = page.locator("[data-testid='book-card'][data-revisiting]");
+
+  // Read off the card rather than assumed: which of the two the batch deals first is
+  // `revisit.test.ts`'s business, and this test must not have an opinion about it.
+  await expect(litSquare).toHaveCount(1);
+  await expect(litSquare).toContainText(await quoting());
+
+  // And it follows the card. The two passages are from different books, so a square that is lit
+  // once and never moved again fails here and passes above.
+  await nextPassage(page).click();
+  await expect(litSquare).toHaveCount(1);
+  await expect(litSquare).toContainText(await quoting());
 });
 
 test("the shelf stops widening, and centres in what is left", async ({ page }) => {

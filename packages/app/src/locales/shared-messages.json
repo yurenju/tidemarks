@@ -5,6 +5,7 @@
   "Delete": ["src/components/AboutDrawer.tsx", "src/components/Reader.tsx"],
   "Just now": ["src/components/Library.tsx", "src/components/Reader.tsx"],
   "Language": ["src/components/LanguageForm.tsx", "src/components/SettingsScreen.tsx"],
+  "Save": ["src/components/Library.tsx", "src/components/Reader.tsx"],
   "Settings": ["src/components/Library.tsx", "src/components/SettingsScreen.tsx"],
   "Type": ["src/components/Reader.tsx", "src/components/SettingsScreen.tsx"]
 }

@@ -1,11 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { currentlyReading, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
-import { markVar } from "../lib/highlights";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
 import { pickBatch, relativeAge, restoreBatch, localDay, type RelativeAge } from "../lib/revisit";
 import { loadStoredBatch, noteShown, saveStoredBatch } from "../lib/revisit-store";
@@ -52,6 +51,13 @@ export default function Library({
    * this visit, which is different from an empty batch.
    */
   const [batchIds, setBatchIds] = useState<string[] | null>(null);
+  /**
+   * Which book the card is quoting right now, so the wall below can say so on that book's cover.
+   *
+   * Held here rather than read off the card, because the card owns where in the five it is and
+   * the wall is not its child. It is the one thing about the card the rest of the shelf needs.
+   */
+  const [revisitingBookId, setRevisitingBookId] = useState<string | null>(null);
 
   // Ordering happens below, in `sortShelf`, so the query no longer asks for one: the default
   // order reads `progress` as well as `books`, which no single Dexie index can answer. What the
@@ -190,6 +196,41 @@ export default function Library({
     return statusLines(i18n, shelf.progress.get(book.id), shelf.sessions.get(book.id) ?? [], now);
   }
 
+  /**
+   * Adding a book and choosing an order: the shelf's own two verbs.
+   *
+   * **They stand on the wall of covers, not at the top of the screen**, because the wall is the
+   * only thing either of them touches — importing puts a book on it and the order is the order it
+   * is in. Above the revisit card they read as the whole screen's controls, and the card is not
+   * something you sort.
+   *
+   * Held in a variable rather than written twice: an empty shelf has no wall to stand them on, so
+   * they go with the line that says the shelf is empty — which points at this button.
+   */
+  const shelfActions = (
+    <div className="shelf-actions">
+      <button onClick={() => fileInput.current?.click()} disabled={busy}>
+        <Trans comment="The shelf's own verb: opens a file picker for epub files. 'epub' stays lower case, as the format spells itself.">
+          Import epub
+        </Trans>
+      </button>
+      {shelf.books.length > 0 && (
+        <label className="shelf-order" data-testid="shelf-order">
+          <Trans comment="Label in front of the shelf's order dropdown. A noun, not the verb 'to sort'.">
+            Order
+          </Trans>
+          <select value={order} onChange={(e) => changeOrder(e.target.value as ShelfOrder)}>
+            {SHELF_ORDERS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {i18n._(o.label)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+
   return (
     <div
       className="library"
@@ -217,29 +258,6 @@ export default function Library({
 
       {error && <p className="error">{error}</p>}
 
-      {/* Adding a book and choosing an order are the shelf's own two verbs, so they sit with
-          the shelf rather than in the header the drawers now own. */}
-      <div className="shelf-actions">
-        <button onClick={() => fileInput.current?.click()} disabled={busy}>
-          <Trans comment="The shelf's own verb: opens a file picker for epub files. 'epub' stays lower case, as the format spells itself.">
-            Import epub
-          </Trans>
-        </button>
-        {shelf.books.length > 0 && (
-          <label className="shelf-order" data-testid="shelf-order">
-            <Trans comment="Label in front of the shelf's order dropdown. A noun, not the verb 'to sort'.">
-              Order
-            </Trans>
-            <select value={order} onChange={(e) => changeOrder(e.target.value as ShelfOrder)}>
-              {SHELF_ORDERS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {i18n._(o.label)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
       <input
         ref={fileInput}
         type="file"
@@ -253,11 +271,14 @@ export default function Library({
       />
 
       {shelf.books.length === 0 ? (
-        <p className="empty" data-testid="shelf-empty">
-          <Trans comment="The whole of an empty shelf. Two short sentences: what is true, then what to do about it. It sits under the 'Import epub' button, so it points at that.">
-            No books yet. Drop an epub in, and start here.
-          </Trans>
-        </p>
+        <>
+          {shelfActions}
+          <p className="empty" data-testid="shelf-empty">
+            <Trans comment="The whole of an empty shelf. Two short sentences: what is true, then what to do about it. It sits under the 'Import epub' button, so it points at that.">
+              No books yet. Drop an epub in, and start here.
+            </Trans>
+          </p>
+        </>
       ) : (
         // One column, and one large block in it. The marked passage is that block; a second one
         // under it read as "the notes on the book below" whatever the card said the source was,
@@ -278,6 +299,7 @@ export default function Library({
                 onShown={markShown}
                 onRepick={repick}
                 onOpenPassage={onOpen}
+                onCurrentBook={setRevisitingBookId}
               />
             )
           ) : (
@@ -287,6 +309,7 @@ export default function Library({
               </Trans>
             </p>
           )}
+          {shelfActions}
           {reading !== null && (
             <ReadingNow
               book={reading}
@@ -304,6 +327,8 @@ export default function Library({
                 key={book.id}
                 book={book}
                 lines={lines(book)}
+                progress={shelf.progress.get(book.id)?.percentage ?? null}
+                revisiting={book.id === revisitingBookId}
                 onOpen={() => onOpen(book.id)}
                 onAbout={() => onOpenAbout(book.id)}
               />
@@ -370,6 +395,7 @@ function MarkCard({
   onShown,
   onRepick,
   onOpenPassage,
+  onCurrentBook,
 }: {
   batch: Annotation[];
   books: Map<string, BookRecord>;
@@ -377,12 +403,18 @@ function MarkCard({
   onShown: (id: string) => void;
   onRepick: () => void;
   onOpenPassage: (bookId: string, cfiRange: string) => void;
+  onCurrentBook: (bookId: string | null) => void;
 }) {
   const { t, i18n } = useLingui();
   const [at, setAt] = useState(0);
-  // Which mark is open for writing, rather than a bare flag: the flag would follow the reader
-  // onto the next card and open its note as well.
-  const [editingId, setEditingId] = useState<string | null>(null);
+  /**
+   * What the reader has typed but not yet saved, per passage.
+   *
+   * Keyed on the mark rather than held as one string, because flicking through the five must not
+   * carry a half-written thought onto the next passage — nor lose it on the way back. Nothing
+   * here is written to Dexie until 〈記下來〉 is pressed.
+   */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   // In range by construction — `at` is only ever moved by `step`, and the caller renders an
   // empty line instead of this card when the batch is empty.
@@ -391,10 +423,10 @@ function MarkCard({
   const book = books.get(mark.bookId);
   const coverUrl = useCoverUrl(book?.cover ?? null);
   // How wide this passage is allowed to run, in ems of its own type size — the reader's ceiling
-  // for the script it is written in (ADR-0012). Read once here because two things need it: the
-  // quote's own `max-width`, and the card's closing quotation mark, which stands at the edge
-  // that number draws rather than at the edge of the card.
+  // for the script it is written in (ADR-0012), the same number the page they marked it on was
+  // set to.
   const quoteCeiling = LINE_LENGTH[detectScript(mark.text)].ceiling;
+  const draft = drafts[mark.id] ?? mark.note;
 
   // **Reaching a card is what counts as having seen it, not being dealt one.** Stamping all
   // five when the batch is drawn buries the four the reader never flicked to: they would sit at
@@ -404,9 +436,18 @@ function MarkCard({
     onShown(mark.id);
   }, [mark.id, onShown]);
 
-  // No wrapping. The batch is five and it has two ends, and an arrow that comes back round
-  // makes those ends unfindable — the reader cannot tell a full circuit from a stuck card.
-  const step = (d: number) => setAt(Math.min(Math.max(index + d, 0), batch.length - 1));
+  // Which book the wall below should mark as the one being revisited. Cleared on the way out, so
+  // an empty card does not leave a cover lit.
+  useEffect(() => {
+    onCurrentBook(mark.bookId);
+    return () => onCurrentBook(null);
+  }, [mark.bookId, onCurrentBook]);
+
+  // **Round, rather than stopping at the ends.** The five are a pile to leaf through, not a list
+  // being worked down, so neither end is a place to be stuck: pressing on from the last hands
+  // back the first. Where in the pile the reader is, is said by the scale in the book's column,
+  // which is a thing to look at rather than a button that has gone dead.
+  const step = (d: number) => setAt((index + d + batch.length) % batch.length);
 
   const notePlaceholder = t({
     message: "What did this make you think?",
@@ -414,26 +455,26 @@ function MarkCard({
       "Placeholder in the empty note box under a marked passage on the shelf. An invitation to write, not a label — the box is empty because the reader has not written anything on this passage yet.",
   });
 
+  // Saving is also how the reader moves on: the thought is finished, so the card hands them the
+  // next passage rather than leaving them looking at the one they have just answered.
+  //
+  // ⚠️ **The draft is dropped once it is written**, and that is not tidying up. A draft outranks
+  // `mark.note` for as long as it exists (`draft`, above), so one kept past its write would go on
+  // outranking a *newer* note — the one a sync round brought in from another device while the
+  // reader was leafing through the rest of the five. They would come back round to that passage,
+  // see what they typed here rather than what actually stands on it, and overwrite the other
+  // device's note by pressing 〈更新〉 without having typed a thing.
+  function save() {
+    if (draft !== mark.note) onNote(mark.id, draft);
+    setDrafts(({ [mark.id]: _written, ...rest }) => rest);
+    step(1);
+  }
+
   return (
     <section
       className="mark-card"
       data-testid="mark-card"
       data-mark-id={mark.id}
-      // Two things the card's own quotation marks need and cannot work out for themselves: the
-      // ink this passage was marked in, and how wide the passage below is allowed to run. The
-      // ink was `borderLeftColor` while a rule down the side was the only thing carrying it, and
-      // a border's colour cannot become a glyph's. The ceiling is the same number the quote is
-      // capped at, published so the closing mark can stand at the passage's edge rather than at
-      // the card's — the two are a Latin book's width apart (`library.css`).
-      style={
-        {
-          "--mark-ink": markVar(mark.color),
-          // ⚠️ A length, not the `em` the quote's own `max-width` is written in. The mark that
-          // reads it is a pseudo-element with a type size of its own, and `em` there would be
-          // measured in 56px quotation marks rather than in 16px of the book.
-          "--mark-quote-ceiling": `calc(${quoteCeiling} * var(--type-body))`,
-        } as CSSProperties
-      }
       {...useFlick(step)}
       // Arrows turn the card too, but only once focus is inside it — bound here rather than on
       // the window so they still mean what they always mean everywhere else on the shelf. The
@@ -444,100 +485,141 @@ function MarkCard({
         else if (e.key === "ArrowRight") step(1);
       }}
     >
-      <p className="mark-source">
-        {/* Cover and title together, and pressable together: they are the book's own name, so
-            they lead back to the book like the passage below them does. The age beside them is
-            the interface talking and stays out of it. */}
+      {/* **The book, given a side of the card to itself** — a column at desk width, a strip
+          across the top below it. Either way it is one region rather than a line of attribution:
+          the cover and the title at full weight are what keep the passage attached to the book
+          it came from, and a small grey credit beside a larger title elsewhere on the screen
+          hands the sentence to the wrong book. */}
+      <div className="mark-book">
         <button
           className="mark-source-link"
           data-testid="mark-source-link"
           onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
         >
           <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
-          <strong data-testid="mark-book">{book?.title}</strong>
+          <span className="mark-book-text">
+            <strong data-testid="mark-book">{book?.title}</strong>
+            {/* **Whose book it is, and it belongs here rather than under the passage.** It was
+                under the passage first, as the attribution a quotation usually carries — but a
+                quotation is attributed to say *where in the book* the words come from, and this
+                name does not answer that. It is a fact about the book, so it stands with the
+                book's own name. */}
+            {/* Truthiness rather than `!== ""`, because the book itself can be gone: a mark can
+                outlive the row it points at, and `undefined !== ""` would hold an empty line
+                open — which on a card whose whole promise is one height is a card that changes
+                height for that one passage. */}
+            {book?.author && <span className="mark-author">{book.author}</span>}
+          </span>
         </button>
-        <span className="mark-when" data-testid="mark-when">
-          {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
-        </span>
-      </p>
-      {/* The book's own words, so the reader's own line-length ceiling applies — the same
-          number the page they marked it on was set to, read off `line-length.ts` rather than
-          written out here. Pressing it goes back to where it came from, which the saved
-          position cannot do: that is where they stopped reading, not where this is. */}
-      <button
-        className="mark-quote"
-        data-testid="mark-quote"
-        style={{ maxWidth: `${quoteCeiling}em` }}
-        onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
-      >
-        {mark.text}
-      </button>
-      {editingId === mark.id || mark.note === "" ? (
-        // Keyed on the mark, so flipping to the next card brings that card's note rather than
-        // the text left in the box. Committed on the way out: there is no Save here, because
-        // the card is not a form and leaving it is what finishing a thought looks like.
-        <textarea
-          key={mark.id}
-          className="mark-note-input"
-          data-testid="mark-note-input"
-          defaultValue={mark.note}
-          autoFocus={editingId === mark.id}
-          placeholder={notePlaceholder}
-          aria-label={notePlaceholder}
-          onBlur={(e) => {
-            if (e.target.value !== mark.note) onNote(mark.id, e.target.value);
-            setEditingId(null);
-          }}
-        />
-      ) : (
-        <button className="mark-note" data-testid="mark-note" onClick={() => setEditingId(mark.id)}>
-          {mark.note}
-        </button>
-      )}
-      <div className="mark-nav">
-        <button
-          className="ghost"
-          disabled={index === 0}
-          onClick={() => step(-1)}
-          aria-label={t({
-            message: "Previous passage",
-            comment:
-              "Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage before this one in today's five. 'Passage' is a stretch of the book the reader marked.",
-          })}
-        >
-          ‹
-        </button>
-        <span className="mark-count" data-testid="mark-count">
-          {t({
-            message: `${{ position: index + 1 }} of ${{ total: batch.length }}`,
-            comment:
-              "Where the reader is in today's marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many were drawn for today.",
-          })}
-        </span>
-        <button
-          className="ghost"
-          disabled={index === batch.length - 1}
-          onClick={() => step(1)}
-          aria-label={t({
-            message: "Next passage",
-            comment:
-              "Screen-reader name for the › button on the shelf's card, which steps on to the next passage in today's five. 'Passage' is a stretch of the book the reader marked.",
-          })}
-        >
-          ›
-        </button>
-        {/* **A way to ask for more, and deliberately not a way to clear these away.** Anything
-            that can be emptied becomes a thing owed, and a reader who falls behind on it starts
-            avoiding the screen it lives on. Pressing this is the reader asking; not pressing it
-            costs them nothing and leaves nothing behind. */}
-        {/* No resetting the position from in here. The draw is a read of Dexie away, so doing
-            it on the press would step back to the first of the *old* five and swap them out a
-            moment later; the card is keyed on the batch instead, and arrives already at one. */}
-        <button className="mark-repick" data-testid="mark-repick" onClick={onRepick}>
-          <Trans comment="Button at the foot of the shelf's card, beside the ‹ › arrows and the position counter. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row with the arrows on a phone.">
-            Another five
-          </Trans>
-        </button>
+        {/* How long ago it was marked, and where in the five this one is. Both are the interface
+            talking, so both are set in the label face. */}
+        <div className="mark-progress">
+          <span className="mark-when" data-testid="mark-when">
+            {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
+          </span>
+          <div className="mark-ticks">
+            {/* One rung per passage, and pressable: the ticks say where in the five the reader
+                is, and a reader who can see that will try to press it. */}
+            {batch.map((m, i) => (
+              <button
+                key={m.id}
+                className="mark-tick"
+                aria-current={i === index}
+                onClick={() => setAt(i)}
+                aria-label={t({
+                  message: `Passage ${{ position: i + 1 }}`,
+                  comment:
+                    "Screen-reader name for one of the five tick marks on the shelf's card, which jumps to that passage in today's five. The value is a count.",
+                })}
+              />
+            ))}
+            <span className="mark-count" data-testid="mark-count">
+              {t({
+                message: `${{ position: index + 1 }} / ${{ total: batch.length }}`,
+                comment:
+                  "Where the reader is in today's marked passages, beside the row of tick marks on the shelf's card. Both values are counts; the first is the one on screen, the second is how many were drawn for today.",
+              })}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mark-body">
+        <blockquote className="mark-quote-block">
+          {/* Decoration, and it says only that this is quoted — so it is out of the reading, out
+              of the accessibility tree, and out of a selection dragged across the passage. */}
+          <span className="mark-open-quote" aria-hidden="true">
+            {"“"}
+          </span>
+          {/* Pressing the passage goes back to where it came from, which the saved position
+              cannot do: that is where they stopped reading, not where this is.
+
+              **Nothing follows it.** The handoff ends the passage with an attribution line in
+              place of a closing quotation mark, and there is nothing true to put on that line:
+              the book's author is not where the words come from, and the two things that are —
+              which section, which page — are not on a mark (`lib/types.ts`). A rule with no
+              words after it reads as a value that failed to load, so the passage simply stops.
+              When a mark carries its own section, this is where that line goes. */}
+          <button
+            className="mark-quote"
+            data-testid="mark-quote"
+            style={{ maxWidth: `${quoteCeiling}em` }}
+            onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+          >
+            {mark.text}
+          </button>
+        </blockquote>
+
+        <div className="mark-respond">
+          <textarea
+            className="mark-note-input"
+            data-testid="mark-note-input"
+            rows={3}
+            value={draft}
+            placeholder={notePlaceholder}
+            aria-label={notePlaceholder}
+            onChange={(e) => setDrafts((d) => ({ ...d, [mark.id]: e.target.value }))}
+          />
+          <div className="mark-reply-actions">
+            {/* The one filled button on the card. */}
+            <button className="primary" data-testid="mark-save" onClick={save}>
+              {mark.note === "" ? (
+                <Trans comment="The card's one filled button, under the note box on the shelf. Writes what the reader has typed onto that marked passage and moves on to the next of the five. Shown while that passage has no note yet.">
+                  Save
+                </Trans>
+              ) : (
+                <Trans comment="The same filled button as 'Save', shown instead when the passage already carries a note — pressing it replaces what is there.">
+                  Update
+                </Trans>
+              )}
+            </button>
+            {/* **Neither of these is ever disabled**, because the five go round: pressing on from
+                the last hands back the first. */}
+            <button className="mark-step" data-testid="mark-prev" onClick={() => step(-1)}>
+              <Trans comment="Quiet button on the shelf's card, beside 'Next'. Goes back to the passage before this one in today's five, and from the first one round to the last.">
+                Previous
+              </Trans>
+            </button>
+            <button className="mark-step" data-testid="mark-next" onClick={() => step(1)}>
+              <Trans comment="Quiet button beside 'Save' on the shelf's card. Moves on to the next of today's five passages without writing anything, and from the last one round to the first.">
+                Next
+              </Trans>
+            </button>
+            {/* **A way to ask for more, and deliberately not a way to clear these away.**
+                Anything that can be emptied becomes a thing owed, and a reader who falls behind
+                on it starts avoiding the screen it lives on. Pressing this is the reader asking;
+                not pressing it costs them nothing and leaves nothing behind. */}
+            {/* No resetting the position from in here. The draw is a read of Dexie away, so
+                doing it on the press would step back to the first of the *old* five and swap
+                them out a moment later; the card is keyed on the batch instead, and arrives
+                already at one. */}
+            <button className="mark-repick" data-testid="mark-repick" onClick={onRepick}>
+              <Trans comment="Button at the foot of the shelf's card, at the far end from 'Save'. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row on a phone.">
+                Another five
+              </Trans>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -720,11 +802,17 @@ function ReadingNow({
 function BookCard({
   book,
   lines,
+  progress,
+  revisiting,
   onOpen,
   onAbout,
 }: {
   book: BookRecord;
   lines: string[];
+  /** How far through, 0–1, or `null` for a book never opened — which draws no line at all. */
+  progress: number | null;
+  /** Whether the card above is quoting this book right now. */
+  revisiting: boolean;
   onOpen: () => void;
   onAbout: () => void;
 }) {
@@ -732,7 +820,12 @@ function BookCard({
   const coverUrl = useCoverUrl(book.cover);
 
   return (
-    <div className="book-card" data-testid="book-card" data-book-id={book.id}>
+    <div
+      className="book-card"
+      data-testid="book-card"
+      data-book-id={book.id}
+      data-revisiting={revisiting || undefined}
+    >
       <button
         className="book-cover"
         onClick={onOpen}
@@ -745,9 +838,29 @@ function BookCard({
       >
         {coverUrl ? <img src={coverUrl} alt={book.title} /> : <span>{book.title}</span>}
       </button>
+      {/* The tide line: how far in they are, right under the cover it belongs to. A number in
+          words is still under the title — this is the same fact at a glance, for a wall being
+          scanned rather than read. Nothing is drawn for a book never opened, because an empty
+          rail under every new book reads as a row of things owed. */}
+      {progress !== null && (
+        <div className="book-tide" data-testid="book-tide">
+          <span style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      )}
       <div className="book-info">
         <strong data-testid="book-title">{book.title}</strong>
-        <StatusLines lines={lines} testId="book-status" />
+        {revisiting ? (
+          <p className="book-status" data-testid="book-status">
+            <span>{lines[0]}</span>
+            <span className="book-revisiting">
+              <Trans comment="Replaces the 'about 3 hours left' line under a book on the wall while the card at the top of the shelf is quoting that same book. Says why this one cover is picked out — it is the book the passage above came from.">
+                Revisiting
+              </Trans>
+            </span>
+          </p>
+        ) : (
+          <StatusLines lines={lines} testId="book-status" />
+        )}
       </div>
       {/* The one door to everything else this book can do. It is a door rather than a row of
           buttons because exporting notes and deleting are not things anyone does while choosing
