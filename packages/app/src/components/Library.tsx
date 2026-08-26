@@ -14,6 +14,7 @@ import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../l
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
 import type { Annotation, BookRecord } from "../lib/types";
+import { PrototypeShelfWidth } from "./PrototypeShelfWidth";
 import { Wordmark } from "./Wordmark";
 
 export default function Library({
@@ -311,6 +312,8 @@ export default function Library({
           </div>
         </div>
       )}
+      {/* PROTOTYPE — shelf width evaluation, dev builds only. Delete with the branch. */}
+      {import.meta.env.DEV && <PrototypeShelfWidth />}
     </div>
   );
 }
