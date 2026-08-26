@@ -149,6 +149,9 @@ test("a thought written on the shelf is still there after a reload", async ({ pa
   // Committed on the way out: the card is not a form, and leaving it is what finishing looks
   // like — so the assertion has to leave it too.
   await page.getByTestId("mark-quote").click();
+  // The box turning back into the written line is what committed looks like from outside, and it
+  // is read back from the database — so reloading any earlier throws the write away with the page.
+  await expect(page.getByTestId("mark-note")).toContainText("Down the rabbit-hole again.");
   await page.reload();
 
   await expect(page.getByTestId("mark-note")).toContainText("Down the rabbit-hole again.");
