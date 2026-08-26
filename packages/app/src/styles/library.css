@@ -147,9 +147,16 @@
    line.** That line looks like the obvious thing to measure down from, and it is the one part of
    this card whose height nothing here decides: it is as tall as the cover thumbnail
    (`aspect-ratio`, below), and taller again whenever a long book title wraps. Everything under
-   the quote is a number — the note's held-open height, the row of arrows at `--tap-min`, the
-   gaps between them — so the closing mark counts up from the bottom instead and a wrapped title
-   moves it with the passage rather than through it.
+   the quote is a number — the note's held-open height, the row of arrows, the gaps between them
+   — so the closing mark counts up from the bottom instead, and a long title then moves it with
+   the passage rather than through it.
+
+   ⚠️ One term in that sum is a **floor rather than a height**: `--tap-min` is what the arrows are
+   guaranteed, not what they come out at. A button carries the UA's own type size, so on a fine
+   pointer the row lands a couple of pixels over the 32px floor and the mark sits that far low.
+   The browser test holds the whole sum inside the band between the passage and the note, which
+   is the thing that matters; a drift big enough to leave that band would be a real move rather
+   than this rounding.
 
    It is not simply set at the end of the quote because that box is clipped and masked: a mark on
    the last line would fade out along with the passage's tail. */
@@ -255,6 +262,17 @@
 .mark-source-link:hover,
 .mark-quote:hover {
   border: none;
+}
+
+/* ⚠️ **And the sheet has to say so twice**, because `button:hover` in `controls.css` carries a
+   pseudo-class of its own and outranks the rule that draws it — arriving later is not enough.
+   Left alone, a pointer resting on a written note washed the paper in `--fill-selected` and lit
+   its edge in `--tide`: the fill and the border that the reset a few rules up exists to keep off
+   this card, arriving together on the one thing here that is the reader's own writing. The
+   underline says it can be pressed, and that is the whole of what hover has to say. */
+.mark-note:hover {
+  background: var(--surface-page);
+  border-color: var(--line-hair);
 }
 
 /* The cover and the name, pressable together: they are the book saying which book it is, so

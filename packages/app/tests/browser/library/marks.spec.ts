@@ -278,22 +278,30 @@ test("the closing quotation mark stands at the passage's edge, not the card's", 
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.reload();
 
-  /** Where the mark sits, against the passage it closes. */
+  /** Where the mark sits, against the passage it closes and the note under it. */
   const closing = () =>
     card(page).evaluate((node) => {
       const box = node.getBoundingClientRect();
       const quote = node.querySelector(".mark-quote")!.getBoundingClientRect();
+      const note = node.querySelector(".mark-note, .mark-note-input")!.getBoundingClientRect();
       const mark = getComputedStyle(node, "::after");
+      const bottom = box.bottom - parseFloat(mark.bottom);
       return {
+        // **That there is a mark at all**, which nothing else here would notice: `content` is one
+        // declaration, and the alt-text form it is written in (`"…" / ""`) is dropped whole by a
+        // parser that does not know it. Every other figure below still reads back fine off a
+        // pseudo-element that draws nothing, so this test would stay green in a world with no
+        // quotation marks on the card.
+        drawn: mark.content,
         // Its own box, from the two sides it is anchored to.
         pastQuoteRight: box.right - parseFloat(mark.right) - quote.right,
-        bottomBelowQuote: box.bottom - parseFloat(mark.bottom) - quote.bottom,
+        belowQuote: bottom - quote.bottom,
+        aboveNoteBottom: note.bottom - bottom,
       };
     });
 
-  // **Both books, and that is one proposition rather than two**, for the reason given over the
-  // ceiling test above: 40em and 30em are 160px apart at this type size, so a mark placed off
-  // the card's own edge lands identically for both and only a disagreement catches it.
+  // Both books, for the reason given over the ceiling test above: 40em and 30em are 160px apart
+  // at this type size, and it is their disagreement that catches a mark placed off the wrong edge.
   const seen = new Map<string, Awaited<ReturnType<typeof closing>>>();
   for (let i = 0; i < 2; i++) {
     seen.set((await page.getByTestId("mark-quote").textContent())!, await closing());
@@ -302,15 +310,23 @@ test("the closing quotation mark stands at the passage's edge, not the card's", 
 
   for (const text of [LATIN, HAN]) {
     const at = seen.get(text)!;
-    // Clear of the last line rather than over it, and by the same hand's width either way. The
-    // figure is `--mark-quote-hang`; the assertion is that both books get the same one.
+    expect(at.drawn).toContain("”");
+    // Clear of the last line rather than over it, by about a hand's width.
     expect(at.pastQuoteRight).toBeGreaterThan(0);
     expect(at.pastQuoteRight).toBeLessThan(60);
-    // Under the passage, not through it. This is the half that a formula counting *down* from
-    // the source line gets wrong, because that line is as tall as the cover thumbnail and taller
-    // again when a title runs long — neither of which the stylesheet decides.
-    expect(at.bottomBelowQuote).toBeGreaterThan(0);
+    // **Inside the band between the passage and the reader's own sheet**, and bounded from both
+    // sides on purpose: a sum that overshoots puts the mark back inside the quote, and one that
+    // falls short drops it onto the note — and only one of those two moves a one-sided assertion
+    // can see. It is also the whole guard on that sum's softest term, `--tap-min`, which is what
+    // the row of arrows is promised rather than what it measures.
+    expect(at.belowQuote).toBeGreaterThan(0);
+    expect(at.aboveNoteBottom).toBeGreaterThan(0);
   }
+  // And it is the *same* hand's width for both, which is the proposition the two books are here
+  // for: a mark placed off the card's own edge instead of the passage's lands at one distance for
+  // an ideographic passage and another 160px out for a Latin one, and both could still sit inside
+  // the bounds above.
+  expect(seen.get(LATIN)!.pastQuoteRight).toBeCloseTo(seen.get(HAN)!.pastQuoteRight, 1);
 });
 
 test("the book's own words on the card go back to the passage", async ({ page }) => {
