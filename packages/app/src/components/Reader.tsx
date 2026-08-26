@@ -14,7 +14,13 @@ import {
 import { db } from "../lib/db";
 import { recallPosition, rememberPosition } from "../lib/position-store";
 import { sortByBookOrder } from "../lib/export";
-import { downloadBookFile, notePosition, scheduleSync, subscribePulledProgress } from "../lib/sync";
+import {
+  downloadBookFile,
+  notePosition,
+  scheduleSync,
+  subscribePulledAnnotations,
+  subscribePulledProgress,
+} from "../lib/sync";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
 import type { Annotation, Progress } from "../lib/types";
 import {
@@ -254,6 +260,12 @@ function recordPosition(position: Progress): void {
   // IndexedDB read first (`beaconPositions`).
   notePosition(position);
   scheduleSync();
+}
+
+/** This book's marks as Dexie holds them, in the order the panel lists them. */
+async function readAnnotations(bookId: string): Promise<Annotation[]> {
+  const rows = await db.annotations.where("bookId").equals(bookId).toArray();
+  return sortByBookOrder(rows.filter((a) => !a.deletedAt));
 }
 
 export default function Reader({
@@ -1082,11 +1094,9 @@ export default function Reader({
       // fraction the index happens to report — which may not arrive until several pages in.
       openedAtFraction = saved?.percentage ?? null;
 
-      const anns = (await db.annotations.where("bookId").equals(bookId).toArray()).filter(
-        (a) => !a.deletedAt,
-      );
+      const anns = await readAnnotations(bookId);
       if (cancelled) return;
-      setAnnotations(sortByBookOrder(anns));
+      setAnnotations(anns);
 
       const initial = frondSettings(settingsRef.current, {
         theme: themeRef.current,
@@ -1460,6 +1470,44 @@ export default function Reader({
       if (offer === null) return;
       setElsewhere({ position: offer, elapsed: elapsedSince(offer.lastReadAt, Date.now()) });
     });
+  }, [bookId]);
+
+  /**
+   * Re-read this book's marks when a pull has written some.
+   *
+   * The reader's copy was read **once**, when the book opened, so a note made on another device
+   * landed in Dexie with nothing on screen mentioning it until the page was reloaded — the
+   * position banner would appear and the notes stay missing, which reads as sync half working.
+   *
+   * **The whole table for this book**, rather than the rows that arrived: a mark deleted elsewhere
+   * has to leave the panel too, and that is an absence no arriving row can express.
+   *
+   * **Only when something arrived**, which is what `subscribePulledAnnotations` is for. Sync
+   * rounds are frequent — app open, every return to the foreground, three seconds after every page
+   * turn — and nearly all of them pull nothing. Replacing the state on each would hand the
+   * highlight layer a fresh array several times a minute, sending it to measure a rectangle per
+   * mark and to put the layer back at rest, which mid-turn is a visible snap.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = subscribePulledAnnotations((bookIds) => {
+      if (!bookIds.has(bookId)) return;
+      // Guarded like the open above: the unsubscribe below cannot recall a read already in
+      // flight, and one resolving after the reader has moved to another book would list that
+      // book's marks under this one.
+      readAnnotations(bookId)
+        .then((marks) => {
+          if (!cancelled) setAnnotations(marks);
+        })
+        .catch(() => {
+          // The next round that writes a mark re-reads, and the panel is not worth a failure the
+          // reader can do nothing about.
+        });
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [bookId]);
 
   /** Take the offer. The `relocate` that follows writes the position, as it does for any move. */
