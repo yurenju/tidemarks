@@ -61,7 +61,7 @@ msgstr "{face}還沒下載"
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, other {大約還要 # 小時}}"
 
-#. Where the reader is in their marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many there are.
+#. Where the reader is in today's marked passages, between the two arrows on the shelf's card. Both values are counts; the first is the one on screen, the second is how many were drawn for today.
 #: src/components/Library.tsx
 msgid "{position} of {total}"
 msgstr "第 {position} 則，共 {total} 則"
@@ -355,7 +355,9 @@ msgstr "跳到書中位置"
 msgid "Just added"
 msgstr "剛剛加進來的"
 
+#. How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.
 #. On the banner about a position read on another device: that position was written less than a minute ago. Also what a position written slightly in the future says, since the two devices' clocks need not agree.
+#: src/components/Library.tsx
 #: src/components/Reader.tsx
 msgid "Just now"
 msgstr "剛剛"
@@ -381,6 +383,21 @@ msgstr "語言"
 #: src/lib/settings.ts
 msgid "Large"
 msgstr "大"
+
+#. How long ago the reader marked the passage showing on the shelf's card: one to two months back.
+#: src/components/Library.tsx
+msgid "Last month"
+msgstr "上個月"
+
+#. How long ago the reader marked the passage showing on the shelf's card: one to two weeks back.
+#: src/components/Library.tsx
+msgid "Last week"
+msgstr "上週"
+
+#. How long ago the reader marked the passage showing on the shelf's card: one to two years back.
+#: src/components/Library.tsx
+msgid "Last year"
+msgstr "去年"
 
 #. The question on the consent page. The value is the name the agent registered under, and is escaped before it reaches the page. The quotation marks are this language's — Chinese uses 「」.
 #. js-lingui-explicit-id
@@ -444,7 +461,7 @@ msgstr "苔綠"
 msgid "Next page"
 msgstr "下一頁"
 
-#. Screen-reader name for the › button on the shelf's card, which steps on to the passage marked before this one. 'Passage' is a stretch of the book the reader marked.
+#. Screen-reader name for the › button on the shelf's card, which steps on to the next passage in today's five. 'Passage' is a stretch of the book the reader marked.
 #: src/components/Library.tsx
 msgid "Next passage"
 msgstr "下一段畫線"
@@ -575,7 +592,7 @@ msgstr "要付錢"
 msgid "Previous page"
 msgstr "上一頁"
 
-#. Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage marked after this one. 'Passage' is a stretch of the book the reader marked.
+#. Screen-reader name for the ‹ button on the shelf's card, which steps back to the passage before this one in today's five. 'Passage' is a stretch of the book the reader marked.
 #: src/components/Library.tsx
 msgid "Previous passage"
 msgstr "上一段畫線"
@@ -651,6 +668,11 @@ msgstr "明體"
 #: src/components/SettingsScreen.tsx
 msgid "Settings"
 msgstr "設定"
+
+#. Button at the foot of the shelf's card. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared.
+#: src/components/Library.tsx
+msgid "Show me another five"
+msgstr "再挑五張"
 
 #. Button that submits the code from the email and finishes signing in.
 #. Heading of the sign-in section, shown when there is no account on this device yet.
@@ -862,10 +884,25 @@ msgstr "只在這台裝置上。語言跟著手上這台機器走，不跟著帳
 msgid "This file will not open"
 msgstr "這個檔案打不開"
 
+#. How long ago the reader marked the passage showing on the shelf's card: two to four weeks back.
+#: src/components/Library.tsx
+msgid "This month"
+msgstr "這個月"
+
 #. Shown when one section of an otherwise readable book fails. The value is the renderer's own message and is not translated.
 #: src/components/Reader.tsx
 msgid "This section will not render: {reason}"
 msgstr "這一節讀不出來：{reason}"
+
+#. How long ago the reader marked the passage showing on the shelf's card: two to seven days back.
+#: src/components/Library.tsx
+msgid "This week"
+msgstr "本週"
+
+#. How long ago the reader marked the passage showing on the shelf's card: two months to a year back.
+#: src/components/Library.tsx
+msgid "This year"
+msgstr "今年"
 
 #. Subject line of the letter carrying a one-time sign-in code. The product name stays as it is; the value is six digits.
 #. js-lingui-explicit-id
@@ -893,6 +930,11 @@ msgstr "累計時長"
 #: src/lib/shelf-order-choices.ts
 msgid "Title"
 msgstr "書名"
+
+#. How long ago the reader marked the passage showing on the shelf's card: earlier today.
+#: src/components/Library.tsx
+msgid "Today"
+msgstr "今天"
 
 #. Refusal after the guess limit. The code is dead rather than the account locked, so asking for a new one works.
 #. js-lingui-explicit-id
@@ -933,6 +975,16 @@ msgstr "這一段讓你想到什麼？"
 #: src/components/AccountPanel.tsx
 msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 msgstr "不想付、又想要兩台裝置？同步這半邊可以自己架。"
+
+#. How long ago the reader marked the passage showing on the shelf's card: more than two years, the far end of the scale. Vague on purpose — past a certain distance the exact count stops meaning anything.
+#: src/components/Library.tsx
+msgid "Years ago"
+msgstr "好幾年前"
+
+#. How long ago the reader marked the passage showing on the shelf's card: the day before.
+#: src/components/Library.tsx
+msgid "Yesterday"
+msgstr "昨天"
 
 #. Note under the billing section. It says outright that the section describes an intention, not a working checkout.
 #: src/components/AccountPanel.tsx

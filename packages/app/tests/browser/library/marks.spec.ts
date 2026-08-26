@@ -1,8 +1,10 @@
-// The shelf's own card: one marked passage at a time, from whichever book it came from. Which
-// passage is next and where a line stops growing are settled elsewhere — the order is a sort,
-// proven in `src/lib/shelf.test.ts`, and the ceiling is `src/lib/line-length.ts` — so what is
-// asked here is what only a browser can answer: that the card really is what a reader sees
-// first, and that the source on it is the loudest book title on the screen.
+// The shelf's own card: today's five marked passages, one at a time, from whichever books they
+// came from. **Which five, and in what order, is not asked here** — that is a sort over
+// `lastShownAt`, proven exhaustively in `src/lib/revisit.test.ts`, and the line-length ceiling
+// is `src/lib/line-length.ts`. What is asked here is what only a browser can answer: that the
+// card is what a reader meets first, that the source on it is the loudest title on the screen,
+// that it holds one height while they flick through it, and that pressing the passage really
+// does put them back in the book it came from.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, settled } from "../support/library.js";
@@ -83,6 +85,19 @@ async function quoteEms(page: Page): Promise<number> {
   });
 }
 
+/** Walks the whole batch, gathering what each card says and how tall the card stands. */
+async function walkBatch(page: Page): Promise<{ texts: string[]; heights: number[] }> {
+  const total = Number((await page.getByTestId("mark-count").textContent())!.split(" of ")[1]);
+  const texts: string[] = [];
+  const heights: number[] = [];
+  for (let i = 0; i < total; i++) {
+    texts.push((await page.getByTestId("mark-quote").textContent())!);
+    heights.push((await card(page).boundingBox())!.height);
+    if (i < total - 1) await card(page).getByRole("button", { name: "Next passage" }).click();
+  }
+  return { texts, heights };
+}
+
 const LATIN = "Alice was beginning to get very tired of sitting by her sister on the bank.";
 const HAN = "我冒了嚴寒，回到相隔二千餘里，別了二十餘年的故鄉去。";
 
@@ -96,6 +111,16 @@ async function twoBooks(page: Page): Promise<{ alice: string; chinese: string }>
   };
 }
 
+/** Enough marked passages that the card has to choose, rather than showing all there is. */
+function manyMarks(bookId: string, count: number): Seed[] {
+  return Array.from({ length: count }, (_, i) => ({
+    bookId,
+    text: `Marked passage number ${i}, kept for later.`,
+    note: "",
+    createdAt: 1_000 + i,
+  }));
+}
+
 test("nothing marked says what the slot is for", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
@@ -104,7 +129,87 @@ test("nothing marked says what the slot is for", async ({ page }) => {
   await expect(page.getByTestId("mark-card")).toHaveCount(0);
 });
 
-test("the card leads with the newest passage and steps through the rest", async ({ page }) => {
+test("the card draws five out of many, and stops at both ends", async ({ page }) => {
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
+
+  await seedMarks(page, manyMarks(alice, 12));
+  await page.reload();
+
+  // Five of the twelve, and the count says so. Which five is `revisit.test.ts`.
+  await expect(page.getByTestId("mark-count")).toHaveText("1 of 5");
+  // **No wrapping.** The batch has two ends, and an arrow that came back round would make them
+  // unfindable — a reader cannot tell a full circuit from a card that has stopped responding.
+  await expect(card(page).getByRole("button", { name: "Previous passage" })).toBeDisabled();
+
+  await card(page).getByRole("button", { name: "Next passage" }).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("2 of 5");
+  await expect(card(page).getByRole("button", { name: "Previous passage" })).toBeEnabled();
+
+  for (let i = 0; i < 3; i++) {
+    await card(page).getByRole("button", { name: "Next passage" }).click();
+  }
+  await expect(page.getByTestId("mark-count")).toHaveText("5 of 5");
+  await expect(card(page).getByRole("button", { name: "Next passage" })).toBeDisabled();
+});
+
+test("the card is one height all the way through the five", async ({ page }) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+
+  // Passages of wildly different lengths, which is the whole difficulty: a card sized to its
+  // contents moves the arrows out from under the reader's thumb between one flick and the next.
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
+    { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
+    { bookId: chinese, text: "短。", note: "", createdAt: 3_000 },
+    { bookId: alice, text: `${LATIN} ${LATIN} ${LATIN} ${LATIN}`, note: "", createdAt: 4_000 },
+    { bookId: chinese, text: HAN.repeat(6), note: "很長的一則想法。".repeat(4), createdAt: 5_000 },
+  ]);
+  await page.reload();
+
+  const { heights } = await walkBatch(page);
+  expect(heights).toHaveLength(5);
+  for (const height of heights) expect(height).toBeCloseTo(heights[0]!, 0);
+});
+
+test("today's five are the same five after a reload", async ({ page }) => {
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
+
+  await seedMarks(page, manyMarks(alice, 12));
+  await page.reload();
+  const first = await walkBatch(page);
+
+  // The reader may not be able to say yet why a passage stayed with them. A card that redrew
+  // every time they came back to the shelf would never give them the chance to find out.
+  await page.reload();
+  const second = await walkBatch(page);
+  expect(second.texts).toEqual(first.texts);
+});
+
+test("asking for another five starts again at the first of them", async ({ page }) => {
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
+
+  await seedMarks(page, manyMarks(alice, 12));
+  await page.reload();
+
+  await card(page).getByRole("button", { name: "Next passage" }).click();
+  await card(page).getByRole("button", { name: "Next passage" }).click();
+  await expect(page.getByTestId("mark-count")).toHaveText("3 of 5");
+
+  await page.getByTestId("mark-repick").click();
+  await expect(page.getByTestId("mark-count")).toHaveText("1 of 5");
+  // **There is no way to clear the card, and that is deliberate** — anything that can be
+  // emptied becomes a thing owed. Asking for more is the only control here.
+  await expect(card(page)).toBeVisible();
+});
+
+test("the passage on the card carries its own book's line-length ceiling", async ({ page }) => {
   await page.goto("/");
   const { alice, chinese } = await twoBooks(page);
 
@@ -114,27 +219,32 @@ test("the card leads with the newest passage and steps through the rest", async 
   ]);
   await page.reload();
 
-  // Newest first, and the source is named on the card rather than inferred from the screen.
-  await expect(page.getByTestId("mark-quote")).toContainText(HAN);
-  await expect(page.getByTestId("mark-count")).toHaveText("1 of 2");
-  await expect(page.getByTestId("mark-note")).toContainText("再讀一次。");
   // **Both ceilings, and that is one proposition rather than two.** What is under test here is
   // that the ceiling comes from *this passage's own book* — a card with `40em` written into its
   // stylesheet would pass either assertion on its own, and only fail when the two disagree. The
   // numbers themselves belong to `src/lib/line-length.test.ts`, which is where they are pinned.
-  expect(await quoteEms(page)).toBeCloseTo(40, 1);
+  const seen = new Map<string, number>();
+  for (let i = 0; i < 2; i++) {
+    seen.set((await page.getByTestId("mark-quote").textContent())!, await quoteEms(page));
+    if (i === 0) await card(page).getByRole("button", { name: "Next passage" }).click();
+  }
+  expect(seen.get(LATIN)).toBeCloseTo(30, 1);
+  expect(seen.get(HAN)).toBeCloseTo(40, 1);
+});
 
-  await card(page).getByRole("button", { name: "Next passage" }).click();
+test("pressing the passage opens the book it came from", async ({ page }) => {
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
 
-  await expect(page.getByTestId("mark-quote")).toContainText("Alice was beginning");
-  await expect(page.getByTestId("mark-book")).toContainText("Alice");
-  expect(await quoteEms(page)).toBeCloseTo(30, 1);
-  // Nothing written on this one, so the card asks rather than showing an empty line.
-  await expect(page.getByTestId("mark-note-input")).toBeVisible();
+  await seedMarks(page, [{ bookId: alice, text: LATIN, note: "", createdAt: 1_000 }]);
+  await page.reload();
 
-  // And back the way it came.
-  await card(page).getByRole("button", { name: "Previous passage" }).click();
-  await expect(page.getByTestId("mark-quote")).toContainText(HAN);
+  // The book's own words go back to the book; the reader's own note opens for writing. Both
+  // presses live on this card, so which is which has to be legible from the words themselves.
+  await page.getByTestId("mark-quote").click();
+  await expect(page.locator(".reader")).toBeVisible();
+  expect(page.url()).toContain(`#/book/${alice}`);
 });
 
 test("a thought written on the shelf is still there after a reload", async ({ page }) => {
@@ -147,8 +257,9 @@ test("a thought written on the shelf is still there after a reload", async ({ pa
 
   await page.getByTestId("mark-note-input").fill("Down the rabbit-hole again.");
   // Committed on the way out: the card is not a form, and leaving it is what finishing looks
-  // like — so the assertion has to leave it too.
-  await page.getByTestId("mark-quote").click();
+  // like — so the assertion has to leave it too. Pressed on the age rather than on the quote,
+  // because the quote now leaves the shelf entirely.
+  await page.getByTestId("mark-when").click();
   // The box turning back into the written line is what committed looks like from outside, and it
   // is read back from the database — so reloading any earlier throws the write away with the page.
   await expect(page.getByTestId("mark-note")).toContainText("Down the rabbit-hole again.");

@@ -299,6 +299,28 @@ html[data-drawer="open"] {
   --type-eyebrow-tracking: 0.18em;
   --leading-text: 1.8;
   --leading-title: 1.4;
+  /* How tall the two blocks on the shelf's revisit card stand, counted in lines rather than
+     set in pixels — the reader can turn their browser's text up, and a card measured in pixels
+     would then hold five lines instead of seven.
+
+     **Both are floors as well as ceilings**, and that is the point of them: the card shows one
+     of five passages at a time, and a card that changed height as the reader flicked would
+     move the arrows out from under their thumb. What overflows fades (the quote) or is clamped
+     (the note); pressing either one reaches the whole of it.
+
+     Five, and the number is the phone's. The quote block alone is `5 × 1.8 × --type-body`,
+     which is 9.6rem on a coarse pointer; at seven it is 13.4rem, and the card then pushes
+     〈正在讀〉 — the one action on the screen — off the bottom of a phone's first screen. That
+     costs more than the two lines are worth.
+
+     ⚠️ **Five does cut a long poem**, and that is the real price of it: seven would have held
+     the longest ones whole, and a poem short of its last line is not a shorter poem. It is
+     paid because pressing the quote opens the book at that passage, so the whole of it is one
+     press away — and because a card tall enough to hide the rest of the shelf is a worse thing
+     to have on the screen every day. Prose loses its tail and keeps its opening, which is the
+     half doing the work here: the card is a way back into the book, not the book. */
+  --mark-quote-lines: 5;
+  --mark-note-lines: 3;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

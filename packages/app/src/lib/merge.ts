@@ -24,8 +24,42 @@ function lww<T extends { updatedAt: number; deletedAt: number | null }>(
   return local.updatedAt > remote.updatedAt ? local : remote;
 }
 
+/**
+ * LWW like the rest, **except for `lastShownAt`, which merges on its own**.
+ *
+ * The row is the reader's words and the field is the shelf's bookkeeping, and they are written
+ * at different moments by different devices: opening the shelf on a phone stamps the field,
+ * writing a note on a laptop rewrites the row. Left to plain LWW one of those two erases the
+ * other, and which one depends on the order the app happened to sync in.
+ *
+ * So the winner decides the row and the field is settled separately, by taking the later of
+ * the two. That is sound because seeing only ever moves forward: a device that has shown a
+ * passage more recently knows something the other does not, whichever of them holds the newer
+ * note. It also means showing a card must **not** bump `updatedAt` — see `types.ts`.
+ */
 export function mergeAnnotation(local: Annotation | undefined, remote: Annotation): Annotation {
-  return lww(local, remote);
+  const won = lww(local, remote);
+  const shown = latest(local?.lastShownAt, remote.lastShownAt);
+  // Written back only when there is something to say, so a row that has never reached the card
+  // stays exactly as it arrived rather than growing a null.
+  return shown === null ? won : { ...won, lastShownAt: shown };
+}
+
+/**
+ * Whether the reader's words in `incoming` lost to a newer copy already on the server.
+ *
+ * Asked separately because `mergeAnnotation` no longer answers it by identity: it can return a
+ * row that is neither of its arguments, being the winner's words with the later viewing on it.
+ * This is the plain last-write-wins question, and only the row is in it.
+ */
+export function annotationRowLost(local: Annotation | undefined, remote: Annotation): boolean {
+  return lww(local, remote) !== remote;
+}
+
+function latest(a: number | null | undefined, b: number | null | undefined): number | null {
+  if (a === null || a === undefined) return b ?? null;
+  if (b === null || b === undefined) return a;
+  return Math.max(a, b);
 }
 
 export function mergeBook(local: SyncBook | undefined, remote: SyncBook): SyncBook {

@@ -192,7 +192,11 @@ async function pull() {
       for (const ra of remote.annotations) {
         const local = await db.annotations.get(ra.id);
         const winner = mergeAnnotation(local, ra);
-        if (winner === ra) await db.annotations.put(ra);
+        // Anything the local row does not already say. Not `winner === ra`: the row and
+        // `lastShownAt` are settled separately, so a pull can lose the words and still carry a
+        // later viewing, and the merge then returns neither of its two arguments. When the
+        // local row won, the merge kept its `dirtyAt` with it, so it still goes up next push.
+        if (winner !== local) await db.annotations.put(winner);
       }
       const ids = new Set((await db.readingSessions.toCollection().primaryKeys()) as string[]);
       for (const rs of dedupeSessions(ids, remote.readingSessions as ReadingSession[])) {

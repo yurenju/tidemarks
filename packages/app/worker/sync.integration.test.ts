@@ -151,4 +151,82 @@ describe("sync", () => {
     // matched nothing at all, which would pass any test that only checked for absence.
     expect(body.progress.map((p) => p.bookId)).toEqual(["book-after-cursor"]);
   });
+
+  // `last_shown_at` is written by a clause of its own — the upsert takes the later of the two
+  // rather than whatever arrived last — so the placeholder is used twice in one statement and
+  // wrapped in `NULLIF(MAX(...))`. Every part of that is invisible to the pure tests: they can
+  // say what the merge decides, and not whether the column exists or whether `?12` reaches both
+  // of the places it is named.
+  it("carries when a passage was last shown, and never moves it backwards", async () => {
+    const post = (lastShownAt: number | null) =>
+      SELF.fetch("https://tidemarks.test/api/sync", {
+        method: "POST",
+        headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          annotations: [
+            {
+              id: "a-shown",
+              bookId: BOOK,
+              cfiRange: "epubcfi(/6/14!/4,/2/1:0,/2/1:8)",
+              text: "見わたせば花も紅葉もなかりけり",
+              note: "",
+              color: "indigo",
+              createdAt: 1,
+              updatedAt: 1,
+              deletedAt: null,
+              lastShownAt,
+            },
+          ],
+        }),
+      });
+    const pull = async () => {
+      const res = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+        headers: { cookie: `tidemarks_session=${SESSION}` },
+      });
+      return ((await res.json()) as { annotations: { lastShownAt: number | null }[] }).annotations;
+    };
+
+    expect((await post(5_000)).status).toBe(200);
+    expect((await pull())[0]!.lastShownAt).toBe(5_000);
+
+    // A device that has been offline pushes the viewing it recorded days ago. Taking it would
+    // put the passage back at the front of the queue and show it again tomorrow.
+    expect((await post(2_000)).status).toBe(200);
+    expect((await pull())[0]!.lastShownAt).toBe(5_000);
+
+    expect((await post(9_000)).status).toBe(200);
+    expect((await pull())[0]!.lastShownAt).toBe(9_000);
+  });
+
+  // Every annotation written before the column existed. `null` has to survive as `null`: read
+  // back as 0 it would be a passage shown at the epoch rather than one never shown, and the
+  // card's queue puts those two at opposite ends.
+  it("keeps a passage the card has never shown unshown", async () => {
+    const pushed = await SELF.fetch("https://tidemarks.test/api/sync", {
+      method: "POST",
+      headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        annotations: [
+          {
+            id: "a-unseen",
+            bookId: BOOK,
+            cfiRange: "epubcfi(/6/14!/4,/2/1:0,/2/1:8)",
+            text: "秋の暮",
+            note: "",
+            color: "indigo",
+            createdAt: 1,
+            updatedAt: 1,
+            deletedAt: null,
+          },
+        ],
+      }),
+    });
+    expect(pushed.status).toBe(200);
+
+    const pulled = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const body = (await pulled.json()) as { annotations: { lastShownAt: number | null }[] };
+    expect(body.annotations[0]!.lastShownAt).toBeNull();
+  });
 });
