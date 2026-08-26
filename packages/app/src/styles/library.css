@@ -270,6 +270,22 @@
   font-size: inherit;
 }
 
+/* **A long title is clipped, and how long ago is not.** The name gives way because it is the
+   half that has somewhere else to be — the same book's cover is on the wall below with the whole
+   of it under the square. Left to itself it ran off the end of the row and printed over 〈剛剛〉,
+   which is the one thing on this line that cannot be read from anywhere else on the screen.
+
+   The clip goes on the name rather than on the button around it: `text-overflow` acts on an
+   element's own inline content, so a box holding a `<strong>` cuts the letters off flush with no
+   ellipsis to say that it did. `.reading-now-info h2` is the same three lines for the same
+   reason. */
+.mark-source-link strong {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The book's words, and a way back to where they came from. `max-width` is set on the element
    in ems, from `lib/line-length.ts` — 40 for an ideographic book, 30 for a Latin one — so this
    rule carries the reading and not the number. */
