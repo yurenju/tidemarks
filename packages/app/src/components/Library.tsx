@@ -417,7 +417,15 @@ function MarkCard({
       className="mark-card"
       data-testid="mark-card"
       data-mark-id={mark.id}
-      style={{ borderLeftColor: markVar(mark.color) }}
+      // PROTOTYPE: `--mark-ink` is the same colour under a name a pseudo-element can reach — a
+      // border colour cannot become a glyph's colour. Delete it with the prototype unless the
+      // variant that wins draws something in the ink.
+      style={
+        {
+          borderLeftColor: markVar(mark.color),
+          "--mark-ink": markVar(mark.color),
+        } as React.CSSProperties
+      }
       {...useFlick(step)}
       // Arrows turn the card too, but only once focus is inside it — bound here rather than on
       // the window so they still mean what they always mean everywhere else on the shelf. The
