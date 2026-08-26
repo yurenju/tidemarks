@@ -3,7 +3,14 @@
 // defect was in this app's own container image and no suite running in frond's image can see it.
 // The measurement is per-character advance, which needs the real face and the real engine.
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, openBook, openPanel, readerFrame, settled } from "../support/library.js";
+import {
+  BOOKS,
+  openBook,
+  openPanel,
+  readerFrame,
+  settled,
+  throughThePage,
+} from "../support/library.js";
 
 /**
  * That the prose is actually legible — no character drawn on top of the next one.
@@ -43,37 +50,60 @@ test("no character in the vertical book is drawn on top of the next", async ({ p
   await page.locator(".toc-item", { hasText: /^一$/ }).click();
   await settled(page);
 
-  const { measured, collapsed } = await readerFrame(page)
-    .locator("body")
-    .evaluate((body) => {
-      const document = body.ownerDocument;
-      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
-      const collapsed: string[] = [];
-      let measured = 0;
+  // Through `throughThePage`, because this read is the one most likely to be interrupted (#67).
+  // It opens a range around every character in the section — 8109 of them, hundreds of
+  // milliseconds on an idle machine and seconds on a loaded one — and frond is free to drop the
+  // frame throughout: a settings reflow tears down every SectionView, and the neighbouring pages
+  // mount and re-point on their own schedule (frond ADR-0013). Firefox then fails the call with
+  // "Execution context was destroyed" and the spec dies without having said anything about the
+  // book. Nothing waited for beforehand closes that window — the steady state `settled()` waits
+  // for is a moment, not a promise that the moment lasts.
+  //
+  // **`settled()` is inside the retried block, not before it.** What comes back from a real
+  // re-mount is a frame that has begun loading its section, not one that has finished: the
+  // helper's own pre-retry wait is only "there is exactly one page frame again", so measuring
+  // straight off it would walk an empty body and fail `measured` — on the very run this is here
+  // to rescue — or take advances from a face that has not resolved yet, which is the hazard
+  // `fontsReady` is written about. Running it twice on the happy path costs tens of milliseconds
+  // and asks nothing new.
+  //
+  // If a third read from the book's frame ever needs this, the answer is to route the frame reads
+  // through one helper rather than to export a third thing: `readerFrame(` appears about a dozen
+  // times across this directory and only this one is guarded.
+  const { measured, collapsed } = await throughThePage(page, async () => {
+    await settled(page);
+    return readerFrame(page)
+      .locator("body")
+      .evaluate((body) => {
+        const document = body.ownerDocument;
+        const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+        const collapsed: string[] = [];
+        let measured = 0;
 
-      while (walker.nextNode() !== null) {
-        const node = walker.currentNode;
-        const value = node.nodeValue ?? "";
-        for (let i = 0; i < value.length; i++) {
-          // `charAt` rather than `value[i]`, which `noUncheckedIndexedAccess` types as possibly
-          // undefined. Same code unit either way — the loop cannot leave the string.
-          const char = value.charAt(i);
-          if (/\s/.test(char)) continue;
-          const range = document.createRange();
-          range.setStart(node, i);
-          range.setEnd(node, i + 1);
-          const rects = [...range.getClientRects()];
-          // No rect at all means the character is not laid out (a `display: none` branch),
-          // which is the book's business rather than a collision.
-          if (rects.length === 0) continue;
-          measured++;
-          // The book is vertical-rl, so the inline axis is the rect's height.
-          if (rects.every((rect) => rect.height === 0)) collapsed.push(char);
+        while (walker.nextNode() !== null) {
+          const node = walker.currentNode;
+          const value = node.nodeValue ?? "";
+          for (let i = 0; i < value.length; i++) {
+            // `charAt` rather than `value[i]`, which `noUncheckedIndexedAccess` types as possibly
+            // undefined. Same code unit either way — the loop cannot leave the string.
+            const char = value.charAt(i);
+            if (/\s/.test(char)) continue;
+            const range = document.createRange();
+            range.setStart(node, i);
+            range.setEnd(node, i + 1);
+            const rects = [...range.getClientRects()];
+            // No rect at all means the character is not laid out (a `display: none` branch),
+            // which is the book's business rather than a collision.
+            if (rects.length === 0) continue;
+            measured++;
+            // The book is vertical-rl, so the inline axis is the rect's height.
+            if (rects.every((rect) => rect.height === 0)) collapsed.push(char);
+          }
         }
-      }
 
-      return { measured, collapsed };
-    });
+        return { measured, collapsed };
+      });
+  });
 
   // Guards the guard: if navigation ever lands somewhere empty, the assertion below would
   // pass by measuring nothing at all.

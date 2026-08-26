@@ -4,7 +4,7 @@
 // where a red light names the helper (testing.md principle 2: it fails alone).
 import { expect, type Page } from "@playwright/test";
 import { test } from "../support/fixtures.js";
-import { BOOKS, openBook, readerFrame, settled } from "../support/library.js";
+import { BOOKS, openBook, readerFrame, settled, throughThePage } from "../support/library.js";
 
 /**
  * `settled()` is asked for by nearly every spec in this suite, and one of its waits reaches
@@ -54,6 +54,29 @@ test.describe("settled", () => {
     // The retry swallows one kind of failure and no other. Widen it and a real break in the
     // book's fonts turns into a green run.
     await expect(settled(page)).rejects.toThrow("fonts are broken");
+  });
+
+  test("asks again once, and only once", async ({ page }) => {
+    // The half the two cases above leave open. Both of them stay green against a
+    // `throughThePage` that retries **without limit** — and "it cannot launder a real break into
+    // a green run" rests entirely on the limit: a product that really did keep tearing the frame
+    // down would go quietly green with an unbounded version. So the count is asserted directly.
+    //
+    // The failure is handed to it rather than caused by a second teardown. Forcing one means
+    // holding a trap alive inside a synthetic frame while the app re-renders around it, which was
+    // measured here at one run in thirty going the other way — a flaky pin for the flake it was
+    // added to prevent. That the loss can be caused for real is what the first case above pins;
+    // this one pins what the helper does about it.
+    await openBook(page, BOOKS.vertical);
+
+    let reads = 0;
+    const alwaysDetached = () => {
+      reads += 1;
+      return Promise.reject(new Error("Frame was detached"));
+    };
+
+    await expect(throughThePage(page, alwaysDetached)).rejects.toThrow("Frame was detached");
+    expect(reads, "the read was attempted more than twice").toBe(2);
   });
 });
 

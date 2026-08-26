@@ -222,8 +222,22 @@ function fontsReady(page: Page): Promise<void> {
  *
  * **Only this failure, and only once.** Anything else is rethrown, and a second detach fails the
  * spec — a blanket retry would launder a real break into a green run.
+ *
+ * Exported for `rendering.spec.ts`, the one spec that reads from the book's frame itself rather
+ * than through a helper here and is exposed long enough for it to matter (#67): it builds a range
+ * around every one of 8109 characters, by some distance the longest this suite holds a frame open
+ * for.
+ *
+ * ⚠️ **A caller whose `read` is the measurement must settle inside it**, not before the call. All
+ * this does before asking again is wait for one page frame to exist — enough for `fontsReady`,
+ * whose own retry is a wait and which has the rest of `settled()` running after it, and not enough
+ * for anything that measures. `rendering.spec.ts` puts `settled(page)` inside its closure and says
+ * why.
+ *
+ * If a third caller appears, route the frame reads through one helper rather than exporting a
+ * third thing.
  */
-async function throughThePage<T>(page: Page, read: () => Promise<T>): Promise<T> {
+export async function throughThePage<T>(page: Page, read: () => Promise<T>): Promise<T> {
   try {
     return await read();
   } catch (error) {
