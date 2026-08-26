@@ -15,6 +15,7 @@ const VARIANTS = [
   { key: "B", name: "Whole page widens" },
   { key: "C", name: "Only the wall widens" },
   { key: "D", name: "Card beside the wall" },
+  { key: "E", name: "Wall-wide box, centred content" },
 ];
 
 /* Written as attribute selectors on `.library` so no variant needs its own JSX — the thing under
@@ -22,13 +23,27 @@ const VARIANTS = [
 const CSS = `
 .library[data-proto="B"],
 .library[data-proto="C"],
-.library[data-proto="D"] { max-width: var(--proto-w); }
+.library[data-proto="D"],
+.library[data-proto="E"] { max-width: var(--proto-w); }
 
 /* C — the wall takes the whole width, everything that carries reading stays at 736 and keeps
    the left edge, so the quote is not stranded in the middle of a wide page. */
 .library[data-proto="C"] .mark-card,
 .library[data-proto="C"] .reading-now,
 .library[data-proto="C"] .shelf-actions { max-width: 736px; }
+
+/* E — C's question asked the other way round. The card's *box* runs the wall's full width, so the
+   shelf reads as one column of one width; what stays at 736 is the reading inside it, held in the
+   middle by padding that grows with the page. The ink rule stays out at the far left edge, which
+   is the part to judge: it is what says which colour the passage was marked in, and here it is a
+   long way from the words it belongs to. */
+.library[data-proto="E"] .mark-card {
+  padding-inline: max(var(--space-6), calc((100% - 736px) / 2));
+}
+
+/* Everything else is C's, so the two variants differ in the card and nowhere else. */
+.library[data-proto="E"] .reading-now,
+.library[data-proto="E"] .shelf-actions { max-width: 736px; }
 
 /* D — two columns above 1000px: the card and the row on the left, the wall filling the rest.
    Below that it falls back to B's stack, because a 26rem column would squeeze the quote. */
