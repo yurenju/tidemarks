@@ -262,6 +262,57 @@ test("the passage on the card carries its own book's line-length ceiling", async
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
+test("the closing quotation mark stands at the passage's edge, not the card's", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
+    { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
+  ]);
+  // Wide enough that the card's box and the passage inside it are different widths — which is
+  // the whole of what this asks. Below the shelf's own cap they are the same edge and any
+  // arrangement passes.
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.reload();
+
+  /** Where the mark sits, against the passage it closes. */
+  const closing = () =>
+    card(page).evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const quote = node.querySelector(".mark-quote")!.getBoundingClientRect();
+      const mark = getComputedStyle(node, "::after");
+      return {
+        // Its own box, from the two sides it is anchored to.
+        pastQuoteRight: box.right - parseFloat(mark.right) - quote.right,
+        bottomBelowQuote: box.bottom - parseFloat(mark.bottom) - quote.bottom,
+      };
+    });
+
+  // **Both books, and that is one proposition rather than two**, for the reason given over the
+  // ceiling test above: 40em and 30em are 160px apart at this type size, so a mark placed off
+  // the card's own edge lands identically for both and only a disagreement catches it.
+  const seen = new Map<string, Awaited<ReturnType<typeof closing>>>();
+  for (let i = 0; i < 2; i++) {
+    seen.set((await page.getByTestId("mark-quote").textContent())!, await closing());
+    if (i === 0) await card(page).getByRole("button", { name: "Next passage" }).click();
+  }
+
+  for (const text of [LATIN, HAN]) {
+    const at = seen.get(text)!;
+    // Clear of the last line rather than over it, and by the same hand's width either way. The
+    // figure is `--mark-quote-hang`; the assertion is that both books get the same one.
+    expect(at.pastQuoteRight).toBeGreaterThan(0);
+    expect(at.pastQuoteRight).toBeLessThan(60);
+    // Under the passage, not through it. This is the half that a formula counting *down* from
+    // the source line gets wrong, because that line is as tall as the cover thumbnail and taller
+    // again when a title runs long — neither of which the stylesheet decides.
+    expect(at.bottomBelowQuote).toBeGreaterThan(0);
+  }
+});
+
 test("the book's own words on the card go back to the passage", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);

@@ -390,6 +390,11 @@ function MarkCard({
   const mark = batch[index]!;
   const book = books.get(mark.bookId);
   const coverUrl = useCoverUrl(book?.cover ?? null);
+  // How wide this passage is allowed to run, in ems of its own type size — the reader's ceiling
+  // for the script it is written in (ADR-0012). Read once here because two things need it: the
+  // quote's own `max-width`, and the card's closing quotation mark, which stands at the edge
+  // that number draws rather than at the edge of the card.
+  const quoteCeiling = LINE_LENGTH[detectScript(mark.text)].ceiling;
 
   // **Reaching a card is what counts as having seen it, not being dealt one.** Stamping all
   // five when the batch is drawn buries the four the reader never flicked to: they would sit at
@@ -414,11 +419,21 @@ function MarkCard({
       className="mark-card"
       data-testid="mark-card"
       data-mark-id={mark.id}
-      // The mark's own ink, under a name the stylesheet can spend more than one way: a rule down
-      // the side on a phone, the pair of quotation marks on a wide shelf. It was `borderLeftColor`
-      // while the rule was the only thing carrying it, and a border's colour cannot become a
-      // glyph's.
-      style={{ "--mark-ink": markVar(mark.color) } as CSSProperties}
+      // Two things the card's own quotation marks need and cannot work out for themselves: the
+      // ink this passage was marked in, and how wide the passage below is allowed to run. The
+      // ink was `borderLeftColor` while a rule down the side was the only thing carrying it, and
+      // a border's colour cannot become a glyph's. The ceiling is the same number the quote is
+      // capped at, published so the closing mark can stand at the passage's edge rather than at
+      // the card's — the two are a Latin book's width apart (`library.css`).
+      style={
+        {
+          "--mark-ink": markVar(mark.color),
+          // ⚠️ A length, not the `em` the quote's own `max-width` is written in. The mark that
+          // reads it is a pseudo-element with a type size of its own, and `em` there would be
+          // measured in 56px quotation marks rather than in 16px of the book.
+          "--mark-quote-ceiling": `calc(${quoteCeiling} * var(--type-body))`,
+        } as CSSProperties
+      }
       {...useFlick(step)}
       // Arrows turn the card too, but only once focus is inside it — bound here rather than on
       // the window so they still mean what they always mean everywhere else on the shelf. The
@@ -452,7 +467,7 @@ function MarkCard({
       <button
         className="mark-quote"
         data-testid="mark-quote"
-        style={{ maxWidth: `${LINE_LENGTH[detectScript(mark.text)].ceiling}em` }}
+        style={{ maxWidth: `${quoteCeiling}em` }}
         onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
       >
         {mark.text}

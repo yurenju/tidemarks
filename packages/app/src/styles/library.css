@@ -141,11 +141,18 @@
    become a glyph's, and this glyph is now the only thing carrying the ink.
 
    The offsets are in `em`, which inside a pseudo-element is the mark's own size, so both marks
-   keep their relationship to the glyph when `device.css` grows it. The closing one's `top` is
-   added up rather than measured: the card's padding, the source line, the gap under it, and the
-   quote's held-open height — every one of them a number this file already decided. It is not
-   simply put at the end of the quote because that box is clipped and masked, so a mark on the
-   last line would fade out along with the passage's tail. */
+   keep their relationship to the glyph when `device.css` grows it.
+
+   **Both marks are placed off the card's fixed edges, and neither is placed off the source
+   line.** That line looks like the obvious thing to measure down from, and it is the one part of
+   this card whose height nothing here decides: it is as tall as the cover thumbnail
+   (`aspect-ratio`, below), and taller again whenever a long book title wraps. Everything under
+   the quote is a number — the note's held-open height, the row of arrows at `--tap-min`, the
+   gaps between them — so the closing mark counts up from the bottom instead and a wrapped title
+   moves it with the passage rather than through it.
+
+   It is not simply set at the end of the quote because that box is clipped and masked: a mark on
+   the last line would fade out along with the passage's tail. */
 .mark-card::before,
 .mark-card::after {
   position: absolute;
@@ -158,18 +165,28 @@
 }
 
 .mark-card::before {
-  content: "\201C";
+  content: "\201C" / "";
   top: calc(var(--space-4) - 0.17em);
   left: calc(var(--mark-card-inset) - var(--mark-quote-hang));
 }
 
+/* **The right edge it answers to is the passage's, not the card's.** They are not the same line:
+   the quote runs to its own ceiling in ems — 40 for an ideographic book, 30 for a Latin one
+   (`lib/line-length.ts`, published here as `--mark-quote-ceiling` by `MarkCard`) — and the card's
+   reading column is wider than either. Anchored to the card, the mark on a Latin passage stood a
+   quarter of the shelf clear of the words it was closing, which is the fault it was brought in to
+   fix. `max()` keeps it against the card's own edge on a phone, where the column is the narrower
+   of the two. */
 .mark-card::after {
-  content: "\201D";
-  top: calc(
-    var(--space-4) + var(--type-lede) * var(--leading-title) + 0.5rem + var(--mark-quote-lines) *
-      var(--leading-text) * var(--type-body) - 0.46em
+  content: "\201D" / "";
+  bottom: calc(
+    var(--space-4) + var(--tap-min) + 0.7rem + var(--mark-note-lines) * var(--leading-text) *
+      var(--type-ui) + 1.4rem + 2px + 0.9rem - 0.54em
   );
-  right: calc(var(--mark-card-inset) - var(--mark-quote-hang));
+  right: calc(
+    var(--mark-card-inset) - var(--mark-quote-hang) +
+      max(0px, 100% - 2 * var(--mark-card-inset) - var(--mark-quote-ceiling))
+  );
 }
 
 /* **The source, at the weight of a title.** The cover and the bold name together are what stop
@@ -226,9 +243,18 @@
 .mark-source-link:hover,
 .mark-quote:hover,
 .mark-note:hover {
-  border: none;
   text-decoration: underline;
   text-decoration-color: var(--line-actionable);
+}
+
+/* ⚠️ **The two that have no edge of their own**, and this cannot be folded back into the rule
+   above: the note has a real border now — it is the sheet the reader's words sit on — and a
+   `border: none` carrying a pseudo-class beats the rule that draws it however late that rule
+   comes. The sheet would lose its edge under the pointer, and gain 2px of content box doing it
+   (`box-sizing: border-box`), so the note would twitch as the pointer crossed it. */
+.mark-source-link:hover,
+.mark-quote:hover {
+  border: none;
 }
 
 /* The cover and the name, pressable together: they are the book saying which book it is, so
@@ -298,7 +324,10 @@
   font-size: var(--type-ui);
   line-height: var(--leading-text);
   color: var(--text-muted);
-  height: calc(var(--mark-note-lines) * var(--leading-text) * 1em + 1.4rem);
+  /* Three lines, plus the sheet's own inset, plus its two hairlines — `box-sizing: border-box`
+     means `height` pays for all three, and a sum that forgot the border clipped 2px off the
+     descenders of the third line. */
+  height: calc(var(--mark-note-lines) * var(--leading-text) * 1em + 1.4rem + 2px);
   margin-top: 0.4rem;
   padding: 0.7rem 0.9rem;
   background: var(--surface-page);
