@@ -1,7 +1,8 @@
 // One wiring test for the line-length ceiling — the computed number reaching frond's own
-// pagination — plus the angles no pure function has: the margin control, and the column
-// choice being taken away over a vertical book. The rule's own arithmetic is exhausted in
-// src/lib/line-length.test.ts and is not re-run here.
+// pagination — plus the angles no pure function has: the margin control, and an explicit
+// two columns outliving the guess that would have said one. The rule's own arithmetic is
+// exhausted in src/lib/line-length.test.ts and is not re-run here; which choices the panel
+// takes away over a vertical book is reader/settings.spec.ts, alongside the other five.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openPanel, readerFrame, segment, settled } from "../support/library.js";
@@ -51,18 +52,6 @@ test.describe("the line-length ceiling", () => {
     await page.setViewportSize({ width: 1200, height: 1600 });
     await settled(page);
     expect(await columns(page)).toEqual({ count: 1, emsPerColumn: 40 });
-  });
-
-  test("takes the choice away over a vertical book, where frond cannot honour it", async ({
-    page,
-  }) => {
-    // CONTEXT.md 〈排版設定〉: 做不到才 disable，不好看照做. Two columns on a phone only looks
-    // bad and stays the reader's call; two columns on a 直排 book is something frond cannot do
-    // at all — and this is the one row in 〈排版〉 that depends on the book underneath it.
-    await openBook(page, BOOKS.vertical);
-    await openPanel(page, "Type");
-
-    await expect(segment(page, "setting-columns", 2)).toBeDisabled();
   });
 
   test("honours two columns when the reader asks, even where the guess would not", async ({

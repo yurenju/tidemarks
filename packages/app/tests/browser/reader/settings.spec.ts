@@ -84,8 +84,11 @@ test.describe("typography, one layer", () => {
   }) => {
     await importBoth(page);
 
-    // frond cannot paginate a 直排 book in more than one column at all, which is the only
-    // grounds there is for removing a choice. It moved into this panel with the other five.
+    // CONTEXT.md 〈排版設定〉: a choice is disabled only when it cannot be honoured, never
+    // when it would merely look bad. Two columns on a phone looks bad and stays the reader's
+    // call; frond cannot paginate a 直排 book in more than one column at all. This is the one
+    // row in 〈排版〉 that depends on the book underneath it, and it moved into this panel
+    // with the other five.
     await open(page, TITLES.vertical);
     await expect(segment(page, "setting-columns", 2)).toBeDisabled();
     await leave(page);

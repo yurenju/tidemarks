@@ -1,6 +1,8 @@
 // Each of the three routes that move every rectangle, and whether `layout` is emitted on it.
 // The measurement is that the rectangles really moved, which needs a laid-out document; the
 // emitter that carries the event is pure and is tested in tests/node/renderer/events.test.ts.
+// The order a mount emits its events in is pinned here too — placing `layout` between `load`
+// and `relocate` states all three — while what each one carries is pagination.spec.ts.
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { mountFixture, openHarness, type EventRecord } from "../support/harness.js";
@@ -44,6 +46,9 @@ test.describe("layout is emitted on every route that moves the geometry", () => 
 
     const names = (await events(page)).map((record) => record.name);
     expect(names).toContain("layout");
+    // Asserted before the ordering below, which cannot see a missing `load` on its own:
+    // `indexOf` answers -1, and -1 comes before every real index.
+    expect(names).toContain("load");
     // `load` says a new section is up; `layout` says its geometry is valid. Two questions,
     // and this order is the one a consumer can rely on.
     expect(names.indexOf("load")).toBeLessThan(names.indexOf("layout"));

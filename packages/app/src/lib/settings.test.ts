@@ -5,6 +5,10 @@
  * size, the CJK stacks, dark mode's ink, and the margin and column count that can only be
  * answered once frond has read the writing mode.
  *
+ * `frondLayout`'s cases quote ceiling-derived numbers, but what they ask is whether the facts
+ * frond hands over are the ones used — not whether the ceiling is computed correctly. That
+ * arithmetic is exhausted in `line-length.test.ts` next door and is not re-run here.
+ *
  * Nothing here produces CSS or measures a layout. What frond does with these parameters is
  * `packages/frond/tests/node/renderer/settings.test.ts` (the CSS it emits) and
  * `packages/frond/tests/browser/renderer/reader-settings.spec.ts` (that it reaches the page).
@@ -411,13 +415,6 @@ describe("frondLayout", () => {
     expect(frondLayout({ ...base, columns: "auto" }, context, horizontal).columns).toBe(2);
     expect(frondLayout({ ...base, columns: 1 }, context, horizontal).columns).toBe(1);
     expect(frondLayout({ ...base, columns: 2 }, context, horizontal).columns).toBe(2);
-  });
-
-  it("turns the width past the ceiling into margin rather than into a longer line", () => {
-    // Same settings, a wider screen: the reader's 32px is not what comes out the other end.
-    const wide = { ...horizontal, viewport: { width: 2464, height: 1361 } };
-    expect(frondLayout(base, context, horizontal).margin).toEqual({ block: 16, inline: 32 });
-    expect(frondLayout(base, context, wide).margin).toEqual({ block: 16, inline: 476 });
   });
 
   it("measures the line down the page for a vertical book", () => {

@@ -224,19 +224,10 @@ test.describe("hidden content does not affect the page count", () => {
   });
 });
 
+// Which events a mount emits, and in which order, is layout-events.spec.ts — it asserts the
+// same load-before-relocate ordering with `layout` placed between them. What is asked here is
+// what each event carries.
 test.describe("typed events", () => {
-  test("mounting a book emits load and relocate", async ({ page }) => {
-    await mountFixture(page, "vertical-japanese");
-
-    const events = await page.evaluate(() => window.frond.events());
-    const names = events.map((event) => event.name);
-
-    expect(names).toContain("load");
-    expect(names).toContain("relocate");
-    // load always comes before relocate: the position is only computable once mounted.
-    expect(names.indexOf("load")).toBeLessThan(names.indexOf("relocate"));
-  });
-
   test("load carries the writing mode this section laid out in", async ({ page }) => {
     await mountFixture(page, "writing-mode-on-body");
 

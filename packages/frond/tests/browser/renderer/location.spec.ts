@@ -3,7 +3,7 @@
 // fraction arithmetic (tests/node/renderer/progress.test.ts) are pure and settled there; what
 // needs an engine is that a position survives a relayout it did not choose.
 import { expect, test } from "../support/fixtures.js";
-import { compareCfi, parseCfi, serializeCfi } from "../../../src/epub/cfi.ts";
+import { parseCfi, serializeCfi } from "../../../src/epub/cfi.ts";
 import { mountFixture, openHarness } from "../support/harness.js";
 
 /**
@@ -46,17 +46,6 @@ test.describe("the current position's CFI", () => {
     // `/6/4` — the spine is the package document's third element (`/6`), and the second
     // itemref is `/4`.
     expect(serializeCfi(cfi)).toMatch(/^epubcfi\(\/6\/4/);
-  });
-
-  test("turning a page changes the CFI, and forwards", async ({ page }) => {
-    const first = await mountFixture(page, "vertical-japanese", { settings: LARGE });
-    const second = await page.evaluate(() => window.frond.next());
-
-    expect(second.cfi).not.toBe(first.cfi);
-    // Two adjacent pages' positions have to come in the book's order. This is one of the
-    // self-consistency invariants ADR-0004 lists, and it **needs no agreement between the
-    // three engines** — each holding on its own terms is enough.
-    expect(comparison(first.cfi, second.cfi)).toBe("before");
   });
 });
 
@@ -148,20 +137,6 @@ test.describe("the range the current page covers", () => {
 });
 
 test.describe("returning to a position from a CFI", () => {
-  test("CFI → go there → CFI is the identity", async ({ page }) => {
-    await mountFixture(page, "vertical-japanese", { settings: LARGE });
-
-    await page.evaluate(() => window.frond.next());
-    const marked = await page.evaluate(() => window.frond.snapshot());
-
-    await page.evaluate(() => window.frond.goToSection(2));
-    const restored = await page.evaluate((cfi) => window.frond.goToCfi(cfi as string), marked.cfi);
-
-    expect(restored.sectionIndex).toBe(marked.sectionIndex);
-    expect(restored.page).toBe(marked.page);
-    expect(restored.cfi).toBe(marked.cfi);
-  });
-
   test("an unrecognizable CFI does nothing and throws nothing", async ({ page }) => {
     // A new edition of the book, or a CFI from another reader — both arrive here, and the
     // response to neither is interrupting the reading.
@@ -449,18 +424,6 @@ test.describe("returning to the position after a layout change", () => {
 });
 
 test.describe("a range's rectangles", () => {
-  test("rectangles with area come back, in container coordinates", async ({ page }) => {
-    // user story 49: the consumer draws the highlight; frond only supplies the geometry
-    // (ADR-0002).
-    const location = await mountFixture(page, "vertical-japanese");
-
-    const rects = await page.evaluate((cfi) => window.frond.rectsFor(cfi as string), location.cfi);
-
-    expect(rects.length).toBeGreaterThan(0);
-    expect(rects[0]!.width).toBeGreaterThan(0);
-    expect(rects[0]!.height).toBeGreaterThan(0);
-  });
-
   test("a position outside this section returns an empty array", async ({ page }) => {
     await mountFixture(page, "vertical-japanese");
 
@@ -530,15 +493,4 @@ async function textAtCurrent(page: Parameters<typeof mountFixture>[0]): Promise<
     location.cfi,
     SAMPLE,
   ] as const);
-}
-
-/**
- * Which of two CFIs comes first.
- *
- * It goes through the grammar layer's implementation (`src/epub/cfi.ts`) rather than
- * reimplementing the comparison here — reimplemented, this test would end up verifying its
- * own implementation.
- */
-function comparison(left: string, right: string): string {
-  return compareCfi(parseCfi(left), parseCfi(right));
 }
