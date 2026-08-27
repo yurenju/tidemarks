@@ -300,7 +300,7 @@ export const INTERVENTIONS: readonly Intervention[] = [
  *
  * The gap is closed: the elements are now emptied where they stand rather than removed
  * (`document-source.ts`'s `emptyInPlace`), so the node count never changes and no CFI moves.
- * The zero is why there was no rush, but it was never a reason not to — ADR-0008 makes a
+ * The zero is why there was no rush, but it was never a reason not to — ADR-0006 makes a
  * removal-shaped intervention a CFI-level breaking change, so the price of changing it rises
  * with every position a reader stores, and zero affected books is the cheapest that price
  * ever gets (#65). **A measurement of zero says the bill has not arrived yet; it does not

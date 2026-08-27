@@ -40,8 +40,8 @@ const packageName = manifest.name ?? packageDirectory;
  * red. For `@yurenju/frond` both are empty, so **the zero-dependency invariant maintains
  * itself** — it is no longer a special case hard-coded into this script.
  *
- * That shape is kept even though there is only one package left to check (frond-react is
- * gone; ADR-0008's revision). Hard-coding "no bare specifiers at all" would read the same
+ * That shape is kept even though there is only one package left to check (the second one,
+ * frond-react, was retired). Hard-coding "no bare specifiers at all" would read the same
  * today and be wrong the first time a dependency is genuinely declared — the derivation
  * costs three lines and never needs revisiting.
  *

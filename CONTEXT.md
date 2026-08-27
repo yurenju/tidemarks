@@ -23,10 +23,9 @@ hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 cred
 **一個名字，不是兩個**——它同時是軟體與服務，「官方那一台」與「自己架的那一份」的區別由主機名
 扛。apex 留給官方網站，app 住在子網域底下。
 
-**2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與代價見
-[ADR-0019](docs/adr/0019-the-product-name-does-not-take-a-word-from-the-format.md) 與
-[ADR-0025](docs/adr/0025-folis-is-a-placeholder-name-until-launch.md)。那些日期以前的 ADR 裡
-寫的 `spine` 與 `Folis` 就是 Tidemarks，它們的內文與檔名一律不改。
+**2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與這次取名要跑的兩條
+檢查都收在 [ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)。那些日期以前寫下的 `spine`
+與 `Folis` 就是 Tidemarks。
 
 _Avoid_: spine（**現在只指 EPUB 封裝格式裡的 `<spine>` 元素**，而 frond 連那個意思都改用
 `readingOrder`）、Spine、Folis（都是舊名字，寫下來的時候一定是在講改名這件事本身）、
