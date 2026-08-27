@@ -322,7 +322,7 @@ Chromium 多出來的第 4 頁也截過，**不是空白頁**，上面有 4,618 
 - `tests/browser/renderer/cross-browser.spec.ts` 只比與分頁無關的量（書寫方向、每節第一頁的 CFI、字元數與 fraction、算出來的欄寬）。它有一條刻意永遠通過的測試把各家的頁數記進 annotation——**記錄但不互比**，讓那個數字看得見而不是只寫在這份文件裡。
 - `tests/browser/renderer/invariants.spec.ts` 守本條點名的那四個自我一致性不變量，每一家各自成立。
 
-（`agent 視覺判讀`不是這裡的承接對象——它改成開 PR 前的作者側檢查，見 ADR-0001 的修訂。）
+（`agent 視覺判讀`不是這裡的承接對象——它改成開 PR 前的作者側檢查，見 ADR-0001。）
 
 **frond 自己的分欄設定下，這條分歧沒有重現（#32）**
 

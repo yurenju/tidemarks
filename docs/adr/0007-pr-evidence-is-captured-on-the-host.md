@@ -11,13 +11,11 @@ playwright-cli**。容器只剩一個用途：`npm run test:container`。
 以及 `tests/browser/evidence/` 那種寫完就丟的 spec。做法改寫在
 [pull-requests.md](../agents/pull-requests.md) 與 [verify.md](../agents/verify.md)。
 
-**`tests/browser/` 與 `npm run test:container` 一個字都沒改。** 自動化那一層仍然只在容器裡跑，
-仍然三家同級，任一紅燈即紅燈。
-
-> **2026-08-28 補記：證據圖不再是三家。** 預設只拍 chromium，碰到 `packages/frond/src/renderer/` 或
-> 直排才三家都拍。上一段那句「三家同級」在測試那一層仍然成立，只是本地預設一家、三家由 CI 跑。
-> 見 [ADR-0039](0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)。這份 ADR 的其餘部分不受影響
-> ——它決定的是**在哪拍**，那件事沒有變。
+**`tests/browser/` 與 `npm run test:container` 一個字都沒改。** 自動化那一層仍然三家同級，任一
+紅燈即紅燈——只是本地預設跑一家、三家由 CI 跑，證據圖也預設只拍 chromium，碰到
+`packages/frond/src/renderer/` 或直排才三家都拍
+（[ADR-0039](0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。這份 ADR 決定的是
+**在哪拍**，那件事沒有變。
 
 ## 這推翻了哪一句話
 
@@ -42,8 +40,8 @@ frond 那邊不動，而且不該動：它是公開 repo，外部貢獻者手上
 的是 ephemeral profile 而不是引擎，量測補在 舊 repo 的 #23。
 
 **三、不固定的步驟不必再包成 spec。** 每次判讀要走的操作都不一樣，而那正是 spec 最不擅長的事。
-以前要寫一個檔、跑腳本 build 映像、把 `docs/evidence/` 掛成可寫才拿得到圖；現在截圖直接落在
-`docs/evidence/<slug>/`。
+以前要寫一個檔、跑腳本 build 映像、把輸出目錄掛成可寫才拿得到圖；現在截圖直接落在本機的資料夾裡，
+再用 pr-image 傳上去（[ADR-0008](0008-pr-images-are-hosted-not-committed.md)）。
 
 ## 放棄了什麼
 
@@ -82,9 +80,8 @@ host 不是「碰巧裝了什麼」——這台 WSL 由 provisioning 釘住字�
 Windows host 上，兩個 repo 裡沒有任何一行記錄它。`git clone` 到新機器，沒有東西會告訴你要有
 Noto CJK。
 
-再加上兩件現在為真、以後未必的事：spine 還在上線線之前
-（[ADR-0004](0004-development-phase-and-launch-line.md)），而且它是 private repo、實質單人——PR
-是寫給自己看的。
+再加上一件現在為真、以後未必的事：還在上線線之前
+（[ADR-0004](0004-development-phase-and-launch-line.md)），實質單人——PR 是寫給自己看的。
 
-**什麼時候該回來重讀這一頁**：兩個 PR 的圖不一樣而你確定那塊程式碼沒動；或者 spine 開始有第二個
-人開 PR。第一件事會讓「圖沒有出處」立刻變貴，第二件會讓「跨機器不可比」變成每天的問題。
+**什麼時候該回來重讀這一頁**：兩個 PR 的圖不一樣而你確定那塊程式碼沒動；或者開始有第二個人開 PR。
+第一件事會讓「圖沒有出處」立刻變貴，第二件會讓「跨機器不可比」變成每天的問題。

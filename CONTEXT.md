@@ -631,7 +631,7 @@ _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（�
 是不是一個 em 寬」，它決定行長、字型堆疊與字形變體；介面語言只決定 Tidemarks 開口說話時用哪種
 語言。一個日本讀者用日文介面讀繁體中文書是正常的一天。
 
-跟著裝置，不跟著帳號（[ADR-0005](docs/adr/0005-typography-settings-follow-the-device.md)）。
+跟著裝置，不跟著帳號（[ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）。
 自動從瀏覽器判斷，讀者可以在〈設定〉裡覆寫。伺服器寄的信也照這個語言走，靠請求上的
 `Accept-Language` 帶過去。
 
@@ -681,7 +681,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 
 **留白**是〈行長〉的下限，不是最終值：寬螢幕上真正決定版心的是行長上限，那時候調留白不會有反應。
 
-**不跨裝置同步**（見 [ADR-0005](docs/adr/0005-typography-settings-follow-the-device.md)）：字級回答的是
+**不跨裝置同步**（見 [ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）：字級回答的是
 「這個螢幕多大、我離它多遠」，那是裝置的事。這是刻意的，不是還沒做——bookId 兩台機器對得起來，缺的不是機制。
 
 字級是**讀者瀏覽器 root 字級的百分比**，不是絕對 px（見
