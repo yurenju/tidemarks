@@ -16,7 +16,7 @@ engineering skill 在 spec／feature 收尾、**宣稱完成之前**，該怎麼
 | --- | --- | --- |
 | Vitest／Node | 決策模組的純邏輯：`navigator.ts`、`merge.ts`、`highlights.ts`、`toc.ts`、`settings.ts` 的對映 | `npm test`（node runner） |
 | Vitest／workerd | worker 真的跑起來，帶真的 D1／R2／KV：OAuth 一整條、`/mcp` 沒 token 進不去、SQL 的欄位名與 bind 次序 | `npm test`（worker runner） |
-| Playwright／三家瀏覽器（容器裡） | 真的開一本真的書：翻頁、方向反轉、TOC 跳轉、劃重點、拖 Scrubber、reload 後還原位置 | `npm run test:container` |
+| Playwright（容器裡；本地 chromium，CI 三家） | 真的開一本真的書：翻頁、方向反轉、TOC 跳轉、劃重點、拖 Scrubber、reload 後還原位置 | `npm run test:container` |
 | playwright-cli（host 上） | 上面三層蓋不到的：**真人操作的 sync**、真機手勢、拿手上的實際（有版權的）書試 | 本文件 |
 
 這一層蓋的是**使用者實際操作**，而且範圍比以前更窄——「開書、翻頁、劃重點會不會壞」有瀏覽器測試在守，
@@ -24,7 +24,7 @@ engineering skill 在 spec／feature 收尾、**宣稱完成之前**，該怎麼
 壞了」），Stage 2 則設計成瀏覽器測試沒有覆蓋的那個操作。
 
 開 PR 時要附的截圖與五項缺陷判讀，見 [pull-requests.md](pull-requests.md)。那份跟這份現在都跑在
-host 的 playwright-cli 上，但仍然是兩件事：一個看三家排出來的畫面，一個看一條真人會走的流程。
+host 的 playwright-cli 上，但仍然是兩件事：一個看引擎排出來的畫面，一個看一條真人會走的流程。
 
 ## 什麼時候跑
 

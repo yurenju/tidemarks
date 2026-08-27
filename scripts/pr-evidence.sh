@@ -10,7 +10,7 @@
 #
 #   source scripts/pr-evidence.sh
 #   SHOTS=$(mktemp -d)
-#   for B in chromium firefox webkit; do
+#   for B in chromium; do
 #       pw_fresh "$B" "$B"
 #       pw_import "$B" "$PWD/tests/books/kusamakura-vertical-japanese.epub"
 #       pw_open_book "$B"
@@ -20,6 +20,12 @@
 #       playwright-cli -s="$B" close
 #   done
 #   pr-image upload --markdown "$SHOTS"/*.png
+#
+# **A loop over one engine, and the loop is kept for the one case that still needs it.** Evidence
+# is chromium alone by default; when the change touches `packages/frond/src/renderer/` or
+# anything vertical, the list becomes `chromium firefox webkit` and every helper below already
+# takes the engine as its first argument. That is the whole of the rule — the reasoning, and what
+# goes unwatched between the two, is docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md.
 #
 # Why this exists rather than the skeleton being copied each time: across this project's
 # sessions the same eight lines were rewritten more than thirty times, and every one of the

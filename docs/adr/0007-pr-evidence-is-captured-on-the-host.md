@@ -14,6 +14,11 @@ playwright-cli**。容器只剩一個用途：`npm run test:container`。
 **`tests/browser/` 與 `npm run test:container` 一個字都沒改。** 自動化那一層仍然只在容器裡跑，
 仍然三家同級，任一紅燈即紅燈。
 
+> **2026-08-28 補記：證據圖不再是三家。** 預設只拍 chromium，碰到 `packages/frond/src/renderer/` 或
+> 直排才三家都拍。上一段那句「三家同級」在測試那一層仍然成立，只是本地預設一家、三家由 CI 跑。
+> 見 [ADR-0039](0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)。這份 ADR 的其餘部分不受影響
+> ——它決定的是**在哪拍**，那件事沒有變。
+
 ## 這推翻了哪一句話
 
 frond 的 [ADR-0004](../../packages/frond/docs/adr/0004-browser-matrix-and-test-environment.md)

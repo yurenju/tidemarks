@@ -4,6 +4,8 @@ Chromium、Firefox、WebKit 三個 headless 瀏覽器**同級**：三家都跑�
 
 **agent 視覺判讀也是三家都要跑，但它不在 CI 裡**——跟視覺有關的變更，開 PR 前由寫 PR 的 agent 在三家各跑一次並照封閉式清單判讀（ADR-0001 的修訂、`docs/agents/pull-requests.md`）。「三家同級」這條在那一層照樣成立，變的只是它在什麼時候跑、由誰判。
 
+> **2026-08-28 起這一段只適用於動到渲染層的改動。** 視覺判讀預設只拍 chromium，碰到 `src/renderer/` 或直排才三家都拍；測試那一層仍然三家同級、任一紅燈即紅燈，只是本地預設一家、三家由 CI 跑。理由與代價在 Tidemarks 的 [ADR-0039](../../../../docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)——那是一個關於 Tidemarks 開發階段的判斷，不是對本節任何量測結論的修訂。
+
 理由是成本與回報不對稱：多加一個 browser project 只是設定檔幾行，而 frond 存在的一半理由就是「別人沒把直排跨瀏覽器做好」，主動放棄任何一家等於放棄那個賣點。foliate 自身宣稱支援最新版 WebKitGTK / Firefox / Chromium（不含 Firefox ESR），frond 對齊此範圍。
 
 由於 foliate 的 Firefox 直排狀態目前是**未知**（見 ADR-0001 的查證），frond 的測試套件跑起來的第一天就會實證回答這題——那是很有價值的第一個產出。
