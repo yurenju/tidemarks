@@ -212,15 +212,17 @@
      inside it stops where a line of a book stops (`.mark-quote`'s own `max-width`), so the extra
      width buys white space rather than a longer line.
 
-     It keeps a margin either side, the same one the wall of covers below is padded by — the card
-     is a piece of the shelf, and a piece of the shelf that ran out to the window while everything
-     under it stood back was the one width where the card had no edges of its own.
+     It keeps a margin either side, the same one the wall of covers below is padded by at this
+     width — the card is a piece of the shelf, and a piece of the shelf that ran out to the window
+     while everything under it stood back was the one width where the card had no edges of its own.
+     **Set here and not again**: 1024 inherits this margin rather than restating it.
 
-     Three values, and `library.css` is written in terms of all three, so nothing about the card's
-     arrangement is stated twice here. */
+     The values are named parts, and `library.css` is written in terms of them, so nothing about
+     the card's arrangement is stated twice here. */
   .mark-card {
     --mark-quote-size: 4.625rem;
-    --mark-body-inset: var(--space-6) var(--space-7) var(--space-5);
+    --mark-body-inset-inline: var(--space-7);
+    --mark-body-inset: var(--space-6) var(--mark-body-inset-inline) var(--space-5);
     --mark-reading-inset: 3.25rem;
 
     margin: var(--space-6) var(--space-6) 0;
@@ -300,12 +302,10 @@
     /* The cover, and with it the title and the credit that wrap under it — they are one block and
        one width. Reasoned about on `.mark-cover` below. */
     --mark-cover-width: 160px;
+    --mark-body-inset: var(--space-7) var(--mark-body-inset-inline) var(--space-5);
 
     display: grid;
     grid-template-columns: var(--mark-sidebar) minmax(0, 1fr);
-    /* The same inset the wall of covers below is padded by, so the card's frame lines up with the
-       first cover's edge rather than running out to the window. */
-    margin-inline: var(--space-6);
   }
 
   /* ⚠️ **The card's height is the passage's, and this column does not get a vote.** Clamping the
@@ -351,7 +351,6 @@
     align-items: flex-start;
     align-self: center;
     width: var(--mark-cover-width);
-    max-width: 100%;
     gap: var(--space-4);
   }
 
@@ -367,7 +366,9 @@
      So the room is found in the budget instead, and the budget is why the two clamps below are two
      lines each and why this column's insets are a step smaller than the body's: the column's worst
      case — a full-size cover, two lines of title, two of credit, and the scale — has to fit in a
-     height that belongs to the passage. It comes to about 411 of the 436 there are.
+     height that belongs to the passage. `marks.spec.ts` is what holds that, with a title and a
+     credit as long as a published book's; it asserts the scale is inside the card's own frame,
+     because the card clips and a scale past the frame is five buttons that are simply not there.
 
      `flex: 0 0 auto` is what says it: no shrinking, whatever else is in the column. */
   .mark-cover {
@@ -376,7 +377,6 @@
     width: var(--mark-cover-width);
     height: auto;
     flex: 0 0 auto;
-    align-self: center;
     /* An object on the column now, not a book laid against the card's edge: it takes back its own
        frame and stops reaching through the insets. */
     margin: 0;
@@ -404,12 +404,8 @@
     white-space: normal;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .mark-book-text strong,
-  .mark-author {
     -webkit-line-clamp: 2;
+    overflow: hidden;
   }
 
   /* The foot of the column, held down there whatever the title's length: the scale is where the
@@ -442,13 +438,15 @@
      Every term is a named part rather than a number somebody once measured, and the last of them
      is `--reading-measure` — the passage with nothing round it — so the note box beside it comes
      out on exactly the passage's right edge. `box-sizing: border-box` means the cap pays for the
-     two paddings. */
+     two paddings, which is why the first term is the inset this box is padded by rather than a
+     step that happens to match it today. */
   .mark-body {
     --mark-body-gap: var(--space-6);
 
-    padding: var(--space-7) var(--space-7) var(--space-5);
     width: 100%;
-    max-width: calc(2 * var(--space-7) + var(--mark-reading-inset) + var(--reading-measure));
+    max-width: calc(
+      2 * var(--mark-body-inset-inline) + var(--mark-reading-inset) + var(--reading-measure)
+    );
     margin-inline: auto;
   }
 

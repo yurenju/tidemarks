@@ -116,7 +116,10 @@
    mark's size, the gutter it hangs in, and the card's own insets. */
 .mark-card {
   --mark-quote-size: 3.375rem;
-  --mark-body-inset: var(--space-5) var(--space-4) var(--space-4);
+  /* Named on its own as well as inside the inset below, because at desk width the cap on the
+     reading has to pay for both of them (`device.css`). */
+  --mark-body-inset-inline: var(--space-4);
+  --mark-body-inset: var(--space-5) var(--mark-body-inset-inline) var(--space-4);
   /* **The gutter the opening quotation mark hangs in**, and therefore how far in the reading
      starts. One value, spent twice — the passage's inset and the answer's — because the two have
      to begin on the same vertical line and a pair of numbers that are meant to be equal will
@@ -218,8 +221,9 @@
   overflow: hidden;
   /* The one corner it shares with the card. The card clips its own children, but a cover with a
      square corner under a rounded one leaves the frame's colour showing through the gap between
-     them, so the cover carries the curve itself. */
-  border-start-start-radius: var(--radius-surface);
+     them, so the cover carries the curve itself — the card's radius less the card's 1px frame,
+     which is the curve of the inside of that corner rather than of the outside. */
+  border-start-start-radius: calc(var(--radius-surface) - 1px);
 }
 
 .mark-cover img {
