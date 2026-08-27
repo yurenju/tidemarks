@@ -1,6 +1,6 @@
 # spine 的 MCP 支援：讀書時切到 agent 就問得到
 
-意圖核心：[docs/intent/2026-07-15-spine-cross-device-reading.md](../../docs/intent/2026-07-15-spine-cross-device-reading.md)
+意圖核心：[docs/intent/2026-07-15-spine-cross-device-reading.md](../../intent/2026-07-15-spine-cross-device-reading.md)
 
 工作項目三件：唯讀（先做）、寫回筆記（待重新審視），以及擋在最前面的「定位下沉到 frond」。
 
@@ -38,7 +38,7 @@ spine 只出一個 remote MCP server；spine 自己不長聊天面板。長了�
 
 ### 「閱讀位置」與「當前頁」是兩個東西
 
-這是這份設計最容易糊掉的地方，糊掉之後每個決定都會打架。詞義寫進了 [CONTEXT.md](../../CONTEXT.md)，這裡講後果：
+這是這份設計最容易糊掉的地方，糊掉之後每個決定都會打架。詞義寫進了 [CONTEXT.md](../../../CONTEXT.md)，這裡講後果：
 
 - **閱讀位置**是一個**點**（`progress.cfi`），跨裝置有意義，server 有。
 - **當前頁**是一個**範圍**，是排版的產物（frond 的 CONTEXT.md：「頁是版面的產物，不是書的性質」）。換個 viewport、換個字級就是另一組頁，**server 永遠算不出來**。
@@ -73,7 +73,7 @@ spine 只出一個 remote MCP server；spine 自己不長聊天面板。長了�
 
 拿真書撞出瀏覽器與 Node 的解析差異，**進 repo 的是那個差異的結構**，不是那本書：用 frond 的 fixture 產生器合成一份最小的書重現它。真書的內文不進 repo、不進測試、不進 PR 說明、不進截圖。
 
-這條跟「書的內文會進 agent 的對話」不衝突，界線是**這份文字會不會離開讀者**：自己的書進自己的 agent 對話是可以的；外洩到 repo、PR、pr-image 那種公開或半公開的地方不行（pr-image 的 URL 沒有認證，見 [ADR-0008](../../docs/adr/0008-pr-images-are-hosted-not-committed.md)）。
+這條跟「書的內文會進 agent 的對話」不衝突，界線是**這份文字會不會離開讀者**：自己的書進自己的 agent 對話是可以的；外洩到 repo、PR、pr-image 那種公開或半公開的地方不行（pr-image 的 URL 沒有認證，見 [ADR-0008](../../adr/0008-pr-images-are-hosted-not-committed.md)）。
 
 ## 筆記模型（「寫回筆記」那一件，方向而非規格）
 

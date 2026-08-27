@@ -43,7 +43,7 @@ npm run dev
 ```
 
 要驗 sync 才需要另外起 `wrangler dev`（5002）—— dev 下 `/auth`、`/api` 由 vite proxy 過去（見
-[vite.config.ts](../../vite.config.ts)），少了 worker 這兩條路徑會 502。**書架與閱讀不受影響**，所以
+[vite.config.ts](../../packages/app/vite.config.ts)），少了 worker 這兩條路徑會 502。**書架與閱讀不受影響**，所以
 不驗 sync 就不必起它，看到那兩條 502 也不用理。
 
 ## 把一本書弄進 reader

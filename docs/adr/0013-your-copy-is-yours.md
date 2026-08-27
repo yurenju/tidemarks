@@ -25,7 +25,7 @@ spine 對使用者上傳的檔案做什麼、不做什麼，一次列完：
 
 ## 永不去重
 
-R2 的 key 是 `${userId}/${bookId}/${kind}`（[worker/index.ts](../../worker/index.ts)），
+R2 的 key 是 `${userId}/${bookId}/${kind}`（[worker/index.ts](../../packages/app/worker/index.ts)），
 **每個使用者一份**。兩個人上傳同一本書，伺服器上就是兩份，一個 byte 都不合併。
 
 誘因是省儲存費，而那筆錢小到不存在——R2 每月免費 10GB，

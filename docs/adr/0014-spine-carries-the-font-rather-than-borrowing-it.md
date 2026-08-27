@@ -135,7 +135,7 @@ Variable font 這條路不划算，順帶記在這裡：`NotoSerifCJKtc-VF.otf` 
 `@font-face` 贏得過本機同名的字型：這台機器裝了 `Noto Serif CJK TC`（明體），拿 Sans 的位元組冒充
 這個名字宣告 `@font-face`，三家畫出來都是黑體。
 
-好處是 [chinese.ts](../../src/lib/chinese.ts) 的堆疊裡本來就有這兩個名字，語意不必變。但**順序要
+好處是 [chinese.ts](../../packages/app/src/lib/chinese.ts) 的堆疊裡本來就有這兩個名字，語意不必變。但**順序要
 變**：`'Noto Serif TC'` 現在排在 `'Noto Serif CJK TC'` 前面，讀者機器上剛好有前者的話，它會贏過
 自架的那份，可預期性就破了。自帶字型可用時，那個名字要排在堆疊第一。
 
@@ -221,7 +221,7 @@ gstatic 給的一年 `max-age` 不能當離線保證：HTTP cache 是分區的�
 - OFL 禁止的是單獨販售字型本身。spine 賣的是 app（[ADR-0011](0011-the-paywall-follows-the-monthly-bill.md)），
   字型是隨附，那是 OFL 明確允許的 bundling。
 - 沒有 RFN，所以轉 woff2 之後仍可保留 `Noto Serif CJK TC` 這個 family 名，跟
-  [chinese.ts](../../src/lib/chinese.ts) 堆疊裡既有的名字對得上。
+  [chinese.ts](../../packages/app/src/lib/chinese.ts) 堆疊裡既有的名字對得上。
 
 ## 代價
 
