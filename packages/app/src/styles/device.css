@@ -196,37 +196,58 @@
 
   /* **From here the shelf is wider than anything on it is meant to be read at**, and the two
      numbers come apart: `.library` runs to 1440 and the wall of covers spends it, while what the
-     reader reads stops at `--reading-column`. These three carry reading, so all three stop —
-     they just stop in two different ways. Neither the row nor this pair of verbs has a box worth
-     speaking of, so a plain cap is the whole of it for them. */
-  .reading-now,
+     reader reads stops at `--reading-column`. The shelf's two verbs carry words, so they stop;
+     the card holds its own reading inside a box that does not, and the row below it is the wall's
+     heading now — its rule has to reach both ends of the wall or it is heading something else. */
   .shelf-actions {
     max-width: var(--reading-column);
-  }
-
-  .shelf-actions {
     padding: var(--space-5) var(--space-6) 0;
   }
 
   .reading-now {
-    padding: var(--space-6) var(--space-6) 0;
+    padding: var(--space-6) 0 var(--space-4);
   }
 
   /* **The card is the same card; it is given more room and told where to spend it.** Its box runs
      the shelf's whole width, because it *is* a piece of the shelf — a card that shrank to the
      reading column would leave the wall of covers below starting at an edge the card never
-     reaches, and a shelf with two left edges. The reading is held in the middle of that box by an
-     inset that grows with the page.
+     reaches, and a shelf with two left edges. The reading inside it stops where a line of a book
+     stops (`.mark-quote`'s own `max-width`), so the extra width buys white space rather than a
+     longer line.
 
      Three values, and `library.css` is written in terms of all three, so nothing about the card's
-     arrangement is stated twice here. The quotation marks grow with the card and now have
-     somewhere to hang, which is the one thing the phone could not give them. */
+     arrangement is stated twice here. */
   .mark-card {
-    --mark-card-inset: max(var(--space-6), calc((100% - var(--reading-column)) / 2));
-    --mark-quote-size: 3.5rem;
-    --mark-quote-hang: 2.2rem;
+    --mark-quote-size: 4.625rem;
+    --mark-body-inset: var(--space-6) var(--space-7) var(--space-5);
+    --mark-reading-inset: 3.25rem;
 
     margin: var(--space-6) 0 0;
+  }
+
+  .mark-book {
+    padding: var(--space-3) var(--space-6);
+  }
+
+  /* The answer starts on the passage's line. One value for both, so they cannot drift apart. */
+  .mark-respond {
+    margin-inline-start: var(--mark-reading-inset);
+  }
+
+  /* Room for the row to be a row: all four fit on one line, so the offer goes back to the far
+     end of it rather than taking a line of its own, and nothing stretches to fill. */
+  .mark-reply-actions .primary,
+  .mark-step {
+    flex: 0 0 auto;
+  }
+
+  .mark-repick {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+  }
+
+  .reading-now {
+    margin-inline: var(--space-6);
   }
 
   .cover-wall {
@@ -251,6 +272,98 @@
    Written as an addition rather than as an undo — the file is narrow-first, and covering is
    what the panel does everywhere else, hand-held sheet included. */
 @media (min-width: 1024px) {
+  /* **The book's strip stands up into a column**, and that is the whole of what this width buys
+     the card. Same markup, same three regions: a grid instead of a stack.
+
+     What it fixes is a card that had grown wider than anything on it. The passage stops at a
+     line of a book however wide the card is, so the room past that was going into blank paper on
+     both sides of one column of text — and the book the passage came from was one small line of
+     type at the top of all that space. Given a column, it becomes what it is on this screen: the
+     thing that says which book you are being handed a sentence from. */
+  .mark-card {
+    --mark-quote-size: 5.125rem;
+    --mark-reading-inset: 4rem;
+    --mark-sidebar: 236px;
+
+    display: grid;
+    grid-template-columns: var(--mark-sidebar) minmax(0, 1fr);
+    /* **The card stops where its contents stop.** Everything on it has a width of its own — the
+       column is 236, the passage runs to the reader's ceiling and no further (ADR-0012) — so past
+       this sum the card is not holding more, it is holding the same thing with a strip of blank
+       paper beside it. Measured at 1440 that strip was 416px, 37% of the card's right-hand side:
+       far too wide to read as a margin, and wide enough that the note box crossing into it was
+       the only thing making the emptiness visible.
+
+       Every term is a named part rather than a number somebody once measured, and the last of
+       them is `--reading-measure` — the passage with nothing round it — so the note box beside it
+       comes out on exactly the passage's right edge instead of 6px past it.
+
+       **Centred**, so what is left over reads as the desk the card is lying on rather than as a
+       strip missing from its right-hand side. It costs the left edge it used to share with the
+       wall of covers below; the wall is a wall and the card is one object on it, and an object
+       is allowed to sit in the middle of the shelf. */
+    margin-inline: auto;
+    /* The `2px` is the card's own frame. `box-sizing: border-box` means the cap pays for it, and
+       without it the passage got 638 of the 640 it is entitled to — two pixels is a whole
+       ideograph's worth of the last one on a full line. */
+    max-width: calc(
+      var(--mark-sidebar) + 2 * var(--space-7) + var(--mark-reading-inset) +
+        var(--reading-measure) + 2px
+    );
+  }
+
+  .mark-book {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-5);
+    border-bottom: none;
+    border-inline-end: 1px solid var(--line-firm);
+  }
+
+  /* Cover over name here rather than beside it, and at the size a cover is for: this column is
+     the one place on the shelf where the book being quoted is looked at rather than glanced at. */
+  .mark-source-link {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+
+  .mark-cover {
+    width: 96px;
+  }
+
+  /* Both lines get room to wrap. The strip clipped them because it was a strip; a column has the
+     height, and a title — or a two-author credit — cut short beside a passage from that very book
+     is the one thing this column exists to prevent. Undoing `white-space` is what matters: it is
+     inherited from the `<button>` these sit in (`controls.css`), not set on them. */
+  .mark-book-text strong,
+  .mark-author {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  /* The foot of the column, held down there whatever the title's length: the scale is where the
+     reader looks to find out where in the five they are, and it must not move between passages. */
+  .mark-progress {
+    flex-direction: column;
+    align-items: start;
+    gap: var(--space-2);
+    margin-block-start: auto;
+    margin-inline-start: 0;
+    padding-block-start: var(--space-3);
+    border-block-start: 1px solid var(--line-firm);
+  }
+
+  .mark-tick {
+    display: block;
+  }
+
+  .mark-body {
+    padding: var(--space-7) var(--space-7) var(--space-5);
+    gap: var(--space-6);
+  }
+
   /* The column the panel takes **from the book**. The bars gave up their right end at every
      width (`.reader[data-panel] .chrome`); this is the half that costs a repagination, and it
      is the price ADR-0026 asks for a preview the reader can actually see.
