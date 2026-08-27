@@ -6,7 +6,7 @@
 npm install                # 安裝相依
 npm run dev                # 開發伺服器
 npm test                   # vitest —— 決策模組的純邏輯，跑在 Node
-npm run test:container     # 兩個 runner 都跑（Vitest + 三家瀏覽器），動到 reader 就跑這個
+npm run test:container     # 兩個 runner 都跑（Vitest + 瀏覽器），動到 reader 就跑這個
 npm run build              # 型別檢查 + 產出 dist/
 ```
 
@@ -67,12 +67,16 @@ prune 一律不碰有 tag 的，要自己指名 `podman rmi tidemarks-test`。
 
 `npm test` 蓋純邏輯：方向反轉、TOC 攤平、highlight 裁切、settings 對映。
 
-`npm run test:container` 在容器裡用 Chromium／Firefox／WebKit 真的開一本真的書翻頁、劃重點、拖
-Scrubber。那一層的斷言是**容器裡的數字**（字型與引擎版本都固定），所以入口是 `test:container`
-而不是 `test:browser`——在 host 上跑出來的紅綠燈，跟 CI 說的不是同一件事。
+`npm run test:container` 在容器裡真的開一本真的書翻頁、劃重點、拖 Scrubber。那一層的斷言是**容器裡
+的數字**（字型與引擎版本都固定），所以入口是 `test:container` 而不是 `test:browser`——在 host 上跑出
+來的紅綠燈，跟 CI 說的不是同一件事。
 
-**一邊改一邊跑的時候不要用全套**，它是三家引擎 × 兩個 package，實測一趟 6 分 46 秒。narrow 的寫法是
-同一支腳本加 `--only=`（21 秒，其中 18 秒是建映像與比對）：
+**在你的機器上它只跑 Chromium，在 CI 上跑滿 Chromium／Firefox／WebKit 三家**
+（[ADR-0039](adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。要在本地跑三家就把它們
+點名：`--project=chromium --project=firefox --project=webkit`。
+
+**一邊改一邊跑的時候不要用全套**，它是兩個 package 的整套。narrow 的寫法是同一支腳本加 `--only=`
+（21 秒，其中 18 秒是建映像與比對）：
 
 ```sh
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts

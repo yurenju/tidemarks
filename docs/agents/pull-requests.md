@@ -32,8 +32,8 @@ PR 的說明長是應該的——底下那些證據每一項都有理由。長�
 
 | 位置 | 放什麼 |
 | --- | --- |
-| 外面 | 一句話結論 → 脈絡 → 做了什麼 → **截圖** → 五項清單**壓成一行**（「三家皆跑過，五項皆無」）→ **有話要說的那幾個數字** |
-| `<details>` | 完整的三家 × 五格表（只在全無的時候折）、完整座標表、〈截圖怎麼產的〉那段 bash、測試清單、CI 細節、被取代的舊證據 |
+| 外面 | 一句話結論 → 脈絡 → 做了什麼 → **截圖** → 五項清單**壓成一行**（「chromium 跑過，五項皆無」）→ **有話要說的那幾個數字** |
+| `<details>` | 完整的五格表（只在全無的時候折）、完整座標表、〈截圖怎麼產的〉那段 bash、測試清單、CI 細節、被取代的舊證據 |
 
 **截圖一張都不收進 `<details>`。** 很多時候是看了圖才發現不是自己預期的那樣，那正是判讀本身。
 
@@ -100,7 +100,7 @@ code-review 是有充分理由的標準流程，不必每次再回頭問使用�
 
 工作量大到拆給多個 sub agent 實作時，審核照同一個切法拆，每個部位各派一個沒參與那一塊的 agent。
 
-## 跟畫面有關的變更，三家都要跑過，並由 agent 判讀
+## 跟畫面有關的變更，要拍下來並由 agent 判讀
 
 **適用範圍**：動到 reader（`Reader.tsx`、`HighlightLayer.tsx`、`lib/highlights.ts`、
 `lib/toolbar-position.ts`、`lib/scrubber.ts`）、傳給 frond 的 settings、或 `src/styles/` 底下的
@@ -111,8 +111,15 @@ code-review 是有充分理由的標準流程，不必每次再回頭問使用�
 直式與橫式各一輪。** 桌機尺寸的圖對 touch-only 的功能等於沒拍——那些元素根本不會出現。做法見
 〈截圖怎麼產〉的 `--device`。
 
-開 PR 之前有兩件事，各屬不同層：跑 `npm run test:container`（三家，自動化那一層，在容器裡），以及在
-host 上用 playwright-cli 把畫面截出來判讀（見〈截圖怎麼產〉）。**判讀由開 PR 的 agent 自己做**，
+**幾家瀏覽器：預設一家。** 截圖只拍 chromium，只有**這次改動碰到 `packages/frond/src/renderer/` 或
+直排相關的東西**才三家都拍
+（[ADR-0039](../adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。那份 ADR 也把代價寫
+在那裡，一句話是：五項缺陷要有人看畫面才看得出來，而 CI 斷言的是數字與元素，所以**平常沒有人在看
+firefox 與 webkit 的畫面**。
+
+開 PR 之前有兩件事，各屬不同層：跑 `npm run test:container`（自動化那一層，在容器裡，本地只跑
+chromium 而 CI 跑三家），以及在 host 上用 playwright-cli 把畫面截出來判讀（見〈截圖怎麼產〉）。
+**判讀由開 PR 的 agent 自己做**，
 **照下面這五項逐項回答，而且只回答這五項**，每項給一個嚴重度：
 
 | 缺陷 | 問的是 |
@@ -134,14 +141,16 @@ book 上的那一層有沒有對準**才是這一層自己的風險，而且是�
 把這件事叫作「封閉式缺陷清單」，取自問卷的 closed-ended question。這裡不用那個詞——它要讀者先有問卷
 那套術語才解得開，而規則本身一句話就講得完。）
 
-判讀結果寫進 PR 說明，**按瀏覽器分開寫**——哪一家出現哪一項本身就是資訊，三家不一致比三家一起壞更
-常見。**沒有發現缺陷也要寫**（「三家皆跑過，五項皆無」），否則讀 PR 的人分不出「跑過而沒事」與「根本
-沒跑」。三家五項**全無的時候整張表收進 `<details>`，外面留那一行就好**；有任何一項不是「無」，
-整張表留在外面（見〈內文怎麼排〉）。
+判讀結果寫進 PR 說明。**沒有發現缺陷也要寫**（「chromium 跑過，五項皆無」），否則讀 PR 的人分不出
+「跑過而沒事」與「根本沒跑」。五項**全無的時候整張表收進 `<details>`，外面留那一行就好**；有任何一
+項不是「無」，整張表留在外面（見〈內文怎麼排〉）。
+
+**真的拍三家的那種 PR（動到渲染層），判讀要按瀏覽器分開寫**——哪一家出現哪一項本身就是資訊，三家
+不一致比三家一起壞更常見，那也正是那種 PR 要拍三家的全部理由。那時候寫的是「三家皆跑過，五項皆
+無」，沒有一家可以留空。
 
 **WebKit 在這一層是跑得動的**，雖然 `packages/app/tests/browser/reader/storage.spec.ts` 那邊仍然 skip 它。那個
-skip 是容器裡的暫時性 profile 存不進 Blob，host 上開 `--persistent` 就沒有這件事。所以三家都要有
-判讀，沒有一家可以留空。
+skip 是容器裡的暫時性 profile 存不進 Blob，host 上開 `--persistent` 就沒有這件事。
 
 **這是開 PR 前的作者側檢查，不是 CI 閘門。**
 
@@ -194,7 +203,8 @@ pr-image 的 URL 兩件事都不受影響，圖真的內嵌得進去，所以那
 
 ## 截圖怎麼產
 
-在 host 上用 playwright-cli，三家各走一遍**同一串**操作。為什麼在 host 而不在容器、放棄了什麼，見
+在 host 上用 playwright-cli 走一遍操作，預設只有 chromium；動到渲染層的那種 PR 三家各走一遍**同一
+串**操作（ADR-0039）。為什麼在 host 而不在容器、放棄了什麼，見
 [ADR-0007](../adr/0007-pr-evidence-is-captured-on-the-host.md)；圖為什麼落在 repo 外面、傳上去而不是
 commit，見 [ADR-0008](../adr/0008-pr-images-are-hosted-not-committed.md)。
 
@@ -224,7 +234,7 @@ export TIDEMARKS_URL=http://localhost:5011/
 source scripts/pr-evidence.sh
 SHOTS=$(mktemp -d)                # 圖落在 repo 外面：它們要傳上去，不是 commit 進來
 
-for B in chromium firefox webkit; do
+for B in chromium; do             # 動到 packages/frond/src/renderer/ 或直排才加 firefox webkit
   pw_fresh "$B" "$B"              # 乾淨的 profile、語言釘成 en
   playwright-cli -s=$B resize 1000 700          # 跟 playwright.config.ts 的 viewport 對齊
                                                 # touch-only 的 UI 改用 --device，見下面那條
@@ -261,10 +271,10 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
 ### ⚠️ 數字跟圖是同一趟，不是兩支腳本
 
 PR 說明要圖，也要量到的數字，而兩者是**同一組操作**走出來的：匯入書、寫進 IndexedDB、開書、reload、
-resize。那組 setup 在三家引擎裡跑一遍要兩分鐘上下，而它跟你想量什麼、想拍什麼完全無關。
+resize。那組 setup 跑一遍要幾十秒，三家引擎都跑的話兩分鐘上下，而它跟你想量什麼、想拍什麼完全無關。
 
 實際發生過的事：一支 `shots.sh` 拍完圖（122 秒），接著另寫一支 `measure2.sh` 去量數字（137 秒）——
-兩支的 SEED 一樣、`stock()` 一樣、三家引擎 × 三個視窗的迴圈一樣，**唯一的差別是最後一行**一個
+兩支的 SEED 一樣、`stock()` 一樣、引擎 × 三個視窗的迴圈一樣，**唯一的差別是最後一行**一個
 `screenshot`、一個 `eval`。那 137 秒量的是兩分鐘前就在畫面上的東西。
 
 所以量測寫成一段 `$MEASURE`，跟 `screenshot` 並排放在同一個迴圈裡。開瀏覽器之前先想清楚這一趟要帶
@@ -512,8 +522,8 @@ Actions 只給了 read——重跑要 **Actions: Read and write**。這種時候
 | | 蓋什麼 | 什麼時候 |
 | --- | --- | --- |
 | `npm test`（Vitest／Node） | 決策模組的純邏輯：方向反轉、TOC 攤平、highlight 裁切、settings 對映 | 每次改動 |
-| `npm run test:container`（Playwright／三家，容器裡） | 真的開一本真的書、翻頁、劃重點、拖 Scrubber | 動到 reader 就跑，開 PR 前一定跑 |
+| `npm run test:container`（Playwright，容器裡；本地 chromium，CI 三家） | 真的開一本真的書、翻頁、劃重點、拖 Scrubber | 動到 reader 就跑，開 PR 前一定跑 |
 | playwright-cli（host 上，[verify.md](verify.md)） | 自動化蓋不到的：需要登入的 sync、真機手勢、拿手上的實際書試 | spec／feature 收尾前 |
 
 收尾驗證不去重驗前兩層蓋掉的東西。它跟這份文件的判讀都跑在 host 的 playwright-cli 上，但仍然是兩件
-事：判讀看的是三家排出來的畫面，收尾驗證看的是一條真人會走的流程。
+事：判讀看的是引擎排出來的畫面，收尾驗證看的是一條真人會走的流程。

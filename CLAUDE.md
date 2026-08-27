@@ -205,8 +205,17 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 
 `npm test` 有四個 vitest project：**node** 蓋 app 的純邏輯，**worker** 把 worker 真的跑在 workerd
 裡帶真的 D1／R2／KV，**frond** 蓋渲染層的解析半邊，**scripts** 蓋 `scripts/` 底下的純函式。
-`npm run test:container` 在容器裡跑三家瀏覽器：先 frond 的（量字符幾何，`--network=none`），
+`npm run test:container` 在容器裡開瀏覽器：先 frond 的（量字符幾何，`--network=none`），
 再 app 的（真的開一本真的書）。動到 reader 就跑 `test:container`。
+
+**在你的機器上它只跑 chromium，在 CI 上跑滿 chromium／firefox／webkit 三家**
+（[ADR-0039](docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。三家同級、任一
+紅燈即紅燈這條沒有變，變的是誰跑——CI 的六個 job 是平行的、不花你的時間，而本地那三分之二在跑兩個
+幾乎不會紅的引擎。要在本地跑三家就把它們點名：
+
+```bash
+./scripts/test-in-container.sh --project=chromium --project=firefox --project=webkit
+```
 
 **scripts 那層只收純函式**，也就是 `scripts/deploy.ts` 那種部署腳本裡「不碰檔案、不叫外部指令」的
 半邊（現在是 `deploy-config.ts`）。它擋的問題跟 worker 那層同一類：這些程式碼跑在 Cloudflare 的
@@ -217,18 +226,20 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 
 #### 一邊改一邊跑的時候，跑窄的那一支
 
-⚠️ **不要每改一行就 `npm run test:container`。** 那一支是三家引擎 × 兩個 package 的全套，一趟三到
-九分鐘；改到一半的時候你要的不是全套，是剛剛那支測試。narrow 的寫法是同一支腳本加 `--only=`：
+⚠️ **不要每改一行就 `npm run test:container`。** 那一支是兩個 package 的全套；改到一半的時候你要的
+不是全套，是剛剛那支測試。narrow 的寫法是同一支腳本加 `--only=`：
 
 ```bash
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
 
-**21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上全套實測的 **6 分 46 秒**。`--only=frond` 同理。
-路徑**相對於那個 package**（`tests/browser/…`，不是 `packages/app/tests/browser/…`），因為 Playwright
-的 cwd 在 package 裡。
+**21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上三家全套實測的 **6 分 46 秒**——現在本地
+的全套只有 chromium，所以那個數字大約降到三分之一。`--only=frond` 同理。路徑**相對於那個 package**
+（`tests/browser/…`，不是 `packages/app/tests/browser/…`），因為 Playwright 的 cwd 在 package 裡。
 
-順序是**先窄後寬**：改的時候跑窄的，commit 之前跑一次全套，開 PR 之前再跑一次。
+順序是**先窄後寬**：改的時候跑窄的，commit 之前跑一次全套，開 PR 之前再跑一次。⚠️ 那兩趟「全套」現在
+都是 chromium 一家，所以**只有 firefox 或 webkit 會紅的失敗第一次出現是在 CI**，代價是多推一輪。
+ADR-0039 把這筆帳算在那裡。
 
 ⚠️ **這一節管的是改 code 的迴圈，不管查 flaky。** 查 flake 的時候把範圍縮到單一支 spec，常常直接
 讓它不再重現——見 `docs/agents/flaky.md`〈想知道一條 flake 有多敏感〉。
@@ -341,8 +352,9 @@ agent。
 
 底下這些不因為「是 skill 自動開的」而放寬——PR 說明照 `docs/agents/pull-requests.md` 寫，該跑的照跑。
 
-動到 reader 畫面的變更，開 PR 前要三家跑過、照固定的五項缺陷清單判讀（只回答那五項）、把截圖與量到
-的數字寫進說明。
+動到 reader 畫面的變更，開 PR 前要照固定的五項缺陷清單判讀（只回答那五項）、把截圖與量到的數字寫進
+說明。**截圖預設只拍 chromium**，只有改動碰到 `packages/frond/src/renderer/` 或直排相關的東西才三家
+都拍（[ADR-0039](docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。
 截圖用 host 上的 playwright-cli 產（[ADR-0007](docs/adr/0007-pr-evidence-is-captured-on-the-host.md)），
 用 [`pr-image`](https://github.com/yurenju/pr-image) 傳上去、在 PR 說明裡內嵌，**不 commit 進 repo**
 （[ADR-0008](docs/adr/0008-pr-images-are-hosted-not-committed.md)）。

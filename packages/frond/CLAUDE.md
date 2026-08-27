@@ -54,6 +54,15 @@ npx vitest run --project frond         # 只跑 frond 的 Node 測試
 npm run test:container                 # 全部：三個 vitest project 加兩套瀏覽器測試
 ```
 
+⚠️ **`test:container` 在你的機器上只跑 chromium**，三家是 CI 在跑
+（[ADR-0039](../../docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)）。**改 frond 的
+`src/renderer/` 的時候這件事最要緊**：三家對直排的歧見正是這個 package 存在的理由，所以動到渲染就把
+三家點名跑一次，不要等 CI：
+
+```
+npm run test:container -- --project=chromium --project=firefox --project=webkit
+```
+
 需要縮小範圍時用 npm 的 `--` 傳參：
 
 ```

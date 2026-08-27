@@ -23,9 +23,16 @@
 # app's specs go red too, and reading frond's failures first says which of the two it is.
 #
 # Usage:
-#   ./scripts/test-in-container.sh                     # all three
+#   ./scripts/test-in-container.sh                     # chromium, off CI (see below)
 #   ./scripts/test-in-container.sh --project=firefox   # remaining arguments pass to playwright
 #   ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/marks.spec.ts
+#
+# **Off CI and with no `--project` of its own, this runs chromium alone** — see
+# docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md. All three still exist and CI
+# still runs all three; what changed is which of them a local run reaches for by default. To ask
+# for the others here, name them:
+#
+#   ./scripts/test-in-container.sh --project=chromium --project=firefox --project=webkit
 #
 # **`--only=` exists so that naming one spec file is possible at all.** The remaining arguments
 # go to both browser suites, so a path under `packages/app/tests/` matches nothing on frond's
@@ -39,10 +46,13 @@
 # building the image and checking it, so the tests themselves are seconds. That difference is
 # paid on every edit, so it decides the shape of the loop rather than trimming it.
 #
-# Narrow while the code is still moving; run the whole thing once before the commit, and again
-# before the pull request. One engine is one engine: the full run that produced the numbers above
-# also caught two failures in Firefox that no chromium-only run could have seen. See the testing
-# section of CLAUDE.md.
+# Narrow while the code is still moving; run the whole suite once before the commit, and again
+# before the pull request — on chromium both times, per the default above.
+#
+# **What that gives up, stated rather than glossed over: one engine is one engine.** The full
+# three-engine run that produced the numbers above also caught two failures in Firefox that no
+# chromium-only run could have seen. Those now arrive as a red CI run instead, at the price of
+# another push. See the testing section of CLAUDE.md.
 #
 # Playwright is invoked through each workspace's own script rather than as `npx playwright
 # test`, because a package configures the browsers for itself and its config sits beside its
@@ -80,6 +90,31 @@ for arg in "$@"; do
         exit 1
     fi
 done
+
+# The default engine, and it is a default rather than a setting: anything that names a
+# `--project` of its own is left exactly as written, including the three-engine form in the
+# usage above. ADR-0039 has the reasoning; in short, three engines are what CI is for, and
+# paying for all three on every local edit stopped being worth it once the renderer stopped
+# being what changes.
+#
+# **Gated on CI, and the gate points the safe way.** CI names its engine on every call
+# (`.github/workflows/ci.yml`), so this branch is not reached there today. What the gate buys is
+# the direction of the mistake if that ever stops being true: a CI job that forgot its
+# `--project` runs all three and is slow, rather than running one and going green on a third of
+# what it claimed to check.
+#
+# Both spellings, because `--project=chromium` and `--project chromium` are the same argument to
+# Playwright and would not be to a match on the first alone.
+if [[ -z "${CI:-}" ]]; then
+    engine_named=
+    for arg in "$@"; do
+        [[ "$arg" == --project* ]] && engine_named=yes
+    done
+    if [[ -z "$engine_named" ]]; then
+        echo "==> chromium only (off CI, no --project given); CI runs all three"
+        set -- --project=chromium "$@"
+    fi
+fi
 
 source "$(dirname "${BASH_SOURCE[0]}")/container.sh"
 
