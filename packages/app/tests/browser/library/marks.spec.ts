@@ -116,6 +116,37 @@ async function seedMarks(page: Page, seeds: Seed[]): Promise<void> {
   );
 }
 
+/**
+ * Give a book a name and a credit as long as a real one gets.
+ *
+ * The fixtures are all called things like "Alice", and the card's book column is arranged around
+ * what a published title actually does to it — a subtitle after a colon, an author and a
+ * translator on one line. Nothing else can put those in front of the layout: a title comes out of
+ * the epub, so the only way to test a long one is to write it in.
+ */
+async function rename(page: Page, bookId: string, title: string, author: string): Promise<void> {
+  await page.evaluate(
+    ([id, name, credit]) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open("tidemarks");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction("books", "readwrite");
+          const store = tx.objectStore("books");
+          const read = store.get(id);
+          read.onsuccess = () => store.put({ ...read.result, title: name, author: credit });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    [bookId, title, author] as const,
+  );
+}
+
 /** The id of the card carrying this title. */
 async function bookIdOf(page: Page, title: RegExp): Promise<string> {
   const id = await bookCards(page).filter({ hasText: title }).first().getAttribute("data-book-id");
@@ -240,6 +271,50 @@ test("the card is one height all the way through the five", async ({ page }) => 
   for (const height of heights) expect(height).toBeCloseTo(heights[0]!, 0);
 });
 
+test("a long title costs the card no height and the scale no room", async ({ page }) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+
+  // **The column is where the card's height used to leak from.** The passage and the note box are
+  // held open to a fixed size, so the card can only change height from the book's side — and it
+  // did, until the column was taken out of the row's sizing. What replaced that is a budget: a
+  // full-size cover, two lines of title, two of credit and the scale have to fit a height that
+  // belongs to the passage. **Nothing else measures that budget**, and the way it fails is that
+  // the scale — five buttons — is clipped away silently at the foot of the column (ADR-0021).
+  await rename(
+    page,
+    chinese,
+    "原子習慣：細微改變帶來巨大成就的實證法則",
+    "作者：詹姆斯・克利爾（James Clear），譯者：蔡世偉",
+  );
+  await seedMarks(page, [
+    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
+    { bookId: chinese, text: HAN, note: "", createdAt: 2_000 },
+  ]);
+  // Desk width, which is the only arrangement with a column to overflow.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.reload();
+
+  const shapes = [];
+  for (let i = 0; i < 2; i++) {
+    shapes.push(
+      await card(page).evaluate((node) => ({
+        card: node.getBoundingClientRect().bottom,
+        scale: node.querySelector(".mark-ticks")!.getBoundingClientRect().bottom,
+        height: node.getBoundingClientRect().height,
+      })),
+    );
+    if (i === 0) await nextPassage(page).click();
+  }
+
+  for (const at of shapes) {
+    // Inside the frame, not merely near it: the card clips, so a scale one pixel past this is a
+    // row of controls that is simply not there.
+    expect(at.scale).toBeLessThan(at.card);
+    expect(at.height).toBeCloseTo(shapes[0]!.height, 0);
+  }
+});
+
 test("today's five are the same five after a reload", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
@@ -312,8 +387,9 @@ test("the reader's answer starts on the passage's line and the card stops with i
     { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
     { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
   ]);
-  // Wider than the card is allowed to be, which is the whole of what this asks: below the cap the
-  // card fills what it is given and any arrangement passes.
+  // Wider than the reading is allowed to be, which is the whole of what this asks: the card runs
+  // the shelf's width, and it is the reading inside it that stops and centres. Below that cap the
+  // reading fills what it is given and any arrangement passes.
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.reload();
 

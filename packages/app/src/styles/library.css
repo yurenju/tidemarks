@@ -116,7 +116,10 @@
    mark's size, the gutter it hangs in, and the card's own insets. */
 .mark-card {
   --mark-quote-size: 3.375rem;
-  --mark-body-inset: var(--space-5) var(--space-4) var(--space-4);
+  /* Named on its own as well as inside the inset below, because at desk width the cap on the
+     reading has to pay for both of them (`device.css`). */
+  --mark-body-inset-inline: var(--space-4);
+  --mark-body-inset: var(--space-5) var(--mark-body-inset-inline) var(--space-4);
   /* **The gutter the opening quotation mark hangs in**, and therefore how far in the reading
      starts. One value, spent twice — the passage's inset and the answer's — because the two have
      to begin on the same vertical line and a pair of numbers that are meant to be equal will
@@ -150,10 +153,15 @@
 /* **Which book this is**, on its own ground a step below the card. A strip across the top here,
    a column down the left side at desk width (`device.css`) — same markup either way. */
 .mark-book {
+  /* Named because the cover cancels them: it is the one thing on the strip that reaches the frame,
+     and it can only do that by pulling itself back out through the strip's own insets. */
+  --mark-strip-inset-block: var(--space-3);
+  --mark-strip-inset-inline: var(--space-4);
+
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--mark-strip-inset-block) var(--mark-strip-inset-inline);
   background: var(--surface-page);
   border-bottom: 1px solid var(--line-firm);
 }
@@ -184,15 +192,38 @@
 
 /* A thumbnail rather than a cover: it is here to be recognised at a glance beside the name, not
    to be looked at. The box is held open even with no artwork in it, so the name sits on the same
-   line whether the book has a cover or not. */
+   line whether the book has a cover or not.
+
+   **The height of the two lines beside it**, and the width follows from that — a fixed 22px next
+   to a title and a credit left the strip looking like it had a stray icon in it rather than a
+   book.
+
+   ⚠️ **A length, not `height: 100%`.** The percentage has nothing to resolve against while the
+   strip is still being measured, so the ratio had no height to work from and fell back to the
+   artwork's own width — a cover several hundred pixels wide, which is what it looked like.
+
+   **It reaches the frame on three sides**, and the negative margins are how: the strip's insets
+   are cancelled at the top, the bottom and the start, so the cover is a book laid against the edge
+   of the card rather than an image floating on a strip. Only the gap to the title is kept.
+
+   The height is the strip's insets plus the height of the two lines, so the arithmetic closes:
+   the cover is the tallest thing on the strip, the strip is as tall as the cover's margin box, and
+   the cover is as tall as the strip. No frame of its own for the same reason — flush against the
+   card's own border, a second 1px line reads as a thick one. */
 .mark-cover {
   flex: 0 0 auto;
-  width: 1.375rem;
+  width: auto;
+  height: calc(3rem + 2 * var(--mark-strip-inset-block));
   aspect-ratio: 2 / 3;
-  border: 1px solid var(--line-firm);
-  border-radius: var(--radius-control);
+  margin-block: calc(-1 * var(--mark-strip-inset-block));
+  margin-inline-start: calc(-1 * var(--mark-strip-inset-inline));
   background: var(--surface-cover);
   overflow: hidden;
+  /* The one corner it shares with the card. The card clips its own children, but a cover with a
+     square corner under a rounded one leaves the frame's colour showing through the gap between
+     them, so the cover carries the curve itself — the card's radius less the card's 1px frame,
+     which is the curve of the inside of that corner rather than of the outside. */
+  border-start-start-radius: calc(var(--radius-surface) - 1px);
 }
 
 .mark-cover img {
@@ -245,8 +276,8 @@
   text-overflow: ellipsis;
 }
 
-/* How long ago it was marked, and where in the five this one is. A row at the end of the strip
-   here; the foot of the sidebar at desk width. */
+/* Where in the five this one is. A row at the end of the strip here; the foot of the sidebar at
+   desk width. */
 .mark-progress {
   display: flex;
   align-items: center;
@@ -256,8 +287,15 @@
 
 /* A distance rather than a date, because reaching back for what they were thinking two months
    ago is what this card is for, and "14 July" does not ask anyone to do that. The label face,
-   because it is the interface talking rather than the book. */
+   because it is the interface talking rather than the book.
+
+   **An eyebrow on the passage**, so it starts where the passage starts rather than at the card's
+   edge, and sits close enough to it to belong to it — which is what the negative margin is for:
+   the body's own gap is the distance between blocks, and this is not another block. */
 .mark-when {
+  align-self: flex-start;
+  margin-inline-start: var(--mark-reading-inset);
+  margin-block-end: calc(var(--space-2) - var(--mark-body-gap));
   font-family: var(--font-mono);
   font-size: var(--type-eyebrow);
   letter-spacing: var(--type-eyebrow-tracking);
@@ -334,10 +372,14 @@
 /* The passage and the answer to it: the card's other region, and the only one that changes size
    with the window. */
 .mark-body {
+  /* Named because the eyebrow above the passage has to undo it: everything else in here is a
+     block a full step away from the next, and the eyebrow belongs to the passage under it. */
+  --mark-body-gap: var(--space-5);
+
   padding: var(--mark-body-inset);
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--mark-body-gap);
 }
 
 /* **The mark hangs in the gutter the reading is inset by**, rather than standing in a track that
