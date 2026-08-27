@@ -511,12 +511,10 @@ function MarkCard({
             {book?.author && <span className="mark-author">{book.author}</span>}
           </span>
         </button>
-        {/* How long ago it was marked, and where in the five this one is. Both are the interface
-            talking, so both are set in the label face. */}
+        {/* Where in the five this one is — the interface talking, so it is set in the label face.
+            **How long ago is not here**, and it used to be: it is the age of *this passage*, not
+            of the book, and this column answers only which book. It sits over the note now. */}
         <div className="mark-progress">
-          <span className="mark-when" data-testid="mark-when">
-            {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
-          </span>
           <div className="mark-ticks">
             {/* One rung per passage, and pressable: the ticks say where in the five the reader
                 is, and a reader who can see that will try to press it. */}
@@ -545,6 +543,14 @@ function MarkCard({
       </div>
 
       <div className="mark-body">
+        {/* **When this passage was marked**, read before the passage rather than after it. It is
+            one passage's age — `mark.createdAt` — so beside the cover it was answering a question
+            about the book that it does not know the answer to. Here it is the first thing on the
+            reading's line: how long ago the reader stopped at the words below it. */}
+        <span className="mark-when" data-testid="mark-when">
+          {i18n._(AGE_LABELS[relativeAge(Date.now(), mark.createdAt)])}
+        </span>
+
         <blockquote className="mark-quote-block">
           {/* Decoration, and it says only that this is quoted — so it is out of the reading, out
               of the accessibility tree, and out of a selection dragged across the passage. */}

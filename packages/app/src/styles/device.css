@@ -208,12 +208,13 @@
     padding: var(--space-6) 0 var(--space-4);
   }
 
-  /* **The card is the same card; it is given more room and told where to spend it.** Its box runs
-     the shelf's whole width, because it *is* a piece of the shelf — a card that shrank to the
-     reading column would leave the wall of covers below starting at an edge the card never
-     reaches, and a shelf with two left edges. The reading inside it stops where a line of a book
-     stops (`.mark-quote`'s own `max-width`), so the extra width buys white space rather than a
-     longer line.
+  /* **The card is the same card; it is given more room and told where to spend it.** The reading
+     inside it stops where a line of a book stops (`.mark-quote`'s own `max-width`), so the extra
+     width buys white space rather than a longer line.
+
+     It keeps a margin either side, the same one the wall of covers below is padded by — the card
+     is a piece of the shelf, and a piece of the shelf that ran out to the window while everything
+     under it stood back was the one width where the card had no edges of its own.
 
      Three values, and `library.css` is written in terms of all three, so nothing about the card's
      arrangement is stated twice here. */
@@ -222,11 +223,13 @@
     --mark-body-inset: var(--space-6) var(--space-7) var(--space-5);
     --mark-reading-inset: 3.25rem;
 
-    margin: var(--space-6) 0 0;
+    margin: var(--space-6) var(--space-6) 0;
   }
 
+  /* The inset, rather than the padding it is spent on — the cover cancels the same value to reach
+     the frame, so the two have to move together. */
   .mark-book {
-    padding: var(--space-3) var(--space-6);
+    --mark-strip-inset-inline: var(--space-6);
   }
 
   /* The answer starts on the passage's line. One value for both, so they cannot drift apart. */
@@ -283,75 +286,147 @@
   .mark-card {
     --mark-quote-size: 5.125rem;
     --mark-reading-inset: 4rem;
-    --mark-sidebar: 236px;
+    /* **The column takes the width the passage cannot.** The reading stops at the reader's
+       ceiling however wide the card is (ADR-0012), so every pixel past that turns into blank
+       paper either side of one column of text — and the wider the window, the more of the card
+       is paper. Widening the column spends some of it on the one thing here that *can* use more
+       room: the cover, and a title that then wraps to fewer lines.
+
+       A range rather than a step, because a step is a fourth breakpoint and the card would jump
+       a width at it. The floor is what the column was; the ceiling is where it stops being a
+       column beside a passage and starts being half the card. The shelf caps at 1440, so the
+       ceiling is what a full-width desk window gets. */
+    --mark-sidebar: clamp(236px, 24vw, 320px);
+    /* The cover, and with it the title and the credit that wrap under it — they are one block and
+       one width. Reasoned about on `.mark-cover` below. */
+    --mark-cover-width: 160px;
 
     display: grid;
     grid-template-columns: var(--mark-sidebar) minmax(0, 1fr);
-    /* **The card stops where its contents stop.** Everything on it has a width of its own — the
-       column is 236, the passage runs to the reader's ceiling and no further (ADR-0012) — so past
-       this sum the card is not holding more, it is holding the same thing with a strip of blank
-       paper beside it. Measured at 1440 that strip was 416px, 37% of the card's right-hand side:
-       far too wide to read as a margin, and wide enough that the note box crossing into it was
-       the only thing making the emptiness visible.
-
-       Every term is a named part rather than a number somebody once measured, and the last of
-       them is `--reading-measure` — the passage with nothing round it — so the note box beside it
-       comes out on exactly the passage's right edge instead of 6px past it.
-
-       **Centred**, so what is left over reads as the desk the card is lying on rather than as a
-       strip missing from its right-hand side. It costs the left edge it used to share with the
-       wall of covers below; the wall is a wall and the card is one object on it, and an object
-       is allowed to sit in the middle of the shelf. */
-    margin-inline: auto;
-    /* The `2px` is the card's own frame. `box-sizing: border-box` means the cap pays for it, and
-       without it the passage got 638 of the 640 it is entitled to — two pixels is a whole
-       ideograph's worth of the last one on a full line. */
-    max-width: calc(
-      var(--mark-sidebar) + 2 * var(--space-7) + var(--mark-reading-inset) +
-        var(--reading-measure) + 2px
-    );
+    /* The same inset the wall of covers below is padded by, so the card's frame lines up with the
+       first cover's edge rather than running out to the window. */
+    margin-inline: var(--space-6);
   }
 
+  /* ⚠️ **The card's height is the passage's, and this column does not get a vote.** Clamping the
+     title and the credit below bounds how tall the column can get, but bounded is not fixed: a
+     one-line title and a three-line one still made two different cards, and the card changing
+     height as the reader flicks through the five is the one thing it is not allowed to do.
+
+     `height: 0` is what takes the vote away — a grid item with a definite height contributes
+     nothing to sizing its row, so the row comes out at the height of `.mark-body` alone, which is
+     held open on purpose (`--mark-quote-lines`). `min-height: 100%` then resolves against that
+     finished row and gives the column the height back to paint and lay out in.
+
+     So the clamps are what stop `overflow: hidden` from cutting a title in half, rather than what
+     keeps the card one size. Both are needed. */
   .mark-book {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-4);
-    padding: var(--space-6) var(--space-5);
+    /* A step smaller than the body's insets, and the same on all four sides. The height it gives
+       back is what lets the cover stay one size for every book — see `.mark-cover` below. */
+    padding: var(--space-5);
     border-bottom: none;
     border-inline-end: 1px solid var(--line-firm);
+    height: 0;
+    min-height: 100%;
+    overflow: hidden;
   }
 
   /* Cover over name here rather than beside it, and at the size a cover is for: this column is
-     the one place on the shelf where the book being quoted is looked at rather than glanced at. */
+     the one place on the shelf where the book being quoted is looked at rather than glanced at.
+
+     **The three of them are one block, the block is the cover's width, and the block is what gets
+     centred** — the words inside it stay flush left, because they are set text and centred text is
+     read more slowly.
+
+     ⚠️ **A width, not `fit-content`.** Sized to its contents the block came out two different
+     shapes: a short title left it the width of the cover and centred, a long one pushed it to the
+     full column and the cover went back to the left edge — the same book laid out two ways, and
+     the wrong one was whichever book you happened to be handed. Given the cover's width the title
+     wraps under the cover instead, which is what makes it read as one object. */
   .mark-source-link {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    align-self: center;
+    width: var(--mark-cover-width);
+    max-width: 100%;
     gap: var(--space-4);
   }
 
+  /* Bigger than it was, because this column is the one place on the shelf where the book being
+     quoted is looked at rather than glanced at, and at 96 it read as the thumbnail from the strip
+     with a lot of air round it.
+
+     **160 by 240, and the same 160 by 240 for every book.** It was allowed to shrink for a while,
+     so that a long title could never push the scale out of the bottom of the column — but a cover
+     that is a few pixels smaller under a longer title is the card changing shape between passages,
+     which is the thing this whole column is arranged to avoid, and it is visible.
+
+     So the room is found in the budget instead, and the budget is why the two clamps below are two
+     lines each and why this column's insets are a step smaller than the body's: the column's worst
+     case — a full-size cover, two lines of title, two of credit, and the scale — has to fit in a
+     height that belongs to the passage. It comes to about 411 of the 436 there are.
+
+     `flex: 0 0 auto` is what says it: no shrinking, whatever else is in the column. */
   .mark-cover {
-    width: 96px;
+    /* Back to a width, with the height following from it: on the strip the cover is sized from the
+       height the two lines of type had already decided, and here nothing has decided one. */
+    width: var(--mark-cover-width);
+    height: auto;
+    flex: 0 0 auto;
+    align-self: center;
+    /* An object on the column now, not a book laid against the card's edge: it takes back its own
+       frame and stops reaching through the insets. */
+    margin: 0;
+    border: 1px solid var(--line-firm);
+    border-radius: var(--radius-control);
   }
 
-  /* Both lines get room to wrap. The strip clipped them because it was a strip; a column has the
-     height, and a title — or a two-author credit — cut short beside a passage from that very book
-     is the one thing this column exists to prevent. Undoing `white-space` is what matters: it is
-     inherited from the `<button>` these sit in (`controls.css`), not set on them. */
+  /* **Both lines wrap, and both stop.** The strip clipped them to one line because it was a strip;
+     a column has the height for a full title and a translator's credit, and a title cut short
+     beside a passage from that very book is what this column exists to prevent.
+
+     ⚠️ **But the card is one height however long the name is.** The passage and the note box are
+     both held open to a fixed size for that reason (`--mark-quote-lines`), and an unbounded credit
+     in this column undoes it from the other side: a two-name, two-role credit grew the card, and
+     the card growing between passages is the one thing it is not allowed to do. So each gets a
+     ceiling in lines rather than in pixels — two each — and the last line ellipsises. Two rather
+     than three for the title because the block is the cover's width now: a title that wraps four
+     or five times down a 160 column is not being read, it is being spelled out, and the same
+     title is set in full on the row and the wall below.
+
+     Undoing `white-space` is what matters for the wrapping: it is inherited from the `<button>`
+     these sit in (`controls.css`), not set on them. */
   .mark-book-text strong,
   .mark-author {
     white-space: normal;
-    overflow: visible;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mark-book-text strong,
+  .mark-author {
+    -webkit-line-clamp: 2;
   }
 
   /* The foot of the column, held down there whatever the title's length: the scale is where the
-     reader looks to find out where in the five they are, and it must not move between passages. */
+     reader looks to find out where in the five they are, and it must not move between passages.
+
+     **Centred on the column** rather than flush left with the title above it. It is one small
+     symmetrical object on a rule of its own, and left-aligned it reads as a third line of the
+     credit — which is the one thing it is not. */
   .mark-progress {
     flex-direction: column;
-    align-items: start;
+    align-items: center;
     gap: var(--space-2);
     margin-block-start: auto;
     margin-inline-start: 0;
-    padding-block-start: var(--space-3);
+    /* The column's own bottom inset, so the scale sits the same distance from the rule above it as
+       from the foot of the column below it. At the smaller step it read as hanging off the rule. */
+    padding-block-start: var(--space-5);
     border-block-start: 1px solid var(--line-firm);
   }
 
@@ -359,9 +434,22 @@
     display: block;
   }
 
+  /* **The card runs the shelf's width; the reading inside it does not.** The frame is a piece of
+     the shelf, so it reaches the same edges as the wall of covers below — but the passage still
+     stops at the reader's ceiling (ADR-0012), so the room past that goes into the desk on either
+     side of the reading rather than into a longer line.
+
+     Every term is a named part rather than a number somebody once measured, and the last of them
+     is `--reading-measure` — the passage with nothing round it — so the note box beside it comes
+     out on exactly the passage's right edge. `box-sizing: border-box` means the cap pays for the
+     two paddings. */
   .mark-body {
+    --mark-body-gap: var(--space-6);
+
     padding: var(--space-7) var(--space-7) var(--space-5);
-    gap: var(--space-6);
+    width: 100%;
+    max-width: calc(2 * var(--space-7) + var(--mark-reading-inset) + var(--reading-measure));
+    margin-inline: auto;
   }
 
   /* The column the panel takes **from the book**. The bars gave up their right end at every
