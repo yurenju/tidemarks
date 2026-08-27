@@ -150,7 +150,7 @@ thumb 外面那一圈（那是在它所騎的軌上挖一個洞）、以及目�
 [`docs/brand/source/fonts/`](brand/source/fonts/) 給切外框的工具讀。為什麼要外框：favicon 與 README
 的圖都是被當成獨立圖片載入的，載不到頁面的 `@font-face`。
 
-**拉丁那半自帶，漢字那半名平台堆疊**（ADR-0014、ADR-0022〈四個家族，兩種待遇〉）。自帶的剩兩支
+**拉丁那半自帶，漢字那半名平台堆疊**（ADR-0014、ADR-0022〈三個家族，兩種待遇〉）。自帶的剩兩支
 拉丁：Source Serif 4（variable，latin 與 latin-ext 兩個 subset 共 90 KB）與 IBM Plex Mono 400。
 **漢字沒有自帶的介面字**——`NotoSerifCJKtc-Regular` 是 16 MB、`NotoSansCJKtc-Regular` 是 11 MB，
 那兩支照 ADR-0014 是讀者開了有漢字的書才下載。

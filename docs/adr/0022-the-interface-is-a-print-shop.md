@@ -103,8 +103,9 @@ Indigo Dye 沒有投影，所以那個事實需要另一個人來說，而**這�
 
 ## 三個家族，兩種待遇
 
-三個字型家族各司其職：Noto Serif TC 給內容與標題（`--font-ui`）、Noto Sans TC 給控件與 meta
-（`--font-control`）、IBM Plex Mono 給 uppercase 微型標籤（`--font-mono`）。
+三個字型家族各司其職，一個管內容與標題（`--font-ui`）、一個管控件與 meta（`--font-control`）、
+一個管 uppercase 微型標籤（`--font-mono`），**越界即為錯**。實際是哪幾支字型由
+[design-system.md](../design-system.md) 那張表說了算——這裡定的是有幾個職責，不是挑哪一支。
 
 （原本還有第四個，Spectral，給字標與西文數字。字標改成外框 `<path>` 之後它沒有使用者了，見
 [ADR-0034](0034-the-wordmark-stops-being-type.md)。）

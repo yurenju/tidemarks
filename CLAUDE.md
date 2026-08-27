@@ -60,8 +60,10 @@ repo 已經是 public，**檔案、`git log`、commit message、issue 與 PR 內
 
 **`yurenju/folis`（更早叫 `yurenju/spine`）是以前的 private repo，已經不再使用。** 它不是備援，
 指向它的連結對外一律 404，那邊的 issue 也不必去查——現在唯一算數的是這個公開的
-`yurenju/tidemarks`，歷史從 2026-08-19 一個 `Initial commit` 開始
-（[ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md)）。
+`yurenju/tidemarks`，歷史從 2026-08-19 一個 `Initial commit` 開始。
+
+⚠️ **寫出去就收不回來。** GitHub 連 PR 碰過的 commit 都永久保留，`force push` 也清不掉，所以沒有
+「先寫、之後再清乾淨」這條路。
 
 所以標準只有一條：**每一種敘述都照給陌生人讀的標準寫**，不分檔案、commit 還是 issue。
 
@@ -233,6 +235,8 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 ```bash
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
+
+⚠️ **不要繞過腳本直接下 `podman run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
 
 **21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上三家全套實測的 **6 分 46 秒**——現在本地
 的全套只有 chromium，所以那個數字大約降到三分之一。`--only=frond` 同理。路徑**相對於那個 package**

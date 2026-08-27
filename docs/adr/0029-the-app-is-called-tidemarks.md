@@ -22,8 +22,8 @@ Foliate、foliate-js、Folium Reader 三個閱讀器都用同一個字根，其�
 還有一條也照舊：**一個名字，不是兩個**。官方那一台與自己架的那一份由**主機名**區分，不由第二個
 名字扛。
 
-**定名與改名是兩步。** 這份 ADR 只定名字。把 `Folis` 換成 `Tidemarks` 那件事——行文、UI 文案、
-識別字、套件名、GitHub repo、網域、D1／R2／Dexie、Resend 的 sending domain——留到上線前一次做完。
+**定名與改名是兩步。** 這份 ADR 只定名字；改名那件事——行文、UI 文案、識別字、套件名、GitHub
+repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做完了。
 
 **網域是 `tidemarks.io`，app 在 `app.tidemarks.io`**，見底下〈網域與 hostname〉。那是這次唯一
 不可逆的一步。
