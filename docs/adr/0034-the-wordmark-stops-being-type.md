@@ -12,12 +12,10 @@
 `@font-face` 也拿掉了，`spectral-latin-400-normal.woff2` 移到 `docs/brand/source/fonts/`，
 只給那支 script 讀。
 
-這**取代 [ADR-0022](0022-the-interface-is-a-print-shop.md)〈四個家族，兩種待遇〉裡
-「Spectral 給字標與西文數字」那一句**。ADR-0022 的其他部分照舊，它的內文與檔名也不改——
-它是一份有日期的紀錄。現在的家族數是三個：`--font-ui`、`--font-control`、`--font-mono`。
-
-（那句話的後半「西文數字」從來沒有實作過：`--font-display` 從加進來到拿掉，唯一的使用者
-一直都是書架標題那一個選擇器。所以被這份 ADR 取代掉的，實際上只有字標那半。）
+因此字型家族從四個變成三個（`--font-ui`、`--font-control`、`--font-mono`），
+[ADR-0022](0022-the-interface-is-a-print-shop.md) 那一節已經跟著改。原本第四個是 Spectral，
+給「字標與西文數字」——而後半從來沒有實作過，`--font-display` 從加進來到拿掉，唯一的使用者
+一直都是書架標題那一個選擇器。
 
 ## 為什麼
 

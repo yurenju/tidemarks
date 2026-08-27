@@ -1,6 +1,10 @@
 # 從 @likecoin/epub-ts 遷到 @yurenju/frond
 
-日期：2026-07-30。取代 [ADR-0002](0002-epubjs-to-epub-ts.md) 的止血結論。
+日期：2026-07-30。
+
+離開 epub.js 的原因是一個修不好的位置 bug：`display(cfi)` 對得到正確的 section，卻把畫面定位到那個
+section 的第 0 欄，欄位偏移沒被套上——那是 epub.js 多欄分頁的老問題，而它已經沒有人在維護。中間先
+換過一手同 API 的 TypeScript fork（`@likecoin/epub-ts`）止血，沒有解掉，所以才有這一份。
 
 ## 決定
 
@@ -51,11 +55,6 @@ content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同
 
 - **舊的 CFI 資料作廢。** frond 與 epub.js 的 CFI 都是規格 CFI，但沒有做過相容驗證，而使用者資料
   本來就要丟（spine 還沒開放給其他人用）。這是選這個時機遷的理由之一。
-- **`settings.fontSize` 從百分比改成 px。** frond 收 px，並把書的絕對字級 relativise 成 rem，所以
-  百分比沒有東西可以當分母。`loadSettings` 會把舊值換算過來（100% → 16px），落在兩套範圍之外的值
-  當成壞資料吃預設。
-  （**[ADR-0006](0006-font-size-is-a-percentage-of-the-readers-root.md) 後來推翻了這一項**：分母是
-  有的——讀者自己瀏覽器的 root 字級。）
 - **直排＋「書籍預設」字型在 Windows 上的標點**，原本靠 `rewriteGenericFonts` 改寫書的樣式表。那條
   路在 frond 底下不存在（iframe 內的 cascade 只有它進得去），所以改用 frond 0.4.3 新增的
   `settings.genericFamilies`——由 spine 提供字型堆疊，frond 在書的 cascade 裡代換 bare

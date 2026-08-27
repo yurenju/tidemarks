@@ -210,7 +210,7 @@ test.describe("nested browsing contexts", () => {
  * do exist are all in `<head>` — where removal shifted nothing an annotation could point at
  * either, because `<head>` is `/2` and `<body>` is `/4` regardless of what is inside
  * `<head>`. So the `scripted-content-in-body` fixture is synthetic; no real book has this
- * shape (ADR-0007). It was fixed while the cost of fixing it was zero: ADR-0008 makes a
+ * shape (ADR-0007). It was fixed while the cost of fixing it was zero: ADR-0006 makes a
  * removal-shaped intervention a CFI-level breaking change, and that price only ever goes up
  * as readers accumulate stored positions (#65).
  */

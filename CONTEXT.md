@@ -23,10 +23,9 @@ hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 cred
 **一個名字，不是兩個**——它同時是軟體與服務，「官方那一台」與「自己架的那一份」的區別由主機名
 扛。apex 留給官方網站，app 住在子網域底下。
 
-**2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與代價見
-[ADR-0019](docs/adr/0019-the-product-name-does-not-take-a-word-from-the-format.md) 與
-[ADR-0025](docs/adr/0025-folis-is-a-placeholder-name-until-launch.md)。那些日期以前的 ADR 裡
-寫的 `spine` 與 `Folis` 就是 Tidemarks，它們的內文與檔名一律不改。
+**2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與這次取名要跑的兩條
+檢查都收在 [ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)。那些日期以前寫下的 `spine`
+與 `Folis` 就是 Tidemarks。
 
 _Avoid_: spine（**現在只指 EPUB 封裝格式裡的 `<spine>` 元素**，而 frond 連那個意思都改用
 `readingOrder`）、Spine、Folis（都是舊名字，寫下來的時候一定是在講改名這件事本身）、
@@ -621,6 +620,9 @@ _Avoid_: 標註／annotation（那是**資料結構**的名字，一則筆記是
 在有第二種來源之前，講一本 epub 就講**書**，不要提前用「來源」去指它——那會讓現在的程式碼讀
 起來像已經一般化了，而它沒有。
 
+`bookId` 是**隨機 UUID**（`lib/epub.ts`），不是內容雜湊。所以同一本 epub 重新匯入會拿到新的
+id，舊的筆記與進度對不回去——**那是對的**，重新匯入本來就是一本新書。
+
 _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（沒有講出「它是被讀的東西」）、
 書（**書是來源的一種**，兩個詞不能互換）
 
@@ -632,7 +634,7 @@ _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（�
 是不是一個 em 寬」，它決定行長、字型堆疊與字形變體；介面語言只決定 Tidemarks 開口說話時用哪種
 語言。一個日本讀者用日文介面讀繁體中文書是正常的一天。
 
-跟著裝置，不跟著帳號（[ADR-0005](docs/adr/0005-typography-settings-follow-the-device.md)）。
+跟著裝置，不跟著帳號（[ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）。
 自動從瀏覽器判斷，讀者可以在〈設定〉裡覆寫。伺服器寄的信也照這個語言走，靠請求上的
 `Accept-Language` 帶過去。
 
@@ -682,7 +684,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 
 **留白**是〈行長〉的下限，不是最終值：寬螢幕上真正決定版心的是行長上限，那時候調留白不會有反應。
 
-**不跨裝置同步**（見 [ADR-0005](docs/adr/0005-typography-settings-follow-the-device.md)）：字級回答的是
+**不跨裝置同步**（見 [ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）：字級回答的是
 「這個螢幕多大、我離它多遠」，那是裝置的事。這是刻意的，不是還沒做——bookId 兩台機器對得起來，缺的不是機制。
 
 字級是**讀者瀏覽器 root 字級的百分比**，不是絕對 px（見
@@ -690,7 +692,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 瀏覽器裡講過一次就算數，Tidemarks 的介面本來就跟著，書也跟著。
 
 _Avoid_: 全域設定（含糊，講不出「全域」的邊界其實停在這台機器上）、使用者偏好（暗示跟著人走，
-正好相反）、裝置預設（那個詞的存在前提是還有另一層，而另一層沒有了）、書的覆寫（同上，已作廢）
+正好相反）、裝置預設與書的覆寫（設定只有一層，這兩個詞的前提不存在）
 
 ## 設定
 
@@ -707,7 +709,7 @@ _Avoid_: 全域設定（含糊，講不出「全域」的邊界其實停在這�
 閱讀畫面上沒有通往這裡的門，bar 上只有目錄、筆記、排版三顆。主題就在〈排版〉面板第一列，所以
 「天黑了要隨手切深色」已經不必離開書；〈帳號〉是一年碰幾次的地方，走「‹ 書架」再進來就好。
 
-_Avoid_: 偏好設定（跟〈排版設定〉的 Avoid 同一個理由）、選項、設定抽屜（它已經不是抽屜了）
+_Avoid_: 偏好設定（跟〈排版設定〉的 Avoid 同一個理由）、選項、設定抽屜
 
 ## 帳號
 

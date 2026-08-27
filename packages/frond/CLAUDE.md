@@ -12,7 +12,8 @@ scripts/   這個 package 自己的工具
 docs/      frond 的 ADR 與量測紀錄
 ```
 
-曾經有第二個套件 `@yurenju/frond-react`，已經收掉（ADR-0008 的修訂，ADR-0011 已 superseded）。
+曾經有第二個套件 `@yurenju/frond-react`（一組 unstyled 的 React 元件），2026-07-30 收掉：唯一的
+消費端從來沒有 import 過它一行，而它的 `paging.ts` 跟 app 的 `navigator.ts` 是同一件事的兩份實作。
 **不要把它加回來，也不要另外開一層放 UI 政策**：ADR-0002 的拒收現在是絕對的，frond 裡沒有任何一層
 擺得下預設的 UI 政策。
 
@@ -34,8 +35,12 @@ import 它的東西。要看某個事實在消費端怎麼被用，直接讀 `..
 ## `src/` 的出貨相依必須是零
 
 而那不是靠 review 守的，三道機制是 `tsconfig.build.json` 的 `"types": []` 與 `"paths": {}`，加上
-`scripts/finish-build.ts` 從 `package.json` 的宣告推導放行清單（理由記在 ADR-0011〈兩個套件的邊界，
-機器守得住〉，那一節沒有隨著 ADR 作廢）。在 `src/` 底下加一個 npm 相依，紅的是 `npm run build`。
+`scripts/finish-build.ts` 掃 `dist/`、**從 `package.json` 的宣告推導放行清單**。在 `src/` 底下加一個
+npm 相依，紅的是 `npm run build`。
+
+第三道那個「從宣告推導」是刻意的：手寫的放行清單會腐爛，而且腐爛的方向永遠是「放太寬」——沒有人會
+在移除一個相依之後回來收窄它。從宣告推導之後，「出貨產物 import 的東西」與「`package.json` 說它相依
+的東西」被綁成同一件事，而 frond 兩者皆空，所以規則對它讀作「一個 bare specifier 都不行」。
 
 實際擋下東西的是第一道與第三道；`"paths": {}` 目前是 no-op，它留著是為了擋將來被加進去的對應。別
 因為「反正它沒作用」就把它拿掉。

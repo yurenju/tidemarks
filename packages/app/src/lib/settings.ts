@@ -314,7 +314,7 @@ export function readRootFontSize(): number {
   return Number.isFinite(px) && px > 0 ? px : BROWSER_DEFAULT_PX;
 }
 
-/** One per device, all six settings, every book, never synced (ADR-0005 for the sync half). */
+/** One per device, all six settings, every book, never synced (ADR-0026 for the sync half). */
 export function loadSettings(): ReaderSettings {
   try {
     const raw = localStorage.getItem(KEY);

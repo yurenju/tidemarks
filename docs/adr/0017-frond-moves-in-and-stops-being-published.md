@@ -10,6 +10,10 @@ frond 的原始碼搬進 spine 的 monorepo（舊 repo 的 #110 之後的
 **不再發布到 npm**，`@yurenju/frond` 停在 0.4.15。公開的 `yurenju/frond` repo 封存，README 指向
 這裡。
 
+**MIT 授權沒有跟著收掉**：`packages/frond/LICENSE` 還在，它涵蓋 0.4.15 以前發出去的每一份。選 MIT
+的理由也還在——frond 直接取用 foliate 上游 `tests/epubcfi-tests.js` 的 280 行測試向量當 CFI 驗收表，
+而那是實際的程式碼取用，MIT 對 MIT 最乾淨。
+
 ## 為什麼
 
 跨 repo 的代價全部落在**等待**上：frond 開 PR、維護者 merge、**手動**觸發 release、spine 才 pin

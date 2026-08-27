@@ -13,7 +13,7 @@
 
     // **There is deliberately no `paths` here.** There used to be one, mapping
     // `@yurenju/frond/*` onto `src/` so that frond-react could typecheck against an unbuilt
-    // tree; with the repo collapsed back to a single package (ADR-0008's revision), nothing
+    // tree; with the repo collapsed back to a single package, nothing
     // inside it reaches frond through a bare specifier any more — every import is relative.
     //
     // The one place that still names the package is `tests/node/epub-book/open.test.ts`,

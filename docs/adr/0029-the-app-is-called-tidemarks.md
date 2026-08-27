@@ -6,20 +6,32 @@
 
 這個 app 的正式名字是 **Tidemarks**。行文裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。
 
-這份 ADR 結束 [ADR-0025](0025-folis-is-a-placeholder-name-until-launch.md) 開啟的暫名狀態。
-[ADR-0019](0019-the-product-name-does-not-take-a-word-from-the-format.md) 訂的兩條仍然成立，
-而且這次都用上了：**一個名字不是兩個**（官方那一台與自己架的那一份由主機名區分），以及
-**產品名不佔用格式的詞彙**（`tidemark` 在 EPUB、CFI、WebAuthn、HTTP 裡都不是任何東西）。
+這是第三個名字，前兩個都是被後來的產品撐破的。`spine`（書脊）撞到 EPUB 封裝格式裡定義閱讀順序
+的那個 `<spine>` 元素，代價是每一句話都要先問「你講的是哪一個」，而這個代價在專案長出自己的解析
+層（frond）之後才浮出來。`Folis`（拉丁文 folium，葉，也是書頁）撞到的不是字面而是**詞源**——
+Foliate、foliate-js、Folium Reader 三個閱讀器都用同一個字根，其中 foliate-js 跟 frond 做的還是
+同一件事。
 
-**定名與改名是兩步。** 這份 ADR 只定名字。把 `Folis` 換成 `Tidemarks` 那件事——行文、UI 文案、
-識別字、套件名、GitHub repo、網域、D1／R2／Dexie、Resend 的 sending domain——照 ADR-0025 的
-規劃留到上線前一次做完，清單在 舊 repo 的 #155。
+那兩次各留下一條取名要先跑的檢查，這次兩條都跑過：
+
+1. **這個字在 EPUB、CFI、WebAuthn、HTTP 這些非引用不可的規格裡，已經有意思了嗎？**
+   `tidemark` 在四個裡面都不是任何東西。
+2. **這個字，或它的字根，在閱讀 app 與 EPUB 程式庫這個類別裡有沒有產品在用？** 要查的地方是
+   GitHub、npm、Flathub、App Store、Google Play；查到什麼見底下〈撞名查到什麼〉。
+
+還有一條也照舊：**一個名字，不是兩個**。官方那一台與自己架的那一份由**主機名**區分，不由第二個
+名字扛。
+
+**定名與改名是兩步。** 這份 ADR 只定名字；改名那件事——行文、UI 文案、識別字、套件名、GitHub
+repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做完了。
 
 **網域是 `tidemarks.io`，app 在 `app.tidemarks.io`**，見底下〈網域與 hostname〉。那是這次唯一
 不可逆的一步。
 
-**frond 不改名**，理由見 ADR-0025：它是函式庫不是產品，不對外發布，讀到這個名字的只有打開
-`packages/frond/` 的人。
+**frond 不改名。** 同一個詞源撞名它也沾到，但它是函式庫不是產品：不對外發布
+（[ADR-0017](0017-frond-moves-in-and-stops-being-published.md)），沒有人要靠這個名字在 npm 上找到
+它，讀到這個名字的只有打開 `packages/frond/` 的人。撞名的代價是「讀者以為你是誰的仿品」，而 frond
+沒有那種讀者。
 
 ## 為什麼是 Tidemarks
 
@@ -65,8 +77,7 @@
 
 ## 撞名查到什麼
 
-照 ADR-0025 留下的檢查跑過：**這個字，或它的字根，在閱讀 app 與 EPUB 程式庫這個類別裡有沒有
-產品在用**。
+照上面第二條檢查跑過：**這個字，或它的字根，在閱讀 app 與 EPUB 程式庫這個類別裡有沒有產品在用**。
 
 | 查到的 | 是什麼 | 判定 |
 | --- | --- | --- |
@@ -104,7 +115,15 @@
 網域是 **`tidemarks.io`**，app 放在 **`app.tidemarks.io`**。
 
 **WebAuthn 的 RP ID 一旦有 credential 就不可變**，所以 hostname 選定那一刻是這次改名唯一走不
-回頭的一步（ADR-0019 為此付過一次，ADR-0025 記過一次）。這一節單獨存在就是為了記下這件事。
+回頭的一步——上一次換網域（2026-08-09）已經為此把既有的 passkey 全部報廢過一次。這一節單獨存在
+就是為了記下這件事。
+
+其餘的改名代價都付得起，因為**開發階段使用者是維護者一個人**
+（[ADR-0004](0004-development-phase-and-launch-line.md)）。`wrangler d1`、`wrangler r2 bucket` 與
+IndexedDB **三個都沒有 rename 的 API**，所以三個叫舊名字的儲存資源一律開新的、不搬資料：D1 讓
+`migrations/` 從第一支跑到最後一支建出 schema，R2 驗過再刪舊 bucket，讀者裝置上的 Dexie 換名字、
+本機資料歸零。也因此**不寫一次性的相容程式**——那種程式碼的壽命是永遠，而它服務的人數是一。
+〈上線〉之後同一個改名要寫的是搬家程式，不是 create。
 
 至於 TLD 選哪一個，**沒有花力氣比較，因為這一題沒有想像中重要**：Tidemarks 是開源專案，想用的
 人自己架得起來，官方託管只是「不想自己架的話，我幫你出雲端資源的錢，所以酌收」。官方那一台不是
@@ -112,8 +131,8 @@
 
 ## 這個 repo 裡會有三個名字
 
-照 ADR-0019 訂的節奏：ADR 的內文與檔名不改，程式碼註解照 `CLAUDE.md` 的「一次只改手上那個
-檔案」，指向舊 repo 的連結不批次改寫。所以一句話：
+散在程式碼註解裡的舊名字照 `CLAUDE.md` 的「一次只改手上那個檔案」處理，不做全庫掃描。所以
+一句話：
 
 > **2026-08-19 以前寫下的 `spine` 與 `Folis`，就是 Tidemarks。**
 

@@ -82,7 +82,7 @@ function isShelfOrder(value: unknown): value is ShelfOrder {
 /**
  * The choice stays on this device, in localStorage next to the typography settings.
  *
- * Not synced, and not for the reason typography is not (ADR-0005) — "how I look for a book" is
+ * Not synced, and not for the reason typography is not (ADR-0026) — "how I look for a book" is
  * a habit that would travel with the reader if it were free. It is not free: it would mean a
  * D1 column, a sync round and a conflict rule, all for a switch with two positions.
  */

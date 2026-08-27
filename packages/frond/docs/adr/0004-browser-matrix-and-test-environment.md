@@ -2,9 +2,9 @@
 
 Chromium、Firefox、WebKit 三個 headless 瀏覽器**同級**：三家都跑全套測試（不變量、跨瀏覽器差分），任一紅燈即紅燈。不分 tier。
 
-**agent 視覺判讀也是三家都要跑，但它不在 CI 裡**——跟視覺有關的變更，開 PR 前由寫 PR 的 agent 在三家各跑一次並照封閉式清單判讀（ADR-0001 的修訂、`docs/agents/pull-requests.md`）。「三家同級」這條在那一層照樣成立，變的只是它在什麼時候跑、由誰判。
+**agent 視覺判讀不在 CI 裡**——跟視覺有關的變更，開 PR 前由寫 PR 的 agent 跑過並照封閉式清單判讀（ADR-0001、`docs/agents/pull-requests.md`）。
 
-> **2026-08-28 起這一段只適用於動到渲染層的改動。** 視覺判讀預設只拍 chromium，碰到 `src/renderer/` 或直排才三家都拍；測試那一層仍然三家同級、任一紅燈即紅燈，只是本地預設一家、三家由 CI 跑。理由與代價在 Tidemarks 的 [ADR-0039](../../../../docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)——那是一個關於 Tidemarks 開發階段的判斷，不是對本節任何量測結論的修訂。
+⚠️ **那一層預設只拍 chromium**，碰到 `src/renderer/` 或直排才三家都拍；測試那一層仍然三家同級、任一紅燈即紅燈，只是本地預設一家、三家由 CI 跑。理由與代價在 Tidemarks 的 [ADR-0039](../../../../docs/adr/0039-three-engines-are-ci-s-job-not-the-local-loop-s.md)——那是關於 Tidemarks 開發階段的判斷，不是對本節任何量測結論的修訂。
 
 理由是成本與回報不對稱：多加一個 browser project 只是設定檔幾行，而 frond 存在的一半理由就是「別人沒把直排跨瀏覽器做好」，主動放棄任何一家等於放棄那個賣點。foliate 自身宣稱支援最新版 WebKitGTK / Firefox / Chromium（不含 Firefox ESR），frond 對齊此範圍。
 
@@ -28,7 +28,7 @@ Chromium、Firefox、WebKit 三個 headless 瀏覽器**同級**：三家都跑�
 
 **因此差分的前提改為：跨瀏覽器自我差分必須在讀者設定指名字面的前提下執行。** 三家唯一會一致的情況就是指名字面，而在權威順序裡能合法指名的只有讀者設定（ADR-0003：frond 自己改寫書的宣告是被禁止的，那正是從 spine 移出去的 `rewriteGenericFonts`）。合成 fixture 一律指名字面（ADR-0007），差分在它們身上照常成立。
 
-**代價要講清楚**：書宣告 generic family 而讀者沒有設定字型時，跨瀏覽器差分不成立，那類書的正確性只剩另外兩層守著——Node 端的解析測試，以及單一瀏覽器內的不變量。（第三層的 agent 視覺判讀跑在開 PR 前而不是 CI，守不到回歸，見 ADR-0001 的修訂。）而實際的書大多用 generic family 宣告，所以這不是邊緣情況。這是實質的覆蓋率損失，不是文字修飾。
+**代價要講清楚**：書宣告 generic family 而讀者沒有設定字型時，跨瀏覽器差分不成立，那類書的正確性只剩另外兩層守著——Node 端的解析測試，以及單一瀏覽器內的不變量。（第三層的 agent 視覺判讀跑在開 PR 前而不是 CI，守不到回歸，見 ADR-0001。）而實際的書大多用 generic family 宣告，所以這不是邊緣情況。這是實質的覆蓋率損失，不是文字修飾。
 
 ### 直排下，頁數與斷頁位置不能拿來互比（#7 修訂）
 
