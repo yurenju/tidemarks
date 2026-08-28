@@ -4,11 +4,11 @@
 
 ## 決定
 
-這個 app 的正式名字是 **Tidemarks**。行文裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。
+這個 app 的正式名字是 **Tidemarks**。敘述裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。
 
 這是第三個名字，前兩個都是被後來的產品撐破的。`spine`（書脊）撞到 EPUB 封裝格式裡定義閱讀順序
 的那個 `<spine>` 元素，代價是每一句話都要先問「你講的是哪一個」，而這個代價在專案長出自己的解析
-層（frond）之後才浮出來。`Folis`（拉丁文 folium，葉，也是書頁）撞到的不是字面而是**詞源**——
+層（frond）之後才浮出來。`Folis`（拉丁文 folium，葉，也是書頁）撞到的不是字面而是**詞源**，
 Foliate、foliate-js、Folium Reader 三個閱讀器都用同一個字根，其中 foliate-js 跟 frond 做的還是
 同一件事。
 
@@ -22,8 +22,8 @@ Foliate、foliate-js、Folium Reader 三個閱讀器都用同一個字根，其�
 還有一條也照舊：**一個名字，不是兩個**。官方那一台與自己架的那一份由**主機名**區分，不由第二個
 名字扛。
 
-**定名與改名是兩步。** 這份 ADR 只定名字；改名那件事——行文、UI 文案、識別字、套件名、GitHub
-repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做完了。
+**定名與改名是兩步。** 這份 ADR 只定名字；改名那件事：敘述、UI 文案、識別字、套件名、GitHub
+repo、網域、D1／R2／Dexie、Resend 的 sending domain，隨後一次做完了。
 
 **網域是 `tidemarks.io`，app 在 `app.tidemarks.io`**，見底下〈網域與 hostname〉。那是這次唯一
 不可逆的一步。
@@ -35,7 +35,7 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
 
 ## 為什麼是 Tidemarks
 
-**tidemark 是潮痕**——潮水退去之後，留在岸上的那條線。
+**tidemark 是潮痕**：潮水退去之後，留在岸上的那條線。
 
 這個字扛的是兩個疊在一起的動作，而那兩個動作正好就是這個 app 要做的事：
 
@@ -44,7 +44,7 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
 | 潮來潮去，**週期性的來回** | 同一本書、同一段話，讀過再讀 |
 | 每一次退潮留下一條線，**痕跡慢慢變深** | 每一次回頭都多留下一點，最後那些痕跡就是你的 |
 
-兩個語素都是小學英文單字，所以**不必解釋**——這正是上一個名字失敗的地方。`Folis` 的意思
+兩個語素都是小學英文單字，所以**不必解釋**，這正是上一個名字失敗的地方。`Folis` 的意思
 （拉丁文 folium，葉，也是書頁）不在名字裡，要人查了才知道，而**要查才懂的意思等於不存在**。
 
 ## 名字扛的是定位，而定位這次才寫下來
@@ -56,7 +56,7 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
   那個動作。在把思考外包給 AI 變得很容易的時候，讀與記反而是把思考拿回來的動作。
 - **來源不會只有 EPUB。** 文章、影片都要放得進來，EPUB 只是第一種。
 
-`Tidemarks` 撐得住這三件事，`Folis`（葉／書頁）撐不住第三件——一支 YouTube 影片不是書頁。
+`Tidemarks` 撐得住這三件事，`Folis`（葉／書頁）撐不住第三件，一支 YouTube 影片不是書頁。
 這是選這個名字最實際的理由：**它不會在產品長大的那天變成天花板**，而 `spine` 跟 `Folis` 都是
 在取名那天看不見的地方被後來的產品撐破的。
 
@@ -73,7 +73,7 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
 3. **`tidemarks` 在 npm 與 GitHub 上都是空的。**
 
 代價是 `-rks` 這個字尾：華語的音節尾沒有子音串，中文使用者唸起來比 `-rk` 多一道。這個代價是
-可以接受的——「Marks & Spencer」在中文圈唸了幾十年。
+可以接受的，「Marks & Spencer」在中文圈唸了幾十年。
 
 ## 撞名查到什麼
 
@@ -105,7 +105,7 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
 - **具體物件當語素的複合字被否決了一整批**（ink、loom、grain、marrow 那些）。回頭看，值得
   參照的兩個名字（Readwise、flowpace）的語素都是**抽象的動態**，沒有一個是摸得到的東西。
 - **「一個概念池被某個產品用過」不等於那個池被買斷。** 「回頭／反覆」這個池一度因為
-  「那是 Readwise 的地盤」被排除，那是錯的——Readwise 佔的是 `wise` 這個語素，不是整個概念。
+  「那是 Readwise 的地盤」被排除，那是錯的，Readwise 佔的是 `wise` 這個語素，不是整個概念。
   排除它差一點就把最後選上的字一起排除掉了。
 - **現成存在的詞勝過拼出來的詞。** 決賽圈裡活到最後的（tidemark、eddyline、strandline、
   ripplemark）全都是真實存在的術語，自帶一個畫面；我們自己黏出來的沒有一個活過一輪。
@@ -115,14 +115,14 @@ repo、網域、D1／R2／Dexie、Resend 的 sending domain——隨後一次做
 網域是 **`tidemarks.io`**，app 放在 **`app.tidemarks.io`**。
 
 **WebAuthn 的 RP ID 一旦有 credential 就不可變**，所以 hostname 選定那一刻是這次改名唯一走不
-回頭的一步——上一次換網域（2026-08-09）已經為此把既有的 passkey 全部報廢過一次。這一節單獨存在
+回頭的一步，上一次換網域（2026-08-09）已經為此把既有的 passkey 全部報廢過一次。這一節單獨存在
 就是為了記下這件事。
 
 其餘的改名代價都付得起，因為**開發階段使用者是維護者一個人**
 （[ADR-0004](0004-development-phase-and-launch-line.md)）。`wrangler d1`、`wrangler r2 bucket` 與
 IndexedDB **三個都沒有 rename 的 API**，所以三個叫舊名字的儲存資源一律開新的、不搬資料：D1 讓
 `migrations/` 從第一支跑到最後一支建出 schema，R2 驗過再刪舊 bucket，讀者裝置上的 Dexie 換名字、
-本機資料歸零。也因此**不寫一次性的相容程式**——那種程式碼的壽命是永遠，而它服務的人數是一。
+本機資料歸零。也因此**不寫一次性的相容程式**，那種程式碼的壽命是永遠，而它服務的人數是一。
 〈上線〉之後同一個改名要寫的是搬家程式，不是 create。
 
 至於 TLD 選哪一個，**沒有花力氣比較，因為這一題沒有想像中重要**：Tidemarks 是開源專案，想用的

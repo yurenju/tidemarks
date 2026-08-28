@@ -38,7 +38,7 @@ import 它的東西。要看某個事實在消費端怎麼被用，直接讀 `..
 `scripts/finish-build.ts` 掃 `dist/`、**從 `package.json` 的宣告推導放行清單**。在 `src/` 底下加一個
 npm 相依，紅的是 `npm run build`。
 
-第三道那個「從宣告推導」是刻意的：手寫的放行清單會腐爛，而且腐爛的方向永遠是「放太寬」——沒有人會
+第三道那個「從宣告推導」是刻意的：手寫的放行清單會腐爛，而且腐爛的方向永遠是「放太寬」，沒有人會
 在移除一個相依之後回來收窄它。從宣告推導之後，「出貨產物 import 的東西」與「`package.json` 說它相依
 的東西」被綁成同一件事，而 frond 兩者皆空，所以規則對它讀作「一個 bare specifier 都不行」。
 
@@ -94,7 +94,7 @@ FROND_BOOKS=/path/to/books npm run scan:books -w @yurenju/frond -- tests/browser
 ```
 
 書由 `FROND_BOOKS` **唯讀掛進**測試容器（掛在 repo 根目錄的 `tests/books/commercial`，已 gitignore），
-不進 build context 也不落在 repo 樹裡——那些書有版權（ADR-0007）。
+不進 build context 也不落在 repo 樹裡，那些書有版權（ADR-0007）。
 
 這一趟的產出是**病症清單，不是紅綠燈**：找到的每一項要各自變成一份合成 fixture 與一組測試，回歸才
 守得住。上一次跑的結果與它抓到的三個病記在 ADR-0007 的〈第三層跑過一趟了〉。掃描用的 spec 是一次性
@@ -102,7 +102,7 @@ FROND_BOOKS=/path/to/books npm run scan:books -w @yurenju/frond -- tests/browser
 
 ## fixture 的位元組是釘死的
 
-`determinism.test.ts` 與 `committed-fixtures.test.ts` 在守。任何會進到產出物裡的字串都不能改——改了
+`determinism.test.ts` 與 `committed-fixtures.test.ts` 在守。任何會進到產出物裡的字串都不能改，改了
 整批幾何數字會漂，而漂動的原因與程式碼無關。改完跑一次 `npx vitest run --project frond` 就看得出來。
 
 CJK 在這裡常常**不是可以翻譯的文字而是資料**（fixture 的日文散文、`lang` 屬性、註解裡為了說明字形而

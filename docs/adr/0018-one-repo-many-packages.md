@@ -16,7 +16,7 @@ spine 是 monorepo，package 放在 `packages/` 底下，用 **npm workspaces**�
 `site`（行銷首頁、定價頁、`legal/`）**是預留的位置，還沒建立**。
 
 **不上 turbo／nx。** `Dockerfile` 的測試映像與 CI 都走 `npm ci`，workspaces 不改那個動詞；package
-只有兩三個，而 turbo 買的是「幾十個 package 的相依圖與快取」。要付的是一份新的設定檔、一個新的
+只有兩三個，而 turbo 換到的是「幾十個 package 的相依圖與快取」。要付的是一份新的設定檔、一個新的
 build 概念，還有一層跟 CI 之間的距離。
 
 **根目錄的 script 一律轉給 package**（`"build": "npm run build:frond && npm run build -w app"`）。

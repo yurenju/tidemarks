@@ -11,7 +11,7 @@ frond 的原始碼搬進 spine 的 monorepo（舊 repo 的 #110 之後的
 這裡。
 
 **MIT 授權沒有跟著收掉**：`packages/frond/LICENSE` 還在，它涵蓋 0.4.15 以前發出去的每一份。選 MIT
-的理由也還在——frond 直接取用 foliate 上游 `tests/epubcfi-tests.js` 的 280 行測試向量當 CFI 驗收表，
+的理由也還在，frond 直接取用 foliate 上游 `tests/epubcfi-tests.js` 的 280 行測試向量當 CFI 驗收表，
 而那是實際的程式碼取用，MIT 對 MIT 最乾淨。
 
 ## 為什麼
@@ -21,7 +21,7 @@ frond 的原始碼搬進 spine 的 monorepo（舊 repo 的 #110 之後的
 暫時塞進 Dockerfile 再還原、跑完再還原回去。
 
 換到的是什麼？frond 建立於 2026-07-25，兩週半，發了 20 個版本，**外部使用者實質是零**。獨立
-repo 買的「別人讀得到、別人裝得到」現在沒有買家。
+repo 換到的「別人讀得到、別人裝得到」現在沒有人要。
 
 先前的顧慮是「搬進 private repo 等於把一個已經公開的東西收回去」。那句話是對的，但它衡量的是一個
 沒有人在用的東西，而 [ADR-0009](0009-open-source-buys-an-exit-not-contributions.md) 已經判過同類

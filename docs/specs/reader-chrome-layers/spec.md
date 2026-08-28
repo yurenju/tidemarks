@@ -3,7 +3,7 @@
 兩件事，同一條 bar：讓 chrome 在視覺上是**另一層**，以及讓手機上的 Scrubber 離開**系統手勢區**。
 
 > **2026-08-22：底下寫的顏色與陰影已經不算數了。** 視覺方向換成 Indigo Dye，`--accent` 改名
-> `--tide`（而且從綠變藍），`--shadow-*` 整組移除——「浮起來」現在由表面階數說。版面、尺寸與
+> `--tide`（而且從綠變藍），`--shadow-*` 整組移除，「浮起來」現在由表面階數說。版面、尺寸與
 > 行為那幾段不受影響。值的正本在 `packages/app/src/index.css`，規則在
 > [docs/design-system.md](../../design-system.md)，理由在
 > [ADR-0022](../../adr/0022-the-interface-is-a-print-shop.md)。
@@ -35,7 +35,7 @@
 | Scrubber thumb 外圈的環 | `--surface-page` | `--surface-raised` |
 | `:focus-visible` 的暈 | `--surface-page` 寫死 | `var(--halo, var(--surface-page))`，三條 bar 自己設 `--halo` |
 
-兩個都是**洞，不是顏色**——它們靠的是跟背後那張紙同色。留著舊值的話會在較深的 bar 上畫出一圈淺色
+兩個都是**洞，不是顏色**，它們靠的是跟背後那張紙同色。留著舊值的話會在較深的 bar 上畫出一圈淺色
 光暈，而焦點暈那一個踩在全 app 最常被鍵盤走到的四顆按鈕上。兩個都不在 accessibility tree 裡，
 只有量得出來。
 
@@ -59,7 +59,7 @@ Scrubber 在上，章節名在下。
 ```
 
 **桌機手機一致。** 順序分兩套的話，日後每次動這條 bar 都要想兩遍；而桌機把章節名放在軸下面也
-說得通——軸是主角，章節名是它現在指到哪的註解。
+說得通，軸是主角，章節名是它現在指到哪的註解。
 
 **章節名置中。** 兩個理由：
 
@@ -68,7 +68,7 @@ Scrubber 在上，章節名在下。
 2. 對調之後它是 running head，不是一行標題，而印刷書的頁眉本來就置中。
 
 **已知的代價，接受：** `.reader-chapter` 有 `text-overflow: ellipsis`，文字塞滿時置中沒有效果。
-所以短章節名會置中、長章節名看起來靠左——對齊方式隨章節名長度變動。兩種狀態都可讀，而且沒有
+所以短章節名會置中、長章節名看起來靠左，對齊方式隨章節名長度變動。兩種狀態都可讀，而且沒有
 第三種。
 
 DOM 順序就是視覺順序，**不用 CSS 的 `order`**：`order` 會讓 tab 與螢幕閱讀器的次序跟看到的不
@@ -81,7 +81,7 @@ DOM 順序就是視覺順序，**不用 CSS 的 `order`**：`order` 會讓 tab �
 
 原本是整個元素不 render，兩個後果：
 
-1. bar 少一行，rail 從 56px 掉回 29px——**又回到手勢帶裡**。第三節整套做法在封面上等於沒做。
+1. bar 少一行，rail 從 56px 掉回 29px，**又回到手勢帶裡**。第三節整套做法在封面上等於沒做。
 2. 讀者從封面翻進第一章的那一下，bar 突然長高、**rail 在拇指底下跳位**，而那正是他們正要伸手去
    碰它的時刻。
 
@@ -92,7 +92,7 @@ DOM 順序就是視覺順序，**不用 CSS 的 `order`**：`order` 會讓 tab �
 ### 問題
 
 Android 與 iOS 的螢幕下緣都是系統的手勢區（切換視窗、回主畫面）。**Android 的
-`setSystemGestureExclusionRects` 只對左右邊有效，底邊排除不掉**——不是調參數能解的，只能把控制項
+`setSystemGestureExclusionRects` 只對左右邊有效，底邊排除不掉**，不是調參數能解的，只能把控制項
 移上去。
 
 在瀏覽器分頁裡，瀏覽器自己的工具列擋在下面，等於白送一段緩衝。**PWA `display: standalone` 底下
@@ -112,7 +112,7 @@ Android 與 iOS 的螢幕下緣都是系統的手勢區（切換視窗、回主�
 
 ### 做法
 
-**兩件事各買一半：**
+**兩件事各換到一半：**
 
 1. **對調**（第二節）把 rail 從整條 bar 的底部換到頂部，中線抬到約 40px。
 2. **保底底部內距** `--chrome-bottom-safe`，掛在 `@media (any-pointer: coarse)`，值 12px。
@@ -123,9 +123,9 @@ Android 與 iOS 的螢幕下緣都是系統的手勢區（切換視窗、回主�
 
 ### 明確不做：`viewport-fit=cover`
 
-開了 `viewport-fit=cover`，iOS 就**不再自動內縮**，頂列會跑到瀏海／動態島底下——變成上下都要
+開了 `viewport-fit=cover`，iOS 就**不再自動內縮**，頂列會跑到瀏海／動態島底下，變成上下都要
 處理。不開的話 `env(safe-area-inset-bottom)` 在 iOS 回傳 0，而 iOS 本來就已經內縮了，12px 的
-固定內距剛好是缺的那段視覺呼吸空間；Android 的手勢帶本來就不在 viewport 裡，缺的也是同一段。
+固定內距剛好是缺的那段留白；Android 的手勢帶本來就不在 viewport 裡，缺的也是同一段。
 
 所以這一輪**不引入 `env()`**，只加固定內距。要走到 edge-to-edge 是另一支 issue，那時候頂列、
 `背景色`、橫放三件事要一起處理。
@@ -166,7 +166,7 @@ manifest 裡的 `theme_color` / `background_color` 字面值**留著**，值不�
 ### 底列變高，`--chrome-slide` 就要跟著長
 
 **這一條是測試找出來的，不是設計出來的。** `--chrome-slide` 是 8rem，而底列加了
-`--chrome-bottom-safe` 之後，站在它上面、走同一段距離的 entries 停在畫面內 6px——收起來的時候書上
+`--chrome-bottom-safe` 之後，站在它上面、走同一段距離的 entries 停在畫面內 6px，收起來的時候書上
 留著一條 bar 的邊。兩家引擎的 `hand-held.spec.ts`〈sends the entries back to the bottom edge〉同時
 紅。
 

@@ -15,13 +15,13 @@ WebAuthn 的 **RP ID 一律由部署的人自己填**（build variable `CF_RP_ID
 ## 這個問題原本從哪裡來
 
 原本的提案是相反的：`RP_ID` 沒設定的時候，從 request 的 host 推導出來。那個提案有一個具體的
-使用者——按下 Deploy to Cloudflare 按鈕自己架一份的人。按鈕會幫他開好 D1、R2、KV，把 id 寫回
+使用者：按下 Deploy to Cloudflare 按鈕自己架一份的人。按鈕會幫他開好 D1、R2、KV，把 id 寫回
 他那份設定檔，但它處理不了 `RP_ID`；而按鈕部署出來的網址是 `<worker-name>.workers.dev`，
 看起來要等部署完才知道。他填不了，於是 [ADR-0009](0009-open-source-buys-an-exit-not-contributions.md)
 要換到的那個退路，會在最後一步斷掉。
 
 **那個使用者不存在了。** [#8](https://github.com/yurenju/tidemarks/issues/8) 把部署路徑統一成
-「一律從 Workers Builds 的 build variables 產生設定」之後，資源 id 根本不進設定檔——而「自動
+「一律從 Workers Builds 的 build variables 產生設定」之後，資源 id 根本不進設定檔，而「自動
 開資源並把 id 寫回設定檔」正是按鈕唯一要解決的事。按鈕那條路因此在
 [#3](https://github.com/yurenju/tidemarks/issues/3) 被放棄了。
 
@@ -44,16 +44,16 @@ passkey 綁在哪個網域上。今天 Cloudflare 的路由讓這個集合剛好
 別人的實作細節上，是那種出事的時候完全無法補救的安排。**
 
 **而且它會把安靜的失敗換一個入口放回來。** 無狀態的推導表示這個值會跟著 host 走：自架的人先在
-`workers.dev` 上註冊了 passkey，之後買了網域接上去，兩個網址都還活著——從新網域登入，passkey
+`workers.dev` 上註冊了 passkey，之後買了網域接上去，兩個網址都還活著，從新網域登入，passkey
 找不到；從舊網址登入，又可以。這正是原本的提案要消滅的那種錯，只是從「部署時填錯」搬到了
 「換網域的那一天」，而那一天已經有資料了。
 
 要壓住這件事就得把推導出來的值存起來、用過一次就釘住，於是多一張表、多一條「我要換網域怎麼辦」
-的重設流程——為了省掉 dashboard 上的一格輸入框。這個交換不划算。
+的重設流程，為了省掉 dashboard 上的一格輸入框。這個交換不划算。
 
 ## 代替方案：比對，不綁定
 
-不推導，填錯的代價還在。而填錯的樣子很難查，這是原本的提案講對的地方——只是症狀跟它寫的不一樣：
+不推導，填錯的代價還在。而填錯的樣子很難查，這是原本的提案講對的地方，只是症狀跟它寫的不一樣：
 
 - **值填成別人那台的**（照著文件複製貼上最容易發生）→ WebAuthn 規定送給瀏覽器的 RP ID 必須是
   當下這個網域、或它的上層可註冊網域，所以瀏覽器在 `navigator.credentials.create()` 就擋下來，
@@ -61,7 +61,7 @@ passkey 綁在哪個網域上。今天 Cloudflare 的路由讓這個集合剛好
 - **值整個沒設** → `expectedRPID` 與 `expectedOrigin` 是 undefined，驗證那一步丟錯，畫面上出現
   一句「驗證失敗」。
 
-兩種都是當場壞，不是安靜地壞——但兩種的訊息都看不出這是設定問題。所以 Worker 在 passkey 的入口
+兩種都是當場壞，不是安靜地壞，但兩種的訊息都看不出這是設定問題。所以 Worker 在 passkey 的入口
 自己比一次：`env.RP_ID` 跟這次請求實際的 hostname 對不上，就直接回一句「這台的 RP_ID 設成 X，
 你現在連的是 Y」。
 
@@ -82,7 +82,7 @@ passkey 綁在哪個網域上。今天 Cloudflare 的路由讓這個集合剛好
 **官方那台的 preview 版本上，passkey 本來就不能用。** 版本預覽的網址是
 `<version>-<worker>.<子網域>.workers.dev`，跟 `RP_ID` 對不起來。這在這份 ADR 之前就已經是事實，
 差別只在於加了比對之後，它從一個莫名其妙的失敗變成一句講清楚的話。要在 preview 上登入就走
-magic code——那條路在 preview 上照樣通。
+magic code，那條路在 preview 上照樣通。
 
 **設定填錯的救援路徑是 magic code。** 對自架的人來說這一句要寫在文件裡：passkey 進不去不等於
 這台壞了，用 email 那道門進去（沒有 Resend 的話，登入碼會印在 `npx wrangler tail` 的輸出裡），
@@ -91,8 +91,8 @@ magic code——那條路在 preview 上照樣通。
 
 ## 什麼情況下會回頭看這份
 
-如果將來真的出現一條「部署的人不可能事先知道自己的 hostname」的路徑——某種一鍵部署、或者
-Cloudflare 改掉 workers.dev 網址的組成方式——那麼這份 ADR 的第一節就失效了，值得重新談。
+如果將來真的出現一條「部署的人不可能事先知道自己的 hostname」的路徑，某種一鍵部署、或者
+Cloudflare 改掉 workers.dev 網址的組成方式，那麼這份 ADR 的第一節就失效了，值得重新談。
 
 但第二節不會失效。真的走到那一步的時候，該做的不是無狀態推導，而是「推導一次、寫進資料庫釘住、
 之後對不上就明確擋下來」，並且為換網域準備一條重設流程。那是另一份 ADR 的事。

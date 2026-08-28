@@ -5,14 +5,14 @@
 ```sh
 npm install                # 安裝相依
 npm run dev                # 開發伺服器
-npm test                   # vitest —— 決策模組的純邏輯，跑在 Node
+npm test                   # vitest：決策模組的純邏輯，跑在 Node
 npm run test:container     # 兩個 runner 都跑（Vitest + 瀏覽器），動到 reader 就跑這個
 npm run build              # 型別檢查 + 產出 dist/
 ```
 
 **一律在根目錄跑。** 這是一個 npm workspaces 的 monorepo，只有一份 lockfile，在某個 package
 底下裝東西會裝出一棵對不上的樹；要指定 package 用 `-w`（`npm install -w app dexie`）。根目錄的
-script 一律轉給 package，這是刻意的——Cloudflare Workers Builds 的設定寫的是根目錄的 npm script，
+script 一律轉給 package，這是刻意的，Cloudflare Workers Builds 的設定寫的是根目錄的 npm script，
 package 佈局怎麼變都不用回頭改它。
 
 `npm install` 順便會把 git 的 `core.hooksPath` 指到 `.githooks/`，那裡的 pre-commit 會對即將
@@ -24,7 +24,7 @@ commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一�
 `npm run typecheck` 會給你 `tsc: not found`，`oxlint` 同理（`npx prettier --check` 反而跑得動）。
 
 ⚠️ **這個錯誤訊息不好認**：npm 把 `tsc: not found` 印在很前面，底下還接著一大段 npm 自己的錯誤，
-所以 `grep "error TS"` 什麼都抓不到——看起來就像「跑過了、沒有型別錯誤」。量到過同一個坑撞三次。
+所以 `grep "error TS"` 什麼都抓不到，看起來就像「跑過了、沒有型別錯誤」。量到過同一個坑撞三次。
 
 最省事的是**回主 checkout 跑**。要在容器裡跑也行，但**得先把映像建到最新**：
 
@@ -33,12 +33,12 @@ IMG="tidemarks-test-$(basename "$PWD")"
 podman build -t "$IMG" . && podman run --rm --init "$IMG" npm run typecheck
 ```
 
-少了 `build` 那一半就沒有意義——`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，
+少了 `build` 那一半就沒有意義，`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，
 不是你剛改的那份。
 
 **映像名為什麼要帶目錄名**：`scripts/container.sh` 的預設就是 `tidemarks-test-<checkout 的目錄名>`，
 一個 checkout 一個。以前所有 checkout 共用 `tidemarks-test` 一個 tag，而 tag 是整台機器共用、
-可以被別人搬走的名字——你建完映像、issue #185 的比對也過了，接著別的 checkout 建同一個名字，
+可以被別人搬走的名字：你建完映像、issue #185 的比對也過了，接著別的 checkout 建同一個名字，
 **你後面那趟測試就跑了別人的 code，而且是綠的**。比對擋不住是因為它驗的是「那個映像的內容」，
 但抓著的把手是一個名字，驗完到開跑之間名字被搬走就沒有東西會發現。
 
@@ -68,7 +68,7 @@ prune 一律不碰有 tag 的，要自己指名 `podman rmi tidemarks-test`。
 `npm test` 蓋純邏輯：方向反轉、TOC 攤平、highlight 裁切、settings 對映。
 
 `npm run test:container` 在容器裡真的開一本真的書翻頁、劃重點、拖 Scrubber。那一層的斷言是**容器裡
-的數字**（字型與引擎版本都固定），所以入口是 `test:container` 而不是 `test:browser`——在 host 上跑出
+的數字**（字型與引擎版本都固定），所以入口是 `test:container` 而不是 `test:browser`，在 host 上跑出
 來的紅綠燈，跟 CI 說的不是同一件事。
 
 **在你的機器上它只跑 Chromium，在 CI 上跑滿 Chromium／Firefox／WebKit 三家**
@@ -102,7 +102,7 @@ frond 是為了 Tidemarks 寫的渲染層，就住在這個 repo 裡。它吐事
 後端：Cloudflare Workers + D1 + R2、[@simplewebauthn](https://simplewebauthn.dev/)（passkey）。
 
 樣式是原生 CSS，住在 `packages/app/src/styles/` 的八個檔案裡，`packages/app/src/index.css` 那份
-`@import` 清單同時就是 cascade——要加規則先讀那份清單挑檔案。理由見
+`@import` 清單同時就是 cascade，要加規則先讀那份清單挑檔案。理由見
 [ADR-0033](adr/0033-styles-stay-plain-css-in-eight-files.md)。
 
 ## 部署

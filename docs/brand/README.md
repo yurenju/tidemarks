@@ -26,7 +26,7 @@ app 自己用的三份不在這裡，它們住在 app 的 `public/`：
 ## ⚠ 為什麼字一定要轉外框
 
 favicon、manifest 的圖示、README 裡的圖，這三種用法瀏覽器都把 SVG 當**獨立圖片**載，
-**載不到頁面的 `@font-face`**。留著 `<text>` 的話，字會退到看圖的人自己機器上的襯線體——
+**載不到頁面的 `@font-face`**。留著 `<text>` 的話，字會退到看圖的人自己機器上的襯線體，
 Mac 上是 Georgia，Linux 上可能什麼都不是。
 
 所以 app 不再自帶 Spectral，它移到了 `source/fonts/`，只給切外框的工具讀。改完設計要重跑：
@@ -35,8 +35,8 @@ Mac 上是 Georgia，Linux 上可能什麼都不是。
 npm i --no-save fontkit && node docs/brand/source/outline.mjs
 ```
 
-那支 script 會覆寫這個目錄的四份 SVG 與 `packages/app/public/favicon.svg`，並印出字標的 `d`
-——**那串還要手動貼進 `Wordmark.tsx`**，它是唯一一份 script 不會去寫的。
+那支 script 會覆寫這個目錄的四份 SVG 與 `packages/app/public/favicon.svg`，並印出字標的 `d`，
+**那串還要手動貼進 `Wordmark.tsx`**，它是唯一一份 script 不會去寫的。
 
 `source/` 底下另外兩份 `apple-touch-icon.svg` 與 `maskable-icon.svg` 只是 PNG 的母檔；
 需要 192／256／1024 等其他尺寸時，開 `source/icon-export.html` 改尺寸後截圖。

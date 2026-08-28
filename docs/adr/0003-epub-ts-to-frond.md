@@ -3,7 +3,7 @@
 日期：2026-07-30。
 
 離開 epub.js 的原因是一個修不好的位置 bug：`display(cfi)` 對得到正確的 section，卻把畫面定位到那個
-section 的第 0 欄，欄位偏移沒被套上——那是 epub.js 多欄分頁的老問題，而它已經沒有人在維護。中間先
+section 的第 0 欄，欄位偏移沒被套上，那是 epub.js 多欄分頁的老問題，而它已經沒有人在維護。中間先
 換過一手同 API 的 TypeScript fork（`@likecoin/epub-ts`）止血，沒有解掉，所以才有這一份。
 
 ## 決定
@@ -11,7 +11,7 @@ section 的第 0 欄，欄位偏移沒被套上——那是 epub.js 多欄分頁
 reader 的渲染層改用 [`@yurenju/frond`](https://github.com/yurenju/frond)（釘死 `0.4.3`）。
 
 frond 是為了這件事寫的：它的 ADR-0002〈frond owns facts, spine owns policy〉整篇的依據，就是
-spine 在 epub.js 上長出來的那半個 `src/lib/`——每一個補丁都指向同一件事，責任該在 library 那邊
+spine 在 epub.js 上長出來的那半個 `src/lib/`，每一個補丁都指向同一件事，責任該在 library 那邊
 卻漏到了應用層。所以這次遷移的主體不是寫新東西，是**刪補丁**。
 
 ## 刪掉了什麼
@@ -37,13 +37,13 @@ spine 在 epub.js 上長出來的那半個 `src/lib/`——每一個補丁都指
 highlight，這是它的決定而不是缺口：顏色、透明度、深色模式怎麼混色、點一下要不要開筆記，全是產品
 決策。它給的是 `rectsFor(cfi)`（container 座標的真實幾何）與 `layout` 事件（那些座標何時失效）。
 於是這一層要自己做三件事：把界外的矩形裁掉（不在當前頁的位置會回傳超出 container 的真座標）、在
-`layout` 與 `relocate` 時重算、以及用 frond 的 `pointerup` 對已畫出的 box 做 hit test——overlay
+`layout` 與 `relocate` 時重算、以及用 frond 的 `pointerup` 對已畫出的 box 做 hit test，overlay
 本身 `pointer-events: none`，否則它會吃掉翻頁的點擊。
 
 ## 順手修掉的 bug
 
 舊 repo 的 #29：refresh 之後位置飄回
-section 開頭。根因是 React effect ordering——先 `display(saved.cfi)` 還原，才套字級／spread／
+section 開頭。根因是 React effect ordering：先 `display(saved.cfi)` 還原，才套字級／spread／
 content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同時收下 `settings` 與
 `start: { cfi }`，載入時只有一次確定性的 layout，之後不再 relayout；settings effect 用
 `appliedRef` 比對，掛載時不重跑。
@@ -57,16 +57,16 @@ content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同
   本來就要丟（spine 還沒開放給其他人用）。這是選這個時機遷的理由之一。
 - **直排＋「書籍預設」字型在 Windows 上的標點**，原本靠 `rewriteGenericFonts` 改寫書的樣式表。那條
   路在 frond 底下不存在（iframe 內的 cascade 只有它進得去），所以改用 frond 0.4.3 新增的
-  `settings.genericFamilies`——由 spine 提供字型堆疊，frond 在書的 cascade 裡代換 bare
+  `settings.genericFamilies`：由 spine 提供字型堆疊，frond 在書的 cascade 裡代換 bare
   `serif`/`sans-serif`。這一項是這次遷移逼出來的 frond 功能（frond#64）。
 - **手機長按選字的頁面漂移**未驗證。epub.js 上要靠 `alignToPage()` 擋，frond 的幾何不同（iframe 只
-  有一個 viewport 大）可能不會重現，但沒有在真機上試過，也沒有辦法在容器裡試——記在 frond#66。
+  有一個 viewport 大）可能不會重現，但沒有在真機上試過，也沒有辦法在容器裡試，記在 frond#66。
 - **WebKit 存不進 Blob**，所以容器裡的 WebKit 跑不了任何需要匯入書的測試，見
   `tests/browser/reader/storage.spec.ts`。與這次遷移無關（三個 byte 的 Blob 就失敗），但可能是真實
   iOS Safari 的曝險，記在 舊 repo 的 #23。
 - **直排本文在草枕那本書上有字符相撞**（登り／働け／立つ 各自畫在同一格），Chromium 與 Firefox 皆有，
   根因未定。frond 已排除（同一段在它的 harness 裡乾淨），而 frond 那本刻意做健康的直排 fixture 在 spine
-  裡 32px 全乾淨——所以是那本書的 markup，不是直排渲染本身。記在
+  裡 32px 全乾淨，所以是那本書的 markup，不是直排渲染本身。記在
   舊 repo 的 #25。
 
 ## 為什麼不是 foliate-js
