@@ -23,6 +23,7 @@ import {
   BOOKS,
   bookCards,
   fakeSync,
+  openChrome,
   openPanel,
   returnToForeground,
   seedProgress,
@@ -127,13 +128,22 @@ async function arrive(
   await settled(page);
 }
 
+/**
+ * The mark the Scrubber wears while a visit is on, found by the name it answers to.
+ *
+ * By role rather than by a testid, and the percentage left open: the name is the whole point of
+ * the control — a mark nobody can name is a mark a screen reader cannot offer — while which
+ * percentage it names is Alice's business, not this file's.
+ */
+const visitMark = (page: Page) => page.getByRole("button", { name: /Back to \d+%/ });
+
 /** Opens the notes panel and presses the passage in it. */
 async function jumpToPassage(page: Page): Promise<void> {
   await openPanel(page, /Notes/);
   await page.getByTestId("panel-notes").getByRole("button", { name: PASSAGE }).click();
 }
 
-test("a visit holds the reader's place, and says nothing about it", async ({ page }) => {
+test("a visit holds the reader's place, and says nothing over the book", async ({ page }) => {
   await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
   await expect.poll(() => storedCfi(page)).not.toBeNull();
   const away = (await storedCfi(page))!;
@@ -146,15 +156,17 @@ test("a visit holds the reader's place, and says nothing about it", async ({ pag
   // exist yet, so a card arriving one render later would sail past an earlier question.
   await settled(page);
 
-  // Silent (ADR-0040): the reader tapped the passage a moment ago, and nothing is at stake in
-  // the way it is for a position that arrived from another device.
+  // No banner (ADR-0041): the reader tapped the passage a moment ago, and nothing is at stake in
+  // the way it is for a position that arrived from another device. What a visit does raise is the
+  // Scrubber's mark, which the test below is about.
   await expect(page.getByTestId("elsewhere")).toBeHidden();
   expect(await storedCfi(page)).toBe(away);
 });
 
 // **〈Stay here〉 during a visit**, which is the one move in the app that carries progress
-// backwards — and, since a visit draws nothing of its own (ADR-0040), the only way to reach it is
-// for a position from another device to arrive while the visit is on.
+// backwards — and the only way to reach it is for a position from another device to arrive while
+// the visit is on. The mark a visit does raise (ADR-0041) is not another way in: it carries the
+// reader forward to the progress being kept, never the progress back to the reader.
 //
 // **What is under test is which of the two rows the button reads.** During a visit they come
 // apart: `positionRef` is what this device claims about the book (chapter three, a hundred pages
@@ -196,6 +208,33 @@ test("during a visit, staying here writes the page the reader is looking at", as
   expect(await storedCfi(page)).not.toBe(offered.cfi);
 });
 
+test("the scrubber marks the progress a visit is holding, and the mark is the way back", async ({
+  page,
+}) => {
+  await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
+  await expect.poll(() => storedCfi(page)).not.toBeNull();
+
+  await jumpToPassage(page);
+
+  // ⚠️ **Wait for the chrome to finish leaving before asking for it back.** Pressing a passage
+  // puts the bars away (`sendChrome({ kind: "jumped" })`), and a bar on its way out is still
+  // `visible` — `visibility` only flips at the end of the slide, on purpose. `openChrome` called
+  // into that window sees a visible bar, clicks nothing, and then waits for a transform that is
+  // travelling the other way.
+  await expect(page.getByTestId("chrome-bottom")).toBeHidden();
+  await openChrome(page);
+
+  // Visible, and named after the place it leads to — the whole of what #110 asked for.
+  await expect(visitMark(page)).toBeVisible();
+
+  // **Pressing it is reading again**, so the visit it belonged to ends and it goes with it. That
+  // is the assertion rather than the CFI it landed on: the mark going away is what tells the
+  // reader their progress is theirs again, and it is only true if the jump really arrived at the
+  // page being defended.
+  await visitMark(page).click();
+  await expect(visitMark(page)).toHaveCount(0);
+});
+
 test("a marked passage on the page in front of the reader is not a visit", async ({ page }) => {
   // **Opened in the middle of a chapter, on the page the mark is on.** The reader has left
   // nothing behind, so pressing it should pass without a word.
@@ -216,6 +255,9 @@ test("a marked passage on the page in front of the reader is not a visit", async
   await jumpToPassage(page);
 
   await expect(page.getByTestId("elsewhere")).toBeHidden();
+  // Nor is there anything to hold, so the Scrubber wears no mark. Counted rather than checked
+  // for visibility, because the chrome is down here and everything in it is hidden anyway.
+  await expect(visitMark(page)).toHaveCount(0);
 
   // Not merely quiet: still reading. A visit entered silently would show up here, as a page
   // turn that never reached the position.

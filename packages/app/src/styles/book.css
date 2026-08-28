@@ -459,6 +459,42 @@ button.selection-handle:active:not(:disabled) {
   left: var(--scrubber-inset);
 }
 
+/* The mark standing at the reader's own place while they are away visiting a passage
+   (`lib/visit.ts`). It floats above the rail rather than sitting on it: everything on the rail
+   is a shade of the same two shapes, and a fourth one there would read as another end cap.
+
+   **Clamped, not merely centred.** `.scrubber` clips horizontally — the thumb has to be stopped
+   from spawning a page-level scrollbar — so a mark centred over 2% would lose its left half to
+   that clip. `clamp()` walks it back inside at the two ends, where being a few pixels off the
+   place it names costs nothing: at 2% there is nowhere else it could be pointing.
+
+   `--visit-mark-half` is that half-width, and it is a guess at the widest this ever gets: `↩ 100%`.
+   A number that has to be one, since the box is centred by transform and CSS cannot ask how
+   wide the text came out. */
+.scrubber-mark {
+  --visit-mark-half: 32px;
+  position: absolute;
+  top: -10px;
+  left: clamp(
+    var(--visit-mark-half),
+    var(--visit-mark-left, 50%),
+    calc(100% - var(--visit-mark-half))
+  );
+  transform: translate(-50%, -50%);
+  /* Out of the way of `controls.css`, which gives every button a finger-sized minimum. A mark
+     the height of the whole bar would sit on the last two lines of the book. The target a
+     finger needs is taken back in `device.css`, where it costs no ink. */
+  min-height: 0;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--line-hair);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--type-eyebrow);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
 .scrubber.disabled {
   opacity: 0.45;
 }
@@ -471,6 +507,10 @@ button.selection-handle:active:not(:disabled) {
 .scrubber-preview {
   position: absolute;
   bottom: 100%;
+  /* Over the visit mark, which stands in the same band and comes later in the markup (it has to,
+     to win a press). A reader dragging back toward their own progress is aiming at the mark, and
+     the bubble naming the percentage they are aiming for must not be the thing it hides. */
+  z-index: 1;
   transform: translateX(-50%);
   margin-bottom: 8px;
   max-width: 70vw;

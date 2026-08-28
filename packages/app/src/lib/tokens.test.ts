@@ -59,6 +59,10 @@ const CSS = IMPORTED.map((path) => read(new URL(path, ENTRY))).join("\n");
 const SET_ONLY_AT_RUNTIME = new Set([
   // `HighlightLayer` — which of the four inks this mark was made in.
   "--mark",
+  // `Scrubber` — where along the rail the visit mark stands. It is a position, so it belongs to
+  // the visit rather than to the sheet; the sheet's job is to clamp it away from the two ends,
+  // which is why the mark reads it through `var()` instead of taking a `left` of its own.
+  "--visit-mark-left",
   // `SelectionLayer` — how far the wash reaches back from a handle's bead, so its stem can be
   // drawn across the colour rather than stopping at the edge of it. A line's width depends on
   // the type the reader set and on the book's own CSS, so the stylesheet cannot hold it.

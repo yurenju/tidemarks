@@ -355,6 +355,21 @@ export default function Reader({
    */
   const visitRef = useRef<Progress | null>(null);
   /**
+   * The same visit again, in the one form the screen can draw from.
+   *
+   * A ref cannot raise a mark on the Scrubber — nothing renders when it changes — so the visit
+   * is held twice, and `setVisit` below is the only writer of either. Two names for one fact is
+   * a thing to be suspicious of; the alternative is worse. `visitRef` is read inside frond's
+   * `relocate`, a callback that closed over its scope pages ago and needs the value as it is
+   * *now*, which is exactly what state cannot give it.
+   */
+  const [visit, setVisitState] = useState<Progress | null>(null);
+  /** Enter a visit, or leave one. Both copies move together or neither does. */
+  const setVisit = (kept: Progress | null) => {
+    visitRef.current = kept;
+    setVisitState(kept);
+  };
+  /**
    * The last position the screen reported, visit or not.
    *
    * Two refs rather than one because a visit splits the question in two: `positionRef` is what
@@ -520,7 +535,7 @@ export default function Reader({
     // A visit belongs to the book it was made in. Left standing, the next book would open with
     // the last one's page as the progress it was defending, and nothing in it would ever be
     // written.
-    visitRef.current = null;
+    setVisit(null);
     screenRef.current = null;
     setIndexed(false);
     setFraction(0);
@@ -1174,7 +1189,7 @@ export default function Reader({
       // describes whichever device and window last read this book, which is close enough for
       // the question being asked — whether the passage is somewhere the reader had got to.
       if (openAt !== undefined && saved !== undefined && entersVisit(saved.pageRange, openAt)) {
-        visitRef.current = saved;
+        setVisit(saved);
       }
 
       const anns = await readAnnotations(bookId);
@@ -1268,14 +1283,14 @@ export default function Reader({
             // not that claim (`lib/visit.ts`). Turning pages around the passage lands here
             // too, and is refused for the same reason.
             //
-            // **Ending one takes nothing off the screen**, because a visit never put anything
-            // there (ADR-0040). A banner standing at this moment arrived from another device
-            // while the visit was on, and it is an offer nobody has answered — reading on is not
-            // an answer to it.
+            // **Ending one takes nothing off the book**: all a visit puts on screen is the
+            // Scrubber's mark (ADR-0041), which goes when `visit` does, one line below. A banner
+            // standing at this moment arrived from another device while the visit was on, and it
+            // is an offer nobody has answered — reading on is not an answer to it.
             const kept = visitRef.current;
             if (kept !== null) {
               if (!leavesVisit(kept, position)) return;
-              visitRef.current = null;
+              setVisit(null);
             }
 
             // Under the same gate: a visit is not ground covered, and counting the minutes
@@ -1636,8 +1651,9 @@ export default function Reader({
    * The progress being defended still comes from `positionRef`: it is the whole row, and it is
    * what a `relocate` has to be measured against to say the visit is over.
    *
-   * **Nothing is drawn.** A visit is silent by design (ADR-0040) — the reader tapped the
-   * passage a moment ago and knows how they got here.
+   * **Nothing is drawn over the book.** All a visit raises is the mark on the Scrubber
+   * (ADR-0041), and that is the whole of what the reader is told: they tapped the passage a
+   * moment ago and know how they got here.
    */
   const visitPassage = (target: string) => {
     // A second passage during a visit is still the same visit. What is being kept is where the
@@ -1652,7 +1668,7 @@ export default function Reader({
     // never been read, and there is no progress to lose there.
     if (here === null || at === undefined) return;
     if (!entersVisit(at.pageRange ?? null, target)) return;
-    visitRef.current = here;
+    setVisit(here);
   };
 
   /**
@@ -1666,7 +1682,7 @@ export default function Reader({
    */
   const goElsewhere = () => {
     if (elsewhere === null) return;
-    visitRef.current = null;
+    setVisit(null);
     void rendererRef.current?.goToCfi(elsewhere.position.cfi);
     setElsewhere(null);
   };
@@ -1680,8 +1696,9 @@ export default function Reader({
    * here has to be a write, and it is the same write a page turn makes.
    *
    * **It ends a visit too, and that is the one move that carries progress backwards** — the
-   * only one left in the app now that a visit puts nothing on screen to press (ADR-0040), and
-   * it is only reachable while a banner from another device happens to be standing. The rule
+   * only one left in the app, since the one thing a visit does put on screen carries the reader
+   * forward to their progress rather than the progress back to them (ADR-0041). It is only
+   * reachable while a banner from another device happens to be standing. The rule
    * during a visit is that progress only goes forward (`lib/visit.ts`), which is a rule about
    * what happens on its own; a reader who presses this has said where they are, and being told
    * "no, you are still a hundred pages on" is the button doing nothing.
@@ -1695,7 +1712,7 @@ export default function Reader({
     if (here === null) return;
     const now = Date.now();
     const kept = { ...here, lastReadAt: now, dirtyAt: now };
-    visitRef.current = null;
+    setVisit(null);
     positionRef.current = kept;
     screenRef.current = kept;
     recordPosition(kept);
@@ -2041,7 +2058,8 @@ export default function Reader({
 
             **One source: a position that arrived from another device** (`lib/elsewhere.ts`).
             Going back to a marked passage moves the reader too, and it used to raise this same
-            banner — it does not any more (ADR-0040). The two look alike and are not: the
+            banner — it marks the Scrubber instead now (ADR-0041). The two look alike and are
+            not: the
             position from another device is unanswered and would be overwritten by the next page
             turn, while a visit is the reader's own tap a moment ago with nothing at stake.
 
@@ -2133,6 +2151,19 @@ export default function Reader({
             }}
             chapterStarts={chapterStarts}
             onCommit={(f) => void renderer?.goToFraction(f)}
+            markAt={visit?.percentage}
+            /* **The CFI, not the fraction the mark is drawn at.** A fraction is rounded to a
+               page boundary on the way in — measured: a mark standing at 47% landed at 43% —
+               and the reader pressing this is asking for the page they left, not for a page
+               four per cent away from it. It is the same jump 〈Go there〉 makes, for the same
+               reason.
+
+               Nothing here ends the visit: arriving is what ends it. The `relocate` this
+               causes reaches the gate above with a position at or past what is being kept, and
+               `leavesVisit` says so (`lib/visit.ts`). */
+            onMarkPress={() => {
+              if (visit !== null) void renderer?.goToCfi(visit.cfi);
+            }}
           />
           {/* **The row is always here; the words are not.** Saying nothing when there is nothing
               to say still holds — a cover

@@ -34,6 +34,24 @@
     opacity: 1;
   }
 
+  /* The visit mark keeps its size and grows its target instead — a pill the height of a thumb
+     would stand two lines deep into the book, and it is a note about where the reader is, not
+     the thing they came to press. The area is centred on the pill and reaches down across the
+     rail, which is why the mark is the last child of `.scrubber`: the two overlap there, and
+     the later one takes the press. What that costs is a thumb's width of rail that is dead to a
+     drag — the track never sees the press, so the rail does not follow the finger there at all;
+     a reader who meant the rail lifts and lands a few pixels over. The other way round is worse:
+     a mark that starts a drag instead of taking the reader home. */
+  .scrubber-mark::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, var(--tap-min));
+    height: var(--tap-min);
+  }
+
   /* The entries are what a thumb aims at here, so they take the full target back. */
   .chrome-nav button {
     min-height: var(--tap-min);

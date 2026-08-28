@@ -1,5 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
 import { keyToFraction, pointerToFraction, scrubberGeometry, snapToChapter } from "../lib/scrubber";
 
@@ -23,6 +23,17 @@ interface ScrubberProps {
    */
   chapterStarts: readonly number[];
   onCommit: (fraction: number) => void;
+  /**
+   * The reader's own place in the book while they are somewhere else — a visit's kept progress
+   * as a whole-book fraction, or `undefined` when they are simply reading (`lib/visit.ts`).
+   *
+   * Drawn as a mark on the rail, which is the only thing on screen saying "what you are looking
+   * at is not where you had got to". The jump back is the parent's, because the fraction is a
+   * rendering of that progress and not the progress itself: pressing this has to land on the
+   * page the reader left, not on the page this many percent along.
+   */
+  markAt?: number;
+  onMarkPress?: () => void;
 }
 
 export default function Scrubber({
@@ -32,6 +43,8 @@ export default function Scrubber({
   chapterFor,
   chapterStarts,
   onCommit,
+  markAt,
+  onMarkPress,
 }: ScrubberProps) {
   const { t } = useLingui();
   const trackRef = useRef<HTMLDivElement>(null);
@@ -118,6 +131,12 @@ export default function Scrubber({
   const shown = preview ?? fraction;
   const geo = scrubberGeometry(shown, 1, rtl); // width = 1 → geometry in 0..1 (as %)
   const pct = Math.round(shown * 100);
+  // The visit's mark, or nothing to draw. Resolved once so the percentage cannot be asked
+  // for when there is no visit to ask about.
+  const mark =
+    markAt === undefined
+      ? null
+      : { pct: Math.round(markAt * 100), x: railPos(scrubberGeometry(markAt, 1, rtl).thumbX) };
   const chapter = preview !== null ? chapterFor(preview) : null;
 
   return (
@@ -169,6 +188,34 @@ export default function Scrubber({
         <span className="scrubber-cap scrubber-cap-tail" aria-hidden />
         <div className="scrubber-thumb" style={{ left: railPos(geo.thumbX) }} />
       </div>
+      {/* The reader's own place, while they are away from it.
+
+          **Outside the track, and after it.** Outside because the track clips what it holds and
+          this stands above the rail; after because the two overlap where a finger lands — the
+          mark's target reaches down into the rail (`device.css`), and whichever comes last wins
+          the press. A mark that started a drag instead of taking the reader home would be worse
+          than no mark.
+
+          **Disabled rather than absent while the index is being built.** That is the minute
+          straight after the jump, when the reader most needs telling that their place is being
+          held — but the book has no whole-book geometry yet, so there is nowhere to jump to. */}
+      {mark !== null && (
+        <button
+          className="scrubber-mark"
+          /* A variable rather than `left`, because the CSS has to clamp it away from the two
+             ends where the bar clips — and an inline `left` would win over the clamp. */
+          style={{ "--visit-mark-left": mark.x } as CSSProperties}
+          onClick={onMarkPress}
+          disabled={disabled}
+          aria-label={t({
+            message: `Back to ${mark.pct}%`,
+            comment:
+              "Screen-reader name for the mark on the scrubber standing at the place the reader had read to, while they are back visiting a passage somewhere else. Pressing it takes them to that place. The value is a whole number. Longer than the words printed on it, which are only the number: what a glance gets from the mark's position on the rail has to be said out loud here.",
+          })}
+        >
+          <span aria-hidden>↩</span> {mark.pct}%
+        </button>
+      )}
     </div>
   );
 }
