@@ -3,7 +3,7 @@
 // platform. Only a browser substitutes a `var()` chain and paints it; that the tokens the chain
 // names exist at all is checked statically in src/lib/tokens.test.ts.
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, openBook, openChrome } from "../support/library.js";
+import { BOOKS, openBook, openChrome, PAGE_FRAME } from "../support/library.js";
 
 /**
  * chrome as a layer: one step off the book, in both themes, and the same step reported to the
@@ -91,18 +91,69 @@ test("cuts the focus halo out of the bar the button is standing on", async ({ pa
 });
 
 /**
- * The token resolves, which is not free: `--surface-raised` is defined as `var(--paper-250)`, so
- * anything reading it back gets a resolved colour only because custom properties substitute at
- * computed-value time. `App.tsx` depends on exactly that to keep the platform's bar colour out of
- * TypeScript — if it ever stopped being true, the meta tag would quietly carry the literal string
- * "var(--paper-250)" and nobody would see it from inside the app.
+ * The platform's own bar takes the colour of whatever is directly under it, which is a different
+ * surface in each of the reader's two resting states.
+ *
+ * The token resolving is not free: `--surface-raised` is defined as another custom property, so
+ * anything reading it back gets a colour only because custom properties substitute at
+ * computed-value time. `App.tsx` depends on exactly that to keep these colours out of TypeScript
+ * — if it ever stopped being true, the meta tag would quietly carry the literal string
+ * "var(--paper-100)" and nobody would see it from inside the app.
  */
-test("hands the platform the chrome's own colour rather than the book's", async ({ page }) => {
-  const seen = await surfaces(page);
+test("hands the platform whatever surface reaches the top edge", async ({ page }) => {
+  const down = await surfaces(page);
 
-  expect(seen.raised).toMatch(/^#[0-9a-f]{6}$/i);
-  expect(seen.themeColor.toLowerCase()).toBe(seen.raised.toLowerCase());
-  expect(seen.themeColor.toLowerCase()).not.toBe(seen.page.toLowerCase());
+  // 〈讀〉: no bar up there, so the top edge is the page itself. This is the half that used to be
+  // wrong — a lit strip of the chrome's surface hanging over a book with no chrome in it.
+  expect(down.page).toMatch(/^#[0-9a-f]{6}$/i);
+  expect(down.themeColor.toLowerCase()).toBe(down.page.toLowerCase());
+
+  await openChrome(page);
+  const up = await surfaces(page);
+
+  expect(up.raised).toMatch(/^#[0-9a-f]{6}$/i);
+  expect(up.themeColor.toLowerCase()).toBe(up.raised.toLowerCase());
+  expect(up.themeColor.toLowerCase()).not.toBe(up.page.toLowerCase());
+});
+
+/**
+ * The book's paper and the frame around it are one surface.
+ *
+ * Only a browser can say this. `src/lib/tokens.test.ts` holds the value `settings.ts` hands frond
+ * against the one `tokens.css` declares, which proves the two *numbers* agree; it cannot prove
+ * frond then paints with it. The paper is drawn inside frond's iframe from a value that travelled
+ * as a value, and every step between that value and the pixel is out here.
+ *
+ * The failure it catches is the one this test was written for: the dark theme sent a near-black
+ * of its own, so the book sat on a mat a shade off itself, all the way round.
+ *
+ * **The dark theme only**, though both send a paper now. The two would fail in the same place —
+ * one value, one route to the iframe — so a light copy would be the same proposition run again,
+ * at three engines apiece (docs/agents/testing.md). Dark is the half that used to be wrong, and
+ * the half whose value is not what the page defaults to.
+ */
+test("paints the book's paper in the same colour as the frame around it", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+
+  // Polled, because the two surfaces are repainted by different machinery and not together:
+  // `.viewer-wrap` follows the stylesheet the moment the root's theme flips, while the paper
+  // needs frond to rebuild the document from the settings `Reader` hands it. Read once and this
+  // catches the frame mid-rebuild — either holding the old paper, or not there at all.
+  // Both colours in one string so a failure names them rather than saying `false`.
+  await expect
+    .poll(async () =>
+      page.evaluate((selector) => {
+        // `.at(-1)`, as everything else that reaches into frond does: a rebuild leaves the
+        // outgoing page mounted for a moment, and the first match is the one on its way out.
+        const frame = [...document.querySelectorAll<HTMLIFrameElement>(selector)].at(-1);
+        const inside = frame?.contentDocument?.documentElement;
+        const wrap = getComputedStyle(document.querySelector(".viewer-wrap")!).backgroundColor;
+        const paper =
+          inside === undefined ? "no page frame" : getComputedStyle(inside).backgroundColor;
+        return `paper ${paper} / frame ${wrap}`;
+      }, PAGE_FRAME),
+    )
+    .toMatch(/^paper (rgba?\([^)]*\)) \/ frame \1$/);
 });
 
 test("carries the layer, and the platform's bar, into the dark theme", async ({ page }) => {

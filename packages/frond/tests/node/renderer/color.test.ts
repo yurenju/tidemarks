@@ -162,9 +162,10 @@ describe("adapting the book's colour to the reader's page", () => {
   });
 
   test("a light theme darkens rather than lightens, and reaches the same bar", () => {
-    // Nothing in the rule assumes the reader's page is dark. Tidemarks sets no theme at all in
-    // light mode, so this is unused today, but a rule that only worked one way round would
-    // be a trap the day it is.
+    // Nothing in the rule assumes the reader's page is dark, and this stopped being
+    // hypothetical: Tidemarks sends a theme under both, so a light page is a page books are
+    // actually being repaired against. It was written while that was still a rule working only
+    // one way round, against the day it would not be.
     const light = colorTheme("#1b1b1e", "#ffffff")!;
     expect(adaptColor("#000000", light)).toBeUndefined();
     expect(contrastAfter("#ffff00", light)).toBeGreaterThanOrEqual(4.5);

@@ -136,6 +136,13 @@ Android 與 iOS 的螢幕下緣都是系統的手勢區（切換視窗、回主�
 
 系統列在視覺上是頂列的延伸，同色才不會多出一條無意義的接縫。
 
+> ⚠️ **2026-08-28 起這一節與底下的驗收條件改了一半。** 「同色才不會多出接縫」沒變，變的是**跟誰
+> 同色**：這一節寫死成頂列，但〈讀〉的時候沒有頂列，系統列底下直接是書頁，於是那條 bar 變成一條
+> 懸空的亮帶。現在的規則是**跟著 chrome 狀態走**——〈找〉是 `--surface-raised`，〈讀〉與書架、
+> 設定畫面都是 `--surface-page`。第五節那條「`theme-color` 等於解析後的 `--surface-raised`」的
+> 驗收條件因此拆成兩半，`chrome-layers.spec.ts` 兩個狀態各驗一次。`index.html` 那個字面值也一起
+> 換成 `--surface-page`：script 跑之前畫面上還沒有任何東西，更不會有 chrome。
+
 manifest 裡的 `theme_color` / `background_color` 字面值**留著**，值不變：manifest 在任何 CSS
 之前就被讀，它是安裝時與啟動畫面的 fallback，不是執行期的正本。
 

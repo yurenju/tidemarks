@@ -91,11 +91,14 @@ export function contrastRatio(a: Rgb, b: Rgb): number {
  *    the reader's theme exists to take it over. The two thresholds are measured, not
  *    chosen: in the sample no colour at all sits between lightness 0.225 and 0.290, and
  *    the 361 declarations below that gap are all black, `#333`, `#231815` and the like.
- *    **Only the dark end has a threshold**, and that asymmetry is deliberate: a near-white
- *    only ever fails against a light page, and Tidemarks sets no theme at all in light mode,
- *    so the mirrored constant would be answering a case nobody has measured. On a light
- *    theme a book's white text therefore comes out a mid grey by case 4 rather than the
- *    reader's ink. Readable, and the day a light theme exists this is the line to revisit.
+ *    **Only the dark end has a threshold**, and there is now a case it does not answer.
+ *    A near-white only ever fails against a light page; when this was written Tidemarks sent
+ *    no theme in light mode, so no light page existed and the mirrored constant would have
+ *    been answering nothing. Tidemarks now sends one under both themes, so a book's white
+ *    text does reach this — and comes out a mid grey by case 4 rather than the reader's ink.
+ *    Readable, and left that way on purpose: the two constants above are measurements over 34
+ *    books, and a third picked to match them would be a guess wearing their clothes. The
+ *    sample to mirror them against has not been taken.
  * 4. **Everything else keeps its hue and saturation and only has its lightness moved**,
  *    just far enough to clear the bar. A book's `#0000FF` sesame dots stay blue; replacing
  *    them with the reader's ink would trade "cannot see it" for "cannot tell it apart".

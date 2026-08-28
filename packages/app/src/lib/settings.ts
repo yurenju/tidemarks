@@ -346,10 +346,62 @@ export function saveSettings(settings: ReaderSettings) {
   }
 }
 
-// Dark-mode ink and paper. Light mode deliberately has no theme at all: the book's own
-// colours are left alone, which is what the reader gets today and what frond's authority
-// order calls "no setting means no intervention".
-const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f8" };
+/**
+ * The ink and paper a book is set in, one pair per theme.
+ *
+ * **The background is `--surface-page` restated**, and that is the whole point: the paper under
+ * the words and the frame around the reader are one surface, so a book fills the screen instead
+ * of sitting on a mat a shade off itself. The dark theme used to send a near-black of its own
+ * and drew exactly that mat.
+ *
+ * **Both themes send a pair, and light mode is the new one.** It used to send nothing — "no
+ * setting means no intervention" — which meant one of the two themes was governed by a
+ * different rule from the other, and that is what this ends.
+ *
+ * ⚠️ **On the books to hand, that consistency is bought rather than earned.** A survey of 25
+ * books measured both halves of it:
+ *
+ * - **What it was meant to fix does not occur.** Not one of the 25 declares a background on
+ *   `html` or `body`, so in light mode the book's paper was already transparent and the app's
+ *   own already showed through. The mat this change removes was never a book's doing — it was
+ *   the dark theme quoting a near-black of its own instead of `--surface-page`, which the
+ *   background above fixes on its own.
+ * - **What it costs is real.** A theme makes every element inside the book transparent, not
+ *   just the one carrying the page: 20 of the 25 declare a background colour somewhere and 7
+ *   actually apply one — content boxes, grey table cells, a tinted callout. Walking 60 pages of
+ *   one of them counted 139 filled elements before and 0 after.
+ *
+ * Sent anyway, and the reason is the first paragraph rather than the second: **two themes under
+ * one rule is worth more than those boxes.** A reader picking a theme is saying how they read,
+ * not how this book should look (ADR-0026); the dark theme has paid this since frond ADR-0014;
+ * and the sample is 25 books, not the world — the day one arrives with a paper of its own,
+ * light mode already handles it.
+ *
+ * ⚠️ **The place to fix the boxes is frond, not here.** Its rule flattens everything because the
+ * alternative is a decision nobody has made — how far a book's pale grey should move to sit on
+ * the reader's paper rather than merely vanish into it (`renderer/settings.ts`). Narrow that and
+ * both themes get their boxes back; drop this pair and only light does, at the price of the two
+ * themes disagreeing again.
+ *
+ * Text is the opposite bargain and worth not confusing with it: a book's own colours **survive**
+ * wherever they still clear 4.5 : 1 against this paper, and only the ones that fail are moved.
+ * 190 of 951 declarations across 34 books were left exactly as written (frond ADR-0014).
+ *
+ * ⚠️ **Four of these six are copies of a token**, for the reason `SELECTION_WASH` below is: a
+ * name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
+ * value. All three light values are copies — `--text-body`, `--surface-page`, `--tide` — and so
+ * is the dark background. `lib/tokens.test.ts` holds each of the four against the stylesheet,
+ * which is the only thing that can: a copy nobody checks is a pair of colours waiting to differ.
+ *
+ * The dark pair's **ink and link are not copies and are not meant to be**. They are older than
+ * the tokens: `#d8d5cf` is a warmer white than `--text-body` resolves to at night, and `#8ab4f8`
+ * is the blue a link is expected to be rather than the interface's own. Moving either would
+ * change how the book reads, which is a different question from where the book ends.
+ */
+export const BOOK_THEMES = {
+  light: { foreground: "#232833", background: "#f4eee2", link: "#2e4a75" },
+  dark: { foreground: "#d8d5cf", background: "#16202b", link: "#8ab4f8" },
+} as const;
 
 /**
  * What a native selection is painted with inside the book, per theme.
@@ -357,12 +409,12 @@ const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f
  * ⚠️ **These are `--selection-wash` restated**, and the two have to be changed together.
  * Nothing enforces it, and nothing can: `::selection` matches only inside the document holding
  * the text, and that document is frond's iframe — a token in `styles/tokens.css` never reaches
- * it. So the value has to travel as a value, the same way `DARK_THEME` above does.
+ * it. So the value has to travel as a value, the same way `BOOK_THEMES` above does.
  *
- * **Sent under both themes, unlike the theme itself.** Light mode deliberately hands frond no
- * theme (the book keeps its own colours), but the browser's default selection blue is not one
- * of the book's colours — it is the browser's, and it fills in the counters of Han characters
- * at any hour of the day (#52).
+ * **Its own pair rather than a fourth field on the theme**, because it answers a different
+ * question. A theme says what the book is set in; this says what a selection looks like over
+ * it, and the browser's default blue — which is what would be there otherwise — fills in the
+ * counters of Han characters at any hour of the day (#52).
  *
  * On touch this is never seen: native selection is off there and the wash is drawn by
  * `SelectionLayer` from the token itself (ADR-0036). The one value covers both so that the two
@@ -450,7 +502,7 @@ export function frondSettings(
     // is set tighter than that, and frond skips it outright when the reader has chosen a line
     // height — every rung the panel offers already leaves more than 6px.
     minimumInkGap: MARK_CLEARANCE + WAVE_THICKNESS + 1.3,
-    theme: theme === "dark" ? DARK_THEME : undefined,
+    theme: BOOK_THEMES[theme],
     selectionBackground: SELECTION_WASH[theme],
     genericFamilies: {
       serif: stack("serif"),

@@ -21,7 +21,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { SELECTION_WASH } from "./settings";
+import { BOOK_THEMES, SELECTION_WASH } from "./settings";
 
 // **Read from disk, not through Vite.** `import CSS from "../index.css?raw"` looks tidier and
 // hands back an **empty string**: Vitest stubs stylesheet imports unless `css: true`, and
@@ -137,7 +137,8 @@ describe("the stylesheet's custom properties", () => {
   });
 
   /**
-   * The one token that exists twice, and the only thing standing between the two copies.
+   * The selection wash, first of the values that exist twice, and the only thing standing
+   * between its two copies.
    *
    * `::selection` matches inside the document holding the text, and that document is frond's
    * iframe — so the selection colour cannot reach the book as a token and travels as a value
@@ -156,5 +157,44 @@ describe("the stylesheet's custom properties", () => {
       SELECTION_WASH.light.replaceAll(/\s+/g, ""),
     );
     expect(value(dark)).toBe(SELECTION_WASH.dark.replaceAll(/\s+/g, ""));
+  });
+
+  /**
+   * The other copies, four of them, and the one a reader would see as a rectangle.
+   *
+   * The book is drawn by frond inside its iframe and everything around it by the stylesheet out
+   * here, so the colours the two share cannot share a token — they travel as values
+   * (`settings.ts`'s `BOOK_THEMES`). Let the paper differ and the book stops filling the screen:
+   * it sits on a mat a shade off itself, which is what the dark theme did until they were made
+   * equal. The other three are quieter but the same kind of wrong — a book's ink a step off the
+   * interface's, on the same screen, for no stated reason.
+   *
+   * **Only the four that are meant to be copies.** The dark theme's own ink and link are older
+   * than the tokens and deliberately not tokens; `settings.ts` says why, and asserting them here
+   * would be writing down a coincidence.
+   *
+   * ⚠️ **These names are aliases**, so this resolves one hop (`var(--paper-200)` → the
+   * primitive) before comparing. One hop is all the sheet uses, and following an arbitrary chain
+   * here would be reimplementing the cascade to check four values.
+   */
+  test("the colours frond is handed are the ones the stylesheet draws", () => {
+    const dark = darkRootBlock(CSS);
+    const light = CSS.slice(0, CSS.indexOf(dark));
+
+    // The primitives are declared once, in the light `:root`, and never restated — so a name a
+    // theme block points at is resolved against that block rather than against the whole sheet,
+    // which would find whichever declaration came first.
+    const primitives = light;
+    const resolve = (block: string, name: string) => {
+      const alias = new RegExp(`${name}:\\s*([^;]+);`).exec(block)?.[1]?.trim();
+      const named = /^var\(\s*(--[\w-]+)\s*\)$/.exec(alias ?? "")?.[1];
+      if (named === undefined) return alias;
+      return new RegExp(`${named}:\\s*([^;]+);`).exec(primitives)?.[1]?.trim();
+    };
+
+    expect(resolve(light, "--text-body")).toBe(BOOK_THEMES.light.foreground);
+    expect(resolve(light, "--surface-page")).toBe(BOOK_THEMES.light.background);
+    expect(resolve(light, "--tide")).toBe(BOOK_THEMES.light.link);
+    expect(resolve(dark, "--surface-page")).toBe(BOOK_THEMES.dark.background);
   });
 });

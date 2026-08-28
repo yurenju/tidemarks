@@ -278,6 +278,7 @@ export default function Reader({
   onSettingChange,
   onResetSettings,
   resolvedTheme,
+  onChromeChange,
 }: {
   bookId: string;
   /**
@@ -301,6 +302,12 @@ export default function Reader({
   onSettingChange: (patch: Partial<ReaderSettings>) => void;
   onResetSettings: () => void;
   resolvedTheme: "light" | "dark";
+  /**
+   * Says whether the chrome is standing, so the platform's system bar can take the colour of
+   * whatever is under it (`App.tsx`). Reported rather than read from here because that colour
+   * has to have one writer, and on every other screen the answer is `false`.
+   */
+  onChromeChange: (up: boolean) => void;
 }) {
   const { t, i18n } = useLingui();
   const mountRef = useRef<HTMLDivElement>(null);
@@ -336,6 +343,12 @@ export default function Reader({
   const [chromeState, setChromeState] = useState(initialChrome);
   const { chrome, panelKind, editing: editingId } = chromeState;
   const chromeUp = chrome !== "down";
+  // Told upward so the system bar can match what is under it, and told on the way out too: a
+  // reader who leaves a book with the chrome up is going back to a shelf that has no chrome.
+  useEffect(() => {
+    onChromeChange(chromeUp);
+    return () => onChromeChange(false);
+  }, [chromeUp, onChromeChange]);
   /** Hands one event to the chrome machine. */
   const sendChrome = (event: ChromeEvent) => setChromeState((now) => nextChrome(now, event));
   /**
