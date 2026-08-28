@@ -4,15 +4,16 @@
 //
 // Only for the class of bug the pure ones structurally cannot see: a column that does not exist
 // in the schema, a `bind()` list that has drifted out of step with its `?N` placeholders, a
-// `WHERE` whose edge is off by one row, and a handler reporting on the clock rather than on the
+// `WHERE` whose edge is off by one row, a handler reporting on the clock rather than on the
 // rows it just loaded (`cursor.ts` decides the value; only a real query can show which rows it
-// was given). All three typecheck cleanly and all three fail in
+// was given), and an `UPDATE` that changes a row without stamping it, which no device is ever
+// told about. Every one of them typechecks cleanly and every one of them fails in
 // production. The first two carry the three
 // columns #129 added, because a reading speed the device measured and the server silently
 // dropped would look exactly like a reader who never read anything.
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Progress, ReadingSession } from "../src/lib/types";
+import type { Progress, ReadingSession, SyncBook } from "../src/lib/types";
 
 const USER = "u-sync";
 const SESSION = "session-sync";
@@ -270,5 +271,44 @@ describe("sync", () => {
     });
     const body = (await pulled.json()) as { annotations: { lastShownAt: number | null }[] };
     expect(body.annotations[0]!.lastShownAt).toBeNull();
+  });
+
+  // A cover reaches the server in a second write: the push creates the book row and stamps it,
+  // then `PUT /cover` fills in `cover_key`. `hasCover` rides on that column, so a device that
+  // pulled between the two has already been told this book has no cover — and unless the upload
+  // moves `updated_at` too, that row never appears in one of its pulls again. The shelf keeps a
+  // blank frame until something else writes the book.
+  //
+  // **The book row goes straight to D1** with a time of our choosing rather than through a push,
+  // whose stamp would be a clock reading a millisecond or two from the upload's own. The two
+  // landing in the same millisecond would drop the row on `updated_at > ?` for a reason this
+  // test is not about.
+  it("sends the book row again once its cover lands", async () => {
+    const { DB } = testEnv();
+    await DB.prepare(
+      `INSERT INTO books (id, user_id, title, author, added_at, r2_key, cover_key, client_updated_at, updated_at, deleted_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, ?6, ?7, NULL)`,
+    )
+      .bind(BOOK, USER, "草枕", "夏目漱石", 1, 1, 1000)
+      .run();
+
+    const first = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const before = (await first.json()) as { cursor: number; books: SyncBook[] };
+    expect(before.books.map((b) => b.hasCover)).toEqual([false]);
+
+    const uploaded = await SELF.fetch(`https://tidemarks.test/api/books/${BOOK}/cover`, {
+      method: "PUT",
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+      body: "cover-bytes",
+    });
+    expect(uploaded.status).toBe(200);
+
+    const second = await SELF.fetch(`https://tidemarks.test/api/sync?since=${before.cursor}`, {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const after = (await second.json()) as { books: SyncBook[] };
+    expect(after.books.map((b) => [b.id, b.hasCover])).toEqual([[BOOK, true]]);
   });
 });
