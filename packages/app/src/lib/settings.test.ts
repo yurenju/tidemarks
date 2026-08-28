@@ -268,11 +268,14 @@ describe("frondSettings", () => {
     expect(frondSettings({ ...base, lineHeight: 1.8 }, context).lineHeight).toBe(1.8);
   });
 
-  it("only sets a theme for dark mode", () => {
-    // Light mode leaves the book's own colours alone, which is what the reader gets today.
-    expect(frondSettings(base, context).theme).toBeUndefined();
+  it("sets a theme under both themes, papered like the frame around the book", () => {
+    // The paper is the app's own `--surface-page`, so the book fills the reader instead of
+    // sitting on a mat a shade off itself. `tokens.test.ts` is what holds these two values
+    // against the stylesheet; this only asks that both themes send one at all — light mode
+    // used to send nothing, and a book that declared its own paper drew the mat.
+    expect(frondSettings(base, context).theme).toMatchObject({ background: "#f4eee2" });
     expect(frondSettings(base, { ...context, theme: "dark" }).theme).toMatchObject({
-      background: "#1b1b1e",
+      background: "#16202b",
     });
   });
 });

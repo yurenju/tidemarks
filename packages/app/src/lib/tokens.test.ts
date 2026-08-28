@@ -21,7 +21,7 @@
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { SELECTION_WASH } from "./settings";
+import { SELECTION_WASH, THEME_PAPER } from "./settings";
 
 // **Read from disk, not through Vite.** `import CSS from "../index.css?raw"` looks tidier and
 // hands back an **empty string**: Vitest stubs stylesheet imports unless `css: true`, and
@@ -152,5 +152,34 @@ describe("the stylesheet's custom properties", () => {
       SELECTION_WASH.light.replaceAll(/\s+/g, ""),
     );
     expect(value(dark)).toBe(SELECTION_WASH.dark.replaceAll(/\s+/g, ""));
+  });
+
+  /**
+   * The second pair of copies, and the one the reader would see as a rectangle.
+   *
+   * The paper under the book is drawn by frond inside its iframe and the frame around it by
+   * `body` out here, so the two cannot share a token — the paper travels as a value
+   * (`settings.ts`'s `THEMES`). Let them differ and the book stops filling the screen: it sits
+   * on a mat a shade off itself, which is what the dark theme did until they were made equal.
+   *
+   * ⚠️ **`--surface-page` is an alias**, so this resolves one hop (`var(--paper-200)` → the
+   * primitive) before comparing. One hop is all the sheet uses, and following an arbitrary
+   * chain here would be reimplementing the cascade to check one value.
+   */
+  test("the paper frond is handed is the paper the stylesheet draws", () => {
+    const dark = darkRootBlock(CSS);
+    const light = CSS.slice(0, CSS.indexOf(dark));
+
+    // Both themes name the primitive from their own block, so each is resolved against the
+    // whole sheet — the primitives are declared once, in the light `:root`, and never restated.
+    const paper = (block: string) => {
+      const alias = /--surface-page:\s*([^;]+);/.exec(block)?.[1]?.trim();
+      const named = /^var\(\s*(--[\w-]+)\s*\)$/.exec(alias ?? "")?.[1];
+      if (named === undefined) return alias;
+      return new RegExp(`${named}:\\s*([^;]+);`).exec(CSS)?.[1]?.trim();
+    };
+
+    expect(paper(light)).toBe(THEME_PAPER.light);
+    expect(paper(dark)).toBe(THEME_PAPER.dark);
   });
 });

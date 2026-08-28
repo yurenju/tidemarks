@@ -69,23 +69,45 @@ export default function App() {
     if (openAt !== null && openAt.bookId !== bookId) setOpenAt(null);
   }, [bookId, openAt]);
 
+  /**
+   * Whether the reader's chrome is standing up, reported by `Reader` so this file can colour
+   * the system bar to match whatever is under it. `false` on every other screen.
+   *
+   * Held here rather than read where it lives because the effect below has to be **one**
+   * writer: React runs a child's effects before its parent's, so a `Reader` that wrote the tag
+   * itself would be overwritten by this one on every theme change — and overwritten with the
+   * shelf's answer.
+   */
+  const [chromeUp, setChromeUp] = useState(false);
+
   // The theme, and the one piece of it that lives outside the stylesheet: the colour the
-  // platform paints its own system bar in. That bar sits directly above the reader's top bar,
-  // so it takes the chrome's surface — the same step off the page the bars themselves take
-  // (ADR-0028) — and the seam between the two disappears.
+  // platform paints its own system bar in.
+  //
+  // **It takes the colour of whatever is directly under it**, which is what ADR-0028 asked for
+  // and what makes the seam disappear. Under 〈找〉 that is the reader's top bar, one step off
+  // the page; under 〈讀〉 and on every other screen there is no bar there, and the surface that
+  // reaches the top edge is the page itself. The bar used to be `--surface-raised` in all three,
+  // which left a lit strip hanging over a book with nothing beneath it to belong to.
+  //
+  // ⚠️ **This is a state changing a colour, which `styles/reader.css` deliberately does not do
+  // for anything inside the window** — a page that changes tone every time the chrome is tapped
+  // is a page that flickers. The system bar is the exception on two counts: it is outside the
+  // window, and the platform swaps it instantly, so there is no half-beat where one surface has
+  // arrived and its neighbour has not.
   //
   // Read back out of the cascade rather than restated here. `dataset.theme` is set first and
-  // `getComputedStyle` forces the recalc, so the value returned is the one the bars are about
-  // to be drawn in. A literal in this file would be a second copy of a token, and the copy that
-  // gets forgotten is always the one outside the stylesheet.
+  // `getComputedStyle` forces the recalc, so the value returned is the one about to be drawn.
+  // A literal in this file would be a second copy of a token, and the copy that gets forgotten
+  // is always the one outside the stylesheet.
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = resolvedTheme;
 
-    const surface = getComputedStyle(root).getPropertyValue("--surface-raised").trim();
+    const token = chromeUp ? "--surface-raised" : "--surface-page";
+    const surface = getComputedStyle(root).getPropertyValue(token).trim();
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta && surface) meta.setAttribute("content", surface);
-  }, [resolvedTheme]);
+  }, [resolvedTheme, chromeUp]);
 
   // A drawer standing over the shelf locks the shelf, so a flick meant for the drawer does not
   // scroll the covers behind it. On the root element rather than on `<body>`: the root is the
@@ -242,6 +264,7 @@ export default function App() {
           onSettingChange={changeSetting}
           onResetSettings={resetSettings}
           resolvedTheme={resolvedTheme}
+          onChromeChange={setChromeUp}
         />
       ) : (
         <Library

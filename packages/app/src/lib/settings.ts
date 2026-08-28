@@ -346,10 +346,46 @@ export function saveSettings(settings: ReaderSettings) {
   }
 }
 
-// Dark-mode ink and paper. Light mode deliberately has no theme at all: the book's own
-// colours are left alone, which is what the reader gets today and what frond's authority
-// order calls "no setting means no intervention".
-const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f8" };
+/**
+ * The ink and paper a book is set in, one pair per theme.
+ *
+ * **The background is `--surface-page` restated**, and that is the whole point: the paper under
+ * the words and the frame around the reader are one surface, so a book fills the screen instead
+ * of sitting on a mat a shade off itself. The dark theme used to send a near-black of its own
+ * and drew exactly that mat.
+ *
+ * **Both themes send a pair.** Light mode used to send nothing — "no setting means no
+ * intervention" — and got away with it only because most books declare no background and let
+ * the app's paper show through. A book that declares its own draws the mat again, in the theme
+ * where it is hardest to notice and hardest to explain.
+ *
+ * ⚠️ Sending a pair in light mode turns on frond's colour repair there for the first time
+ * (frond ADR-0014). Two things follow, both wanted:
+ *
+ * - A book's own colours are **kept** wherever they still clear 4.5 : 1 against this paper, and
+ *   only the ones that fail are moved. The repair is not a repaint.
+ * - A book that chose a paper of its own — an off-white meant to read as aged stock — **loses
+ *   it**. That is the trade, and it is the same one the dark theme has always made: a reader
+ *   picking a theme is saying how they read, not how this book should look (ADR-0026).
+ *
+ * The dark pair's ink and link are older than the tokens and stay as they are: `#d8d5cf` is a
+ * warmer white than `--text-body` resolves to at night, and changing it would be a change to
+ * how the book reads rather than to where the book ends.
+ *
+ * ⚠️ **The two backgrounds are copies of a token**, for the reason `SELECTION_WASH` below is:
+ * a name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
+ * value. `lib/tokens.test.ts` compares the two, which is the only thing that can.
+ */
+const BOOK_THEMES = {
+  light: { foreground: "#232833", background: "#f4eee2", link: "#2e4a75" },
+  dark: { foreground: "#d8d5cf", background: "#16202b", link: "#8ab4f8" },
+} as const;
+
+/** The paper each theme hands frond, for `lib/tokens.test.ts` to hold against the stylesheet. */
+export const THEME_PAPER = {
+  light: BOOK_THEMES.light.background,
+  dark: BOOK_THEMES.dark.background,
+};
 
 /**
  * What a native selection is painted with inside the book, per theme.
@@ -357,12 +393,12 @@ const DARK_THEME = { foreground: "#d8d5cf", background: "#1b1b1e", link: "#8ab4f
  * ⚠️ **These are `--selection-wash` restated**, and the two have to be changed together.
  * Nothing enforces it, and nothing can: `::selection` matches only inside the document holding
  * the text, and that document is frond's iframe — a token in `styles/tokens.css` never reaches
- * it. So the value has to travel as a value, the same way `DARK_THEME` above does.
+ * it. So the value has to travel as a value, the same way `BOOK_THEMES` above does.
  *
- * **Sent under both themes, unlike the theme itself.** Light mode deliberately hands frond no
- * theme (the book keeps its own colours), but the browser's default selection blue is not one
- * of the book's colours — it is the browser's, and it fills in the counters of Han characters
- * at any hour of the day (#52).
+ * **Its own pair rather than a fourth field on the theme**, because it answers a different
+ * question. A theme says what the book is set in; this says what a selection looks like over
+ * it, and the browser's default blue — which is what would be there otherwise — fills in the
+ * counters of Han characters at any hour of the day (#52).
  *
  * On touch this is never seen: native selection is off there and the wash is drawn by
  * `SelectionLayer` from the token itself (ADR-0036). The one value covers both so that the two
@@ -450,7 +486,7 @@ export function frondSettings(
     // is set tighter than that, and frond skips it outright when the reader has chosen a line
     // height — every rung the panel offers already leaves more than 6px.
     minimumInkGap: MARK_CLEARANCE + WAVE_THICKNESS + 1.3,
-    theme: theme === "dark" ? DARK_THEME : undefined,
+    theme: BOOK_THEMES[theme],
     selectionBackground: SELECTION_WASH[theme],
     genericFamilies: {
       serif: stack("serif"),

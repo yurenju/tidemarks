@@ -51,9 +51,23 @@
 
 /* One scrollbar for the page and a permanent gutter for it. Without the gutter, opening a
    drawer (which locks the page) takes the scrollbar away and the whole shelf jumps sideways by
-   its width — a layout shift the reader reads as the interface flinching. */
+   its width — a layout shift the reader reads as the interface flinching.
+
+   **Only where something scrolls**, which is the shelf and the settings screen. The reader is a
+   fixed box with the book paginated inside it (`styles/reader.css`) and never scrolls at all,
+   so the lane there is reserved against a scrollbar that cannot appear — and it is reserved
+   *outside* `<body>`, so everything in the window stops short of the right edge. What that
+   looks like is the chrome's top bar ending a finger's width early, with a strip of page colour
+   between it and the frame. Nothing is misaligned; the window is simply narrower than it looks.
+
+   `:has()` rather than a flag set from `App.tsx`, because the question is exactly "is the
+   reader on screen" and the DOM already answers it. */
 html {
   scrollbar-gutter: stable;
+}
+
+html:has(.reader) {
+  scrollbar-gutter: auto;
 }
 
 /* Set by `App.tsx` while a drawer is up. */
