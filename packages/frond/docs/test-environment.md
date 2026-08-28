@@ -4,7 +4,7 @@ frond 的測試一律在容器內執行，**CI 與本機共用同一個映像**�
 
 這不是 CI 的附屬設定，而是跨瀏覽器自我差分能否成立的物理前提（ADR-0004）。差分的 oracle 是 frond 自己：同一本書、同一 viewport、同一組設定在 Chromium / Firefox / WebKit 各跑一次互比，差異即紅燈。若三個環境解析到不同的系統字型，比對出的差異會 100% 是字型差異，真正的 bug 會被埋掉。
 
-同樣的道理讓本機不能直接跑在開發者自己的作業系統上——那會製造「本機綠、CI 紅」這類最消耗人的落差，而落差的原因藏在字型層，極難查。
+同樣的道理讓本機不能直接跑在開發者自己的作業系統上，那會製造「本機綠、CI 紅」這類最消耗人的落差，而落差的原因藏在字型層，極難查。
 
 ## 怎麼跑
 
@@ -24,9 +24,9 @@ frond 的測試一律在容器內執行，**CI 與本機共用同一個映像**�
 
 ADR-0009 把測試切成兩個 runner：`EpubBook` 與其周邊的純 TypeScript 用 **Vitest** 跑 Node（`tests/node/`），`Renderer` 用 **Playwright** 跑三家瀏覽器（`tests/browser/`）。腳本兩個都跑，Node 那半邊先。
 
-Node 測試不依賴字型或瀏覽器，照理可以直接跑在開發者的作業系統上——`npx vitest run --project frond` 就是那條捷徑，寫產生器或解析層時值得用。但**「測試全綠」這句話只有一個入口**：CI 與本機都跑同一支腳本、同一個映像、同一組版本。多開一個只在某一邊生效的入口，就是「本機綠、CI 紅」的第一步。
+Node 測試不依賴字型或瀏覽器，照理可以直接跑在開發者的作業系統上：`npx vitest run --project frond` 就是那條捷徑，寫產生器或解析層時值得用。但**「測試全綠」這句話只有一個入口**：CI 與本機都跑同一支腳本、同一個映像、同一組版本。多開一個只在某一邊生效的入口，就是「本機綠、CI 紅」的第一步。
 
-Node 先跑的理由是它蓋的東西被瀏覽器那半邊依賴——例如合成 fixture 的結構。fixture 壞掉時先看到「這不是一本合規的書」，比先看到三家瀏覽器一起紅要好查得多。
+Node 先跑的理由是它蓋的東西被瀏覽器那半邊依賴：例如合成 fixture 的結構。fixture 壞掉時先看到「這不是一本合規的書」，比先看到三家瀏覽器一起紅要好查得多。
 
 ### 本機不會有瀏覽器執行檔，那是設計
 
@@ -38,7 +38,7 @@ Node 先跑的理由是它蓋的東西被瀏覽器那半邊依賴——例如合
 browserType.launch: Executable doesn't exist at ~/.cache/ms-playwright/chromium_headless_shell-.../chrome-headless-shell
 ```
 
-**這個訊息讀起來像「這台機器沒辦法跑瀏覽器測試」，那是錯的**——它只是說「你不在容器裡」。與上面 daemon 那一格同理，往「環境缺東西」的方向查會走遠，而這一格的代價更高：daemon 連不上會擋住你，這一格不會——它只是讓整批瀏覽器測試被略過，而**略過不會有任何東西變紅**。
+**這個訊息讀起來像「這台機器沒辦法跑瀏覽器測試」，那是錯的**，它只是說「你不在容器裡」。與上面 daemon 那一格同理，往「環境缺東西」的方向查會走遠，而這一格的代價更高：daemon 連不上會擋住你，這一格不會，它只是讓整批瀏覽器測試被略過，而**略過不會有任何東西變紅**。
 
 入口是 monorepo 根目錄的 `./scripts/test-in-container.sh`（`npm run test:container`）。要縮小範圍就把參數傳給它，例如 `npm run test:container -- --project=webkit`。它會跑三個 vitest project、frond 的瀏覽器測試，然後 app 的。
 
@@ -48,7 +48,7 @@ browserType.launch: Executable doesn't exist at ~/.cache/ms-playwright/chromium_
 
 ## 需要先裝什麼
 
-要求是**跑測試不需要 root 等價的權限**，而**podman 是達到它最短的一條路**——非 root 使用者跑它本來就是 rootless，沒有收尾設定、沒有 daemon 要顧、沒有 client 要指去哪裡，而且吃同一份 Dockerfile、產出 OCI 映像。`scripts/container.sh` 因此以 podman 為第一順位：預設該給那個**沒辦法被設定成 rootful** 的引擎。
+要求是**跑測試不需要 root 等價的權限**，而**podman 是達到它最短的一條路**：非 root 使用者跑它本來就是 rootless，沒有收尾設定、沒有 daemon 要顧、沒有 client 要指去哪裡，而且吃同一份 Dockerfile、產出 OCI 映像。`scripts/container.sh` 因此以 podman 為第一順位：預設該給那個**沒辦法被設定成 rootful** 的引擎。
 
 ```bash
 apt-get install -y podman uidmap fuse-overlayfs passt slirp4netns
@@ -60,7 +60,7 @@ rootless podman 需要 `/etc/subuid` 與 `/etc/subgid` 內有該使用者的從�
 dev:100000:65536
 ```
 
-沒有那個範圍是 podman 跑不動最常見的原因。`container.sh` 連不上引擎時會照引擎分別給建議，podman 那條指的就是這裡——它沒有 daemon 可以「沒起來」，所以往「服務掛了」的方向查是白費力氣。
+沒有那個範圍是 podman 跑不動最常見的原因。`container.sh` 連不上引擎時會照引擎分別給建議，podman 那條指的就是這裡，它沒有 daemon 可以「沒起來」，所以往「服務掛了」的方向查是白費力氣。
 
 ### rootless docker 是 fallback
 
@@ -72,11 +72,11 @@ dockerd-rootless-setuptool.sh install
 
 它讓出第一順位的理由不是不安全，是**要付兩樣東西**：上面那一行安裝步驟，以及下一節那個安裝步驟不會提醒你的坑。podman 兩樣都不用付。
 
-被排除的是 **rootful** docker，不是 docker。rootful 那種的代價有兩層：socket 等同 host root，要用它就得把使用者加進 `docker` 群組，那等於給出對整台機器的讀寫權；而且 dockerd 會自行往 netfilter 插 NAT 與 `DOCKER-USER` 鏈，順序在既有的過濾規則之前，出口管制若有設定就需要重做——做錯的失敗模式是靜默放行。這兩層在 rootless 底下都不存在。
+被排除的是 **rootful** docker，不是 docker。rootful 那種的代價有兩層：socket 等同 host root，要用它就得把使用者加進 `docker` 群組，那等於給出對整台機器的讀寫權；而且 dockerd 會自行往 netfilter 插 NAT 與 `DOCKER-USER` 鏈，順序在既有的過濾規則之前，出口管制若有設定就需要重做，做錯的失敗模式是靜默放行。這兩層在 rootless 底下都不存在。
 
-`container.sh` 不靠引擎的名字去猜這件事，它問 daemon（`docker info` 的 `SecurityOptions` 會列出 `name=rootless`），rootful 就印警告。警告而不中斷：rootful docker 上測試照樣跑得完，跑到一半去重設一台機器的引擎不是測試腳本的事——但也不該悶著不說。CI 裡不印，那裡的 runner 跑完一份工作就丟掉，這個問題買不到東西。
+`container.sh` 不靠引擎的名字去猜這件事，它問 daemon（`docker info` 的 `SecurityOptions` 會列出 `name=rootless`），rootful 就印警告。警告而不中斷：rootful docker 上測試照樣跑得完，跑到一半去重設一台機器的引擎不是測試腳本的事，但也不該悶著不說。CI 裡不印，那裡的 runner 跑完一份工作就丟掉，這個問題換不到東西。
 
-**這個檢查只問 docker**，不是因為相信 podman 的名字——上一段的重點正是名字不算證據——而是因為沒有 rootful podman 要抓：非 root 使用者跑它就是映射到從屬 UID 範圍，它只有這一種模式。
+**這個檢查只問 docker**，不是因為相信 podman 的名字（上一段的重點正是名字不算證據），而是因為沒有 rootful podman 要抓：非 root 使用者跑它就是映射到從屬 UID 範圍，它只有這一種模式。
 
 兩個引擎都在時要指定哪一個，用 `TIDEMARKS_CONTAINER_ENGINE=docker`（或 `=podman`）。CI 就是這樣釘的，而且**那個釘子是必要的而不是保險**：GitHub runner 兩個引擎都有，但它的 podman 跟旁邊的 crun 對 OCI spec 版本認知不合，`podman build` 會在每個 `RUN` 真正執行之前就死在 `unknown version specified`。順序改成 podman 優先之後，CI 少了那一行就會落在壞掉的那個引擎上。
 
@@ -90,26 +90,26 @@ dockerd-rootless-setuptool.sh install
 failed to connect to the docker API at unix:///var/run/docker.sock: ... no such file or directory
 ```
 
-這個訊息讀起來像「沒裝 docker」或「daemon 沒起來」，兩個猜測都是錯的，而往那兩個方向查會浪費很多時間——這正是它值得寫在這裡的原因。接上 client：
+這個訊息讀起來像「沒裝 docker」或「daemon 沒起來」，兩個猜測都是錯的，而往那兩個方向查會浪費很多時間，這正是它值得寫在這裡的原因。接上 client：
 
 ```bash
 docker context create rootless --docker host=unix://$XDG_RUNTIME_DIR/docker.sock
 docker context use rootless
 ```
 
-context 已經存在時 `create` 會回非零（`context "rootless" already exists`），接著那行 `use` 仍然有效。要寫成腳本的話用 `docker context create … || docker context update …`，並且讓 CLI 自己建——`~/.docker/config.json` 裡的 `currentContext` 需要 `~/.docker/contexts/meta/` 底下對應的 metadata，只塞前者的話每一個 docker 指令都會硬失敗（`context not found`）。
+context 已經存在時 `create` 會回非零（`context "rootless" already exists`），接著那行 `use` 仍然有效。要寫成腳本的話用 `docker context create … || docker context update …`，並且讓 CLI 自己建：`~/.docker/config.json` 裡的 `currentContext` 需要 `~/.docker/contexts/meta/` 底下對應的 metadata，只塞前者的話每一個 docker 指令都會硬失敗（`context not found`）。
 
 選定的 context 記在 `~/.docker/config.json`，**跟 shell 的種類無關**：任何 shell 的 docker CLI 都讀它，重開機也還在，而且對所有會呼叫 docker 的工具生效，不只測試腳本。
 
-`DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock` 看起來等效，其實補不到這個洞。環境變數要靠 shell 的 startup file 帶進來，而**非 login、非互動的 bash 不讀任何 startup file**——測試腳本就跑在那種 shell 裡。放進 `/etc/profile.d/` 也一樣，那只到得了 login shell。
+`DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock` 看起來等效，其實補不到這個洞。環境變數要靠 shell 的 startup file 帶進來，而**非 login、非互動的 bash 不讀任何 startup file**，測試腳本就跑在那種 shell 裡。放進 `/etc/profile.d/` 也一樣，那只到得了 login shell。
 
-兩個都設的時候 **`DOCKER_HOST` 會蓋掉 context**（此時 `docker context show` 回 `default`）。這會長出一個很難查的不對稱：人在互動 shell 裡看 docker 是好的，agent 或 CI 在非 login shell 裡卻連不上。照這一節修好之後**要在跟出問題那個 shell 同一種的 shell 裡驗**——在互動 shell 裡驗，驗到的是 `DOCKER_HOST` 那條路，不是你剛設的 context。
+兩個都設的時候 **`DOCKER_HOST` 會蓋掉 context**（此時 `docker context show` 回 `default`）。這會長出一個很難查的不對稱：人在互動 shell 裡看 docker 是好的，agent 或 CI 在非 login shell 裡卻連不上。照這一節修好之後**要在跟出問題那個 shell 同一種的 shell 裡驗**，在互動 shell 裡驗，驗到的是 `DOCKER_HOST` 那條路，不是你剛設的 context。
 
 `scripts/test-in-container.sh` 在動手 build 之前會先確認 daemon 連得到，連不到時就把上面這兩行印出來。它**只診斷不代打**：socket 位置屬於容器引擎的設定，腳本自己去猜會把設錯的機器靜默修好，於是沒有人知道它是錯的。
 
 ## 映像 build 需要的出口網域
 
-如果環境有出口白名單，build 需要以下網域。runtime 不需要網路——所有測試頁面都由 `page.setContent` 供給，腳本因此以 `--network=none` 執行測試。
+如果環境有出口白名單，build 需要以下網域。runtime 不需要網路，所有測試頁面都由 `page.setContent` 供給，腳本因此以 `--network=none` 執行測試。
 
 | 網域 | 用途 |
 | --- | --- |
@@ -126,7 +126,7 @@ context 已經存在時 `create` 會回非零（`context "rootless" already exis
 
 映像的 `RUN` 步驟跑在容器自己的 network namespace，**那裡的 `127.0.0.1` 是容器的 loopback，不是外面的 proxy**。若 proxy 設在 `127.0.0.1` 上而不處理，`apt-get` 與 `npm ci` 會直接連不出去，而且錯誤訊息看起來像網域被擋。
 
-`scripts/test-in-container.sh` **刻意不處理這件事**——proxy 屬於容器引擎的設定，不是測試腳本的責任。
+`scripts/test-in-container.sh` **刻意不處理這件事**，proxy 屬於容器引擎的設定，不是測試腳本的責任。
 
 直覺的做法是把外面的 `HTTPS_PROXY` 用 `--build-arg` 傳進去，但那正是上一段講的坑：傳進去的 `127.0.0.1` 在容器裡指向容器自己，只會把引擎本來設對的值蓋掉，讓 `apt-get` 撞上 connection refused。腳本自己去猜，也會把一台設錯的機器靜默修好，於是沒有人知道它是錯的（同 daemon preflight 那條「只診斷不代打」的理由）。
 
@@ -148,7 +148,7 @@ CJK 字型統一使用 **Noto CJK**（`fonts-noto-cjk`），繁體中文、簡�
 
 ### 一個家族不等於一個字面
 
-因為漢字統一，「骨」「直」這類共用碼位在 TC / SC / JP 有不同字形，Noto CJK 的 OTC 內實際裝著 `Noto Serif CJK TC` / `SC` / `JP` 等多個字面。取到哪一個取決於字面選擇，而字面選擇通常由文件的 `lang` 加上 fontconfig 的語言比對決定——**那正是三家瀏覽器可能各做各的地方**。
+因為漢字統一，「骨」「直」這類共用碼位在 TC / SC / JP 有不同字形，Noto CJK 的 OTC 內實際裝著 `Noto Serif CJK TC` / `SC` / `JP` 等多個字面。取到哪一個取決於字面選擇，而字面選擇通常由文件的 `lang` 加上 fontconfig 的語言比對決定，**那正是三家瀏覽器可能各做各的地方**。
 
 `docker/fontconfig/75-frond-cjk.conf` 因此把兩件事都釘死：generic family（`serif` / `sans-serif` / `monospace`）解析到哪個字型，以及區域字面如何依 `lang` 選用。沒宣告 `lang` 的文件預設取 TC。`zh-TW` / `zh-Hant` 與 `zh-CN` / `zh-Hans` 都各自列出，只列一種的話另一種會靜默落回預設。
 
@@ -158,9 +158,9 @@ WebKit 那條的直接後果是**行程的 locale 也是字型設定的一部分
 
 **順序有兩層，而且方向不一樣。** 第一層是檔名：fontconfig 依檔名順序處理 `/etc/fonts/conf.d/`，後處理的有機會覆蓋先處理的。基底映像的 `60-latin.conf` 與 `fonts-noto-cjk` 套件自帶的 `70-fonts-noto-cjk.conf` 都會動到同一組 generic family，所以編號取 75。不用 70 是因為那會變成靠 `fonts` 與 `frond` 的第五個字母決定勝負。
 
-第二層是檔案內的規則順序，**它與直覺相反**：`mode="prepend"` 不是插到清單最前面，而是插在被 `<test>` 命中的那個值前面，所以後套用的規則排得更後面——**先套用的優先權較高，語言特化必須寫在通則之前**。寫反的症狀很難看出來：通則排在前面時 `serif:lang=ja` 會拿到通則的 TC，而 `serif:lang=zh-tw` 因為跟通則預設值恰好相同，看起來仍然是對的。
+第二層是檔案內的規則順序，**它與直覺相反**：`mode="prepend"` 不是插到清單最前面，而是插在被 `<test>` 命中的那個值前面，所以後套用的規則排得更後面，**先套用的優先權較高，語言特化必須寫在通則之前**。寫反的症狀很難看出來：通則排在前面時 `serif:lang=ja` 會拿到通則的 TC，而 `serif:lang=zh-tw` 因為跟通則預設值恰好相同，看起來仍然是對的。
 
-副作用要知道：拉丁文字也會落到 Noto CJK 的拉丁字符上。對這個測試環境是可接受的，甚至是想要的——一個字型一個事實來源，三家瀏覽器沒有各自 fallback 的空間。
+副作用要知道：拉丁文字也會落到 Noto CJK 的拉丁字符上。對這個測試環境是可接受的，甚至是想要的：一個字型一個事實來源，三家瀏覽器沒有各自 fallback 的空間。
 
 ### 為什麼在 build 就驗證
 
@@ -170,15 +170,15 @@ WebKit 那條的直接後果是**行程的 locale 也是字型設定的一部分
 
 ## 冒煙測試在測什麼
 
-`tests/browser/smoke/` 下的測試不測 frond——frond 還沒有程式碼——而是證明「三家瀏覽器都能在這個容器裡正確排出直排」這個前提成立。
+`tests/browser/smoke/` 下的測試不測 frond（frond 還沒有程式碼），而是證明「三家瀏覽器都能在這個容器裡正確排出直排」這個前提成立。
 
 - **行進軸是縱向**：用幾何斷言後續字元排在前一個字元下方。刻意不讀 computed style，因為 computed style 會老實回報 `vertical-rl` 而畫面仍可能是橫的。
-- **標點取到直排字符**：句點在直排下應位於字面方框的右上，橫排下位於左下。這條擋掉最惡劣的失敗模式——裝了一套沒有 `vert` / `vrt2` 的字型，DOM 斷言與幾何不變量全數通過，但畫面上的直排標點是錯的。
+- **標點取到直排字符**：句點在直排下應位於字面方框的右上，橫排下位於左下。這條擋掉最惡劣的失敗模式：裝了一套沒有 `vert` / `vrt2` 的字型，DOM 斷言與幾何不變量全數通過，但畫面上的直排標點是錯的。
 - **字形選擇的兩條路徑**：漢字的區域字形由 `lang` 驅動（同一字面換 `lang` 會變、不同字面同一 `lang` 不變），標點的位置由字面驅動。這兩條是其他斷言能夠成立的前提。
 - **指名字面時的決定性**：同一組輸入重複渲染必須逐像素相同。
-- **generic family 的落點**：`serif` / `sans-serif` 在每一家各落到哪個字面，以及同一頁的兩個 iframe 會不會互相污染。這一組不期待三家一致——查完確認做不到，改成把分歧本身釘住。
+- **generic family 的落點**：`serif` / `sans-serif` 在每一家各落到哪個字面，以及同一頁的兩個 iframe 會不會互相污染。這一組不期待三家一致，查完確認做不到，改成把分歧本身釘住。
 
-除了 generic family 那一組以外，冒煙測試**一律指名字面**。用 `serif` 的話量到的會是「瀏覽器挑了哪套字型」而不是「這套字型對不對」——三家對 generic family 的 CJK 解析並不一致，而且查完確認**不可解**（[#4](https://github.com/yurenju/frond/issues/4)）。所以另有一組測試專門用 generic family，目的正好相反：不是驗證字型對不對，而是把三家各自的落點釘住，分歧變了要有人知道。
+除了 generic family 那一組以外，冒煙測試**一律指名字面**。用 `serif` 的話量到的會是「瀏覽器挑了哪套字型」而不是「這套字型對不對」，三家對 generic family 的 CJK 解析並不一致，而且查完確認**不可解**（[#4](https://github.com/yurenju/frond/issues/4)）。所以另有一組測試專門用 generic family，目的正好相反：不是驗證字型對不對，而是把三家各自的落點釘住，分歧變了要有人知道。
 
 這是測試環境的選擇，不是 frond 的規則：frond 仍然尊重書自己的宣告（ADR-0003）。代價是**跨瀏覽器自我差分在「書用 generic family 且讀者沒設字型」時不成立**，差分要跑就得由讀者設定指名字面。
 
@@ -186,14 +186,14 @@ WebKit 那條的直接後果是**行程的 locale 也是字型設定的一部分
 
 ### 用什麼字來測，比怎麼斷言更關鍵
 
-**漢字不能用來鑑別字面。**「骨」「直」這類漢字統一的代表字，其區域字形是由文件的 `lang` 經 OpenType 的 `locl` 驅動的——同一個字面在 `lang=ja` 與 `lang=zh-TW` 下給出不同字形，而不同字面在同一個 `lang` 下給出相同字形。三家瀏覽器實測一致。
+**漢字不能用來鑑別字面。**「骨」「直」這類漢字統一的代表字，其區域字形是由文件的 `lang` 經 OpenType 的 `locl` 驅動的：同一個字面在 `lang=ja` 與 `lang=zh-TW` 下給出不同字形，而不同字面在同一個 `lang` 下給出相同字形。三家瀏覽器實測一致。
 
-拿漢字去問「解析到哪個字面」，得到的答案永遠是「看不出來」，於是測試會在綁定完全失效的環境下照樣變綠。**標點才有鑑別力**——句點在 JP 與 TC 字面裡的位置不同，且該差異在同一個 `lang` 下依然存在。
+拿漢字去問「解析到哪個字面」，得到的答案永遠是「看不出來」，於是測試會在綁定完全失效的環境下照樣變綠。**標點才有鑑別力**：句點在 JP 與 TC 字面裡的位置不同，且該差異在同一個 `lang` 下依然存在。
 
 ## 這些斷言真的有在測東西嗎
 
-**直排標點那條已經被證明有牙齒。** WebKit 在直排下不自動套用 `vert`（見 `browser-quirks.md`），而在還沒加上顯式 `font-feature-settings` 之前，這條斷言就是紅的——句點量到留在左下。也就是說：一旦直排字符沒有生效，這條斷言會紅。那正是它存在的目的。
+**直排標點那條已經被證明真的會紅。** WebKit 在直排下不自動套用 `vert`（見 `browser-quirks.md`），而在還沒加上顯式 `font-feature-settings` 之前，這條斷言就是紅的，句點量到留在左下。也就是說：一旦直排字符沒有生效，這條斷言會紅。那正是它存在的目的。
 
 **還沒跑過的實驗**：把 Dockerfile 的 `fonts-noto-cjk` 換成一套完全沒有 `vert` / `vrt2` 的 CJK 字型，預期同一條斷言也會紅。上面那次是「特性沒被套用」，這個實驗是「字型根本沒有這個特性」，兩者路徑不同，值得補驗。
 
-**字型綁定的部分由 build 期擋。** 移除 `COPY docker/fontconfig/75-frond-cjk.conf` 那一層，`docker/verify-fonts.sh` 會在 build 就失敗——這一條實際發生過：規則順序寫反時，`serif:lang=ja` 解析到 TC，build 直接中止。
+**字型綁定的部分由 build 期擋。** 移除 `COPY docker/fontconfig/75-frond-cjk.conf` 那一層，`docker/verify-fonts.sh` 會在 build 就失敗，這一條實際發生過：規則順序寫反時，`serif:lang=ja` 解析到 TC，build 直接中止。

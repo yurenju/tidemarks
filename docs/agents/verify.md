@@ -19,7 +19,7 @@ engineering skill 在 spec／feature 收尾、**宣稱完成之前**，該怎麼
 | Playwright（容器裡；本地 chromium，CI 三家） | 真的開一本真的書：翻頁、方向反轉、TOC 跳轉、劃重點、拖 Scrubber、reload 後還原位置 | `npm run test:container` |
 | playwright-cli（host 上） | 上面三層蓋不到的：**真人操作的 sync**、真機手勢、拿手上的實際（有版權的）書試 | 本文件 |
 
-這一層蓋的是**使用者實際操作**，而且範圍比以前更窄——「開書、翻頁、劃重點會不會壞」有瀏覽器測試在守，
+這一層蓋的是**使用者實際操作**，而且範圍比以前更窄：「開書、翻頁、劃重點會不會壞」有瀏覽器測試在守，
 「worker 有沒有把資料寫對、有沒有把沒授權的擋掉」有 workerd 那層在守，所以這裡只剩自動化到不了的地方。收尾時 Stage 1 的 baseline 仍然要跑（那是抓「整個 app 是不是
 壞了」），Stage 2 則設計成瀏覽器測試沒有覆蓋的那個操作。
 
@@ -42,13 +42,13 @@ dev server 背景起著就好：
 npm run dev
 ```
 
-要驗 sync 才需要另外起 `wrangler dev`（5002）—— dev 下 `/auth`、`/api` 由 vite proxy 過去（見
+要驗 sync 才需要另外起 `wrangler dev`（5002），dev 下 `/auth`、`/api` 由 vite proxy 過去（見
 [vite.config.ts](../../packages/app/vite.config.ts)），少了 worker 這兩條路徑會 502。**書架與閱讀不受影響**，所以
 不驗 sync 就不必起它，看到那兩條 502 也不用理。
 
 ## 把一本書弄進 reader
 
-走真人那條路——點 `Import epub`，然後上傳：
+走真人那條路：點 `Import epub`，然後上傳：
 
 ```bash
 playwright-cli open --browser chromium --persistent http://localhost:5001/
@@ -60,7 +60,7 @@ playwright-cli click "getByRole('button', { name: '草枕', exact: true })"
 ⚠️ **介面文案是英文，書名不是。** 這兩行的差別不是筆誤：`Import epub` 是 Tidemarks 自己的文案，而
 英文是原文（[ADR-0031](../adr/0031-english-is-the-source-and-chinese-becomes-a-translation.md)），
 所以程式碼裡寫的、畫面上出現的都是它；`草枕` 是那本 epub 自己的書名，跟介面語言無關。**用中文去選
-介面上的按鈕會找不到**，而失敗的樣子很難認——見下面〈按鈕找不到的時候〉。
+介面上的按鈕會找不到**，而失敗的樣子很難認，見下面〈按鈕找不到的時候〉。
 
 最後那行的 `exact: true` 不能省：書架上每本書有兩顆按鈕（封面本身，以及開詳情的 `About 草枕`），
 不加就兩個都中，playwright 的 strict mode 會擋下來什麼也不點。
@@ -96,7 +96,7 @@ pw_open_book chromium "草枕"
 ## 按鈕找不到的時候
 
 **第一個動作是 `playwright-cli snapshot`，不是改選擇器。** 它印的是當下畫面的 aria 樹，上面有每顆按鈕
-實際的名字，所以「名字不對」跟「那顆按鈕根本不在畫面上」一眼就分得開——而這兩件事要做的處置完全相反。
+實際的名字，所以「名字不對」跟「那顆按鈕根本不在畫面上」一眼就分得開，而這兩件事要做的處置完全相反。
 
 三個常見的原因：
 
@@ -105,12 +105,12 @@ pw_open_book chromium "草枕"
   在 stdout 的 `### Error`，所以前一行失敗不會擋住後一行，`set -e` 也攔不到。少了那個 click，
   `upload` 會安靜地什麼也不做，錯誤延到兩行以後才以
   `getByTestId('book-open') does not match any elements` 的樣子出現。那句話讀起來像「書還在匯入」，
-  於是就去加 `sleep`——加多久都沒用，因為書架從頭到尾是空的。snapshot 會直接顯示 `No books yet.`。
+  於是就去加 `sleep`，加多久都沒用，因為書架從頭到尾是空的。snapshot 會直接顯示 `No books yet.`。
 - **在 reader 裡找〈找〉那一層的按鈕。** 它預設是收起來的，見下面那節。
 
 ⚠️ 順帶一條：**發現這份文件裡的選擇器跟程式碼對不上，就順手把這裡改掉**，跟著手上那個改動一起
 commit。只改你剛好撞到的那一個，不必去掃全部。文件裡的選擇器沒有測試在守，唯一會發現它過期的人就是
-下一個照著做的人——而上面〈把一本書弄進 reader〉那幾行就這樣過期過一次。
+下一個照著做的人，而上面〈把一本書弄進 reader〉那幾行就這樣過期過一次。
 
 ## 翻頁，以及怎麼問「畫面現在在哪」
 
@@ -200,7 +200,7 @@ playwright-cli --raw eval "() => document.querySelector('.chrome').getAttribute(
 
 ## CLI 問不出來的東西：`run-code`
 
-`eval` 是在頁面裡跑 JS，所以它問得到 DOM 的事。問不到的是**只有瀏覽器自己知道的事**——最典型的是
+`eval` 是在頁面裡跑 JS，所以它問得到 DOM 的事。問不到的是**只有瀏覽器自己知道的事**，最典型的是
 「這段字實際畫出來用了哪個 face」，那要 CDP。
 
 `run-code` 收一個 `async (page) => {…}`，給的是真正的 playwright `page`，於是
@@ -219,7 +219,7 @@ playwright-cli --raw run-code "async (page) => {
 }"
 ```
 
-草枕的封面標題在這台回 `[{"familyName":"Noto Serif CJK TC",…,"glyphCount":2}]`——兩個字，兩個 glyph。
+草枕的封面標題在這台回 `[{"familyName":"Noto Serif CJK TC",…,"glyphCount":2}]`，兩個字，兩個 glyph。
 兩個坑：`DOM.enable` 與 `CSS.enable` 少一個就回
 `CSS agent was not enabled`；選到沒有文字的元素（例如只包著 `<img>` 的那個 `<p>`）回空陣列，那不是字
 型的問題。
@@ -242,7 +242,7 @@ const { computedStyle } = await cdp.send('CSS.getComputedStyleForNode', { nodeId
 只確認「沒把大東西搞壞」：
 
 1. app 載入、書架看得到書（`playwright-cli find "草枕"`）。
-2. 點開進得了 reader、頁面有內容——`playwright-cli snapshot` 或直接量：
+2. 點開進得了 reader、頁面有內容，`playwright-cli snapshot` 或直接量：
 
    ```bash
    playwright-cli --raw eval "() => { const f = [...document.querySelectorAll('.viewer-mount iframe')].find(x => getComputedStyle(x).visibility === 'visible'); return f.contentDocument.body.innerText.length }"
@@ -250,7 +250,7 @@ const { computedStyle } = await cdp.send('CSS.getComputedStyleForNode', { nodeId
 
 3. `playwright-cli console` 沒有 error。（沒起 worker 的話 `/auth/me` 與 `/api/sync` 的 502 不算。）
 
-不做細項檢查——這關只是抓「整個 app 是不是壞了」。
+不做細項檢查，這關只是抓「整個 app 是不是壞了」。
 
 ### Stage 2 — feature-specific（重點）
 
@@ -269,7 +269,7 @@ sync 要 session cookie，headless browser 過不了 WebAuthn，所以 passkey �
 往 local D1 塞一組 magic code，然後用真的 `/auth/code/verify` 花掉它。少掉的只有信箱那一步，其餘跟
 讀者走的路一模一樣。
 
-1. `npm run build` 一次 —— `wrangler dev` 需要 `dist/` 存在（assets binding），沒 build 過會直接啟動
+1. `npm run build` 一次：`wrangler dev` 需要 `dist/` 存在（assets binding），沒 build 過會直接啟動
    失敗。
 2. 背景起 `npm run worker:dev`。
 3. 跑 seed script，往 local D1 塞固定 test user + 一組還沒用過的登入碼（script 會先 idempotent 套用
