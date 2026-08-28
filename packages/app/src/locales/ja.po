@@ -148,9 +148,10 @@ msgid "Auto"
 msgstr "自動"
 
 #. Screen-reader name for the mark on the scrubber standing at the place the reader had read to, while they are back visiting a passage somewhere else. Pressing it takes them to that place. The value is a whole number. Longer than the words printed on it, which are only the number: what a glance gets from the mark's position on the rail has to be said out loud here.
+#. placeholder {0}: mark.pct
 #: src/components/Scrubber.tsx
-msgid "Back to {markPct}%"
-msgstr "{markPct}% に戻る"
+msgid "Back to {0}%"
+msgstr "{0}% に戻る"
 
 #. Heading of the backup section in the account pane: one file out, the same file back in.
 #: src/components/AccountPanel.tsx
