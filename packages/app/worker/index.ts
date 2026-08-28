@@ -390,8 +390,24 @@ async function handleBookObject(
   if (request.method === "PUT") {
     const key = `${userId}/${bookId}/${kind}`;
     await env.BUCKET.put(key, request.body);
-    await env.DB.prepare(`UPDATE books SET ${keyColumn} = ? WHERE user_id = ? AND id = ?`)
-      .bind(key, userId, bookId)
+    // **`updated_at` moves too**, or no other device ever hears about the cover: `hasCover`
+    // rides on `cover_key`, and a device that pulled between the push that made the row and
+    // this upload has already been told there is none. Pulls select on `updated_at`, so an
+    // unstamped write is a write nobody asks for again (#116).
+    //
+    // Both kinds move it, though only the cover is visible on the wire — `r2_key` never leaves
+    // the server, the epub is fetched lazily when a book is opened. Stamping the epub upload
+    // therefore costs other devices one row they already have, byte for byte, which their merge
+    // does nothing with. That is cheaper than a branch here plus the comment explaining why the
+    // two kinds differ.
+    //
+    // `client_updated_at` is deliberately left alone: it carries how recent the *reader's*
+    // intent is, and uploading a file is not the reader editing the book. Moving it would win
+    // this device later conflicts it has no claim to.
+    await env.DB.prepare(
+      `UPDATE books SET ${keyColumn} = ?, updated_at = ? WHERE user_id = ? AND id = ?`,
+    )
+      .bind(key, Date.now(), userId, bookId)
       .run();
     return json({ ok: true });
   }
