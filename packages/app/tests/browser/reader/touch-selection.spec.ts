@@ -32,6 +32,48 @@ test.skip(
 );
 
 /**
+ * Whether the browser may select the book's text, as the book's own document resolves it.
+ *
+ * Both spellings are read because WebKit resolves only the prefixed one, and the app sets both
+ * for exactly that reason — asking for `userSelect` alone would report `undefined` there and read
+ * as a failure of the feature rather than of the question.
+ */
+async function selectable(page: Page): Promise<string | undefined> {
+  return await page
+    .frameLocator(PAGE_FRAME)
+    .locator("html")
+    .evaluate((root) => {
+      const style = getComputedStyle(root) as CSSStyleDeclaration & { webkitUserSelect?: string };
+      return style.userSelect ?? style.webkitUserSelect;
+    });
+}
+
+/**
+ * Two points on this page's text, as far apart as its runs allow — somewhere for a drag to start
+ * and somewhere for it to end.
+ *
+ * **Both ends have to be aimed at text**, which is `textPoints`' rule and what issue #54 turned
+ * out to be: a drag that ends in the empty part of a column selects nothing, and a test built on
+ * one fails for a reason that has nothing to do with which selection is in force.
+ */
+async function dragBetweenRuns(
+  page: Page,
+): Promise<{ from: { x: number; y: number }; onto: { x: number; y: number } }> {
+  const runs = await textPoints(page);
+  const from = runs[0];
+  if (from === undefined || runs.length < 2) {
+    throw new Error("this page has fewer than two runs of text to drag between");
+  }
+  const onto = runs.reduce((furthest, run) =>
+    Math.hypot(run.x - from.x, run.y - from.y) >
+    Math.hypot(furthest.x - from.x, furthest.y - from.y)
+      ? run
+      : furthest,
+  );
+  return { from, onto };
+}
+
+/**
  * How much of the page is washed, in square pixels.
  *
  * Counting the boxes would not do: a selection extended along a line lengthens the strip the
@@ -65,19 +107,7 @@ test.describe("a vertical book", () => {
     // The other half of taking selection over, and the half with no visible symptom of its own
     // until two selections are on screen at once. It is declared inside frond's iframe, which is
     // the only place it can be — a rule out here reaches none of the book.
-    //
-    // Both spellings are read because WebKit resolves only the prefixed one, and the app sets
-    // both for exactly that reason — asking for `userSelect` alone would report `undefined`
-    // there and read as a failure of the feature rather than of the question.
-    const selectable = await page
-      .frameLocator(PAGE_FRAME)
-      .locator("html")
-      .evaluate((root) => {
-        const style = getComputedStyle(root) as CSSStyleDeclaration & { webkitUserSelect?: string };
-        return style.userSelect ?? style.webkitUserSelect;
-      });
-
-    expect(selectable).toBe("none");
+    expect(await selectable(page)).toBe("none");
   });
 
   test("a long press snaps the word under the finger", async ({ page }) => {
@@ -241,5 +271,136 @@ test.describe("a vertical book", () => {
     await expect.poll(async () => await visibleText(page)).not.toBe(before);
     await expect(page.locator(".selection-wash")).toHaveCount(0);
     await expect(page.locator(".highlight-toolbar")).toHaveCount(0);
+  });
+});
+
+/**
+ * A machine with a touchscreen **and** a mouse — the case ADR-0036 names by name, and the one
+ * the app was not keeping: the ADR splits on `pointerType` and takes each gesture as it comes,
+ * where the code read the device once and held the answer for the session.
+ *
+ * The emulation above is the whole premise: it makes `(pointer: coarse)` true, which is all a
+ * real touchscreen desktop reports too — that machine says `(any-pointer: fine)` is false as
+ * well, so as far as CSS is concerned its mouse does not exist. Reading the device once, as the
+ * app used to, left that reader with neither selection: the book was unselectable and the long
+ * press only answers to a finger. So these drive a real mouse over a page the media query has
+ * called a phone, which is exactly the arrangement that had no way to mark anything.
+ */
+test.describe("a touchscreen that also has a mouse", () => {
+  // The same book as above, for the same reason the handle-drag test needs it: its cover carries
+  // two runs of real text, and a drag needs somewhere to start and somewhere to end. Which way
+  // the lines run is not what these are about.
+  test.beforeEach(async ({ page }) => {
+    await openBook(page, BOOKS.vertical);
+  });
+
+  test("a mouse crossing the book hands the browser's selection back", async ({ page }) => {
+    expect(await selectable(page), "the opening guess should still be the finger's").toBe("none");
+
+    // A move and nothing more. The mouse has to be able to announce itself before it presses:
+    // a drag selects from its own `mousedown`, so a book made selectable at that instant is a
+    // book the drag has already started over.
+    const { from } = await dragBetweenRuns(page);
+    await page.mouse.move(from.x, from.y);
+
+    await expect.poll(() => selectable(page)).not.toBe("none");
+  });
+
+  test("a finger takes it back, so the long press is never over selectable text", async ({
+    page,
+  }) => {
+    const { from } = await dragBetweenRuns(page);
+    await page.mouse.move(from.x, from.y);
+    await expect.poll(() => selectable(page)).not.toBe("none");
+
+    // The direction that has to be safe: a finger landing on a book the mouse left selectable is
+    // the iOS magnifier ADR-0036 removes. It is closed at `pointerdown` — half a second before
+    // the press it would spoil — which is why `longPressSelect` still gets the selection we draw
+    // rather than the browser's.
+    await longPressSelect(page);
+
+    expect(await selectable(page)).toBe("none");
+    await expect(page.locator(".selection-handle")).toHaveCount(2);
+  });
+
+  test("the two hands can be alternated, and each keeps getting its own selection", async ({
+    page,
+  }) => {
+    // The reader's own question. Every other test here changes hands once; this one goes back,
+    // because the failure mode of a per-pointer rule is not the first switch but the second —
+    // a mode that latches, or one that leaves the other mechanism's selection standing.
+    const { from, onto } = await dragBetweenRuns(page);
+    // Halfway, which is where the mouse lets go. Ending on the far run would end on the beads,
+    // and the reason is the next comment's.
+    const midway = { x: (from.x + onto.x) / 2, y: (from.y + onto.y) / 2 };
+
+    // **The finger is aimed, not left at the middle of the page.** This is the only test here
+    // that presses a mouse while the beads are up, and a bead is a 44px square that takes its
+    // own presses (`book.css`): a mouse landing on one is a handle drag, not a selection, and
+    // it would fail below as a timeout that says nothing about which selection was in force.
+    // Sending the finger to the far run puts the beads there and leaves the mouse the length of
+    // the page to work in.
+    await longPressSelect(page, { at: onto });
+    await expect(page.locator(".selection-handle")).toHaveCount(2);
+    expect(await selectable(page)).toBe("none");
+
+    // Asserted rather than assumed: a book whose two runs sit closer together than a bead is
+    // wide would put one under the mouse again, and this is the premise, not the proposition.
+    const beads = await page.locator(".selection-handle").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }),
+    );
+    for (const point of [from, midway]) {
+      const clear = beads.every(
+        (bead) =>
+          point.x < bead.x ||
+          point.x > bead.x + bead.width ||
+          point.y < bead.y ||
+          point.y > bead.y + bead.height,
+      );
+      expect(clear, "the mouse would be pressing a selection handle, not the page").toBe(true);
+    }
+
+    // Mouse.
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(midway.x, midway.y, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.locator(".selection-handle")).toHaveCount(0);
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+
+    // Finger again — and the browser's passage has to be gone, not merely hidden, or the wash
+    // and beads below are painted over a highlight that is still there. ⚠️ Whether an engine
+    // would have collapsed it on its own is unmeasured (`notePointer`), so this asserts the
+    // outcome the reader needs rather than the mechanism that produced it: in an engine that
+    // collapses on `user-select: none` it passes without the clear, and that is the point of
+    // asserting on the selection rather than on the call.
+    await longPressSelect(page);
+    expect(await selectable(page)).toBe("none");
+    await expect(page.locator(".selection-handle")).toHaveCount(2);
+    expect(
+      await page
+        .frameLocator(PAGE_FRAME)
+        .locator("body")
+        .evaluate((body) => body.ownerDocument.getSelection()?.toString() ?? ""),
+    ).toBe("");
+  });
+
+  test("dragging with the mouse selects and raises the colour row", async ({ page }) => {
+    // The reader's own report, end to end: a drag across the text, and a passage to mark.
+    const { from, onto } = await dragBetweenRuns(page);
+
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(onto.x, onto.y, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+    // Nothing of ours is drawn over it: the browser painted this selection, so the wash and the
+    // beads would be a second selection on top of the first (`Reader`'s `drawn: null`).
+    await expect(page.locator(".selection-wash")).toHaveCount(0);
+    await expect(page.locator(".selection-handle")).toHaveCount(0);
   });
 });

@@ -48,7 +48,7 @@ const PAGE = { extent: 600, atBoundary: false };
 
 function machine(opts: { rtl?: boolean; ownSelection?: boolean } = {}) {
   return createGestureMachine(createNavigator({ rtl: opts.rtl ?? false }), {
-    ownSelection: opts.ownSelection ?? true,
+    ownSelection: () => opts.ownSelection ?? true,
   });
 }
 
@@ -96,6 +96,22 @@ describe("Calling off the long press — one clock, and every route that has to 
 
   it("nor on a device that gets the browser's own selection (ADR-0036)", () => {
     expect(kinds(machine({ ownSelection: false }).send(press()).intents)).toEqual([]);
+  });
+
+  it("and it asks again on every press, because a machine with both hands changes its answer", () => {
+    // The whole of why the machine takes a function rather than a value. A touchscreen desktop
+    // has both, and the reader moves between them mid-book: a copy taken when the machine was
+    // built would keep arming the long press over a document the mouse has just made selectable,
+    // which is the book selecting two ways at once.
+    let ours = true;
+    const m = createGestureMachine(createNavigator({ rtl: false }), {
+      ownSelection: () => ours,
+    });
+
+    expect(kinds(m.send(press()).intents)).toEqual(["armLongPress"]);
+
+    ours = false;
+    expect(kinds(m.send(press()).intents)).toEqual(["cancelLongPress"]);
   });
 
   it("stops it when the finger leaves the patch a still one stays in", () => {

@@ -424,6 +424,10 @@ const harness: FrondHarness = {
     selection?.addRange(range);
   },
 
+  setNativeSelection(allowed): void {
+    active().setNativeSelection(allowed);
+  },
+
   clearSelection(): void {
     renderer?.clearSelection();
   },
@@ -473,11 +477,19 @@ const harness: FrondHarness = {
 
     return [...container.querySelectorAll("iframe")].map((frame) => {
       const transform = getComputedStyle(frame).transform;
+      // Both spellings, because WebKit resolves only the prefixed one — asking for `userSelect`
+      // alone reports `undefined` there, which would read as selectable on every frame.
+      const root = frame.contentDocument?.documentElement;
+      const style =
+        root == null
+          ? undefined
+          : (getComputedStyle(root) as CSSStyleDeclaration & { webkitUserSelect?: string });
       return {
         offset: transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41,
         visible: getComputedStyle(frame).visibility === "visible",
         page: frame.hasAttribute(CURRENT_FRAME_ATTRIBUTE),
         peek: frame.hasAttribute(PEEK_FRAME_ATTRIBUTE),
+        selectable: (style?.userSelect ?? style?.webkitUserSelect) !== "none",
       };
     });
   },
@@ -526,6 +538,7 @@ async function attach(book: RenderableBook, options: MountOptions): Promise<Snap
   renderer = await Renderer.attach(book, container, {
     settings: toSettings(options.settings),
     start: options.start,
+    ...(options.nativeSelection === undefined ? {} : { nativeSelection: options.nativeSelection }),
     // No table, no resolver at all — that is the path every other spec runs on, and it has
     // to stay the one frond sees rather than a resolver that answers nothing.
     ...(answers === undefined

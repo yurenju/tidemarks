@@ -3,7 +3,13 @@
 // itself is pure — `turnPlacement`, in tests/node/renderer/geometry.test.ts — and what needs an
 // engine is that the frames exist and move.
 import { expect, test, type Page } from "@playwright/test";
-import { clickIntoPage, mountFixture, openHarness, peeksReady } from "../support/harness.ts";
+import {
+  clickIntoPage,
+  mountFixture,
+  openHarness,
+  peeksReady,
+  type MountOptions,
+} from "../support/harness.ts";
 
 test.beforeEach(async ({ page }) => {
   await openHarness(page);
@@ -16,8 +22,8 @@ test.beforeEach(async ({ page }) => {
  * book that has a page before and a page after wherever the reader stands, and every ailment
  * fixture is a book with something wrong with it.
  */
-async function mountPlainBook(page: Page): Promise<void> {
-  await page.evaluate(() => {
+async function mountPlainBook(page: Page, options: MountOptions = {}): Promise<void> {
+  await page.evaluate((mountOptions) => {
     const paragraphs = Array.from(
       { length: 40 },
       (_, index) => `<p>Paragraph ${index} of a perfectly ordinary book, long enough to be worth
@@ -28,8 +34,8 @@ async function mountPlainBook(page: Page): Promise<void> {
        <html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head>
        <body><h1>${title}</h1>${paragraphs}</body></html>`;
 
-    return window.frond.mountInline([section("One"), section("Two")], {});
-  });
+    return window.frond.mountInline([section("One"), section("Two")], mountOptions);
+  }, options);
 }
 
 test.describe("the pages either side stay mounted", () => {
@@ -279,5 +285,73 @@ test.describe("a vertical book", () => {
     expect(painted.filter((frame) => !frame.page)[0]?.offset).toBe(-500);
 
     await page.evaluate(() => frond.cancelTurn());
+  });
+});
+
+/**
+ * `setNativeSelection` against the turn lifecycle.
+ *
+ * The consumer may change its mind about the browser's selection while a book is open (the app's
+ * `notePointer`, ADR-0002 leaves the deciding to it), and a turn is the moment that answer can go
+ * missing: three documents are mounted, only one is on screen, and the one that becomes the page
+ * next is not rebuilt on its way in. So the question these ask is not "did the call work" but
+ * "which frames did it reach" — and the frame it must reach is the one nobody is looking at.
+ */
+test.describe("changing whose selection it is, on a book that is already open", () => {
+  test("a turn started before the change does not carry the old answer onto the next page", async ({
+    page,
+  }) => {
+    // The reported defect, in the order it happens: a reader on a touchscreen desktop starts a
+    // turn, moves the mouse while it is still animating, and lands on a page that is still
+    // unselectable — with the long press switched off by then, leaving no way to select at all.
+    await mountPlainBook(page, { nativeSelection: false });
+    await peeksReady(page);
+
+    await page.evaluate(() => frond.beginTurn("next", "right"));
+    await page.evaluate(() => frond.moveTurn(400));
+    await page.evaluate(() => frond.setNativeSelection(true));
+
+    // The page under the finger is deliberately left as the turn set it: a turn suppresses
+    // selection for as long as the drag lasts, whatever the consumer has just said, and half a
+    // dragged page is not where a selection should start growing.
+    const during = await page.evaluate(() => frond.frames());
+    expect(during.find((frame) => frame.page)?.selectable).toBe(false);
+    expect(during.filter((frame) => frame.peek).every((frame) => frame.selectable)).toBe(true);
+
+    await page.evaluate(() => frond.moveTurn(800));
+    await page.evaluate(() => frond.commitTurn());
+    // Landing starts a mount for the side that has no peek any more, and a frame whose document
+    // has not arrived is still an `about:blank` — which answers "selectable" for a reason that
+    // has nothing to do with the question. Both peeks in place is the state worth asserting on.
+    await peeksReady(page, 2);
+
+    // Every frame, not only the one on screen. The peek that just became the page was never
+    // mounted again, and the two now either side of the reader are the next turns' pages.
+    const after = await page.evaluate(() => frond.frames());
+    expect(after.find((frame) => frame.page)?.selectable).toBe(true);
+    expect(after.every((frame) => frame.selectable)).toBe(true);
+  });
+
+  test("and the same is true turning it off, which is the direction that must not leak", async ({
+    page,
+  }) => {
+    // The mirror, and the more expensive one to get wrong: a page that arrives selectable is a
+    // page where the next long press is the browser's own gesture — the iOS magnifier ADR-0036
+    // exists to remove — over a passage the app is drawing its own selection on.
+    await mountPlainBook(page);
+    await peeksReady(page);
+
+    await page.evaluate(() => frond.beginTurn("next", "right"));
+    await page.evaluate(() => frond.moveTurn(400));
+    await page.evaluate(() => frond.setNativeSelection(false));
+    await page.evaluate(() => frond.moveTurn(800));
+    await page.evaluate(() => frond.commitTurn());
+    await peeksReady(page, 2);
+
+    // Including the peek mounted *after* the change, which reads the new answer where it is
+    // built rather than being told separately.
+    const after = await page.evaluate(() => frond.frames());
+    expect(after.find((frame) => frame.page)?.selectable).toBe(false);
+    expect(after.some((frame) => frame.selectable)).toBe(false);
   });
 });
