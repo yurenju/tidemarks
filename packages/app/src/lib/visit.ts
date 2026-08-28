@@ -30,9 +30,9 @@ export interface VisitPosition {
  * Whether jumping to `target` begins a visit.
  *
  * **The page, not a distance** — the same measure `lib/elsewhere.ts` uses, and for the same
- * reason: a passage the reader can already see is not somewhere they went. That is what keeps
- * the banner off the screen of someone who opened the notes panel while reading and tapped a
- * mark from the page in front of them.
+ * reason: a passage the reader can already see is not somewhere they went. Someone who opens the
+ * notes panel mid-sitting and taps a mark on the page in front of them has gone nowhere; without
+ * this, their progress would freeze on a jump that never happened.
  *
  * ⚠️ `pageRange` has to be **the page on screen right now**, read from `renderer.location`
  * rather than from a stored `Progress`. `relocate` de-duplicates on section, page, fraction and

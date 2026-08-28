@@ -1044,3 +1044,73 @@ function readVisibleText(page: Page): Promise<string> {
       return lines.join(" ").slice(0, 80);
     });
 }
+
+/** One book's position, as `lib/position-store.ts` leaves it and the Worker would return it. */
+export interface StoredPosition {
+  bookId: string;
+  cfi: string;
+  pageRange: string | null;
+  percentage: number;
+  chapterLabel: string | null;
+  lastReadAt: number;
+}
+
+/** One marked passage, as the Worker would hand it back. */
+export interface StoredAnnotation {
+  id: string;
+  bookId: string;
+  cfiRange: string;
+  text: string;
+  note: string;
+  color: string;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null;
+}
+
+/** What the other device has, as a pull would report it. */
+export interface Elsewhere {
+  position?: StoredPosition | null;
+  annotations?: StoredAnnotation[];
+}
+
+/**
+ * Stands in for the server, holding whatever the test puts in `read`.
+ *
+ * It starts empty on purpose: the app syncs on its own — once on open, and a few seconds after
+ * each page turn — and a server with something to say from the start would speak before the test
+ * had arranged the case it is about.
+ *
+ * Here rather than in a spec for `seedProgress`'s reason: two of them want it now. The second is
+ * `reader/visit.spec.ts`, which needs a position to arrive **while a visit is on** — the one
+ * state where the two halves of the reader's place come apart.
+ */
+export async function fakeSync(page: Page, read: () => Elsewhere): Promise<void> {
+  // The device believes it is signed in, so `syncNow` opens the door at all (`lib/session.ts`).
+  // Nothing real is behind it: every call to `/api/sync` is answered here.
+  await page.addInitScript(() => localStorage.setItem("tidemarks-signed-in", "1"));
+  await page.route("**/api/sync*", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({ json: { conflicts: { books: [], progress: [], annotations: [] } } });
+      return;
+    }
+    const { position = null, annotations = [] } = read();
+    await route.fulfill({
+      json: {
+        books: [],
+        progress: position === null ? [] : [position],
+        annotations,
+        readingSessions: [],
+        // Ahead of the cursor the app stores, so the row is never filtered out as already seen.
+        cursor: Date.now(),
+      },
+    });
+  });
+}
+
+/** What tells the app to ask the server — the return to the foreground (`App.tsx`). */
+export function returnToForeground(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}

@@ -16,17 +16,16 @@
 // `relocate` the reader's own position comes from, and it is a string this file can compare.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, openBook, openChrome, waitForIndex } from "../support/library.js";
-
-/** One book's position, as `lib/position-store.ts` leaves it and the Worker would return it. */
-interface StoredPosition {
-  bookId: string;
-  cfi: string;
-  pageRange: string | null;
-  percentage: number;
-  chapterLabel: string | null;
-  lastReadAt: number;
-}
+import {
+  BOOKS,
+  fakeSync,
+  openBook,
+  openChrome,
+  returnToForeground,
+  waitForIndex,
+  type StoredAnnotation,
+  type StoredPosition,
+} from "../support/library.js";
 
 async function storedPosition(page: Page): Promise<StoredPosition | null> {
   const raw = await page.evaluate(() => {
@@ -38,62 +37,6 @@ async function storedPosition(page: Page): Promise<StoredPosition | null> {
 
 function storedCfi(page: Page): Promise<string | null> {
   return storedPosition(page).then((position) => position?.cfi ?? null);
-}
-
-/** One marked passage, as the Worker would hand it back. */
-interface StoredAnnotation {
-  id: string;
-  bookId: string;
-  cfiRange: string;
-  text: string;
-  note: string;
-  color: string;
-  createdAt: number;
-  updatedAt: number;
-  deletedAt: number | null;
-}
-
-/** What the other device has, as a pull would report it. */
-interface Elsewhere {
-  position?: StoredPosition | null;
-  annotations?: StoredAnnotation[];
-}
-
-/**
- * Stands in for the server, holding whatever the test puts in `read`.
- *
- * It starts empty on purpose: the app syncs on its own — once on open, and a few seconds after
- * each page turn — and a server with something to say from the start would speak before the test
- * had arranged the case it is about.
- */
-async function fakeSync(page: Page, read: () => Elsewhere): Promise<void> {
-  // The device believes it is signed in, so `syncNow` opens the door at all (`lib/session.ts`).
-  // Nothing real is behind it: every call to `/api/sync` is answered here.
-  await page.addInitScript(() => localStorage.setItem("tidemarks-signed-in", "1"));
-  await page.route("**/api/sync*", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({ json: { conflicts: { books: [], progress: [], annotations: [] } } });
-      return;
-    }
-    const { position = null, annotations = [] } = read();
-    await route.fulfill({
-      json: {
-        books: [],
-        progress: position === null ? [] : [position],
-        annotations,
-        readingSessions: [],
-        // Ahead of the cursor the app stores, so the row is never filtered out as already seen.
-        cursor: Date.now(),
-      },
-    });
-  });
-}
-
-/** What tells the app to ask the server — the return to the foreground (`App.tsx`). */
-function returnToForeground(page: Page): Promise<void> {
-  return page.evaluate(() => {
-    document.dispatchEvent(new Event("visibilitychange"));
-  });
 }
 
 test("offers a position read elsewhere, and moves the book when it is taken", async ({ page }) => {

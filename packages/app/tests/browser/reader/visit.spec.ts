@@ -19,7 +19,16 @@
 // flake on two engines (#15, #46), and the note is written by the same `relocate` this is about.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, bookCards, openPanel, seedProgress, settled } from "../support/library.js";
+import {
+  BOOKS,
+  bookCards,
+  fakeSync,
+  openPanel,
+  returnToForeground,
+  seedProgress,
+  settled,
+  type StoredPosition,
+} from "../support/library.js";
 
 /** The quote as it reads in the panel, and as the button carrying it is named. */
 const PASSAGE = "A passage marked earlier";
@@ -50,12 +59,16 @@ const CHAPTER_ONE = {
   pageRange: "epubcfi(/6/12!/4/2,/2/2/1:0,/12/1:0)",
 };
 
-function storedCfi(page: Page): Promise<string | null> {
+function storedPosition(page: Page): Promise<StoredPosition | null> {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find((k) => k.startsWith("tidemarks.position."));
     if (key === undefined) return null;
-    return (JSON.parse(localStorage.getItem(key)!) as { cfi: string }).cfi;
+    return JSON.parse(localStorage.getItem(key)!) as StoredPosition;
   });
+}
+
+function storedCfi(page: Page): Promise<string | null> {
+  return storedPosition(page).then((position) => position?.cfi ?? null);
 }
 
 /** Writes one marked passage straight into IndexedDB — the row a highlight leaves behind. */
@@ -120,24 +133,67 @@ async function jumpToPassage(page: Page): Promise<void> {
   await page.getByTestId("panel-notes").getByRole("button", { name: PASSAGE }).click();
 }
 
-test("a visit holds the reader's place until they hand it over", async ({ page }) => {
+test("a visit holds the reader's place, and says nothing about it", async ({ page }) => {
   await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
   await expect.poll(() => storedCfi(page)).not.toBeNull();
   const away = (await storedCfi(page))!;
 
   await jumpToPassage(page);
 
-  // The banner says where they had read to. It is the only way back, so it has to be up.
-  await expect(page.getByTestId("elsewhere")).toBeVisible();
-  expect(await storedCfi(page)).toBe(away);
+  // The jump lands in chapter one and the panel closes over it, both of which emit a `relocate`;
+  // `settled` waits them out, so a position that got through would be written by now. **Asked
+  // after that wait rather than before it** — `toBeHidden` passes on an element that does not
+  // exist yet, so a card arriving one render later would sail past an earlier question.
+  await settled(page);
 
-  // **The other half, and a separate break.** 〈Stay here〉 is the one move that carries progress
-  // backwards, and it is the only place the position is read off the screen rather than off what
-  // this device claims — during a visit those are two different rows, and a button that reached
-  // for the second would write the reader's place back over itself and look like it did nothing.
-  await page.getByTestId("elsewhere").getByRole("button", { name: "Stay here" }).click();
+  // Silent (ADR-0040): the reader tapped the passage a moment ago, and nothing is at stake in
+  // the way it is for a position that arrived from another device.
   await expect(page.getByTestId("elsewhere")).toBeHidden();
-  await expect.poll(() => storedCfi(page)).not.toBe(away);
+  expect(await storedCfi(page)).toBe(away);
+});
+
+// **〈Stay here〉 during a visit**, which is the one move in the app that carries progress
+// backwards — and, since a visit draws nothing of its own (ADR-0040), the only way to reach it is
+// for a position from another device to arrive while the visit is on.
+//
+// **What is under test is which of the two rows the button reads.** During a visit they come
+// apart: `positionRef` is what this device claims about the book (chapter three, a hundred pages
+// on) and `screenRef` is where the reader is looking (chapter one). A button reaching for the
+// first would write the reader's place back over itself and look like it did nothing at all,
+// which no other layer can see — `visit.test.ts` is pure functions and cannot hold a ref, and
+// `elsewhere.spec.ts` presses this button with no visit on, where the two rows are the same row.
+test("during a visit, staying here writes the page the reader is looking at", async ({ page }) => {
+  let offered: StoredPosition | null = null;
+  await fakeSync(page, () => ({ position: offered }));
+
+  await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
+  await expect.poll(() => storedCfi(page)).not.toBeNull();
+  const away = (await storedPosition(page))!;
+
+  await jumpToPassage(page);
+  await settled(page);
+  expect(await storedCfi(page)).toBe(away.cfi);
+
+  // A position from the other device, far enough off this page to be worth offering. Hand-written
+  // because nothing navigates to it: the reader turns the offer down.
+  offered = {
+    ...away,
+    cfi: "epubcfi(/6/40!/4/2/1:0)",
+    pageRange: null,
+    chapterLabel: null,
+    percentage: 0.9,
+    lastReadAt: Date.now() + 60_000,
+  };
+  await returnToForeground(page);
+
+  const banner = page.getByTestId("elsewhere");
+  await expect(banner).toBeVisible({ timeout: 15_000 });
+  await banner.getByRole("button", { name: "Stay here" }).click();
+  await expect(banner).toBeHidden();
+
+  // Chapter one: not what this device claimed (chapter three), and not what was offered.
+  await expect.poll(() => storedCfi(page)).not.toBe(away.cfi);
+  expect(await storedCfi(page)).not.toBe(offered.cfi);
 });
 
 test("a marked passage on the page in front of the reader is not a visit", async ({ page }) => {

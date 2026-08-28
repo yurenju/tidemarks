@@ -22,7 +22,7 @@ describe("entersVisit", () => {
 
   it("stays out when the passage is on the page already on screen", () => {
     // The reader opened the notes panel while reading and tapped a mark they can see. Nothing
-    // has been left behind, so there is no progress to defend and no banner to raise.
+    // has been left behind, so there is no progress to defend and nothing to freeze.
     expect(entersVisit(PAGE, "epubcfi(/6/4!/4/6/1:2)")).toBe(false);
   });
 
@@ -84,9 +84,9 @@ describe("leavesVisit", () => {
   });
 
   it("stays when a position cannot be parsed", () => {
-    // Freezing the progress is the safe half of this: the banner's 'Stay here' is still there,
-    // and leaving on a guess would write the visited page over what the reader had reached —
-    // which is the whole thing this mode exists to prevent.
+    // Freezing the progress is the safe half of this: staying costs the reader nothing they
+    // cannot undo by reading on, while leaving on a guess would write the visited page over what
+    // they had reached — which is the whole thing this mode exists to prevent.
     expect(leavesVisit(kept, { cfi: "not a cfi", pageRange: null })).toBe(false);
     expect(
       leavesVisit({ cfi: "not a cfi", pageRange: null }, { cfi: POINT, pageRange: null }),
