@@ -48,7 +48,7 @@ const PAGE = { extent: 600, atBoundary: false };
 
 function machine(opts: { rtl?: boolean; ownSelection?: boolean } = {}) {
   return createGestureMachine(createNavigator({ rtl: opts.rtl ?? false }), {
-    ownSelection: opts.ownSelection ?? true,
+    ownSelection: () => opts.ownSelection ?? true,
   });
 }
 

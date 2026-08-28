@@ -257,11 +257,14 @@ export class Renderer {
    *
    * Read wherever a document becomes selectable again, because "selectable" has two reasons to
    * be false and they nest: a turn suppresses selection for as long as the finger is down, and
-   * this suppresses it for the whole session. Restoring to `true` after a turn — which is what
-   * the code did when a turn was the only reason — would hand native selection back to a
+   * this suppresses it for the standing arrangement. Restoring to `true` after a turn — which is
+   * what the code did when a turn was the only reason — would hand native selection back to a
    * consumer that had asked for it to be gone, one page turn in.
+   *
+   * Not `readonly`: `setNativeSelection` moves it when the consumer learns something about the
+   * device that was not knowable when the book opened.
    */
-  private readonly nativeSelection: boolean;
+  private nativeSelection: boolean;
   private resources: ResourceUrls;
   private view: SectionView | undefined;
   private sectionIndex = 0;
@@ -878,6 +881,34 @@ export class Renderer {
    */
   clearSelection(): void {
     this.view?.clearSelection();
+  }
+
+  /**
+   * Changes whether the browser may select text, on a book that is already open
+   * (`RendererOptions.nativeSelection`, which is where the same answer is given at the start).
+   *
+   * **Why it can be answered more than once.** At the start there is nothing to go on but a
+   * media query, and a machine with both a touchscreen and a mouse answers that query as a
+   * phone — it reports no fine pointer at all, so no query distinguishes the two. What does
+   * distinguish them is the pointer events themselves, and those arrive only once the book is
+   * open. Which fact the consumer trusts, and what it makes of it, is still the consumer's
+   * (ADR-0002); what frond owes it is the ability to act on an answer that has changed.
+   *
+   * Every document is moved, not only the one on screen: a peek becomes the page on screen
+   * without being mounted again (`takeTurn`), and one that was mounted under the old answer
+   * would carry it back in a page turn later. Documents mounted after this read the new value
+   * where they are built.
+   *
+   * A turn in progress is left alone — it suppresses selection for as long as the finger is
+   * down, whatever this says, and it puts back this value when it settles.
+   */
+  setNativeSelection(allowed: boolean): void {
+    if (allowed === this.nativeSelection) return;
+    this.nativeSelection = allowed;
+    if (this.turn?.live === true) return;
+    for (const view of [this.view, this.peeks.prev?.view, this.peeks.next?.view]) {
+      view?.suppressSelection(!allowed);
+    }
   }
 
   /**

@@ -142,19 +142,19 @@ const FONT_TOAST_MS = 2600;
 const AT_REST: PageOffset = { x: 0, y: 0 };
 
 /**
- * Whether this device's own selection is the one the reader gets, or ours.
+ * The opening guess at whether the reader's selection is ours to draw, before any pointer has
+ * said anything (`notePointer` is what settles it after that).
  *
- * **Asked of the device, not of each gesture.** ADR-0036 splits on the pointer — a finger gets
- * the selection we draw, a mouse gets the browser's — and the cheapest reading of that would be
- * to switch on every `pointerdown`. It is not the reading taken: turning `user-select` off is a
- * declaration inside the book's document, and flipping it mid-gesture is exactly the moment iOS
- * has already decided whether to raise a magnifier. So the question is put once, to the machine,
- * in the terms CSS puts it: is the primary pointer coarse.
+ * **A guess, because no media query can do better.** A machine with both a touchscreen and a
+ * mouse reports `(pointer: coarse)`, and — measured on one — `(any-pointer: fine)` false as
+ * well: as far as CSS is concerned that mouse does not exist, so no query tells such a machine
+ * from a phone. Which is why the question is not settled here.
  *
- * What that costs is an iPad with a trackpad, where the primary pointer is the finger and the
- * mouse therefore loses native selection too. Accepted for this round — the alternative is a
- * second selection mechanism switching under the reader's hand, and whether that is even safe on
- * iOS is one of the things only a real device can answer (ADR-0036's own note).
+ * It is still asked, and coarse still means ours, because the first gesture happens before the
+ * first answer: on a phone that gesture is a long press, and a long press over a selectable
+ * document is the iOS magnifier ADR-0036 exists to remove. Guessing coarse costs a desk nothing —
+ * the mouse corrects it on its way to the text — while guessing fine would cost a phone the one
+ * gesture that cannot be taken back.
  *
  * `matchMedia` may be absent in a non-browser environment; a missing answer means the desk,
  * which is the arrangement that has never had any of these symptoms.
@@ -390,12 +390,12 @@ export default function Reader({
   const verticalRef = useRef(false);
   verticalRef.current = verticalBook;
   /**
-   * Whether this device gets the selection we draw. Decided once, at the top of the reader.
+   * Whether the pointer in the reader's hand gets the selection we draw (ADR-0036).
    *
-   * Held in a ref rather than read where it is needed, because the answer must not change
-   * halfway through a book: frond is told at `attach()` whether to leave the document
-   * selectable, and a later disagreement between that and the gestures here is a book that
-   * selects two ways at once.
+   * The opening guess, from the media query, and then whatever the pointers have said since
+   * (`notePointer`). A ref rather than state because nothing renders from it — it decides what a
+   * gesture means and what the book's `user-select` is, and both of those are read at the moment
+   * the pointer moves, not at the next paint.
    */
   const ownSelectionRef = useRef(coarsePointer());
   /**
@@ -802,6 +802,32 @@ export default function Reader({
      * The events cannot arrive by one route: an iframe's boundary does not let them out, and
      * the container never sees the ones inside it. So both routes call these.
      */
+    /**
+     * Which of the two selections this pointer gets, from the pointer itself.
+     *
+     * ADR-0036 splits on the pointer — a finger gets the one we draw, a mouse gets the browser's,
+     * and a machine with both takes each gesture as it comes. This is the only place that can see
+     * which is in the reader's hand. The media query cannot: a touchscreen desktop reports no
+     * fine pointer at all, so it reads as a phone, and a reader with a mouse there was left with
+     * neither selection — the book unselectable, and the long press answering only to a finger.
+     *
+     * **Turning it back on is the direction that has to be earned, and only a mouse earns it.**
+     * A selectable document under a finger is the iOS magnifier this all exists to remove, and
+     * iOS raises none for a mouse. The other direction is closed at `pointerdown`, half a second
+     * before the long press it would spoil — so the switch is never mid-gesture, it is at the
+     * start of one.
+     *
+     * A selection already on screen is deliberately left standing. The reader who has just
+     * chosen a passage with a finger reaches for the mouse to click a colour, and that reach
+     * crosses the book — dropping it here would take the passage away on the way to marking it.
+     */
+    const notePointer = (pointerType: string) => {
+      const ours = pointerType !== "mouse";
+      if (ours === ownSelectionRef.current) return;
+      ownSelectionRef.current = ours;
+      rendererRef.current?.setNativeSelection(!ours);
+    };
+
     const onPress = (event: {
       x: number;
       y: number;
@@ -810,6 +836,7 @@ export default function Reader({
       hasSelection: boolean;
       preventTapDefault?: () => void;
     }) => {
+      notePointer(event.pointerType);
       const prevent = send({
         kind: "press",
         x: event.x,
@@ -825,7 +852,12 @@ export default function Reader({
       if (prevent) event.preventTapDefault?.();
     };
 
-    const onMove = (event: { x: number; y: number }) => {
+    // `pointerType` is read here and not only at the press because a mouse drag selects from its
+    // `mousedown`, and a document made selectable at that instant is a document the drag has
+    // already started over. A mouse crosses the text to reach the word it wants, so the move is
+    // where it announces itself — comfortably before the press that has to act on it.
+    const onMove = (event: { x: number; y: number; pointerType: string }) => {
+      notePointer(event.pointerType);
       send({ kind: "move", x: event.x, y: event.y, at: performance.now(), turn: turnFacts() });
     };
 
@@ -901,7 +933,8 @@ export default function Reader({
         isLink: false,
         hasSelection: selectionRef.current !== null,
       });
-    const marginMove = (event: PointerEvent) => onMove(inContainer(event));
+    const marginMove = (event: PointerEvent) =>
+      onMove({ ...inContainer(event), pointerType: event.pointerType });
     const marginRelease = (event: PointerEvent) =>
       onRelease({
         ...inContainer(event),
@@ -1089,7 +1122,9 @@ export default function Reader({
         setRtl(direction.rtl);
         const nav = createNavigator({ rtl: direction.rtl });
         navRef.current = nav;
-        machineRef.current = createGestureMachine(nav, { ownSelection: ownSelectionRef.current });
+        machineRef.current = createGestureMachine(nav, {
+          ownSelection: () => ownSelectionRef.current,
+        });
       };
       applyDirection();
 
@@ -1158,11 +1193,11 @@ export default function Reader({
       // so nothing reflows after the position has been restored.
       attached = await Renderer.attach(book, mountRef.current, {
         settings: initial,
-        // On a touch device the browser's own selection is off entirely and this component
-        // draws its own (ADR-0036). It has to be said here rather than in a stylesheet: the
-        // text is inside frond's iframe, and `user-select` on anything out here reaches none
-        // of it — nor does `-webkit-touch-callout`, which is what iOS raises its own menu
-        // from.
+        // Where the selection we draw is the one in force, the browser's own is off entirely
+        // (ADR-0036). It has to be said here rather than in a stylesheet: the text is inside
+        // frond's iframe, and `user-select` on anything out here reaches none of it — nor does
+        // `-webkit-touch-callout`, which is what iOS raises its own menu from. This is only the
+        // opening answer; `notePointer` moves it as the reader changes hands.
         nativeSelection: !ownSelectionRef.current,
         // The one thing the margin needs and nobody here can know before the book is on
         // screen: which axis the line lies along (ADR-0012). frond asks; this answers.

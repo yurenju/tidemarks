@@ -211,11 +211,15 @@ export function createGestureMachine(
   nav: Navigator,
   opts: {
     /**
-     * Whether this device gets the selection the app draws rather than the browser's (ADR-0036).
-     * A property of the machine, not of the gesture: frond is told once, at `attach()`, whether
-     * to leave the document selectable, and a later disagreement is a book that selects two ways.
+     * Whether the pointer in the reader's hand gets the selection the app draws rather than the
+     * browser's (ADR-0036).
+     *
+     * **Asked, not held.** A machine with both a touchscreen and a mouse is two devices, and the
+     * answer changes under the reader's hand as they move between them. What must not disagree is
+     * this and the book's `user-select`, so the caller owns the one answer and both read it from
+     * there — a copy taken here would be the stale half of a book that selects two ways.
      */
-    readonly ownSelection: boolean;
+    readonly ownSelection: () => boolean;
   },
 ): GestureMachine {
   const { ownSelection } = opts;
@@ -299,7 +303,7 @@ export function createGestureMachine(
     // the selection is ours to make: under a mouse the browser is still doing this.
     disarm(intents);
     selecting = null;
-    if (ownSelection && event.pointerType !== "mouse") {
+    if (ownSelection() && event.pointerType !== "mouse") {
       armed = true;
       intents.push({ kind: "armLongPress" });
     }
@@ -349,7 +353,7 @@ export function createGestureMachine(
     // **Where the selection is ours, a standing one no longer stops the page.** That rule was the
     // compensation for not knowing where the finger had landed. The handles are ours now and they
     // claim their own presses, so a press anywhere else is what it looks like.
-    if (!ownSelection && started.hadSelection) return;
+    if (!ownSelection() && started.hadSelection) return;
 
     const travel = dragDistance(dx);
 
