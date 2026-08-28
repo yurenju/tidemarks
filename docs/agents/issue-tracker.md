@@ -49,6 +49,16 @@ spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個
 
 ## issue 內文怎麼寫
 
+**先寫成檔案，檢查過中文再送。** 內文不要直接塞進 `gh issue create --body`：
+
+```bash
+node scripts/zh-lint.ts .scratch/issue-body.md
+```
+
+過了再 `gh issue create --body-file .scratch/issue-body.md`。這樣中文才檢查得到（見
+[`.claude/skills/zh-check/SKILL.md`](../../.claude/skills/zh-check/SKILL.md)），而且引號、驚嘆號與
+反引號不會被 shell 吃掉。`.scratch/` 被 `.gitignore` 擋著，那個檔案不會進 repo。
+
 **假設讀的人沒有 context。** 開 issue 的當下你腦子裡有一整串推論，讀的人（下一個 agent，或三個月
 後的你）只有這段文字。所以內文不是待辦事項的清單，是把那串推論交出去。
 
