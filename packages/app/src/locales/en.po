@@ -1008,13 +1008,13 @@ msgstr "Yesterday"
 msgid "You cannot subscribe yet, and the price is not settled."
 msgstr "You cannot subscribe yet, and the price is not settled."
 
-#. Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.
+#. Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.
 #. placeholder {0}: elsewhere.position.chapterLabel
 #: src/components/Reader.tsx
 msgid "You were reading “{0}”"
 msgstr "You were reading “{0}”"
 
-#. Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.
+#. Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.
 #. placeholder {0}: Math.round(elsewhere.position.percentage * 100)
 #: src/components/Reader.tsx
 msgid "You were reading at {0}%"

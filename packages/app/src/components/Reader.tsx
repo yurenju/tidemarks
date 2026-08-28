@@ -1128,7 +1128,6 @@ export default function Reader({
       // the question being asked — whether the passage is somewhere the reader had got to.
       if (openAt !== undefined && saved !== undefined && entersVisit(saved.pageRange, openAt)) {
         visitRef.current = saved;
-        setElsewhere({ position: saved, elapsed: elapsedSince(saved.lastReadAt, Date.now()) });
       }
 
       const anns = await readAnnotations(bookId);
@@ -1221,13 +1220,15 @@ export default function Reader({
             // that this is where they are in the book, and going back to a marked passage is
             // not that claim (`lib/visit.ts`). Turning pages around the passage lands here
             // too, and is refused for the same reason.
+            //
+            // **Ending one takes nothing off the screen**, because a visit never put anything
+            // there (ADR-0040). A banner standing at this moment arrived from another device
+            // while the visit was on, and it is an offer nobody has answered — reading on is not
+            // an answer to it.
             const kept = visitRef.current;
             if (kept !== null) {
               if (!leavesVisit(kept, position)) return;
               visitRef.current = null;
-              // Only the banner this visit put up. One that arrived from another device in the
-              // meantime is an offer nobody has answered, and reading on is not an answer.
-              setElsewhere((banner) => (banner?.position === kept ? null : banner));
             }
 
             // Under the same gate: a visit is not ground covered, and counting the minutes
@@ -1575,10 +1576,14 @@ export default function Reader({
    * reflow that leaves the reader on the same page of the same CFI is swallowed, and the stored
    * range still describes the layout before it. Opening this very panel is that reflow on a
    * desk, where the book gives up a column for it. Asking the stored range there would answer
-   * "somewhere else" about a passage in front of the reader's eyes, and raise a banner over it.
+   * "somewhere else" about a passage in front of the reader's eyes, and freeze the reader's
+   * progress for a jump that never happened.
    *
-   * The progress being defended still comes from `positionRef`: it is the whole row, and the
-   * banner names a chapter and a percentage that a location cannot give.
+   * The progress being defended still comes from `positionRef`: it is the whole row, and it is
+   * what a `relocate` has to be measured against to say the visit is over.
+   *
+   * **Nothing is drawn.** A visit is silent by design (ADR-0040) — the reader tapped the
+   * passage a moment ago and knows how they got here.
    */
   const visitPassage = (target: string) => {
     // A second passage during a visit is still the same visit. What is being kept is where the
@@ -1594,23 +1599,16 @@ export default function Reader({
     if (here === null || at === undefined) return;
     if (!entersVisit(at.pageRange ?? null, target)) return;
     visitRef.current = here;
-    // **An offer already standing is never taken away** — the invariant the pull subscriber
-    // above keeps, held from this side too. A position from another device is unanswered and
-    // unrecoverable once its banner goes (the pull that carried it will not fire again), and
-    // it is newer than what is being kept here, so it is also the more useful of the two to
-    // be looking at.
-    setElsewhere(
-      (banner) => banner ?? { position: here, elapsed: elapsedSince(here.lastReadAt, Date.now()) },
-    );
   };
 
   /**
    * Take the offer. The `relocate` that follows writes the position, as it does for any move.
    *
-   * **It ends a visit as well**, and has to: pressing this is the reader saying that is where
-   * they are. Left standing, a visit would swallow the very `relocate` this navigation causes
-   * whenever the offer is behind what is being kept — the reader accepts a position and this
-   * device records nothing.
+   * **It ends a visit as well**, and has to. A visit can be on while this banner stands — the
+   * reader went back to a marked passage, and a pull landed on top of it — and pressing this is
+   * them saying that other place is where they are. Left standing, the visit would swallow the
+   * very `relocate` this navigation causes whenever the offer is behind what is being kept: the
+   * reader accepts a position and this device records nothing.
    */
   const goElsewhere = () => {
     if (elsewhere === null) return;
@@ -1627,7 +1625,9 @@ export default function Reader({
    * back the next time they open the book, which is the opposite of what they pressed. Staying
    * here has to be a write, and it is the same write a page turn makes.
    *
-   * **It ends a visit too, and that is the one move that carries progress backwards.** The rule
+   * **It ends a visit too, and that is the one move that carries progress backwards** — the
+   * only one left in the app now that a visit puts nothing on screen to press (ADR-0040), and
+   * it is only reachable while a banner from another device happens to be standing. The rule
    * during a visit is that progress only goes forward (`lib/visit.ts`), which is a rule about
    * what happens on its own; a reader who presses this has said where they are, and being told
    * "no, you are still a hundred pages on" is the button doing nothing.
@@ -1985,11 +1985,11 @@ export default function Reader({
         {/* Where the reader's place in this book is, when it is not what is on screen, and the
             two ways of answering that.
 
-            **Two sources, one banner.** A position that arrived from another device, and a
-            visit to a marked passage on this one (`lib/visit.ts`). It is one banner because it
-            is one sentence and one pair of answers: go to that place, or say this is the place.
-            Which source it came from changes nothing the reader has to decide, so the wording
-            names neither.
+            **One source: a position that arrived from another device** (`lib/elsewhere.ts`).
+            Going back to a marked passage moves the reader too, and it used to raise this same
+            banner — it does not any more (ADR-0040). The two look alike and are not: the
+            position from another device is unanswered and would be overwritten by the next page
+            turn, while a visit is the reader's own tap a moment ago with nothing at stake.
 
             **In the chrome's grid but not one of its bars**: it never slides, never hides, and
             is not part of 〈找〉 — the reader did not ask for it and cannot dismiss it with a
@@ -2004,11 +2004,11 @@ export default function Reader({
           <div className="elsewhere" role="status" data-testid="elsewhere">
             <p className="elsewhere-line">
               {elsewhere.position.chapterLabel === null ? (
-                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.">
+                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.">
                   You were reading at {Math.round(elsewhere.position.percentage * 100)}%
                 </Trans>
               ) : (
-                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. Two sources, one sentence: a position that arrived from another of the reader's devices, or their having gone back to a passage they marked. It names neither on purpose — Tidemarks cannot tell which device wrote a position, and a reader who tapped a marked passage knows how they got here.">
+                <Trans comment="Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.">
                   You were reading “{elsewhere.position.chapterLabel}”
                 </Trans>
               )}
