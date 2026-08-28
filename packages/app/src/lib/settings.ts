@@ -354,28 +354,38 @@ export function saveSettings(settings: ReaderSettings) {
  * of sitting on a mat a shade off itself. The dark theme used to send a near-black of its own
  * and drew exactly that mat.
  *
- * **Both themes send a pair.** Light mode used to send nothing — "no setting means no
- * intervention" — and got away with it only because most books declare no background and let
- * the app's paper show through. A book that declares its own draws the mat again, in the theme
- * where it is hardest to notice and hardest to explain.
+ * **Both themes send a pair, and light mode is the new one.** It used to send nothing — "no
+ * setting means no intervention" — which meant one of the two themes was governed by a
+ * different rule from the other, and that is what this ends.
  *
- * ⚠️ Sending a pair in light mode turns on **everything** a theme turns on, there for the first
- * time. Text and background are two different bargains and it is worth being exact about which
- * is which:
+ * ⚠️ **On the books to hand, that consistency is bought rather than earned.** A survey of 25
+ * books measured both halves of it:
  *
- * - **Text keeps what it can.** A book's own colours survive wherever they still clear 4.5 : 1
- *   against this paper, and only the ones that fail are moved (frond ADR-0014). The repair is
- *   not a repaint — 190 of 951 declarations across 34 books were left exactly as written.
- * - **Backgrounds do not.** A theme makes every element inside the book transparent, not just
- *   the one carrying the page's paper: the book's off-white body goes, and so does the fill on
- *   a quote block, a code sample or a striped table. In the dark that is unavoidable — an opaque
- *   white patch would sit on top of the reader's night page — and in the light it is not, but
- *   frond has one rule for both and the alternative is a decision nobody has made: how much a
- *   book's pale grey should be darkened to sit on the reader's paper rather than merely let
- *   through (`renderer/settings.ts`, frond ADR-0014).
+ * - **What it was meant to fix does not occur.** Not one of the 25 declares a background on
+ *   `html` or `body`, so in light mode the book's paper was already transparent and the app's
+ *   own already showed through. The mat this change removes was never a book's doing — it was
+ *   the dark theme quoting a near-black of its own instead of `--surface-page`, which the
+ *   background above fixes on its own.
+ * - **What it costs is real.** A theme makes every element inside the book transparent, not
+ *   just the one carrying the page: 20 of the 25 declare a background colour somewhere and 7
+ *   actually apply one — content boxes, grey table cells, a tinted callout. Walking 60 pages of
+ *   one of them counted 139 filled elements before and 0 after.
  *
- * Taken because a reader picking a theme is saying how they read, not how this book should look
- * (ADR-0026), and because the dark theme has always paid it.
+ * Sent anyway, and the reason is the first paragraph rather than the second: **two themes under
+ * one rule is worth more than those boxes.** A reader picking a theme is saying how they read,
+ * not how this book should look (ADR-0026); the dark theme has paid this since frond ADR-0014;
+ * and the sample is 25 books, not the world — the day one arrives with a paper of its own,
+ * light mode already handles it.
+ *
+ * ⚠️ **The place to fix the boxes is frond, not here.** Its rule flattens everything because the
+ * alternative is a decision nobody has made — how far a book's pale grey should move to sit on
+ * the reader's paper rather than merely vanish into it (`renderer/settings.ts`). Narrow that and
+ * both themes get their boxes back; drop this pair and only light does, at the price of the two
+ * themes disagreeing again.
+ *
+ * Text is the opposite bargain and worth not confusing with it: a book's own colours **survive**
+ * wherever they still clear 4.5 : 1 against this paper, and only the ones that fail are moved.
+ * 190 of 951 declarations across 34 books were left exactly as written (frond ADR-0014).
  *
  * ⚠️ **Four of these six are copies of a token**, for the reason `SELECTION_WASH` below is: a
  * name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
