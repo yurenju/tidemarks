@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useRef, useState } from "react";
 
 import { keyToFraction, pointerToFraction, scrubberGeometry, snapToChapter } from "../lib/scrubber";
+import ScrubberVisitMarkPrototype from "./ScrubberVisitMarkPrototype";
 
 // The draggable position axis at the bottom of the reader. Owns only pointer
 // interaction and layout; the fraction/geometry math lives in lib/scrubber.ts and
@@ -169,6 +170,14 @@ export default function Scrubber({
         <span className="scrubber-cap scrubber-cap-tail" aria-hidden />
         <div className="scrubber-thumb" style={{ left: railPos(geo.thumbX) }} />
       </div>
+      {/* PROTOTYPE (issue #110) — delete this line and the file with it. */}
+      <ScrubberVisitMarkPrototype
+        railPos={railPos}
+        railSpan={railSpan}
+        fraction={fraction}
+        rtl={rtl}
+        onJump={onCommit}
+      />
     </div>
   );
 }
