@@ -359,14 +359,23 @@ export function saveSettings(settings: ReaderSettings) {
  * the app's paper show through. A book that declares its own draws the mat again, in the theme
  * where it is hardest to notice and hardest to explain.
  *
- * ⚠️ Sending a pair in light mode turns on frond's colour repair there for the first time
- * (frond ADR-0014). Two things follow, both wanted:
+ * ⚠️ Sending a pair in light mode turns on **everything** a theme turns on, there for the first
+ * time. Text and background are two different bargains and it is worth being exact about which
+ * is which:
  *
- * - A book's own colours are **kept** wherever they still clear 4.5 : 1 against this paper, and
- *   only the ones that fail are moved. The repair is not a repaint.
- * - A book that chose a paper of its own — an off-white meant to read as aged stock — **loses
- *   it**. That is the trade, and it is the same one the dark theme has always made: a reader
- *   picking a theme is saying how they read, not how this book should look (ADR-0026).
+ * - **Text keeps what it can.** A book's own colours survive wherever they still clear 4.5 : 1
+ *   against this paper, and only the ones that fail are moved (frond ADR-0014). The repair is
+ *   not a repaint — 190 of 951 declarations across 34 books were left exactly as written.
+ * - **Backgrounds do not.** A theme makes every element inside the book transparent, not just
+ *   the one carrying the page's paper: the book's off-white body goes, and so does the fill on
+ *   a quote block, a code sample or a striped table. In the dark that is unavoidable — an opaque
+ *   white patch would sit on top of the reader's night page — and in the light it is not, but
+ *   frond has one rule for both and the alternative is a decision nobody has made: how much a
+ *   book's pale grey should be darkened to sit on the reader's paper rather than merely let
+ *   through (`renderer/settings.ts`, frond ADR-0014).
+ *
+ * Taken because a reader picking a theme is saying how they read, not how this book should look
+ * (ADR-0026), and because the dark theme has always paid it.
  *
  * ⚠️ **Four of these six are copies of a token**, for the reason `SELECTION_WASH` below is: a
  * name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
