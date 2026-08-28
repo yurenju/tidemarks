@@ -3,8 +3,10 @@
 // `src/lib/sync-payload.test.ts` for what goes on the wire).
 //
 // Only for the class of bug the pure ones structurally cannot see: a column that does not exist
-// in the schema, a `bind()` list that has drifted out of step with its `?N` placeholders, and a
-// `WHERE` whose edge is off by one row. All three typecheck cleanly and all three fail in
+// in the schema, a `bind()` list that has drifted out of step with its `?N` placeholders, a
+// `WHERE` whose edge is off by one row, and a handler reporting on the clock rather than on the
+// rows it just loaded (`cursor.ts` decides the value; only a real query can show which rows it
+// was given). All three typecheck cleanly and all three fail in
 // production. The first two carry the three
 // columns #129 added, because a reading speed the device measured and the server silently
 // dropped would look exactly like a reader who never read anything.
@@ -150,6 +152,46 @@ describe("sync", () => {
     // the whole list rather than the absence of the first row also catches a `WHERE` that
     // matched nothing at all, which would pass any test that only checked for absence.
     expect(body.progress.map((p) => p.bookId)).toEqual(["book-after-cursor"]);
+  });
+
+  // The other half of that edge, and the one a reader feels: the cursor must not run past rows
+  // the pull did not carry. A push stamps its rows and commits them a moment later, so a pull
+  // that lands in between reads none of them — and if it then hands back a clock reading rather
+  // than the newest row it saw, that reading is already past the stamp the push took. The row is
+  // older than the cursor and was never sent, so no later pull ever asks for it: one device stops
+  // seeing another's positions until something writes that row again.
+  //
+  // **What is being checked here is the wiring**, that `pullSync` reports on the rows it loaded
+  // rather than on the clock. Which value comes out of which rows is `cursor.test.ts`, at the
+  // node layer, where the ceiling and the `since` floor are settled too.
+  //
+  // **Both rows go straight to D1**, because the whole point is a row whose stamp is behind the
+  // wall clock — which is what a push in flight looks like, and what a push through the API can
+  // never be made to look like from out here.
+  it("hands back a cursor no later than the newest row it carried", async () => {
+    const { DB } = testEnv();
+    const at = (bookId: string, updatedAt: number) =>
+      DB.prepare(
+        `INSERT INTO progress (book_id, user_id, cfi, page_range, percentage, chapter_label, last_read_at, updated_at)
+         VALUES (?1, ?2, ?3, NULL, ?4, NULL, ?5, ?6)`,
+      ).bind(bookId, USER, "epubcfi(/6/14!/4/2/1:0)", 0.1, updatedAt, updatedAt);
+
+    await at("book-already-synced", 1000).run();
+    const first = await SELF.fetch("https://tidemarks.test/api/sync?since=0", {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const { cursor } = (await first.json()) as { cursor: number };
+    expect(cursor).toBe(1000);
+
+    // The other device's push, stamped while this pull was in flight and committed just after.
+    await at("book-from-elsewhere", 1500).run();
+    const second = await SELF.fetch(`https://tidemarks.test/api/sync?since=${cursor}`, {
+      headers: { cookie: `tidemarks_session=${SESSION}` },
+    });
+    const body = (await second.json()) as { cursor: number; progress: Progress[] };
+
+    expect(body.progress.map((p) => p.bookId)).toEqual(["book-from-elsewhere"]);
+    expect(body.cursor).toBe(1500);
   });
 
   // `last_shown_at` is written by a clause of its own — the upsert takes the later of the two
