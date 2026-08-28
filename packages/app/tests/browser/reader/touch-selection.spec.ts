@@ -330,23 +330,53 @@ test.describe("a touchscreen that also has a mouse", () => {
     // because the failure mode of a per-pointer rule is not the first switch but the second —
     // a mode that latches, or one that leaves the other mechanism's selection standing.
     const { from, onto } = await dragBetweenRuns(page);
+    // Halfway, which is where the mouse lets go. Ending on the far run would end on the beads,
+    // and the reason is the next comment's.
+    const midway = { x: (from.x + onto.x) / 2, y: (from.y + onto.y) / 2 };
 
-    // Finger.
-    await longPressSelect(page);
+    // **The finger is aimed, not left at the middle of the page.** This is the only test here
+    // that presses a mouse while the beads are up, and a bead is a 44px square that takes its
+    // own presses (`book.css`): a mouse landing on one is a handle drag, not a selection, and
+    // it would fail below as a timeout that says nothing about which selection was in force.
+    // Sending the finger to the far run puts the beads there and leaves the mouse the length of
+    // the page to work in.
+    await longPressSelect(page, { at: onto });
     await expect(page.locator(".selection-handle")).toHaveCount(2);
     expect(await selectable(page)).toBe("none");
+
+    // Asserted rather than assumed: a book whose two runs sit closer together than a bead is
+    // wide would put one under the mouse again, and this is the premise, not the proposition.
+    const beads = await page.locator(".selection-handle").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      }),
+    );
+    for (const point of [from, midway]) {
+      const clear = beads.every(
+        (bead) =>
+          point.x < bead.x ||
+          point.x > bead.x + bead.width ||
+          point.y < bead.y ||
+          point.y > bead.y + bead.height,
+      );
+      expect(clear, "the mouse would be pressing a selection handle, not the page").toBe(true);
+    }
 
     // Mouse.
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
-    await page.mouse.move(onto.x, onto.y, { steps: 8 });
+    await page.mouse.move(midway.x, midway.y, { steps: 8 });
     await page.mouse.up();
     await expect(page.locator(".selection-handle")).toHaveCount(0);
     await expect(page.locator(".highlight-toolbar")).toBeVisible();
 
-    // Finger again — and the browser's passage has to be gone, not merely hidden. Turning
-    // `user-select` off collapses nothing, so without clearing it the wash and beads below
-    // would be painted over a highlight that is still there.
+    // Finger again — and the browser's passage has to be gone, not merely hidden, or the wash
+    // and beads below are painted over a highlight that is still there. ⚠️ Whether an engine
+    // would have collapsed it on its own is unmeasured (`notePointer`), so this asserts the
+    // outcome the reader needs rather than the mechanism that produced it: in an engine that
+    // collapses on `user-select: none` it passes without the clear, and that is the point of
+    // asserting on the selection rather than on the call.
     await longPressSelect(page);
     expect(await selectable(page)).toBe("none");
     await expect(page.locator(".selection-handle")).toHaveCount(2);

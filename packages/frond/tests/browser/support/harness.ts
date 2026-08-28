@@ -578,6 +578,13 @@ export interface FrameSnapshot {
    * Per frame rather than once for the renderer, because that is where the answer can go wrong:
    * a peek is mounted separately from the page and becomes the page without being mounted again,
    * so one left on a stale answer is invisible until a turn brings it forward.
+   *
+   * ⚠️ **A frame whose document has not landed yet reports `true`.** The frame is in the
+   * container from the moment it is appended, before its `src` is set, and an `about:blank` has
+   * nothing declared on it — which is indistinguishable here from a page the browser may select.
+   * So a spec asserting that *every* frame is selectable can pass on a frame that has not been
+   * asked the question at all: wait for `peeksReady` first, which is what a real failure of this
+   * shape cost once already.
    */
   readonly selectable: boolean;
 }

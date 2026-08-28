@@ -897,8 +897,10 @@ export class Renderer {
    * **The peeks are moved too, and a live turn is no reason to skip them.** A peek becomes the
    * page on screen without being mounted again (`takeTurn`), and `refreshNeighbours` keeps one
    * that already points at the right section rather than rebuilding it — so a peek left on the
-   * old answer carries it back one page turn later, and nothing restores it: `settle` and
-   * `takeTurn` put this value back on the frame **they** move, which is never a peek.
+   * old answer carries it back one page turn later. Nothing downstream catches that: `settle`
+   * and `takeTurn` put this value back on the frame that **was** the page, and the peek arriving
+   * to replace it is never touched there. Which is exactly why it has to be right before the
+   * turn starts.
    *
    * Documents mounted after this read the new value where they are built.
    *

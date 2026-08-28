@@ -35,7 +35,7 @@ async function mountPlainBook(page: Page, options: MountOptions = {}): Promise<v
        <body><h1>${title}</h1>${paragraphs}</body></html>`;
 
     return window.frond.mountInline([section("One"), section("Two")], mountOptions);
-  }, options as MountOptions);
+  }, options);
 }
 
 test.describe("the pages either side stay mounted", () => {

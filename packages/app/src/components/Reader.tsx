@@ -812,10 +812,14 @@ export default function Reader({
      * like a finger and reaches the same book — and because this side is the one that is safe to
      * be wrong about, being the side that makes nothing selectable.
      *
-     * **Turning off does not undo what is already selected** — no engine collapses a selection
-     * when `user-select` goes to `none`. So the browser's own selection is cleared on the way in,
-     * or a long press would paint our wash and beads over a highlight that is still there, which
-     * is the book selecting two ways at once. Nothing is cleared on the way out: the reader who
+     * **Turning off is not the same as undoing.** ⚠️ Whether `user-select: none` collapses a
+     * selection that is already standing is **unmeasured across the three engines** — the same
+     * caveat frond carries on the neighbouring question (`section-view.ts`'s `suppressSelection`,
+     * where the documentation turned out to be wrong once already). So the browser's own
+     * selection is cleared on the way in rather than assumed gone, or a long press would paint
+     * our wash and beads over a highlight that is still there, which is the book selecting two
+     * ways at once. The clear costs nothing where an engine had already collapsed it, and it is
+     * the whole of the fix where one had not. Nothing is cleared on the way out: the reader who
      * chose a passage with a finger reaches for the mouse to press a colour, and that reach
      * crosses the book — dropping it there would take the passage away on the way to marking it.
      */
