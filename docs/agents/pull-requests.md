@@ -98,6 +98,24 @@ code-review 是有充分理由的標準流程，不必每次再回頭問使用�
 
 工作量大到拆給多個 sub agent 實作時，審核照同一個切法拆，每個部位各派一個沒參與那一塊的 agent。
 
+## `/code-review` 之後、push 之前，跑 `/zh-check`
+
+完整順序是 commit → `/code-review` → **`/zh-check`** → push → 開 PR → 盯 CI。
+
+它檢查這次改動裡的中文：先用 `node scripts/zh-lint.ts` 抓字串，再逐段讀有沒有翻譯腔。這件事
+`/code-review` 答不出來，它看的是 code；而中文寫成什麼樣子，typecheck 與測試更是完全看不到。
+
+**PR 說明本文也要檢查**，而且它是最多人讀的那一份。做法是先寫成檔案：
+
+```bash
+node scripts/zh-lint.ts .scratch/pr-body.md
+```
+
+過了再 `gh pr create --body-file .scratch/pr-body.md`。`.scratch/` 被 `.gitignore` 擋著，所以那個檔案
+不會進 repo；順帶一個好處是中文裡的引號、驚嘆號與反引號不會被 shell 吃掉。
+
+規則與怎麼讀報告見 [`.claude/skills/zh-check/SKILL.md`](../../.claude/skills/zh-check/SKILL.md)。
+
 ## 跟畫面有關的變更，要拍下來並由 agent 判讀
 
 **適用範圍**：動到 reader（`Reader.tsx`、`HighlightLayer.tsx`、`lib/highlights.ts`、

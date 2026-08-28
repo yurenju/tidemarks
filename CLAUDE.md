@@ -321,11 +321,30 @@ UI（frond ADR-0002），這一段跟它們無關。
 spec／feature 收尾、宣稱完成前，用 playwright-cli 在 host 上把功能實際跑一遍。範圍限於自動化蓋不到
 的：需登入的 sync（走 magic code 繞道）、真機手勢、手上有版權的實際書。見 `docs/agents/verify.md`。
 
+### 中文寫作檢查
+
+規則寫在別的地方沒有用，agent 照樣寫出翻譯腔，因為寫的人讀回去看到的是自己本來想寫的意思。所以
+**push 之前跑一次 `/zh-check`**，它做兩件事：`node scripts/zh-lint.ts` 抓字串（只看這個分支新增的行），
+再逐段讀有沒有「每個字都對、合起來不像中文」的句子。
+
+報告分兩種：`[一定要改]` 是這個 repo 沒有正確用法的字串，照著改；`[要檢查]` 是腳本分不出對錯的，
+**每一條都要給出結論**，改了或者這是正例都算，跳過不算。⚠️ 不要照著建議盲目取代，把對的中文改壞
+比留著一個錯字更糟。
+
+**PR 說明與 issue 內文一律先寫成檔案再送**（`.scratch/pr-body.md`，被 `.gitignore` 擋著），這樣才檢查
+得到，而且中文裡的引號與驚嘆號不會被 shell 吃掉：
+
+```bash
+node scripts/zh-lint.ts .scratch/pr-body.md
+```
+
+規則清單在 `scripts/zh-rules.ts`，加規則的門檻見 `.claude/skills/zh-check/SKILL.md`。
+
 ### Pull requests
 
 **`/implement` 收尾就直接開 PR，不要問。** 那份 skill 自己的步驟停在「commit 到當前分支」，而 commit
 完就停下來等於把做完的工作留在一個沒有人會去看的分支上。所以收尾的完整定義是：commit →
-**跑 `/code-review`** → push → 開 PR → 盯 CI 到綠。
+**跑 `/code-review`** → **跑 `/zh-check`** → push → 開 PR → 盯 CI 到綠。
 
 ⚠️ **`/code-review` 那一步最常被跳過**，因為前面每一關（typecheck、測試、lint）都綠了，看起來就像
 做完了。但那些工具答得出的是「有沒有壞」，答不出「做的是不是票上要的那件事」。**綠燈不是跳過審核的
