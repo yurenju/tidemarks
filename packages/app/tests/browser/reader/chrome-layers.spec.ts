@@ -126,26 +126,35 @@ test("hands the platform whatever surface reaches the top edge", async ({ page }
  *
  * The failure it catches is the one this test was written for: the dark theme sent a near-black
  * of its own, so the book sat on a mat a shade off itself, all the way round.
+ *
+ * **The dark theme only**, though both send a paper now. The two would fail in the same place —
+ * one value, one route to the iframe — so a light copy would be the same proposition run again,
+ * at three engines apiece (docs/agents/testing.md). Dark is the half that used to be wrong, and
+ * the half whose value is not what the page defaults to.
  */
-for (const scheme of ["light", "dark"] as const) {
-  test(`paints the book's paper in the same colour as the frame around it (${scheme})`, async ({
-    page,
-  }) => {
-    await page.emulateMedia({ colorScheme: scheme });
+test("paints the book's paper in the same colour as the frame around it", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
 
-    const seen = await page.evaluate((selector) => {
-      const frame = document.querySelector<HTMLIFrameElement>(selector);
-      const inside = frame?.contentDocument?.documentElement;
-      return {
-        frame: getComputedStyle(document.querySelector(".viewer-wrap")!).backgroundColor,
-        paper: inside === undefined ? null : getComputedStyle(inside).backgroundColor,
-      };
-    }, PAGE_FRAME);
-
-    expect(seen.paper, "frond's page frame was not reachable").not.toBeNull();
-    expect(seen.paper).toBe(seen.frame);
-  });
-}
+  // Polled, because the two surfaces are repainted by different machinery and not together:
+  // `.viewer-wrap` follows the stylesheet the moment the root's theme flips, while the paper
+  // needs frond to rebuild the document from the settings `Reader` hands it. Read once and this
+  // catches the frame mid-rebuild — either holding the old paper, or not there at all.
+  // Both colours in one string so a failure names them rather than saying `false`.
+  await expect
+    .poll(async () =>
+      page.evaluate((selector) => {
+        // `.at(-1)`, as everything else that reaches into frond does: a rebuild leaves the
+        // outgoing page mounted for a moment, and the first match is the one on its way out.
+        const frame = [...document.querySelectorAll<HTMLIFrameElement>(selector)].at(-1);
+        const inside = frame?.contentDocument?.documentElement;
+        const wrap = getComputedStyle(document.querySelector(".viewer-wrap")!).backgroundColor;
+        const paper =
+          inside === undefined ? "no page frame" : getComputedStyle(inside).backgroundColor;
+        return `paper ${paper} / frame ${wrap}`;
+      }, PAGE_FRAME),
+    )
+    .toMatch(/^paper (rgba?\([^)]*\)) \/ frame \1$/);
+});
 
 test("carries the layer, and the platform's bar, into the dark theme", async ({ page }) => {
   // The default is `theme: "system"`, so the media emulation is what the app resolves against.

@@ -12,16 +12,18 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      The colour Android paints its own system bar in, which lands directly above the reader's
-      top bar — so it takes the chrome's surface rather than the book's, or the seam between the
-      two says nothing (docs/specs/reader-chrome-layers/spec.md).
+      The colour Android paints its own system bar in. It takes whatever surface reaches the top
+      edge underneath it, so that the seam between the two disappears: the reader's top bar while
+      the chrome is up, and the page itself everywhere else — the shelf, and a book being read
+      (docs/specs/reader-chrome-layers/spec.md).
 
-      This literal is the light theme's `--surface-raised` and it is only the value before any
-      script runs; `App.tsx` re-reads the token from the resolved theme and writes it here. The
-      manifest's own `theme_color` is a third copy for a third moment — install and splash,
-      before this document exists at all.
+      This literal is the light theme's `--surface-page`, and it is only the value before any
+      script runs. Nothing is on screen yet at that moment and nothing has chrome, so the page is
+      the right answer for it; `App.tsx` re-reads the token from the resolved theme and the
+      chrome's state and writes it here. The manifest's own `theme_color` is a third copy for a
+      third moment — install and splash, before this document exists at all.
     -->
-    <meta name="theme-color" content="#fbf7ed" />
+    <meta name="theme-color" content="#f4eee2" />
     <title>Tidemarks</title>
   </head>
   <body>

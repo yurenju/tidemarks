@@ -270,9 +270,10 @@ describe("frondSettings", () => {
 
   it("sets a theme under both themes, papered like the frame around the book", () => {
     // The paper is the app's own `--surface-page`, so the book fills the reader instead of
-    // sitting on a mat a shade off itself. `tokens.test.ts` is what holds these two values
-    // against the stylesheet; this only asks that both themes send one at all — light mode
-    // used to send nothing, and a book that declared its own paper drew the mat.
+    // sitting on a mat a shade off itself. **That both themes send one at all** is what this
+    // asks: light mode used to send nothing, and a book that declared its own paper drew the
+    // mat. The values are named rather than left to `toBeDefined` so a failure says which
+    // theme regressed — `tokens.test.ts` is what holds them against the stylesheet.
     expect(frondSettings(base, context).theme).toMatchObject({ background: "#f4eee2" });
     expect(frondSettings(base, { ...context, theme: "dark" }).theme).toMatchObject({
       background: "#16202b",

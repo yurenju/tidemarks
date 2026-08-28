@@ -368,24 +368,21 @@ export function saveSettings(settings: ReaderSettings) {
  *   it**. That is the trade, and it is the same one the dark theme has always made: a reader
  *   picking a theme is saying how they read, not how this book should look (ADR-0026).
  *
- * The dark pair's ink and link are older than the tokens and stay as they are: `#d8d5cf` is a
- * warmer white than `--text-body` resolves to at night, and changing it would be a change to
- * how the book reads rather than to where the book ends.
+ * ⚠️ **Four of these six are copies of a token**, for the reason `SELECTION_WASH` below is: a
+ * name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
+ * value. All three light values are copies — `--text-body`, `--surface-page`, `--tide` — and so
+ * is the dark background. `lib/tokens.test.ts` holds each of the four against the stylesheet,
+ * which is the only thing that can: a copy nobody checks is a pair of colours waiting to differ.
  *
- * ⚠️ **The two backgrounds are copies of a token**, for the reason `SELECTION_WASH` below is:
- * a name in `styles/tokens.css` never reaches frond's iframe, so the value has to travel as a
- * value. `lib/tokens.test.ts` compares the two, which is the only thing that can.
+ * The dark pair's **ink and link are not copies and are not meant to be**. They are older than
+ * the tokens: `#d8d5cf` is a warmer white than `--text-body` resolves to at night, and `#8ab4f8`
+ * is the blue a link is expected to be rather than the interface's own. Moving either would
+ * change how the book reads, which is a different question from where the book ends.
  */
-const BOOK_THEMES = {
+export const BOOK_THEMES = {
   light: { foreground: "#232833", background: "#f4eee2", link: "#2e4a75" },
   dark: { foreground: "#d8d5cf", background: "#16202b", link: "#8ab4f8" },
 } as const;
-
-/** The paper each theme hands frond, for `lib/tokens.test.ts` to hold against the stylesheet. */
-export const THEME_PAPER = {
-  light: BOOK_THEMES.light.background,
-  dark: BOOK_THEMES.dark.background,
-};
 
 /**
  * What a native selection is painted with inside the book, per theme.
