@@ -794,15 +794,6 @@ export default function Reader({
     }
 
     /**
-     * What a press means, whichever surface it landed on.
-     *
-     * **Two surfaces, one gesture.** frond reports the presses inside the book's own frame; the
-     * band of margin around it belongs to this component, and a finger landing there is no less
-     * a page turn — on a phone it is 32px down each side, which is exactly where a thumb goes.
-     * The events cannot arrive by one route: an iframe's boundary does not let them out, and
-     * the container never sees the ones inside it. So both routes call these.
-     */
-    /**
      * Which of the two selections this pointer gets, from the pointer itself.
      *
      * ADR-0036 splits on the pointer — a finger gets the one we draw, a mouse gets the browser's,
@@ -813,21 +804,38 @@ export default function Reader({
      *
      * **Turning it back on is the direction that has to be earned, and only a mouse earns it.**
      * A selectable document under a finger is the iOS magnifier this all exists to remove, and
-     * iOS raises none for a mouse. The other direction is closed at `pointerdown`, half a second
-     * before the long press it would spoil — so the switch is never mid-gesture, it is at the
-     * start of one.
+     * iOS raises none for a mouse. The other direction is closed at the finger's own
+     * `pointerdown`, half a second before the long press it would spoil.
      *
-     * A selection already on screen is deliberately left standing. The reader who has just
-     * chosen a passage with a finger reaches for the mouse to click a colour, and that reach
-     * crosses the book — dropping it here would take the passage away on the way to marking it.
+     * A pen counts as a finger, which the `!==` decides and ADR-0036 does not: it splits finger
+     * from mouse and a stylus is neither. It goes this side because a stylus on a tablet is held
+     * like a finger and reaches the same book — and because this side is the one that is safe to
+     * be wrong about, being the side that makes nothing selectable.
+     *
+     * **Turning off does not undo what is already selected** — no engine collapses a selection
+     * when `user-select` goes to `none`. So the browser's own selection is cleared on the way in,
+     * or a long press would paint our wash and beads over a highlight that is still there, which
+     * is the book selecting two ways at once. Nothing is cleared on the way out: the reader who
+     * chose a passage with a finger reaches for the mouse to press a colour, and that reach
+     * crosses the book — dropping it there would take the passage away on the way to marking it.
      */
     const notePointer = (pointerType: string) => {
       const ours = pointerType !== "mouse";
       if (ours === ownSelectionRef.current) return;
       ownSelectionRef.current = ours;
       rendererRef.current?.setNativeSelection(!ours);
+      if (ours) rendererRef.current?.clearSelection();
     };
 
+    /**
+     * What a press means, whichever surface it landed on.
+     *
+     * **Two surfaces, one gesture.** frond reports the presses inside the book's own frame; the
+     * band of margin around it belongs to this component, and a finger landing there is no less
+     * a page turn — on a phone it is 32px down each side, which is exactly where a thumb goes.
+     * The events cannot arrive by one route: an iframe's boundary does not let them out, and
+     * the container never sees the ones inside it. So both routes call these.
+     */
     const onPress = (event: {
       x: number;
       y: number;
@@ -1353,6 +1361,13 @@ export default function Reader({
         return;
       }
       rendererRef.current = attached;
+      // Whatever the pointers said while the book was being built. The margin's listeners are
+      // live from the first render, but `notePointer` had no renderer to tell — and the answer
+      // frond opened with was read at the top of `attach`, several hundred ms of iframe, fonts
+      // and first layout ago. A reader who clicked a book in the library has their cursor over
+      // this very area while it loads, so the disagreement this closes is the ordinary case,
+      // not a contrived one. No-ops when nothing moved.
+      attached.setNativeSelection(!ownSelectionRef.current);
       setRenderer(attached);
     }
 

@@ -894,21 +894,25 @@ export class Renderer {
    * open. Which fact the consumer trusts, and what it makes of it, is still the consumer's
    * (ADR-0002); what frond owes it is the ability to act on an answer that has changed.
    *
-   * Every document is moved, not only the one on screen: a peek becomes the page on screen
-   * without being mounted again (`takeTurn`), and one that was mounted under the old answer
-   * would carry it back in a page turn later. Documents mounted after this read the new value
-   * where they are built.
+   * **The peeks are moved too, and a live turn is no reason to skip them.** A peek becomes the
+   * page on screen without being mounted again (`takeTurn`), and `refreshNeighbours` keeps one
+   * that already points at the right section rather than rebuilding it — so a peek left on the
+   * old answer carries it back one page turn later, and nothing restores it: `settle` and
+   * `takeTurn` put this value back on the frame **they** move, which is never a peek.
    *
-   * A turn in progress is left alone — it suppresses selection for as long as the finger is
-   * down, whatever this says, and it puts back this value when it settles.
+   * Documents mounted after this read the new value where they are built.
+   *
+   * Only the page on screen waits, and only while a turn is moving it: a turn suppresses
+   * selection for as long as the finger is down whatever this says, and it is that frame the
+   * turn puts back when it settles.
    */
   setNativeSelection(allowed: boolean): void {
-    if (allowed === this.nativeSelection) return;
+    if (this.destroyed || allowed === this.nativeSelection) return;
     this.nativeSelection = allowed;
-    if (this.turn?.live === true) return;
-    for (const view of [this.view, this.peeks.prev?.view, this.peeks.next?.view]) {
+    for (const view of [this.peeks.prev?.view, this.peeks.next?.view]) {
       view?.suppressSelection(!allowed);
     }
+    if (this.turn?.live !== true) this.view?.suppressSelection(!allowed);
   }
 
   /**

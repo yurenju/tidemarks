@@ -261,6 +261,8 @@ export interface MountOptions {
    * treats differently (`document-source.ts`'s ordering comment).
    */
   readonly resources?: Record<string, string>;
+  /** Corresponds to `RendererOptions.nativeSelection`. Omitted, the browser may select. */
+  readonly nativeSelection?: boolean;
   /** Where in the first section to render. Corresponds to `RendererOptions.start`. */
   readonly start?:
     { readonly cfi: string } | { readonly sectionIndex: number; readonly fragment?: string };
@@ -527,6 +529,8 @@ export interface FrondHarness {
   touchEndDefaultPrevented(): boolean | null;
   /** Clicks a link, for the linkactivate tests. */
   clickLink(selector: string): void;
+  /** `Renderer.setNativeSelection`: moves the answer on a book that is already open. */
+  setNativeSelection(allowed: boolean): void;
   /**
    * Begins a turn the reader would be dragging, and reports what frond made of it.
    *
@@ -568,6 +572,14 @@ export interface FrameSnapshot {
   readonly page: boolean;
   /** One of the two waiting either side, **laid out and pointed at its page**. */
   readonly peek: boolean;
+  /**
+   * Whether the browser may select this frame's text, as the frame's own document resolves it.
+   *
+   * Per frame rather than once for the renderer, because that is where the answer can go wrong:
+   * a peek is mounted separately from the page and becomes the page without being mounted again,
+   * so one left on a stale answer is invisible until a turn brings it forward.
+   */
+  readonly selectable: boolean;
 }
 
 export interface Rect {

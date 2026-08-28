@@ -49,6 +49,31 @@ async function selectable(page: Page): Promise<string | undefined> {
 }
 
 /**
+ * Two points on this page's text, as far apart as its runs allow — somewhere for a drag to start
+ * and somewhere for it to end.
+ *
+ * **Both ends have to be aimed at text**, which is `textPoints`' rule and what issue #54 turned
+ * out to be: a drag that ends in the empty part of a column selects nothing, and a test built on
+ * one fails for a reason that has nothing to do with which selection is in force.
+ */
+async function dragBetweenRuns(
+  page: Page,
+): Promise<{ from: { x: number; y: number }; onto: { x: number; y: number } }> {
+  const runs = await textPoints(page);
+  const from = runs[0];
+  if (from === undefined || runs.length < 2) {
+    throw new Error("this page has fewer than two runs of text to drag between");
+  }
+  const onto = runs.reduce((furthest, run) =>
+    Math.hypot(run.x - from.x, run.y - from.y) >
+    Math.hypot(furthest.x - from.x, furthest.y - from.y)
+      ? run
+      : furthest,
+  );
+  return { from, onto };
+}
+
+/**
  * How much of the page is washed, in square pixels.
  *
  * Counting the boxes would not do: a selection extended along a line lengthens the strip the
@@ -275,8 +300,8 @@ test.describe("a touchscreen that also has a mouse", () => {
     // A move and nothing more. The mouse has to be able to announce itself before it presses:
     // a drag selects from its own `mousedown`, so a book made selectable at that instant is a
     // book the drag has already started over.
-    const [text] = await textPoints(page);
-    await page.mouse.move(text.x, text.y);
+    const { from } = await dragBetweenRuns(page);
+    await page.mouse.move(from.x, from.y);
 
     await expect.poll(() => selectable(page)).not.toBe("none");
   });
@@ -284,8 +309,8 @@ test.describe("a touchscreen that also has a mouse", () => {
   test("a finger takes it back, so the long press is never over selectable text", async ({
     page,
   }) => {
-    const [text] = await textPoints(page);
-    await page.mouse.move(text.x, text.y);
+    const { from } = await dragBetweenRuns(page);
+    await page.mouse.move(from.x, from.y);
     await expect.poll(() => selectable(page)).not.toBe("none");
 
     // The direction that has to be safe: a finger landing on a book the mouse left selectable is
@@ -298,20 +323,44 @@ test.describe("a touchscreen that also has a mouse", () => {
     await expect(page.locator(".selection-handle")).toHaveCount(2);
   });
 
+  test("the two hands can be alternated, and each keeps getting its own selection", async ({
+    page,
+  }) => {
+    // The reader's own question. Every other test here changes hands once; this one goes back,
+    // because the failure mode of a per-pointer rule is not the first switch but the second —
+    // a mode that latches, or one that leaves the other mechanism's selection standing.
+    const { from, onto } = await dragBetweenRuns(page);
+
+    // Finger.
+    await longPressSelect(page);
+    await expect(page.locator(".selection-handle")).toHaveCount(2);
+    expect(await selectable(page)).toBe("none");
+
+    // Mouse.
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(onto.x, onto.y, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.locator(".selection-handle")).toHaveCount(0);
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+
+    // Finger again — and the browser's passage has to be gone, not merely hidden. Turning
+    // `user-select` off collapses nothing, so without clearing it the wash and beads below
+    // would be painted over a highlight that is still there.
+    await longPressSelect(page);
+    expect(await selectable(page)).toBe("none");
+    await expect(page.locator(".selection-handle")).toHaveCount(2);
+    expect(
+      await page
+        .frameLocator(PAGE_FRAME)
+        .locator("body")
+        .evaluate((body) => body.ownerDocument.getSelection()?.toString() ?? ""),
+    ).toBe("");
+  });
+
   test("dragging with the mouse selects and raises the colour row", async ({ page }) => {
-    // The reader's own report, end to end: two runs of text, a drag between them, a passage to
-    // mark. **Two runs, not one point** — `textPoints`' rule (see the handle-drag test above):
-    // a drag that ends off the text has nothing to select and would fail for a reason that has
-    // nothing to do with which selection is in force.
-    const runs = await textPoints(page);
-    expect(runs.length, "this page has only one run of text to drag between").toBeGreaterThan(1);
-    const [from] = runs;
-    const onto = runs.reduce((furthest, run) =>
-      Math.hypot(run.x - from.x, run.y - from.y) >
-      Math.hypot(furthest.x - from.x, furthest.y - from.y)
-        ? run
-        : furthest,
-    );
+    // The reader's own report, end to end: a drag across the text, and a passage to mark.
+    const { from, onto } = await dragBetweenRuns(page);
 
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
