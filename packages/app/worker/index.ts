@@ -14,6 +14,7 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
 import { handleAuth, json, sessionUserId, type Env } from "./auth";
 import { handleAuthorize, READ_SCOPE } from "./authorize";
+import { cursorFor } from "./cursor";
 import { d1Store } from "./mcp/d1-store";
 import { handleMcp } from "./mcp/http";
 import { type PushBody, resolvePush } from "./push";
@@ -210,8 +211,8 @@ async function loadAll(env: Env, userId: string) {
  * Everything written since the caller's cursor.
  *
  * **Strictly greater-than**, so a row whose server time is exactly the cursor is never sent
- * twice — the cursor is a server clock reading (`updated_at`), and the next pull carries it
- * back unchanged.
+ * twice — the cursor is the `updated_at` of the newest row the last pull carried (`cursorFor`),
+ * and the next pull carries it back unchanged.
  *
  * A push still reads whole tables below, because it has to compare every incoming row against
  * whatever the server holds, however old. A pull has no such need, and it is the one that runs
@@ -247,8 +248,10 @@ async function loadSince(env: Env, userId: string, since: number) {
 async function pullSync(env: Env, userId: string, url: URL): Promise<Response> {
   const since = Number(url.searchParams.get("since") ?? 0) || 0;
   const changed = await loadSince(env, userId, since);
+  // `changed` whole rather than its four fields, so a fifth table added to `loadSince` is
+  // counted here without anyone having to remember to add it.
   return json({
-    cursor: Date.now(),
+    cursor: cursorFor(changed, since, Date.now()),
     books: changed.books.map(bookToWire),
     progress: changed.progress.map(progressToWire),
     annotations: changed.annotations.map(annotationToWire),
@@ -259,7 +262,6 @@ async function pullSync(env: Env, userId: string, url: URL): Promise<Response> {
 async function pushSync(request: Request, env: Env, userId: string): Promise<Response> {
   const body = (await request.json().catch(() => null)) as PushBody | null;
   if (!body) return json({ error: "bad request" }, { status: 400 });
-  const now = Date.now();
   const all = await loadAll(env, userId);
 
   // Winner/conflict decisions live in resolvePush (pure, tested); this function
@@ -273,6 +275,18 @@ async function pushSync(request: Request, env: Env, userId: string): Promise<Res
     },
     body,
   );
+
+  // **Read first, then stamp.** Taken before `loadAll` this was a reading from before the row was
+  // written by the whole duration of a push, four D1 reads and a batch, and a row whose stamp
+  // predates its own commit can be passed over by a pull that ran in between and still look older
+  // than that pull's cursor afterwards (`cursorFor`). Two devices pushing at once is the case
+  // that survives fixing the cursor alone: the slower push would otherwise stamp itself behind a
+  // faster one that started later.
+  //
+  // ⚠️ **This narrows the window to the batch itself, it does not close it.** The stamp still
+  // predates the commit it describes, because a clock cannot be read at the moment a write lands.
+  // Closing it means a server-assigned sequence: #112.
+  const now = Date.now();
 
   const statements: D1PreparedStatement[] = [];
   for (const b of plan.books) {
