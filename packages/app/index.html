@@ -24,6 +24,37 @@
       third moment — install and splash, before this document exists at all.
     -->
     <meta name="theme-color" content="#f4eee2" />
+    <!--
+      The resolved theme, before the first paint. `App.tsx` owns both of these and re-states them
+      from the tokens themselves, but its effect runs a frame too late: until it does, the page
+      is drawn in the light theme and — because a PWA window's frame is painted from whatever
+      theme-color the document is announcing while it loads — Chromium strokes the window border
+      in paper. Reloading the shelf at night left that border white until something else wrote
+      the tag again.
+
+      The two literals are the dark theme's `--surface-page` and the light theme's, the same
+      value the tag above already carries. They are a bridge and not a second source of truth:
+      whatever they say, `App.tsx` overwrites the tag with the token it reads out of the cascade
+      as soon as it mounts. A drifted literal here costs one frame of the wrong colour, not a
+      wrong colour.
+    -->
+    <script>
+      (function () {
+        var chosen;
+        try {
+          chosen = JSON.parse(localStorage.getItem("tidemarks-settings") || "{}").theme;
+        } catch (e) {
+          /* Unreadable settings mean the system decides, same as a first visit. */
+        }
+        if (chosen !== "light" && chosen !== "dark") {
+          chosen = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = chosen;
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute("content", chosen === "dark" ? "#16202b" : "#f4eee2");
+      })();
+    </script>
     <title>Tidemarks</title>
   </head>
   <body>
