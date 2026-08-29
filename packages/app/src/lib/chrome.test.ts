@@ -66,13 +66,31 @@ describe("two things wanting the chrome at once", () => {
     expect(after.chrome).toBe("down");
   });
 
-  it("takes the whole panel away with it when a jump is made from inside one", () => {
-    expect(nextChrome(at({ chrome: "toc", panelKind: "toc" }), { kind: "jumped" }).chrome).toBe(
-      "down",
-    );
+  it("takes the whole panel away with it where the panel is over the book", () => {
+    const after = nextChrome(at({ chrome: "toc", panelKind: "toc" }), {
+      kind: "jumped",
+      keepPanel: false,
+    });
+    expect(after.chrome).toBe("down");
+  });
+
+  it("leaves 〈目錄〉 standing where the book keeps a column of its own", () => {
+    // A chapter pressed on a desk is one of a list the reader may be working through, and the
+    // book they were sent to is still on screen beside the panel. Closing it would cost a press
+    // per chapter to get back — the same argument `notePressed` already makes for a passage.
+    const after = nextChrome(at({ chrome: "toc", panelKind: "toc" }), {
+      kind: "jumped",
+      keepPanel: true,
+    });
+    expect(after.chrome).toBe("toc");
   });
 });
 
+// **A note stops being edited the moment the panel stops standing**, and nothing has to be lost
+// with it: the words are committed when the box loses focus, so what closes here is the editor
+// and not the writing (ADR-0044's 代價). Held any longer, `editing` would still be set the next
+// time 〈Notes〉 was raised, and the box that remounts takes the focus — which on a phone means
+// pressing 〈Notes〉 to read a list and getting a keyboard.
 describe("the note being written", () => {
   it("opens the panel and starts editing in one move", () => {
     expect(nextChrome(at(), { kind: "openNote", id: "a" })).toMatchObject({
@@ -82,14 +100,27 @@ describe("the note being written", () => {
     });
   });
 
-  it("keeps unsaved words when the reader taps the chrome away", () => {
-    const after = run(at(), { kind: "openNote", id: "a" }, { kind: "tapped" });
-    expect(after).toMatchObject({ chrome: "down", editing: "a" });
+  it.each([
+    ["the reader taps the chrome away", { kind: "tapped" } as const],
+    ["a page turn puts the chrome away", { kind: "turned" } as const],
+    ["the panel dismisses itself", { kind: "panelDismissed" } as const],
+    ["〈排版〉 takes the panel over", { kind: "togglePanel", panel: "layout" } as const],
+    ["a selection arrives", { kind: "selectionArrived" } as const],
+  ])("stops editing when %s", (_what, event) => {
+    const after = run(at(), { kind: "openNote", id: "a" }, event);
+    expect(after.editing).toBeNull();
   });
 
-  it("keeps unsaved words when a page turn puts the chrome away", () => {
-    const after = run(at(), { kind: "openNote", id: "a" }, { kind: "turned" });
-    expect(after).toMatchObject({ chrome: "down", editing: "a" });
+  it("raises a bare list rather than a box with the focus, having been left mid-note", () => {
+    // The whole of the report this rule came from: a note left half written, 〈Notes〉 pressed
+    // some time later to read the list, and a keyboard covering it.
+    const after = run(
+      at(),
+      { kind: "openNote", id: "a" },
+      { kind: "tapped" },
+      { kind: "togglePanel", panel: "notes" },
+    );
+    expect(after).toMatchObject({ chrome: "notes", editing: null });
   });
 
   it("has nothing being edited once the note is saved", () => {
@@ -114,30 +145,41 @@ describe("the passage the notes panel is pointing at", () => {
     expect(after.chrome).toBe("notes");
   });
 
-  it("takes the panel away where the panel is over the book, and points at nothing", () => {
-    // Narrower than 1024px the panel covers the page (`styles/device.css`), so a panel kept
-    // standing would hide the passage it was kept standing for. It goes, and the wash with it —
-    // there is no panel left for a pointed-at passage to belong to.
+  it("takes the panel away where the panel is over the book, and keeps pointing", () => {
+    // Narrower than the column the panel covers the page (`styles/device.css`), so a panel kept
+    // standing would hide the passage it was kept standing for. It goes — and the wash stays,
+    // because the passage it names is exactly what the reader pressed to be shown.
     const after = nextChrome(at({ chrome: "notes" }), {
       kind: "notePressed",
       id: "a",
       keepPanel: false,
     });
     expect(after.chrome).toBe("down");
-    expect(after.selected).toBeNull();
+    expect(after.selected).toBe("a");
   });
 
   it.each([
     ["a page turn", { kind: "turned" } as const],
-    ["a tap on the page", { kind: "tapped" } as const],
-    ["a chapter pressed in 〈目錄〉", { kind: "jumped" } as const],
+    ["a chapter pressed in 〈目錄〉", { kind: "jumped", keepPanel: false } as const],
     ["a selection arriving", { kind: "selectionArrived" } as const],
-    ["the panel dismissing itself", { kind: "panelDismissed" } as const],
-    ["〈排版〉 taking the panel over", { kind: "togglePanel", panel: "layout" } as const],
-    ["〈Notes〉 pressed again to close it", { kind: "togglePanel", panel: "notes" } as const],
   ])("stops pointing after %s", (_what, event) => {
     const after = nextChrome(at({ chrome: "notes", selected: "a" }), event);
     expect(after.selected).toBeNull();
+  });
+
+  it.each([
+    ["a tap on the page", { kind: "tapped" } as const],
+    ["the panel dismissing itself", { kind: "panelDismissed" } as const],
+    ["〈Notes〉 pressed again to close it", { kind: "togglePanel", panel: "notes" } as const],
+    ["〈排版〉 taking the panel over", { kind: "togglePanel", panel: "layout" } as const],
+    ["〈目錄〉 taking the panel over", { kind: "togglePanel", panel: "toc" } as const],
+  ])("goes on pointing through %s, which leaves the reader on the same page", (_what, event) => {
+    // **The wash outlives the panel now**, because on a narrow window pressing a quote is how a
+    // reader asks to be shown the passage — and the panel has to go for them to see it. What
+    // ends it is leaving the page the passage is on, not the panel closing. Closing 〈Notes〉 by
+    // pressing it again is that same move made from the bar rather than from the quote.
+    const after = nextChrome(at({ chrome: "notes", selected: "a" }), event);
+    expect(after.selected).toBe("a");
   });
 
   it("stops pointing when the panel is raised again, having been pressed last time", () => {

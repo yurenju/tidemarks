@@ -6,7 +6,7 @@
 // wires that file cannot reach: that the position written on every `relocate` is really held
 // back while a visit is on, and that the page the decision is taken against is the one on screen
 // — read from `renderer.location`, because the stored `pageRange` goes stale exactly here. The
-// notes panel takes a column from the book on a wide desk (above 1024px), and that reflow keeps
+// notes panel takes a column from the book on a wide desk (above 820px), and that reflow keeps
 // the reader on the same page of the same CFI, which is the shape `relocate` de-duplicates away.
 //
 // **The reader arrives already placed**, by seeding the position and the mark rather than by
@@ -150,7 +150,8 @@ test("a visit holds the reader's place, and says nothing over the book", async (
 
   await jumpToPassage(page);
 
-  // The jump lands in chapter one and the panel closes over it, both of which emit a `relocate`;
+  // The jump lands in chapter one and the panel stays standing beside it, and the reflow that
+  // gave it its column emits a `relocate` too;
   // `settled` waits them out, so a position that got through would be written by now. **Asked
   // after that wait rather than before it** — `toBeHidden` passes on an element that does not
   // exist yet, so a card arriving one render later would sail past an earlier question.
@@ -208,33 +209,41 @@ test("during a visit, staying here writes the page the reader is looking at", as
   expect(await storedCfi(page)).not.toBe(offered.cfi);
 });
 
-test("the scrubber marks the progress a visit is holding, and the mark is the way back", async ({
-  page,
-}) => {
-  await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
-  await expect.poll(() => storedCfi(page)).not.toBeNull();
+// Narrow enough that the panel covers the book, so pressing a passage takes the whole chrome
+// away with it. That is what this test needs: the bars have to leave before it can ask for them
+// back. The suite's 1000px is over 820 now, where the panel stands beside the book and the bars
+// stay standing with it.
+test.describe("in a window where the panel covers the book", () => {
+  test.use({ viewport: { width: 700, height: 900 } });
 
-  await jumpToPassage(page);
+  test("the scrubber marks the progress a visit is holding, and the mark is the way back", async ({
+    page,
+  }) => {
+    await arrive(page, CHAPTER_THREE, IN_CHAPTER_ONE);
+    await expect.poll(() => storedCfi(page)).not.toBeNull();
 
-  // ⚠️ **Wait for the chrome to finish leaving before asking for it back.** Pressing a passage
-  // puts the bars away at this viewport — `notePressed` with `keepPanel: false`, because 1000px
-  // is under the 1024 where the panel would stand beside the book instead of over it
-  // (`lib/media.ts`) — and a bar on its way out is still
-  // `visible` — `visibility` only flips at the end of the slide, on purpose. `openChrome` called
-  // into that window sees a visible bar, clicks nothing, and then waits for a transform that is
-  // travelling the other way.
-  await expect(page.getByTestId("chrome-bottom")).toBeHidden();
-  await openChrome(page);
+    await jumpToPassage(page);
 
-  // Visible, and named after the place it leads to — the whole of what #110 asked for.
-  await expect(visitMark(page)).toBeVisible();
+    // ⚠️ **Wait for the chrome to finish leaving before asking for it back.** Pressing a passage
+    // puts the bars away at this viewport — `notePressed` with `keepPanel: false`, because 700px
+    // is under the 820 where the panel would stand beside the book instead of over it
+    // (`lib/media.ts`) — and a bar on its way out is still
+    // `visible` — `visibility` only flips at the end of the slide, on purpose. `openChrome` called
+    // into that window sees a visible bar, clicks nothing, and then waits for a transform that is
+    // travelling the other way.
+    await expect(page.getByTestId("chrome-bottom")).toBeHidden();
+    await openChrome(page);
 
-  // **Pressing it is reading again**, so the visit it belonged to ends and it goes with it. That
-  // is the assertion rather than the CFI it landed on: the mark going away is what tells the
-  // reader their progress is theirs again, and it is only true if the jump really arrived at the
-  // page being defended.
-  await visitMark(page).click();
-  await expect(visitMark(page)).toHaveCount(0);
+    // Visible, and named after the place it leads to — the whole of what #110 asked for.
+    await expect(visitMark(page)).toBeVisible();
+
+    // **Pressing it is reading again**, so the visit it belonged to ends and it goes with it.
+    // That is the assertion rather than the CFI it landed on: the mark going away is what tells
+    // the reader their progress is theirs again, and it is only true if the jump really arrived
+    // at the page being defended.
+    await visitMark(page).click();
+    await expect(visitMark(page)).toHaveCount(0);
+  });
 });
 
 test("a marked passage on the page in front of the reader is not a visit", async ({ page }) => {
@@ -249,10 +258,10 @@ test("a marked passage on the page in front of the reader is not a visit", async
   await expect.poll(() => storedCfi(page)).not.toBeNull();
   const here = (await storedCfi(page))!;
 
-  // ⚠️ **The panel can take a column from the book, and then the book reflows under it.** That
-  // is the arrangement above 1024px (`styles/device.css`); this viewport is 1000, where the
-  // panel is drawn over the page instead and nothing reflows. What is being defended is the
-  // wider case. That reflow is why the decision reads `renderer.location` rather than the stored
+  // ⚠️ **The panel takes a column from the book, and then the book reflows under it.** That is
+  // the arrangement at this viewport now: 1000px is over the 820 where the column is handed
+  // across (`styles/device.css`), so the reflow this guards against is one the test really
+  // provokes rather than one it describes from a width that never sees it. That reflow is why the decision reads `renderer.location` rather than the stored
   // `pageRange`: `relocate` de-duplicates on section, page, fraction and CFI, none of which the
   // reflow need change, so the stored range can still describe the wider layout — and a passage
   // measured against it lands outside a page the reader is looking straight at.

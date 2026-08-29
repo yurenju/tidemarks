@@ -107,43 +107,54 @@ test("centres the chapter, and holds its line even where there is no chapter", a
   expect(row.height).toBeGreaterThan(0);
 });
 
-test("opens the panel down the right side and leaves the book where it was", async ({ page }) => {
-  await openChrome(page);
-  const before = (await page.locator(".viewer").boundingBox())!;
-  // The reader's own right edge, not the window's. `html` keeps a permanent scrollbar gutter so
-  // that opening a drawer cannot shift the shelf sideways, and that gutter is 15px of the 1000.
-  const reader = (await page.locator(".reader").boundingBox())!;
+/**
+ * The narrow window, where there is no book to stand beside so the panel takes the screen.
+ *
+ * **There is no third arrangement any more.** This used to be three: a column that pushed the
+ * book above 1024, a column that covered it between 820 and 1023, and a sheet below. The middle
+ * one is gone — under 820 〈目錄〉 and 〈筆記〉 cover everything, because what a column or a sheet
+ * leaves over at that width is not a book anyone can read (ADR-0044). So one width each side of
+ * 820 is the whole of it, which is why there is no third test at the suite's own 1000: it is over
+ * the line and would be asking the wide case a second time.
+ */
+test.describe("in a window with no room for a book beside a panel", () => {
+  test.use({ viewport: { width: 700, height: 900 } });
 
-  await openPanel(page, "Contents");
+  test("gives the panel the whole reader", async ({ page }) => {
+    await openChrome(page);
+    const reader = (await page.locator(".reader").boundingBox())!;
 
-  // Polled, because it arrives by transition: measured the instant it opens, a panel that slides
-  // in from the right is still off the edge it came from. Flush with the reader's right edge,
-  // whatever `--panel-width` happens to be — the number is CSS's, and a test that restates it is
-  // only checking that two copies of it agree.
-  const toc = page.getByTestId("panel-toc");
-  await expect
-    .poll(async () => {
-      const box = (await toc.boundingBox())!;
-      return Math.round(box.x + box.width);
-    })
-    .toBe(Math.round(reader.x + reader.width));
+    await openPanel(page, "Contents");
 
-  // Covering, not pushing — at *this* width. 1000px is a window narrow enough that handing the
-  // panel a column of its own would leave the book in a gutter, so the page keeps every pixel it
-  // had and nothing repaginates. The other half of that trade is the next test, which opens the
-  // same panel in a window wide enough to pay for it.
-  await expect
-    .poll(async () => Math.round((await page.locator(".viewer").boundingBox())!.width))
-    .toBe(Math.round(before.width));
+    // Every edge, not just the right one: this is the arrangement where "which side it is
+    // anchored to" stops being a question.
+    await expect
+      .poll(async () => {
+        const box = (await page.getByTestId("panel-toc").boundingBox())!;
+        return [box.x, box.y, box.width, box.height].map(Math.round).join();
+      })
+      .toBe([reader.x, reader.y, reader.width, reader.height].map(Math.round).join());
+  });
+
+  test("leaves 〈排版〉 a sheet, because the page above it is the preview", async ({ page }) => {
+    // The one face that takes the full-screen rule back (ADR-0005): what 〈排版〉 covers is the
+    // thing it was opened to change, so it stops and lets the book show above it.
+    await openChrome(page);
+    const reader = (await page.locator(".reader").boundingBox())!;
+
+    await openPanel(page, "Type");
+
+    await expect
+      .poll(async () => {
+        const box = (await page.getByTestId("panel-layout").boundingBox())!;
+        return Math.round(box.y) > Math.round(reader.y);
+      })
+      .toBe(true);
+  });
 });
 
 /**
- * The wide window, where the panel stops covering the page and stands beside it.
- *
- * A viewport of its own rather than the suite's 1000×700, because the threshold is the whole
- * point: at 1440 there is a book left over after the column is handed across, and at 1000 there
- * is not. Two tests, two windows, one rule — which is cheaper than one test that quietly stopped
- * describing either.
+ * The wide window, where the panel stands beside the book and is paid for in pagination.
  */
 test.describe("in a window wide enough to give up a column", () => {
   test.use({ viewport: { width: 1440, height: 900 } });

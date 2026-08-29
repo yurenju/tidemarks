@@ -50,17 +50,29 @@ export interface ChromeState {
    * blank its own contents and spend the whole exit sliding an empty box off the screen.
    */
   readonly panelKind: PanelKind;
-  /** Which note the notes panel has open for editing, `null` for none. */
+  /**
+   * Which note the notes panel has open for editing, `null` for none.
+   *
+   * **It lives only while the notes panel stands**, and `settle` is what ends it, so no
+   * transition below has to remember to. Nothing is lost by closing early: a note commits when
+   * its box loses the focus. Held any longer, the box would remount the next time 〈Notes〉 was
+   * raised and take the focus with it — which on a phone is a reader pressing 〈Notes〉 to read a
+   * list and getting a keyboard over it.
+   */
   readonly editing: string | null;
   /**
-   * Which marked passage the panel is pointing at — washed on the page while the panel stands.
+   * Which marked passage the panel is pointing at — washed on the page.
    *
-   * **It is here rather than in `Reader.tsx` because leaving the panel has to clear it, and
-   * every way of leaving already passes through this file.** Held outside, it needed one writer
-   * per exit — a page turn, a tap, a switch to 〈目錄〉, an outside press — and the ones that were
-   * missed showed up as a passage lighting up on a panel the reader had just reopened without
-   * pressing anything. `settle` drops it whenever the chrome is not the notes panel, so no
-   * transition below has to remember to.
+   * **It outlives the panel, and ends when the reader leaves the page it is on.** On a window
+   * too narrow for the book to keep a column, pressing a quote is how a reader asks to be shown
+   * the passage, and the panel has to close for them to see it — so a wash that ended with the
+   * panel ended exactly when it was wanted. `turned` and `jumped` are what clear it now, along
+   * with the two events that put a different answer on screen: a new selection, and 〈Notes〉
+   * raised again by a reader who has pressed nothing in it.
+   *
+   * **It is here rather than in `Reader.tsx` because every one of those already passes through
+   * this file.** Held outside, it needed one writer per exit, and the ones that were missed
+   * showed up as a passage lighting up on a panel the reader had just reopened.
    */
   readonly selected: string | null;
 }
@@ -71,15 +83,21 @@ export type ChromeEvent =
   | { kind: "tapped" }
   /** A page turn, by any route — drag, page button, arrow key. */
   | { kind: "turned" }
-  /** A chapter the reader pressed to be taken to. Not merged with `turned`: one comes through
-   *  the gesture machine and one through a panel's `onClick`, so if they break they break in
-   *  different places. Landing on the same result is a coincidence. */
-  | { kind: "jumped" }
+  /**
+   * A chapter the reader pressed to be taken to. Not merged with `turned`: one comes through
+   * the gesture machine and one through a panel's `onClick`, so if they break they break in
+   * different places. They no longer land on the same result either.
+   *
+   * `keepPanel` means the same thing it means on `notePressed`, and is answered the same way:
+   * a chapter is one of a list the reader may be working down, so 〈目錄〉 stays standing where
+   * the book it sent them to is still on screen beside it.
+   */
+  | { kind: "jumped"; keepPanel: boolean }
   /**
    * A marked passage the reader pressed in the notes panel.
    *
    * **`keepPanel` is the caller's answer to "is the book still visible", and it has to be:** the
-   * panel takes a column from the book only above 1024px (`styles/device.css`), and narrower
+   * panel takes a column from the book only above 820px (`styles/device.css`), and narrower
    * than that it is drawn over the book — where staying open would leave the reader looking at
    * the panel they pressed and none of the passage they pressed it for. Only the caller can ask
    * a media query, and this file will not grow one (`lib/media.ts` says why a layout may not
@@ -116,21 +134,23 @@ function settle(
   editing: string | null,
   selected: string | null,
 ): ChromeState {
-  // **The one place a passage stops being pointed at.** Anything that is not the notes panel
-  // standing open — the chrome going down, another face coming up, the panel being dismissed —
-  // takes the wash with it, without the transition below having said so.
-  const pointing = chrome === "notes" ? selected : null;
+  // **The one place a note stops being edited.** Anything that is not the notes panel standing
+  // open — the chrome going down, another face coming up, the panel being dismissed — closes the
+  // editor, without the transition below having said so. This filter used to be on `selected`
+  // and the two have swapped: a wash now outlives the panel and an editor does not, for the
+  // reasons on each field above.
+  const stillEditing = chrome === "notes" ? editing : null;
   // `panelKind` is not asked about: it only ever changes when `chrome` becomes a panel, so a
   // `chrome` that did not move cannot have moved it either.
-  if (chrome === state.chrome && editing === state.editing && pointing === state.selected) {
+  if (chrome === state.chrome && stillEditing === state.editing && selected === state.selected) {
     return state;
   }
   return {
     chrome,
     // Only entering a panel updates this; leaving one leaves it remembering what it was.
     panelKind: isPanel(chrome) ? chrome : state.panelKind,
-    editing,
-    selected: pointing,
+    editing: stillEditing,
+    selected,
   };
 }
 
@@ -141,22 +161,44 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // from a reader who was still reading it (ADR-0020).
       return settle(state, state.chrome === "down" ? "up" : "down", state.editing, state.selected);
     case "turned":
-    case "jumped":
     case "selectionArrived":
-      // `editing` survives: a reader half way through a note who taps the page to see it clearly
-      // has not thrown those words away.
-      return settle(state, "down", state.editing, state.selected);
-    case "togglePanel":
-      // `null`, not `state.selected`: the reader raising the panel again has pressed nothing in
-      // it, and a passage lit from the last time they had it open is the app answering a
-      // question nobody asked.
-      return settle(state, state.chrome === event.panel ? "up" : event.panel, state.editing, null);
+      // **The two ways a wash ends other than by being replaced.** A page turn leaves the page
+      // the passage is on; a selection arriving puts a second answer on the same page, and two
+      // passages lit at once says neither.
+      return settle(state, "down", state.editing, null);
+    case "jumped":
+      // Same shape as `notePressed`, and the same question behind it — see `keepPanel` there.
+      // The wash goes either way: the reader has been taken somewhere else in the book.
+      return settle(state, event.keepPanel ? state.chrome : "down", state.editing, null);
+    case "togglePanel": {
+      // **Only 〈Notes〉 being *raised* clears the wash**, and only that. A reader who opens the
+      // list again has pressed nothing in it, so a passage lit from the last time they had it
+      // open is the app answering a question nobody asked. Every other move through this event
+      // leaves the reader on the page they were on with the passage they chose still lit:
+      // opening 〈目錄〉 or 〈排版〉, and closing 〈Notes〉 again — that last one is how a narrow
+      // window looks at the passage at all.
+      const raisingNotes = event.panel === "notes" && state.chrome !== "notes";
+      return settle(
+        state,
+        state.chrome === event.panel ? "up" : event.panel,
+        state.editing,
+        raisingNotes ? null : state.selected,
+      );
+    }
     case "panelDismissed":
-      return settle(state, isPanel(state.chrome) ? "up" : state.chrome, state.editing, null);
+      // The reader is still on the page they were on, so a passage they pressed goes on being
+      // washed. Closing the panel is how they get to look at it.
+      return settle(
+        state,
+        isPanel(state.chrome) ? "up" : state.chrome,
+        state.editing,
+        state.selected,
+      );
     case "notePressed":
       // Wide enough and the panel stays with the passage pointed at; narrower, the panel is over
-      // the book and has to go — and then `settle` drops the pointer on its own, because there is
-      // no panel left for it to belong to.
+      // the book and has to go. **The wash survives that either way** — it names the passage the
+      // press was asking to be shown, and on the narrow window there is nothing else left saying
+      // which one.
       return settle(state, event.keepPanel ? state.chrome : "down", state.editing, event.id);
     case "openNote":
       // The passage this note belongs to is the one the reader just pressed on the page, or the

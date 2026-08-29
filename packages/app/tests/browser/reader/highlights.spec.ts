@@ -194,36 +194,49 @@ test.describe("drawing a highlight", () => {
       .toBe(FOLLOWED);
   });
 
-  test("the quote in the notes panel takes the reader back to the passage", async ({ page }) => {
-    // **The click has to survive the panel it is made in.** Base UI's drawer captures the
-    // pointer for any press that does not land on something interactive, and a captured
-    // pointer retargets the `click` to the panel itself — so a quote that was not a control
-    // heard nothing, on a desk. Under a finger the same swipe takes no capture, which is why
-    // this only ever failed with a mouse and why the spec drives one here.
-    const text = await selectPassage(page);
-    await page.locator(".highlight-toolbar .swatch").first().click();
-    await expect(page.locator(".highlight-box").first()).toBeVisible();
-    const marked = await visibleText(page);
+  // Narrow enough that the panel covers the book, which is the arrangement this pair of facts
+  // only holds in: the panel has to leave for the passage to be seen, and the wash is then the
+  // only thing left saying which passage it was. The suite's 1000px is over 820 now, where the
+  // panel stands beside the book and stays — that case is its own describe further down.
+  test.describe("in a window where the panel covers the book", () => {
+    test.use({ viewport: { width: 700, height: 900 } });
 
-    // Away from the marked page first, or landing on it would prove nothing.
-    const before = await visibleText(page);
-    await page.getByRole("button", { name: "Next page" }).click();
-    await expect.poll(async () => await visibleText(page)).not.toBe(before);
-    await expect(page.locator(".highlight-box")).toHaveCount(0);
+    test("the quote in the notes panel takes the reader back to the passage", async ({ page }) => {
+      // **The click has to survive the panel it is made in.** Base UI's drawer captures the
+      // pointer for any press that does not land on something interactive, and a captured
+      // pointer retargets the `click` to the panel itself — so a quote that was not a control
+      // heard nothing, on a desk. Under a finger the same swipe takes no capture, which is why
+      // this only ever failed with a mouse and why the spec drives one here.
+      const text = await selectPassage(page);
+      await page.locator(".highlight-toolbar .swatch").first().click();
+      await expect(page.locator(".highlight-box").first()).toBeVisible();
+      const marked = await visibleText(page);
 
-    await openPanel(page, /Notes/);
-    await page
-      .getByTestId("panel-notes")
-      .getByRole("button", { name: text.slice(0, 12), exact: false })
-      .click();
+      // Away from the marked page first, or landing on it would prove nothing.
+      const before = await visibleText(page);
+      await page.getByRole("button", { name: "Next page" }).click();
+      await expect.poll(async () => await visibleText(page)).not.toBe(before);
+      await expect(page.locator(".highlight-box")).toHaveCount(0);
 
-    await expect.poll(async () => await visibleText(page)).toBe(marked);
+      await openPanel(page, /Notes/);
+      await page
+        .getByTestId("panel-notes")
+        .getByRole("button", { name: text.slice(0, 12), exact: false })
+        .click();
 
-    // **And the panel is gone**, because this window is 1000px wide and a panel only stands
-    // beside the book above 1024 (`lib/media.ts`). Below it the panel is drawn over the page,
-    // so keeping it would hide the passage the press was for — and leave the reader unable to
-    // turn away from it, the page buttons being underneath. The wide case is its own test.
-    await expect(page.getByTestId("panel-notes")).toBeHidden();
+      await expect.poll(async () => await visibleText(page)).toBe(marked);
+
+      // **And the panel is gone**, because at this width it is drawn over the book — keeping it
+      // would hide the passage the press was for, and leave the reader unable to turn away from
+      // it, the page buttons being underneath (`lib/media.ts`).
+      await expect(page.getByTestId("panel-notes")).toBeHidden();
+
+      // **And the passage stays lit with nothing left holding it.** This is the half a pure
+      // function cannot reach: `chrome.test.ts` says `selected` survives a panel that closed,
+      // and what it cannot say is that the box is still painted on a page the browser laid out.
+      // Without it the reader is put back on the right page with no answer to "which one".
+      await expect(page.locator(".highlight-wash").first()).toBeVisible();
+    });
   });
 
   test("the mark travels with its text while the page is being dragged", async ({ page }) => {
@@ -294,8 +307,9 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
 
   // The 接線 for `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
   // and what no pure function can say is that the pointed-at passage becomes ink on a page the
-  // browser laid out. So this asks once, and only for the two facts the reducer cannot reach —
-  // the panel is still there to be read, and something is drawn over the passage.
+  // browser laid out. So this asks once, and only for the facts the reducer cannot reach — the
+  // panel is still there to be read, something is drawn over the passage, and that ink outlives
+  // the panel and dies on a page turn.
   test("pressing a quote keeps the list and fills in the passage it led to", async ({ page }) => {
     const text = await selectPassage(page);
     await page.locator(".highlight-toolbar .swatch").first().click();
@@ -325,8 +339,17 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
       page.getByTestId("panel-notes").getByRole("button", { name: text.slice(0, 12) }),
     ).toHaveAttribute("aria-current", "true");
 
-    // And putting the list away takes it with it, which is the half a screenshot cannot show.
+    // **Putting the list away does not take it with it**, and that is the half a screenshot
+    // cannot show. The wash belongs to the passage the reader pressed, not to the panel they
+    // pressed it in — on a narrow window closing the panel is the only way to look at the
+    // passage at all, and one rule serves both widths (ADR-0044).
     await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
+    await expect(page.getByTestId("panel-notes")).toBeHidden();
+    await expect(page.locator(".highlight-wash").first()).toBeVisible();
+
+    // Turning the page is what ends it: the reader has left the page the passage is on, so the
+    // question it was answering has gone with them.
+    await page.getByRole("button", { name: "Next page" }).click();
     await expect(page.locator(".highlight-wash")).toHaveCount(0);
   });
 });
@@ -428,6 +451,13 @@ test.describe("a wide margin, where the page and the container part company", ()
       .filter({ hasText: /Rabbit-Hole/ })
       .first()
       .click();
+    // **Put 〈目錄〉 away before measuring anything.** A chapter pressed at this width leaves the
+    // panel standing, and a standing panel is a column taken off the book — so the margin below
+    // would be measured against a page laid out for a narrower reader than the one the test is
+    // about. Pressing the entry again is what a reader would do to get their book back, and it
+    // is clicked directly rather than through `openPanel`, which waits for a panel to arrive.
+    await page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" }).click();
+    await expect(page.getByTestId("panel-toc")).toBeHidden();
     await settled(page);
   });
 
