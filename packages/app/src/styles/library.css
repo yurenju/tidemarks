@@ -99,418 +99,184 @@
   white-space: nowrap;
 }
 
-/* One marked passage, and the shelf's only large block.
-   ====================================================
-   **A framed card with two regions**, and the frame is what makes the second region possible: the
-   book gets a side of the card to itself — a column at desk width, a strip across the top below
-   it — while the passage and the reader's answer take the rest. The card used to be an unframed
-   block with the book's name as a line of type at the top of it, and at desk width that put a
-   single column of text in the middle of a very wide card with nothing either side.
+/* One marked passage: a row of housekeeping, then the reading.
+   ===========================================================
+   **The card is a way in, not the place revisiting happens** (ADR-0042), so what stands on it is
+   one passage, the reader's note on it, and the two presses. The frame closes around its contents
+   rather than running the shelf's width — a card sized to the widest thing in it holds still
+   while the passage inside changes length, and the reading is never a lone column adrift in a
+   very wide box.
 
-   The one closing quotation mark is gone with it. There is an opening mark, hung in the gutter
-   the reading is inset by, and nothing after the passage at all — a mark that had to be placed by
-   counting up from the bottom of the card through every box under the quote was arithmetic in a
-   stylesheet, and it moved whenever any of them did.
-
-   Three custom properties do the arranging, and `device.css` restates only those: the quotation
-   mark's size, the gutter it hangs in, and the card's own insets. */
+   **Both readings are held to `LINE_LENGTH`** (ADR-0012), each in its own type size, so the note
+   comes out narrower than the passage and sits inside it. The room that ceiling leaves is what
+   the cover stands in. */
 .mark-card {
-  --mark-quote-size: 3.375rem;
-  /* Named on its own as well as inside the inset below, because at desk width the cap on the
-     reading has to pay for both of them (`device.css`). */
-  --mark-body-inset-inline: var(--space-4);
-  --mark-body-inset: var(--space-5) var(--mark-body-inset-inline) var(--space-4);
-  /* **The gutter the opening quotation mark hangs in**, and therefore how far in the reading
-     starts. One value, spent twice — the passage's inset and the answer's — because the two have
-     to begin on the same vertical line and a pair of numbers that are meant to be equal will
-     stop being equal. It was a pair once, the second of them worked out from the glyph's size by
-     a guessed ratio, and it came out 14.7px off: near enough to look like a mistake, which is
-     worse than plainly different.
-
-     Wider than the glyph on purpose. The mark is placed in here rather than measured, so this is
-     the room it is given, not the room it takes. */
-  --mark-reading-inset: 2.5rem;
-  /* Airier than the interface's own leading, because this is the book's text and it is set over
-     the width of a card rather than of a page. Named rather than written twice: the quote's held
-     -open height counts in the same lines it is set in.
-
-     **2, and the handoff asked for 2.1.** The system keeps a whitelist of line heights
-     (`docs/design-system.md`), 2 is the loose end of it and 2.1 is not on it — a tenth of a line
-     is 1.6px at reading size, which is not worth a value nobody else can reach for. */
-  --mark-quote-leading: 2;
-
-  margin: var(--space-5) var(--space-4) 0;
+  display: grid;
+  /* Two tracks, and no third: nothing stands on the far side of the reading, and an empty track
+     would still cost its gap — the frame then encloses a margin on one side only, and the card
+     reads as though it had been pushed. */
+  grid-template-columns: minmax(0, max-content) auto;
+  justify-content: center;
+  align-items: stretch;
+  gap: var(--space-5);
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-4);
   border: 1px solid var(--line-firm);
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
-  /* The book's strip and the sidebar both paint to the card's edge, so the frame has to clip
-     them back to its own corners. */
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-/* **Which book this is**, on its own ground a step below the card. A strip across the top here,
-   a column down the left side at desk width (`device.css`) — same markup either way. */
-.mark-book {
-  /* Named because the cover cancels them: it is the one thing on the strip that reaches the frame,
-     and it can only do that by pulling itself back out through the strip's own insets. */
-  --mark-strip-inset-block: var(--space-3);
-  --mark-strip-inset-inline: var(--space-4);
-
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--mark-strip-inset-block) var(--mark-strip-inset-inline);
-  background: var(--surface-page);
-  border-bottom: 1px solid var(--line-firm);
-}
-
-/* Cover and name together, and pressable together: they are the book saying which book it is, so
-   they lead back to it the way the passage below them does. */
-.mark-source-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  text-align: start;
-  font-family: inherit;
-  color: var(--text-primary);
-  min-height: 0;
-}
-
-.mark-source-link:hover {
-  background: none;
-  border: none;
-  text-decoration: underline;
-  text-decoration-color: var(--line-actionable);
-}
-
-/* A thumbnail rather than a cover: it is here to be recognised at a glance beside the name, not
-   to be looked at. The box is held open even with no artwork in it, so the name sits on the same
-   line whether the book has a cover or not.
-
-   **The height of the two lines beside it**, and the width follows from that — a fixed 22px next
-   to a title and a credit left the strip looking like it had a stray icon in it rather than a
-   book.
-
-   ⚠️ **A length, not `height: 100%`.** The percentage has nothing to resolve against while the
-   strip is still being measured, so the ratio had no height to work from and fell back to the
-   artwork's own width — a cover several hundred pixels wide, which is what it looked like.
-
-   **It reaches the frame on three sides**, and the negative margins are how: the strip's insets
-   are cancelled at the top, the bottom and the start, so the cover is a book laid against the edge
-   of the card rather than an image floating on a strip. Only the gap to the title is kept.
-
-   The height is the strip's insets plus the height of the two lines, so the arithmetic closes:
-   the cover is the tallest thing on the strip, the strip is as tall as the cover's margin box, and
-   the cover is as tall as the strip. No frame of its own for the same reason — flush against the
-   card's own border, a second 1px line reads as a thick one. */
+/* At the size a cover is recognised at rather than the size a row can spare: it is the whole of
+   the attribution that is not words. Level with the middle of the reading rather than its head —
+   a passage is one line or four, and a cover pinned to the top leaves a hole under it on the
+   long ones. */
 .mark-cover {
-  flex: 0 0 auto;
-  width: auto;
-  height: calc(3rem + 2 * var(--mark-strip-inset-block));
-  aspect-ratio: 2 / 3;
-  margin-block: calc(-1 * var(--mark-strip-inset-block));
-  margin-inline-start: calc(-1 * var(--mark-strip-inset-inline));
-  background: var(--surface-cover);
-  overflow: hidden;
-  /* The one corner it shares with the card. The card clips its own children, but a cover with a
-     square corner under a rounded one leaves the frame's colour showing through the gap between
-     them, so the cover carries the curve itself — the card's radius less the card's 1px frame,
-     which is the curve of the inside of that corner rather than of the outside. */
-  border-start-start-radius: calc(var(--radius-surface) - 1px);
+  display: flex;
+  align-items: center;
+  width: 64px;
 }
 
 .mark-cover img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--line-firm);
 }
 
-/* Title over author, and on the strip they are one line each with the ends clipped. The clip
-   goes on the line rather than on the box around it: `text-overflow` acts on an element's own
-   inline content, so a box holding a `<strong>` cuts the letters off flush with no ellipsis to
-   say that it did. */
-.mark-book-text {
+.mark-column {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-/* **The loudest book title on the screen, at every width** — including on the strip, where the
-   handoff has it a step below the row for the book in progress further down. That row's title is
-   `--type-body`, so a `--type-ui` name up here loses to it, and the passage then belongs to
-   whichever book has the largest name on the screen: the wrong one. `marks.spec.ts` measures the
-   two against each other, which is the only place the comparison exists. */
-.mark-book-text strong {
-  font-size: var(--type-lede);
-  line-height: var(--leading-title);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Whose book it is — the second line here, in place of where the reader had got to. That line
-   was answering a question this card never asks: the card hands over a sentence and asks what it
-   made you think, and how far through the book you are has nothing to do with either. The same
-   book's own square on the wall below carries it, which is the screen that *is* asking.
-
-   The interface's own serif, not the label face: this is the book's own text — a person's name,
-   printed the way the publisher wrote it. The label face is for what Tidemarks says.
-
-   ⚠️ **Clipped, and it has to say so itself.** `.mark-source-link` is a `<button>`, and
-   `controls.css` gives every button `white-space: nowrap` so a squeezed label never sets itself
-   vertically. Inherited here that turns a two-author credit into one long line that walks out of
-   the sidebar and off the card — which is exactly what it did. The column gives it back its
-   wrapping at 1024 (`device.css`); on the strip it stays one clipped line, like the title. */
-.mark-author {
-  font-size: var(--type-note);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Where in the five this one is. A row at the end of the strip here; the foot of the sidebar at
-   desk width. */
-.mark-progress {
+/* **The housekeeping row**: what this is, which book, how long ago, and the way to another. All
+   of it is the interface talking, so all of it is set in the label face at the smallest size the
+   system has — the passage below is the only thing on this card that is a reading. */
+.mark-head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-inline-start: auto;
-}
-
-/* A distance rather than a date, because reaching back for what they were thinking two months
-   ago is what this card is for, and "14 July" does not ask anyone to do that. The label face,
-   because it is the interface talking rather than the book.
-
-   **An eyebrow on the passage**, so it starts where the passage starts rather than at the card's
-   edge, and sits close enough to it to belong to it — which is what the negative margin is for:
-   the body's own gap is the distance between blocks, and this is not another block. */
-.mark-when {
-  align-self: flex-start;
-  margin-inline-start: var(--mark-reading-inset);
-  margin-block-end: calc(var(--space-2) - var(--mark-body-gap));
-  font-family: var(--font-mono);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-control);
   font-size: var(--type-eyebrow);
-  letter-spacing: var(--type-eyebrow-tracking);
-  text-transform: uppercase;
-  color: var(--text-faint);
-  white-space: nowrap;
+  color: var(--text-muted);
 }
 
-.mark-ticks {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-/* One rung per passage. **Hidden until there is a sidebar to put them in**: on the strip the
-   whole of the progress is one mono line, and five 18px rungs squeezed in beside a book's title
-   at 390px is the strip overflowing rather than a control anyone can hit. */
-.mark-tick {
-  display: none;
-  position: relative;
-  width: 18px;
-  height: 2px;
-  min-height: 0;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: var(--line-firm);
-}
-
-.mark-tick[aria-current="true"] {
-  background: var(--tide);
-}
-
-/* ⚠️ **Hover has to be said out loud here**, the same as on the passage and the source line:
-   `controls.css`'s `button:hover` carries a pseudo-class and outranks a bare class however late
-   this file comes, so a rung under the pointer took `--fill-selected` and a tide-coloured edge —
-   which is what the *current* rung looks like. Hover would have been saying "this is the one you
-   are on" about a rung the reader is merely passing over. The target is the `::after` carve-out
-   below, so it triggers a long way from the 2px bar. */
-.mark-tick:hover {
-  background: var(--line-actionable);
-  border: none;
-}
-
-.mark-tick[aria-current="true"]:hover {
-  background: var(--tide-pressed);
-}
-
-/* The face is 18×2 and cannot be anything else — it is a scale, and a scale drawn at a finger's
-   height is a row of bars. So the target reaches out above and below it instead, the same
-   carve-out the ⋯ in a cover's corner makes (ADR-0023). */
-.mark-tick::after {
-  content: "";
-  position: absolute;
-  inset-block: calc((var(--tap-min) - 2px) / -2);
-  inset-inline: -2px;
-}
-
-.mark-count {
-  font-family: var(--font-mono);
-  font-size: var(--type-eyebrow);
-  letter-spacing: var(--type-eyebrow-tracking);
-  color: var(--text-faint);
-  /* The counter changes on every flick and nothing beside it must shift when it does — 1/5 and
-     5/5 are not the same width in a proportional face. */
-  font-variant-numeric: tabular-nums;
-  /* And it never breaks across two lines. On a phone the strip is tight enough that "1 / 5"
-     wrapped, which grew the strip — and the strip growing is the card growing, which is the one
-     thing this card is not allowed to do. */
-  white-space: nowrap;
-  margin-inline-start: var(--space-1);
-}
-
-/* The passage and the answer to it: the card's other region, and the only one that changes size
-   with the window. */
-.mark-body {
-  /* Named because the eyebrow above the passage has to undo it: everything else in here is a
-     block a full step away from the next, and the eyebrow belongs to the passage under it. */
-  --mark-body-gap: var(--space-5);
-
-  padding: var(--mark-body-inset);
-  display: flex;
-  flex-direction: column;
-  gap: var(--mark-body-gap);
-}
-
-/* **The mark hangs in the gutter the reading is inset by**, rather than standing in a track that
-   the reading then follows. The difference matters: a track is as wide as whatever is in it, so
-   anything else that wanted to line up with the passage had to be told the glyph's width, and
-   there is no way to ask CSS for it. Given a gutter instead, the number is a design decision that
-   two rules can share (`--mark-reading-inset` above).
-
-   Inside the text the mark would be read as the author's own punctuation; hung off the card it
-   overflowed the frame on a phone. In the gutter it is neither. */
-.mark-quote-block {
-  position: relative;
-  margin: 0;
-  padding-inline-start: var(--mark-reading-inset);
-}
-
-/* Decoration, and nothing else: no selection drags it into a copied passage, and the tree
-   `aria-hidden` keeps it out of has the quote marked up as a quote already. Out of flow, so its
-   width — which depends on the face and the size — moves nothing. */
-.mark-open-quote {
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  font-size: var(--mark-quote-size);
-  line-height: 0.86;
-  color: var(--quote-ink);
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* The book's words, and a way back to where they came from. `max-width` is set on the element in
-   ems, from `lib/line-length.ts` — 40 for an ideographic book, 30 for a Latin one — so this rule
-   carries the reading and not the number, and a wider card buys white space rather than a longer
-   line. */
-.mark-quote {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  text-align: start;
-  font-family: inherit;
-  min-height: 0;
-  white-space: pre-wrap;
-  font-size: var(--type-body);
-  line-height: var(--mark-quote-leading);
-  letter-spacing: 0.03em;
-  color: var(--text-body);
-
-  /* **Held open whether the passage fills it or not**, which is what keeps the card one height
-     while the reader flicks through the five. Why the count is what it is — and what it costs a
-     long poem — is on `--mark-quote-lines` in `tokens.css`. */
-  height: calc(var(--mark-quote-lines) * var(--mark-quote-leading) * 1em);
+/* **The one thing on the row allowed to run out of room**, because its length is the book's and
+   not ours. Everything beside it keeps its whole word or leaves the row entirely — and which of
+   those happens is decided by measuring, in `useFitRow`, not at a width. */
+.mark-book {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
-  /* The tail fades rather than stopping mid-stroke. Always on, and it costs a short passage
-     nothing: the text is at the top of a fixed box, so a three-line quote ends well above the
-     band this touches. */
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.2em), transparent 100%);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-body);
 }
 
-.mark-quote:hover {
-  border: none;
+.mark-head > span:not(.mark-book) {
+  flex: none;
+  white-space: nowrap;
+}
+
+.mark-dot {
+  color: var(--text-faint);
+}
+
+/* **The label, told apart from the book's name three ways at once** — case and tracking, weight
+   and colour, and a rule between them. The two are one row of small type apart, and any single
+   difference is one a reader has to be taught: a short title set in capitals kills the first, a
+   screen or a pair of eyes that flattens greys kills the second. Three means losing one still
+   leaves two. */
+.mark-label {
+  text-transform: uppercase;
+  letter-spacing: var(--type-eyebrow-tracking);
+  color: var(--text-faint);
+}
+
+.mark-label-rule {
+  align-self: stretch;
+  width: 1px;
+  margin-inline: var(--space-1);
+  background: var(--line-hair);
+}
+
+/* **In the row rather than over the card.** The row stands above the passage, so nothing that
+   changes height sits above this button and it stays where the reader last found it. Wide rather
+   than round: it is the only thing on the row anybody aims at. */
+.mark-another {
+  display: grid;
+  place-items: center;
+  min-width: 56px;
+  min-height: 30px;
+  margin-inline-start: auto;
+  padding: 0 var(--space-3);
+  font-size: var(--type-ui);
+  line-height: 1;
+  color: var(--text-faint);
   background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.mark-another:hover {
+  color: var(--tide);
+  background: var(--surface-page);
+  border-color: var(--line-hair);
+}
+
+/* The one press that leaves the shelf, and it takes the whole reading — the book's words and the
+   reader's together, because both of them belong to the passage it opens. */
+.mark-reading {
+  display: block;
+  /* ⚠️ A button shrink-wraps to its content even at `display: block`, so without this it sizes
+     itself to the passage's min-content and runs out past the card's own padding. */
+  width: 100%;
+  padding: 0;
+  text-align: start;
+  white-space: normal;
+  background: none;
+  border: none;
+}
+
+.mark-reading:hover {
+  background: none;
+}
+
+.mark-reading:hover .mark-quote {
   text-decoration: underline;
   text-decoration-color: var(--line-actionable);
 }
 
-/* The reader's own words. **Flush to the card here, and lined up with the passage from 820 up**
-   (`device.css`) — on a phone the gutter is 40px the two buttons cannot spare, and there is
-   nothing to the left of them to be out of line with anyway. */
-.mark-respond {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* The book's own words, in the reading face. Two lines, and the cut is this card keeping its
+   promise to be a way in rather than the place the reading happens: the whole passage is one
+   press away, in the book it came from. */
+.mark-quote {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--type-lede);
+  line-height: 1.6;
+  color: var(--text-primary);
 }
 
-/* A sheet of paper laid on the card, which is what separates the reader's words from the book's.
-   Sunken rather than raised: everything else on this card is something to read, and this is the
-   one place to write. */
-.mark-note-input {
-  font-family: inherit;
-  font-size: var(--type-ui);
-  line-height: var(--leading-text);
-  letter-spacing: 0.03em;
-  color: var(--text-body);
-  background: var(--surface-page);
-  border-color: var(--line-hair);
-  padding: var(--space-3) var(--space-4);
-  /* No dragging it taller: the height of this box is what keeps the five cards one size, and a
-     reader who stretched it would have the card jump on the next flick. */
-  resize: none;
-}
-
-/* **One filled button, two plain, one at the weakest step there is** — and the order is the
-   argument. Saving is what the reader came to do; leafing back and forth is ordinary; asking for
-   another five is an offer, so it takes the faintest rule in the system and sits at the far end
-   of the row.
-
-   ⚠️ **Not `.mark-actions`**, which is taken: `book.css` gives that name to the two buttons at
-   the right-hand end of the highlight toolbar, and that file is imported after this one, so its
-   `border-left` came out here as a hairline standing at the start of this row with nothing to
-   the left of it. The sheet has one cascade and no scoping (`index.css`), so a class name is
-   spent for the whole app the first time it is used. */
-.mark-reply-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-/* Three rows on a phone: what to do, the two ways through the pile, and the offer. The pair
-   share their row at `flex: 1` so neither is the wider target under a thumb. */
-.mark-reply-actions .primary {
-  flex: 1 0 100%;
-}
-
-.mark-step {
-  flex: 1 1 0;
-}
-
-/* Its own line down here, at the weakest step: it is the offer, and an offer does not sit in the
-   row with the thing to do. */
-.mark-repick {
-  flex: 1 0 100%;
-  font-family: var(--font-control);
+/* The reader's own words. **Behind a rule rather than behind a label** — the indent is what says
+   whose they are. Absent entirely when there are none: an empty box here would be the writing
+   surface coming back, and writing happens in the book now. */
+.mark-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  margin-block-start: var(--space-3);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--line-firm);
   font-size: var(--type-note);
-  color: var(--text-faint);
-  background: none;
-  border: 1px solid var(--line-hair);
-  white-space: nowrap;
+  line-height: var(--leading-text);
+  color: var(--text-body);
 }
 
 /* The book the reader is in the middle of: one row, carrying the one action on the screen.
@@ -710,25 +476,6 @@ button.ghost.book-more::after {
   letter-spacing: var(--type-eyebrow-tracking);
   text-transform: uppercase;
   color: var(--text-faint);
-}
-
-/* Why this one cover is picked out. Tide, because it is the same fact as the lit border above
-   it and as the filled rail: the card at the top of the shelf is quoting this book.
-
-   ⚠️ **Selected through `.book-status`**, and it has to be: the rule right above sets the colour
-   on `.book-status span + span`, which is a class and two elements, and a bare class loses to
-   that — specificity is settled before source order, so arriving later saves nothing here. Left
-   as `.book-revisiting` this word came out the same grey as every other second line, while the
-   cover's border and the rail beside it went tide: three signals meant to say one thing, and one
-   of them silently disagreeing. */
-.book-status .book-revisiting {
-  color: var(--tide);
-}
-
-/* The book the card is quoting, on the wall. A border rather than a badge: the wall is a wall of
-   covers, and the one thing a cover can be given without stopping being one is its own edge. */
-.book-card[data-revisiting] .book-cover {
-  border-color: var(--tide);
 }
 
 /* The proportions of a printed book rather than of a poster. */
