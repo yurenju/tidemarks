@@ -109,6 +109,46 @@ export function inkWithin(
 }
 
 /**
+ * The ink's own near and far edge across a **vertical** line — the axis the mark is drawn on.
+ *
+ * A different question from `inkWithin`, and it needs different arithmetic rather than the same
+ * arithmetic on the other axis. Two facts settle it, and both come from how CSS lays vertical
+ * text out:
+ *
+ * - **The rectangle is not tight to the glyphs.** Its cross-axis size is the strut font's
+ *   ascent plus descent, a metric about the *baseline* direction being applied across the line.
+ *   Measured in chromium on Noto Serif CJK TC at 18.67px: the rectangle is 26px across for
+ *   glyphs whose ink is 17. Without this the mark stood 5px off the characters, which is where
+ *   this function came from.
+ * - **The em box is centred in it.** Upright characters are set on the central baseline, which
+ *   sits at the middle of that rectangle — measured on the same run, the ink's centre and the
+ *   rectangle's were half a pixel apart.
+ *
+ * So the answer is one em, centred. Not the measured ink: an ideograph fills its em by design
+ * and a rotated Latin run does not, and taking whichever the reader happened to select would
+ * put the mark at two distances along one column. The em box is the box the characters were
+ * drawn to occupy, and it contains every glyph on either kind of run.
+ *
+ * **A rectangle already narrower than an em is left alone.** That is the book whose first
+ * available font is a stub — 草枕 carries one covering four dashes, and its 15px rectangle is
+ * narrower than the 18.4px characters spilling out of it. Insetting there would move the mark
+ * onto the glyphs.
+ */
+export function inkAcross(
+  rect: { readonly start: number; readonly end: number },
+  emSize: number,
+): { readonly start: number; readonly end: number } {
+  const across = rect.end - rect.start;
+  // `Number.isFinite` and not a bare comparison: an unreadable `font-size` parses to NaN, which
+  // fails every `<` and `>` on the way past and would hand the consumer a mark at NaN — an
+  // invisible one, on a passage the reader marked and cannot find.
+  if (!Number.isFinite(emSize) || emSize <= 0 || emSize >= across) return rect;
+
+  const centre = rect.start + across / 2;
+  return { start: centre - emSize / 2, end: centre + emSize / 2 };
+}
+
+/**
  * The smallest unitless line-height that leaves `gap` px between one line's ink and the next.
  *
  * Straight from the identity this whole file is about — the half-leading cancels, being added

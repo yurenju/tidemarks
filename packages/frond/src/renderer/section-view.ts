@@ -36,7 +36,7 @@ import {
   type WritingMode,
 } from "./geometry.ts";
 import type { RendererKeyEvent, RendererPointerDownEvent, RendererPointerEvent } from "./events.ts";
-import { blankRuns, inkWithin, minimumLineHeight, type FontInk } from "./ink.ts";
+import { blankRuns, inkAcross, inkWithin, minimumLineHeight, type FontInk } from "./ink.ts";
 import { LAYOUT_STYLE_ID, layoutStylesheet } from "./layout.ts";
 import { isElement, isTextLike } from "./node-type.ts";
 import { withLayout, type ReaderSettings, type ResolveLayout } from "./settings.ts";
@@ -670,9 +670,7 @@ export class SectionView {
     // filtered out and the consumer receives an empty array.
     const resolved =
       measurable(range)
-        .map((candidate) =>
-          contentRects(candidate, this.writingMode, (font) => this.fontInkFor(font)),
-        )
+        .map((candidate) => contentRects(candidate, (font) => this.fontInkFor(font)))
         .find((rects) => rects.length > 0) ?? [];
 
     return resolved.map((marked) => ({
@@ -990,9 +988,13 @@ export class SectionView {
   private inkFloorRule(): string {
     const floor = this.inkFloor;
     if (floor === undefined || floor.readerSet) return "";
-    // Vertical setting is skipped for the same reason `measurePart` skips it: a vertical text
-    // rectangle is already tight to the glyphs, so there is no internal leading to recover and
-    // `TextMetrics` cannot measure the cross axis anyway.
+    // Vertical setting is skipped because this rule is arithmetic about ascent and descent, and
+    // those describe the baseline direction — down a vertical line, where nothing is drawn
+    // between one character and the next. The room a mark needs there is across the line, and
+    // that is a different sum: the column pitch is the line height and the ink is one em
+    // (`inkAcross`), so the gap is `line-height − 1em` and a book set tighter than about 1.32
+    // leaves less than the 6px a mark wants. **That case is not handled**, which is a known
+    // limit rather than a covered one; nothing here computes a floor for it.
     if (this.writingMode !== "horizontal-tb") return "";
 
     const body = this.document.body;
@@ -1417,10 +1419,9 @@ const REPLACED_ELEMENTS = "img, svg, video, canvas";
  */
 function contentRects(
   range: Range,
-  writingMode: WritingMode,
   inkFor: (font: string) => FontInk | undefined,
 ): readonly MarkedRect[] {
-  const marked = coveredParts(range).flatMap((part) => measurePart(part, writingMode, inkFor));
+  const marked = coveredParts(range).flatMap((part) => measurePart(part, inkFor));
 
   // Content that is neither text nor a replaced element — a range over a single `<br>`, say
   // — leaves nothing to measure. Falling back to the range's own rectangles keeps such a
@@ -1435,18 +1436,35 @@ function contentRects(
 /** One part's rectangles, each carrying where its ink sits inside it. */
 function measurePart(
   part: CoveredPart,
-  writingMode: WritingMode,
   inkFor: (font: string) => FontInk | undefined,
 ): MarkedRect[] {
   const rects = [...part.node.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
   if (rects.length === 0) return [];
 
-  // **Only the horizontal axis gets an ink measurement.** `TextMetrics` answers about a run
-  // laid out along a horizontal baseline, and there is no counterpart for the cross-axis
-  // extent of vertical setting. It is not needed there either: a vertical text rectangle is
-  // already tight to the glyphs — 15px across for 18.4px type, measured on 草枕 — where a
-  // horizontal one carries the font's internal leading on both sides.
-  const font = writingMode === "horizontal-tb" ? inkFor(part.font) : undefined;
+  // **Each axis is asked its own question, because each rectangle is loose for its own reason.**
+  // A horizontal one carries the font's internal leading above and below the glyphs, and
+  // `TextMetrics` says how much. A vertical one is loose across the line instead, by the same
+  // ascent-plus-descent applied to an axis nothing was measured along — and `TextMetrics` has no
+  // counterpart to ask, so `inkAcross` works from the em box the characters were set in.
+  //
+  // The vertical half was once skipped outright, on a measurement of 草枕 that read 15px across
+  // for 18.4px type and looked like proof the rectangle was already tight. It was proof of that
+  // book's stub font: 26px across for 18.67px type on Noto Serif CJK TC, which stood the mark
+  // 5px off every column of an ordinary vertical book.
+  //
+  // **Which question to ask is the part's own writing mode, not the section's.** A vertical
+  // book sets a colophon or a run of Latin as a horizontal block, and frond only forces
+  // vertical setting onto `:root` — so such a block keeps its own mode, and asking the section
+  // would inset it along the line instead of across it: the ink of a 312px-wide sentence would
+  // come back as a 20px box in the middle of the words, with the mark drawn through them.
+  if (part.vertical) {
+    return rects.map((rect) => {
+      const { start, end } = inkAcross({ start: rect.left, end: rect.right }, part.emSize);
+      return { role: part.role, rect, ink: new DOMRect(start, rect.top, end - start, rect.height) };
+    });
+  }
+
+  const font = inkFor(part.font);
 
   return rects.map((rect) => ({
     role: part.role,
@@ -1467,6 +1485,17 @@ interface CoveredPart {
   readonly role: RectRole;
   /** The CSS `font` shorthand it is set in, for measuring that font's ink. Empty for a replaced element. */
   readonly font: string;
+  /**
+   * Its `font-size` in px — the em the characters were set in, which is what a vertical line's
+   * ink is measured from (`inkAcross`). Zero for a replaced element, which has no type in it.
+   */
+  readonly emSize: number;
+  /**
+   * Whether **this part** is set vertically, which decides which axis its rectangle is loose on.
+   * Read per part rather than per section: a vertical book's colophon or Latin block is
+   * commonly `horizontal-tb`, and frond's own vertical rule reaches `:root` alone.
+   */
+  readonly vertical: boolean;
 }
 
 /**
@@ -1499,7 +1528,9 @@ function collectCovered(node: Node, range: Range, parts: CoveredPart[]): void {
   // A replaced element is taken whole and not descended into: an `<svg>`'s own text nodes
   // are inside the box already counted, and adding them would paint that area twice.
   if (isElement(node) && node.matches(REPLACED_ELEMENTS)) {
-    parts.push({ node, role: "text", font: "" });
+    // A replaced element has no type in it, so neither axis has an ink measurement to make and
+    // the mode it is given changes nothing. It is read anyway rather than assumed.
+    parts.push({ node, role: "text", font: "", emSize: 0, vertical: isVertical(node) });
     return;
   }
 
@@ -1512,7 +1543,11 @@ function collectText(clamped: Range, node: Node, parts: CoveredPart[]): void {
   if (covered.length === 0) return;
 
   const element = node.parentElement;
-  const font = element === null ? "" : fontShorthandOf(element);
+  const style =
+    element === null ? undefined : element.ownerDocument.defaultView?.getComputedStyle(element);
+  const font = style === undefined ? "" : fontShorthand(style);
+  const emSize = style === undefined ? 0 : Number.parseFloat(style.fontSize);
+  const vertical = style !== undefined && style.writingMode !== "horizontal-tb";
   // `<rt>` is the annotation over (or beside) the base characters. It is text the reader did
   // select, but it is not the text they were reading, and marking it draws a second line
   // alongside the first.
@@ -1522,19 +1557,19 @@ function collectText(clamped: Range, node: Node, parts: CoveredPart[]): void {
     const part = clamped.cloneRange();
     part.setStart(node, clamped.startOffset + run.start);
     part.setEnd(node, clamped.startOffset + run.end);
-    parts.push({ node: part, role: run.blank ? "blank" : role, font });
+    parts.push({ node: part, role: run.blank ? "blank" : role, font, emSize, vertical });
   }
+}
+
+/** Whether an element is set vertically. Horizontal where the style cannot be read at all. */
+function isVertical(element: Element): boolean {
+  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  return style !== undefined && style.writingMode !== "horizontal-tb";
 }
 
 /** The `font` shorthand a computed style describes, in the form `measureText` wants. */
 function fontShorthand(style: CSSStyleDeclaration): string {
   return `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-}
-
-/** The same for an element. Empty where the style cannot be read at all. */
-function fontShorthandOf(element: Element): string {
-  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
-  return style === undefined ? "" : fontShorthand(style);
 }
 
 /** Implausible enough that a book landing on it exactly loses nothing but its ink measurement. */

@@ -133,18 +133,65 @@ test.describe("where the ink sits inside the rectangle", () => {
     expect(heights.size).toBe(1);
   });
 
-  test("vertically, the ink is the rectangle — there is no internal leading to recover", async ({
-    page,
-  }) => {
+  test("vertically, the ink is the em box however wide the rectangle is", async ({ page }) => {
+    // The wiring test for `inkAcross`, whose arithmetic is exhausted in ink.test.ts. What no
+    // pure function can show is how wide the rectangle actually comes back, and **the three
+    // engines disagree about that** — measured on this very content at 18px:
+    //
+    // | | rectangle across the line |
+    // | --- | --- |
+    // | chromium, WebKit | 25.9 — the font's ascent plus descent |
+    // | Firefox | 18.0 — the em |
+    //
+    // So the slack this was written for exists in two engines and not the third, and the
+    // assertion has to be the em rather than the difference: frond hands back one em wherever
+    // there is room for it, and the rectangle where there is not. Asserting the slack itself
+    // passed locally on chromium and failed on Firefox in CI, which is ADR-0039's bill.
+    //
+    // The face is named rather than left to `serif` so that the rectangle is a CJK face's. A
+    // Latin serif has slack of its own and would prove nothing about the books this was found in.
+    const EM = 18;
     await mount(
       page,
       section(
         "<p>山路を登りながら</p>",
-        "html { writing-mode: vertical-rl; } p { font: 18px serif; }",
+        `html { writing-mode: vertical-rl; } p { font: ${EM}px "Noto Serif CJK JP"; }`,
       ),
     );
     for (const one of await marked(page)) {
-      expect(one.ink).toEqual(one.rect);
+      expect(one.rect.width).toBeGreaterThanOrEqual(EM);
+      expect(one.ink.width).toBeCloseTo(Math.min(EM, one.rect.width), 1);
+      // Centred on the rectangle, because that is where the central baseline puts the em box.
+      expect(one.ink.x + one.ink.width / 2).toBeCloseTo(one.rect.x + one.rect.width / 2, 1);
+      // Untouched along the line: only the axis the mark is drawn on was in question.
+      expect(one.ink.y).toBe(one.rect.y);
+      expect(one.ink.height).toBe(one.rect.height);
+    }
+  });
+
+  test("a horizontal block inside a vertical book is measured as the horizontal one it is", async ({
+    page,
+  }) => {
+    // frond forces vertical setting onto `:root` alone, so a book that sets a colophon or a run
+    // of Latin as `horizontal-tb` keeps it. Deciding from the section's mode would inset such a
+    // block **along** its line — a 300px sentence handed back as a 20px box in the middle of
+    // the words, with the mark drawn through them.
+    const EM = 20;
+    await mount(
+      page,
+      section(
+        '<p style="writing-mode: horizontal-tb">Horizontal block inside a vertical book</p>',
+        `html { writing-mode: vertical-rl; } p { font: ${EM}px serif; }`,
+        "en",
+      ),
+    );
+    for (const one of await marked(page)) {
+      // Wider than an em, and untouched along the line it runs on.
+      expect(one.ink.width).toBe(one.rect.width);
+      expect(one.ink.x).toBe(one.rect.x);
+      // Inset across it instead, which is the horizontal answer.
+      expect(one.ink.y).toBeGreaterThan(one.rect.y);
+      expect(one.ink.height).toBeLessThan(one.rect.height);
     }
   });
 });
