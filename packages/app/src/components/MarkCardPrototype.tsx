@@ -201,32 +201,67 @@ function VariantB2({ batch, books, onOpenPassage, hug }: VariantProps & { hug?: 
         >
           <Cover book={books.get(mark.bookId)} size="large" />
         </button>
-        <button
-          className="proto-hit proto-hit-inline proto-column"
-          onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
-        >
-          <Reading mark={mark} />
-          <p className="proto-meta">
+        <div className="proto-column">
+          {/* **One row of housekeeping, above the reading.** What this block is, which book it
+              came from, and the way to another — the three things that are *about* the passage
+              rather than part of it. It stands above rather than below because the note's indent
+              is below: two lines that both start "at the left" would start a few pixels apart.
+
+              It is also what lets the draw sit in the corner without a column reserved for it. Its
+              place is fixed for the same reason as before — nothing above this row changes height
+              — but now it costs a row it shares rather than a margin of its own. */}
+          <p className="proto-head">
+            <SourceLabel />
             <span className="proto-book">{books.get(mark.bookId)?.title}</span>
             <span className="proto-dot">·</span>
             <span>{ageOf(mark)}</span>
+            <button
+              className="proto-corner"
+              onClick={another}
+              title="Another of today's passages"
+              aria-label="Another of today's passages"
+            >
+              ↻
+            </button>
           </p>
-        </button>
+          <button
+            className="proto-hit proto-hit-inline proto-reading"
+            onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+          >
+            <Reading mark={mark} />
+          </button>
+        </div>
         {/* The margin opposite the cover is left empty on purpose: what stood in it was the four
             other covers, and a passage read beside a stack of other books is a passage read next
             to an inbox. B2-1 has no such margin to leave empty — the frame stops at the reading —
             so it is not rendered there at all. */}
         {!hug && <span className="proto-side" />}
       </div>
-      <button
-        className="proto-corner"
-        onClick={another}
-        title="Another of today's passages"
-        aria-label="Another of today's passages"
-      >
-        ↻
-      </button>
     </section>
+  );
+}
+
+/**
+ * What this block is, said in front of the book's name — and the hard part is that the two are one
+ * row of small grey text apart.
+ *
+ * Three signals at once, because any one of them alone is a difference a reader has to be told
+ * about: **case and tracking** (the label is set as an eyebrow, which is a shape no title has),
+ * **weight and colour** (the book's name is the darker, heavier thing in the row — it is the
+ * subject), and **a separator** between them. Two of the three survive on their own, so a reader
+ * who cannot see colour, or is reading a book whose title happens to be short and capitalised,
+ * still has the others.
+ *
+ * The chip alternative is on a dial rather than argued for here: a filled pill says "label" at a
+ * glance and cannot be mistaken for prose, and it also says "button", which this is not. Worth
+ * seeing next to the eyebrow before deciding.
+ */
+function SourceLabel() {
+  return (
+    <>
+      <span className="proto-label">From your notes</span>
+      <span className="proto-label-rule" aria-hidden="true" />
+    </>
   );
 }
 
@@ -351,17 +386,13 @@ interface Dials {
   noteLines: number;
   coverCentred: boolean;
   /**
-   * Where the line naming the book stands.
+   * How the label in front of the book's name is told apart from it.
    *
-   * `foot` is where it began — under the reading, flush left. It is the one the note's indent
-   * argues with: the note is stepped in behind its rule and the credit is not, so two things that
-   * both start "at the left" start in different places, a few pixels apart.
-   *
-   * `head` puts it above the passage, where nothing is indented yet. `footEnd` keeps it under the
-   * reading but sends it to the far end behind an em dash — the shape an attribution has under a
-   * quotation, which is what makes the dash carry its meaning rather than decorate.
+   * `eyebrow` gives it a shape no book title has — small, upper case, widely tracked, faint — and
+   * a hairline between the two. `chip` puts it in a filled pill, which cannot be read as prose at
+   * all but does look like something to press.
    */
-  source: "foot" | "head" | "footEnd";
+  labelStyle: "eyebrow" | "chip";
 }
 
 // What the reading of these settled on: two lines of the passage, one of the note, the cover level
@@ -370,7 +401,7 @@ const DIAL_DEFAULTS: Dials = {
   quoteLines: 2,
   noteLines: 1,
   coverCentred: true,
-  source: "foot",
+  labelStyle: "eyebrow",
 };
 const DIALS_KEY = "proto-dials";
 
@@ -392,10 +423,9 @@ function applyDials(dials: Dials) {
   // Zero lines has to be its own switch: -webkit-line-clamp: 0 is not "no lines", it is ignored,
   // and the note would come back at full height.
   root.style.setProperty("--proto-note-display", dials.noteLines === 0 ? "none" : "-webkit-box");
-  // An attribute rather than a custom property, because this one changes three things at once —
-  // which end of the column, which side, and whether a dash leads it — and a rule that names the
-  // arrangement reads better than three variables that have to be set consistently.
-  root.dataset.protoSource = dials.source;
+  // An attribute rather than a custom property: the setting names an arrangement, and the rules
+  // that draw it change several things at once.
+  root.dataset.protoLabel = dials.labelStyle;
   try {
     window.localStorage.setItem(DIALS_KEY, JSON.stringify(dials));
   } catch {
@@ -464,14 +494,13 @@ export function PrototypeSwitcher({ variant }: { variant: Variant }) {
             Cover centred against the reading
           </label>
           <label>
-            Source line
+            Label
             <select
-              value={dials.source}
-              onChange={(e) => turn({ source: e.target.value as Dials["source"] })}
+              value={dials.labelStyle}
+              onChange={(e) => turn({ labelStyle: e.target.value as Dials["labelStyle"] })}
             >
-              <option value="foot">Under the reading, left</option>
-              <option value="head">Above the passage, left</option>
-              <option value="footEnd">Under the reading, right — with a dash</option>
+              <option value="eyebrow">Eyebrow, with a hairline</option>
+              <option value="chip">Filled chip</option>
             </select>
           </label>
           <button className="proto-dial-reset" onClick={() => setDials(DIAL_DEFAULTS)}>
@@ -553,7 +582,7 @@ const CSS = `
    each button shrinks to the thing it is. The extra inline padding is the corner control's room,
    spent on **both** sides so the reading stays centred in the card rather than in what is left of
    it. */
-.proto-hit-pad { padding: var(--space-4) calc(var(--space-4) + 28px); }
+.proto-hit-pad { padding: var(--space-4); }
 
 /* **B2-1: the frame stops where the reading does.** B2's card runs the full width of the shelf,
    so the border and the ground stay put while the passage inside them shrinks and grows — on a
@@ -570,42 +599,65 @@ const CSS = `
 .proto-card-hug .proto-column { width: auto; }
 .proto-card-hug .proto-measure { justify-content: start; }
 
-/* **Where the book's name stands.** The column has to be a flex column for any of this: moving the
-   credit above the passage is an order change, and order only exists between flex items. */
-/* ⚠️ Items stay stretched — no align-items here. B's own row leans on the credit being full
-   width — the "5 marked →" at the end of it is placed with an auto start margin, and a credit
-   shrunk to its text has no room for that margin to fill. The one arrangement that needs a narrow
-   credit asks for it on the item, below. */
+/* **The housekeeping row**: what this is, which book, how long ago, and the way to another. Set
+   in the label face at the smallest size the system has — everything on it is the interface
+   talking, and the passage below is the only thing here that is a reading. */
+.proto-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-control);
+  font-size: var(--type-eyebrow);
+  color: var(--text-muted);
+}
+.proto-head .proto-book { font-weight: 600; color: var(--text-body); }
+.proto-head .proto-dot { color: var(--text-faint); }
+
+/* **The label, told apart from the title three ways at once** — case and tracking, weight and
+   colour, and a rule between them. Any one alone is a difference that has to be explained; three
+   means a reader who misses one still has the others. */
+.proto-label {
+  text-transform: uppercase;
+  letter-spacing: var(--type-eyebrow-tracking);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.proto-label-rule {
+  width: 1px;
+  align-self: stretch;
+  margin-inline: var(--space-1);
+  background: var(--line-hair);
+}
+/* The alternative on the dial: unmistakably a label, at the cost of looking pressable. */
+:root[data-proto-label="chip"] .proto-label {
+  padding: 2px 8px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--text-on-tide);
+  background: var(--tide);
+  border-radius: 999px;
+}
+:root[data-proto-label="chip"] .proto-label-rule { display: none; }
+
 .proto-column {
   display: flex;
   flex-direction: column;
 }
-:root[data-proto-source="head"] .proto-meta {
-  order: -1;
-  margin: 0 0 var(--space-3);
-}
-/* At the far end, behind an em dash — the shape an attribution takes under a quotation. The dash
-   is content rather than a character in the markup because it belongs to this arrangement only:
-   under the reading at the left it would read as a stray rule. */
-:root[data-proto-source="footEnd"] .proto-meta {
-  align-self: flex-end;
-}
-:root[data-proto-source="footEnd"] .proto-meta::before {
-  content: "—";
-  color: var(--text-faint);
-}
+/* The reading is the one press on this card, so it takes the whole width under the row. */
+.proto-reading { display: block; width: 100%; }
 
-/* Pinned to the card's corner, because the passage above it changes height on every draw and this
-   is the control a reader presses again and again. Quiet until pointed at: it is an offer. */
+/* **In the row rather than over the card.** It used to be pinned to the corner because a passage
+   changes height on every draw and anything after it moves; the row it now shares is above the
+   passage, so it is just as fixed and costs no column of its own. Wide rather than round: it is
+   the one thing on this row anybody aims at, and a 32px circle is a small target for a thumb. */
 .proto-corner {
-  position: absolute;
-  inset-block-start: var(--space-3);
-  inset-inline-end: var(--space-3);
-  width: 32px;
-  height: 32px;
+  margin-inline-start: auto;
+  min-width: 56px;
+  min-height: 30px;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 0 var(--space-3);
   font-size: var(--type-ui);
   line-height: 1;
   color: var(--text-faint);
@@ -693,9 +745,6 @@ const CSS = `
 @media (max-width: 820px) {
   .proto-measure { display: block; }
   .proto-side { display: none; }
-  /* Nothing is centred down here, so the corner's room comes out of one side only — spending it
-     on both would cost 40px of a 390px passage to keep a symmetry no one can see. */
-  .proto-hit-pad { padding-inline: var(--space-4) calc(var(--space-4) + 40px); }
 }
 
 .proto-quote {
