@@ -89,25 +89,61 @@ async function pushDirty(snapshotAt: number) {
     body: JSON.stringify(payload),
   });
 
-  // upload epub bodies for freshly imported books (metadata row now exists server-side)
+  // Upload epub bodies for freshly imported books (metadata row now exists server-side).
+  //
+  // ⚠️ **A body that does not go up is this book's problem and nothing else's.** These are the
+  // largest requests the app makes — a whole epub, on whatever connection the reader has — so
+  // they are the ones that drop. Letting that throw took the rest of the sync with it: the pull
+  // that follows never ran, and the book stayed dirty, so *every* later sync queued behind the
+  // same failing upload and the reader stopped hearing from their other devices entirely.
+  //
+  // The book keeps its `dirtyAt` instead, which is what brings it back here next time — see
+  // `pull`, which has to be told not to clear it.
+  //
+  // **A refusal counts as a drop.** `apiFetch` is a bare `fetch`, so a 401 from an expired
+  // session or a 413 from a body the server will not take resolves like a success; only a
+  // socket dying rejects. The three mean the same thing here — the body is not up there — and
+  // reading them the same way is the difference between a retry and silence.
+  //
+  // **The cover is in the same breath as the file, though it costs a repeat of the epub to
+  // retry.** It looks like the cheap thing to shrug off, and it is not: the server reports a
+  // cover by whether it holds one, so a cover that never lands makes every other device certain
+  // this book has none, and none of them ever asks again. Cosmetic and lost for good is still
+  // lost for good, and `dirtyAt` is the only handle on "come back to this".
+  //
+  // ponytail: one flag for both halves, so a dropped thumbnail re-sends the whole book. Split
+  // them when a reader is on a connection where that is the difference.
+  //
+  // ponytail: no ceiling on the retries and nothing on screen while they go on. Give it a
+  // backoff and a word to the reader when someone reports a book that will not leave a device.
+  const bodyStuck = new Set<string>();
   for (const b of dirtyBooks) {
     if (b.deletedAt || !b.file) continue;
-    await apiFetch(`/api/books/${b.id}/file`, { method: "PUT", body: b.file });
-    if (b.cover) await apiFetch(`/api/books/${b.id}/cover`, { method: "PUT", body: b.cover });
+    try {
+      const file = await apiFetch(`/api/books/${b.id}/file`, { method: "PUT", body: b.file });
+      if (!file.ok) throw new Error(`PUT /api/books/${b.id}/file: ${file.status}`);
+      if (b.cover) {
+        const cover = await apiFetch(`/api/books/${b.id}/cover`, { method: "PUT", body: b.cover });
+        if (!cover.ok) throw new Error(`PUT /api/books/${b.id}/cover: ${cover.status}`);
+      }
+    } catch {
+      bodyStuck.add(b.id);
+    }
   }
 
   await db.transaction(
     "rw",
     [db.books, db.progress, db.annotations, db.readingSessions],
     async () => {
-      // server rejected these in favor of its own version: adopt it, drop dirty
+      // server rejected these in favor of its own version: adopt it, drop dirty — unless the
+      // body is still on this device only, which the metadata's losing has no bearing on.
       for (const remote of conflicts.books) {
         const local = await db.books.get(remote.id);
         await db.books.put({
           ...remote,
           file: local?.file ?? null,
           cover: local?.cover ?? null,
-          dirtyAt: undefined,
+          dirtyAt: bodyStuck.has(remote.id) ? local?.dirtyAt : undefined,
         });
       }
       for (const remote of conflicts.progress) await db.progress.put(remote);
@@ -119,7 +155,9 @@ async function pushDirty(snapshotAt: number) {
         annotations: new Set(conflicts.annotations.map((a) => a.id)),
       };
       for (const b of dirtyBooks) {
-        if (!conflicted.books.has(b.id)) await db.books.update(b.id, { dirtyAt: undefined });
+        if (!conflicted.books.has(b.id) && !bodyStuck.has(b.id)) {
+          await db.books.update(b.id, { dirtyAt: undefined });
+        }
       }
       for (const p of dirtyProgress) {
         if (!conflicted.progress.has(p.bookId)) {
@@ -208,7 +246,17 @@ async function pull() {
           deletedAt: rb.deletedAt,
           file: rb.deletedAt ? null : (local?.file ?? null),
           cover: rb.deletedAt ? null : (local?.cover ?? null),
-          dirtyAt: undefined,
+          // ⚠️ **Whatever the row already said, not `undefined`.** A pull sends nothing, so it
+          // is in no position to declare a book's business finished — clearing dirty is the
+          // push's job and the push does it. What used to be cleared here was the flag saying
+          // an epub body never made it up (`pushDirty`): the push kept it, and the pull two
+          // statements later wiped it, so the book was never tried again and the other device
+          // was left with a shelf card whose file 404s for good.
+          //
+          // A row that lost its metadata to this remote one still gets `dirtyAt` back, and the
+          // cost of that is one more push of fields the server already agrees with, which the
+          // next round clears.
+          dirtyAt: local?.dirtyAt,
         });
         if (!rb.deletedAt && rb.hasCover && !local?.cover) coversToFetch.push(rb.id);
       }

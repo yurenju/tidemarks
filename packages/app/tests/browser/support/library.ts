@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { COMMIT_FRACTION, TAP_SLOP_PX } from "../../../src/lib/touch.js";
+import type { SyncBook } from "../../../src/lib/types.js";
 
 // The books sit at the repository root rather than inside this package: both packages read the
 // same two files, and two copies would be two things to keep in step.
@@ -1072,6 +1073,13 @@ export interface StoredAnnotation {
 export interface Elsewhere {
   position?: StoredPosition | null;
   annotations?: StoredAnnotation[];
+  /**
+   * ⚠️ **Including a book this device pushed a moment ago**, which is not an odd case but the
+   * ordinary one: the server stamps its own row on every push, so the next pull carries it
+   * straight back. What comes back is what a pull then does to the local row, and that is a
+   * write like any other.
+   */
+  books?: SyncBook[];
 }
 
 /**
@@ -1089,15 +1097,34 @@ export async function fakeSync(page: Page, read: () => Elsewhere): Promise<void>
   // The device believes it is signed in, so `syncNow` opens the door at all (`lib/session.ts`).
   // Nothing real is behind it: every call to `/api/sync` is answered here.
   await page.addInitScript(() => localStorage.setItem("tidemarks-signed-in", "1"));
+
+  // ⚠️ **The bodies too, or this is not a fake server — it is a hole.** A sync pushes whole epubs
+  // as well as rows (`PUT /api/books/*/file`), and those used to leave here for the dev server's
+  // proxy, which has nothing behind it. Failing intermittently and at the network layer, they
+  // are what #122 was: the push threw, the pull behind it never ran, and a banner three files
+  // away waited fifteen seconds for a position nobody had fetched.
+  //
+  // **Uploads only.** A GET here is a device fetching a cover or an epub it does not hold, and
+  // an empty 200 would be stored as one — a zero-byte book, with the network layer green. Let
+  // those 404 so a spec that starts needing them says so.
+  //
+  // First, so that the specific route below wins it: Playwright matches handlers in reverse
+  // registration order, so the last one registered is the first one asked.
+  await page.route("**/api/books/**", (route) =>
+    route.request().method() === "PUT"
+      ? route.fulfill({ status: 200, body: "" })
+      : route.fulfill({ status: 404, body: "" }),
+  );
+
   await page.route("**/api/sync*", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({ json: { conflicts: { books: [], progress: [], annotations: [] } } });
       return;
     }
-    const { position = null, annotations = [] } = read();
+    const { position = null, annotations = [], books = [] } = read();
     await route.fulfill({
       json: {
-        books: [],
+        books,
         progress: position === null ? [] : [position],
         annotations,
         readingSessions: [],

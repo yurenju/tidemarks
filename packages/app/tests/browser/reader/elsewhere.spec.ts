@@ -7,6 +7,12 @@
 // reader having asked for the chrome, that taking the offer moves the book — and that a mark the
 // pull wrote into Dexie is one the panel is holding, which is a second wire and a separate break.
 //
+// **A fourth angle, and the odd one out: that a failed push does not eat the pull behind it.**
+// That is control flow in `lib/sync.ts` with no layout in it, so it would belong a layer down —
+// except there is no layer down. `sync.ts` reaches Dexie, `fetch` and a Lingui macro, none of
+// which survive the node runner's transform, so it has no unit harness at all, and a browser is
+// the only place the two halves of a sync run in order.
+//
 // The position it offers is a real one, read back out of the reader after turning some pages — a
 // hand-written CFI would prove the banner appears and prove nothing about the jump.
 //
@@ -15,6 +21,7 @@
 // engines (#15, #46), and this spec is not about the text: the note is written by the same
 // `relocate` the reader's own position comes from, and it is a string this file can compare.
 import type { Page } from "@playwright/test";
+import type { SyncBook } from "../../../src/lib/types.js";
 import { expect, test } from "../support/fixtures.js";
 import {
   BOOKS,
@@ -166,4 +173,73 @@ test("a mark made elsewhere reaches the open book without a reload", async ({ pa
 
   await openChrome(page);
   await expect(page.getByRole("button", { name: /Notes \(1\)/ })).toBeVisible({ timeout: 15_000 });
+});
+
+// **A sync pushes before it pulls, and one book's epub failing to go up used to end the whole
+// round** — `lib/sync.ts` has what that cost the reader. What this adds is the ordering itself:
+// that the pull still happens, which no other case here would notice, because in all of them the
+// push succeeds.
+//
+// **And that the book is tried again**, which is the half that is easy to ship broken: the push
+// keeps `dirtyAt` on a book whose body did not go up, and the pull that follows writes that same
+// book back a moment later. A pull that cleared the flag there — it used to — left the epub on
+// this device for good, and the other device holding a shelf card whose file is not there.
+//
+// So the upload is refused for good, and the book is asked for on both sides of a pull. Refused
+// rather than left to chance: intermittent is how #122 found this, and intermittent is no way to
+// keep it.
+test("a book body that will not upload does not stop a position arriving", async ({ page }) => {
+  let offered: StoredPosition | null = null;
+  let onServer: SyncBook[] = [];
+  await fakeSync(page, () => ({ position: offered, books: onServer }));
+
+  let uploads = 0;
+  await page.route("**/api/books/*/file", (route) => {
+    uploads += 1;
+    return route.abort();
+  });
+
+  await openBook(page, BOOKS.vertical);
+  await waitForIndex(page);
+  await expect.poll(() => storedCfi(page)).not.toBeNull();
+  const here = (await storedPosition(page)) as StoredPosition;
+
+  // The book coming back down, which is what the pull writes over the local row — and what used
+  // to take the "still owed" flag with it. Later than the local row so it plainly wins the merge;
+  // a real server's echo ties, and a tie goes to the remote side too (`merge.ts`).
+  //
+  // The title says what it is rather than naming the fixture: the pull really does write it onto
+  // the shelf's row, and a second book's name sitting there would read as a bug to whoever comes
+  // next. Nothing below looks at it.
+  onServer = [
+    {
+      id: here.bookId,
+      title: "the row the server sends back",
+      author: "",
+      addedAt: 0,
+      updatedAt: Date.now() + 60_000,
+      deletedAt: null,
+    },
+  ];
+  offered = {
+    ...here,
+    cfi: "epubcfi(/6/40!/4/2/1:0)",
+    pageRange: null,
+    chapterLabel: null,
+    percentage: 0.9,
+    lastReadAt: Date.now() + 60_000,
+  };
+  await returnToForeground(page);
+
+  await expect(page.getByTestId("elsewhere")).toBeVisible({ timeout: 15_000 });
+  const afterThePull = uploads;
+
+  // One more round, now that the book has been through a pull. `RESUME_COALESCE_MS` folds two
+  // returns landing within a second of each other into one sync, and this has to be its own.
+  await page.waitForTimeout(1_500);
+  await returnToForeground(page);
+
+  // Still owed, so still asked for: the pull wrote the book back without writing off what this
+  // device has yet to hand over.
+  await expect.poll(() => uploads, { timeout: 15_000 }).toBeGreaterThan(afterThePull);
 });
