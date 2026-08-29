@@ -184,7 +184,12 @@ function latinLine(index: number, x: number, width: number, pitch = 18): MarkedR
   };
 }
 
-/** 草枕, vertical: the rectangle is already tight to the glyphs, so ink and rect coincide. */
+/**
+ * 草枕, vertical. Ink and rectangle coincide here, and that is this book rather than vertical
+ * setting: its first available font covers four dashes and reports a 15px box the 18.4px
+ * characters spill out of, so frond's `inkAcross` has nothing to inset. An ordinary CJK face
+ * reports a rectangle wider than its em and hands back an ink box inside it.
+ */
 function verticalRun(
   left: number,
   y: number,

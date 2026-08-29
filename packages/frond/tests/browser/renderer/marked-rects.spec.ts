@@ -133,18 +133,59 @@ test.describe("where the ink sits inside the rectangle", () => {
     expect(heights.size).toBe(1);
   });
 
-  test("vertically, the ink is the rectangle — there is no internal leading to recover", async ({
-    page,
-  }) => {
+  test("vertically, the ink is the em box and the rectangle is wider than it", async ({ page }) => {
+    // The wiring test for `inkAcross`, whose arithmetic is exhausted in ink.test.ts. What no
+    // pure function can show is that a real CJK face leaves this much slack in the first place:
+    // the rectangle across a vertical line is the font's ascent plus descent, a metric about
+    // the baseline direction being applied across the line. Reading it as tight — which frond
+    // did, on a measurement of a book whose first available font is a four-glyph stub — stood
+    // the mark 5px off every column.
+    //
+    // The face is named rather than left to `serif`, so that the slack asserted below is a CJK
+    // face's. A Latin serif carries slack of its own and would pass this while proving nothing
+    // about the books the fault was found in.
+    const EM = 18;
     await mount(
       page,
       section(
         "<p>山路を登りながら</p>",
-        "html { writing-mode: vertical-rl; } p { font: 18px serif; }",
+        `html { writing-mode: vertical-rl; } p { font: ${EM}px "Noto Serif CJK JP"; }`,
       ),
     );
     for (const one of await marked(page)) {
-      expect(one.ink).toEqual(one.rect);
+      expect(one.rect.width).toBeGreaterThan(EM);
+      expect(one.ink.width).toBeCloseTo(EM, 1);
+      // Centred on the rectangle, because that is where the central baseline puts the em box.
+      expect(one.ink.x + one.ink.width / 2).toBeCloseTo(one.rect.x + one.rect.width / 2, 1);
+      // Untouched along the line: only the axis the mark is drawn on was in question.
+      expect(one.ink.y).toBe(one.rect.y);
+      expect(one.ink.height).toBe(one.rect.height);
+    }
+  });
+
+  test("a horizontal block inside a vertical book is measured as the horizontal one it is", async ({
+    page,
+  }) => {
+    // frond forces vertical setting onto `:root` alone, so a book that sets a colophon or a run
+    // of Latin as `horizontal-tb` keeps it. Deciding from the section's mode would inset such a
+    // block **along** its line — a 300px sentence handed back as a 20px box in the middle of
+    // the words, with the mark drawn through them.
+    const EM = 20;
+    await mount(
+      page,
+      section(
+        '<p style="writing-mode: horizontal-tb">Horizontal block inside a vertical book</p>',
+        `html { writing-mode: vertical-rl; } p { font: ${EM}px serif; }`,
+        "en",
+      ),
+    );
+    for (const one of await marked(page)) {
+      // Wider than an em, and untouched along the line it runs on.
+      expect(one.ink.width).toBe(one.rect.width);
+      expect(one.ink.x).toBe(one.rect.x);
+      // Inset across it instead, which is the horizontal answer.
+      expect(one.ink.y).toBeGreaterThan(one.rect.y);
+      expect(one.ink.height).toBeLessThan(one.rect.height);
     }
   });
 });

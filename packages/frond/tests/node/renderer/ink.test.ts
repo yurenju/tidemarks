@@ -3,7 +3,7 @@
 // to clear. The glyph metrics it is fed can only be measured by an engine, and the rectangles
 // that come out are checked against one in tests/browser/renderer/marked-rects.spec.ts.
 import { describe, expect, test } from "vitest";
-import { blankRuns, inkWithin, minimumLineHeight } from "../../../src/renderer/ink.ts";
+import { blankRuns, inkAcross, inkWithin, minimumLineHeight } from "../../../src/renderer/ink.ts";
 
 /**
  * The numbers in the line-height cases are the ones measured on Alice in chromium and written
@@ -94,6 +94,34 @@ describe("finding the ink inside a text node's rectangle", () => {
   test("glyphs overshooting their own descent are clamped to the rectangle", () => {
     const overshooting = { ...TIMES, inkDescent: 9 };
     expect(inkWithin({ top: 100, bottom: 117 }, overshooting).bottom).toBe(117);
+  });
+});
+
+describe("finding the ink across a vertical line", () => {
+  // Noto Serif CJK TC at 18.67px, measured in chromium: the rectangle is 26 across, the em box
+  // inside it is 18.67, and the glyphs' own ink is 17 — so the mark stood 5px off the column.
+  const NOTO_AT = 18.67;
+
+  test("one em, centred, is what an ordinary CJK face leaves inside its rectangle", () => {
+    // Written out rather than derived, so that transcribing the implementation back into the
+    // expectation cannot make this pass: 26 across, 18.67 of em, 3.665 of slack each side.
+    const { start, end } = inkAcross({ start: 100, end: 126 }, NOTO_AT);
+    expect(start).toBeCloseTo(103.665, 3);
+    expect(end).toBeCloseTo(122.335, 3);
+  });
+
+  test("a rectangle already narrower than an em is left alone", () => {
+    // 草枕's first available font covers four dashes and reports a 15px box, which the 18.4px
+    // characters spill out of. Insetting there would move the mark onto the glyphs.
+    expect(inkAcross({ start: 100, end: 115 }, 18.4)).toEqual({ start: 100, end: 115 });
+  });
+
+  test("no usable font size leaves the rectangle alone rather than returning NaN", () => {
+    // Zero is a replaced element, which has no type in it; NaN is a `font-size` that would not
+    // parse, and it fails every comparison on the way past rather than being caught by one.
+    for (const emSize of [0, Number.NaN]) {
+      expect(inkAcross({ start: 100, end: 126 }, emSize)).toEqual({ start: 100, end: 126 });
+    }
   });
 });
 
