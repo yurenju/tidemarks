@@ -13,6 +13,7 @@
  *   A  — quote only. One passage, one press. No note, no writing, no controls.
  *   B  — quote plus the reader's own note. Both held to the reading ceiling, nothing beside them.
  *   B2 — the same reading, with the book in one margin and a draw pinned in the corner.
+ *   B2-1 — B2 with the frame pulled in to the reading instead of running the shelf's width.
  *   B3 — the same reading, with both margins spent on the one book it came from.
  *   C  — no passage at all: a count and the covers it came from, as a doorway.
  *
@@ -31,13 +32,14 @@ import { detectScript, LINE_LENGTH } from "../lib/line-length";
 import { relativeAge, type RelativeAge } from "../lib/revisit";
 import type { Annotation, BookRecord } from "../lib/types";
 
-export const VARIANTS = ["A", "B", "B2", "B3", "C", "current"] as const;
+export const VARIANTS = ["A", "B", "B2", "B2-1", "B3", "C", "current"] as const;
 export type Variant = (typeof VARIANTS)[number];
 
 const NAMES: Record<Variant, string> = {
   A: "Quote only",
   B: "Quote + note, margins empty",
   B2: "…book left, draw in the corner",
+  "B2-1": "…the same, frame hugging the reading",
   B3: "…the one book, both sides",
   C: "Doorway, no quote",
   current: "Today's card, unchanged",
@@ -174,7 +176,7 @@ function VariantB({ batch, books, onOpenPassage }: VariantProps) {
  * screen rather than stacked, because a cover stacked above a passage is the big card coming back
  * one row at a time. The corner control stays: it is the only thing on here that does something.
  */
-function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
+function VariantB2({ batch, books, onOpenPassage, hug }: VariantProps & { hug?: boolean }) {
   const [at, setAt] = useState(0);
   const index = Math.min(at, batch.length - 1);
   const mark = batch[index]!;
@@ -189,7 +191,7 @@ function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
   };
 
   return (
-    <section className="proto-card" data-testid="mark-card">
+    <section className={hug ? "proto-card proto-card-hug" : "proto-card"} data-testid="mark-card">
       <div className="proto-measure proto-hit-pad">
         <button
           className="proto-hit proto-hit-inline proto-side proto-side-end"
@@ -212,8 +214,9 @@ function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
         </button>
         {/* The margin opposite the cover is left empty on purpose: what stood in it was the four
             other covers, and a passage read beside a stack of other books is a passage read next
-            to an inbox. */}
-        <span className="proto-side" />
+            to an inbox. B2-1 has no such margin to leave empty — the frame stops at the reading —
+            so it is not rendered there at all. */}
+        {!hug && <span className="proto-side" />}
       </div>
       <button
         className="proto-corner"
@@ -326,6 +329,7 @@ export function PrototypeCard({ variant, ...props }: VariantProps & { variant: V
       {variant === "A" && <VariantA {...props} />}
       {variant === "B" && <VariantB {...props} />}
       {variant === "B2" && <VariantB2 {...props} />}
+      {variant === "B2-1" && <VariantB2 {...props} hug />}
       {variant === "B3" && <VariantB3 {...props} />}
       {variant === "C" && <VariantC {...props} />}
     </>
@@ -333,10 +337,61 @@ export function PrototypeCard({ variant, ...props }: VariantProps & { variant: V
 }
 
 /**
+ * The three dials worth turning while looking at these — how many lines of the passage, how many
+ * of the note, and where the cover sits against them.
+ *
+ * ⚠️ **They are written to the document root as custom properties, not passed down as props.**
+ * The card and this bar are siblings under the shelf, so sharing React state between them would
+ * mean lifting it into `Library` — a change to the app's own component for the sake of a
+ * prototype's controls. The stylesheet already reads them (`var(--proto-…)`), so a dial turned
+ * here reaches every variant at once, including the ones a later session adds.
+ */
+interface Dials {
+  quoteLines: number;
+  noteLines: number;
+  coverCentred: boolean;
+}
+
+const DIAL_DEFAULTS: Dials = { quoteLines: 3, noteLines: 2, coverCentred: false };
+const DIALS_KEY = "proto-dials";
+
+function loadDials(): Dials {
+  try {
+    const stored = window.localStorage.getItem(DIALS_KEY);
+    return stored ? { ...DIAL_DEFAULTS, ...JSON.parse(stored) } : DIAL_DEFAULTS;
+  } catch {
+    // A prototype's controls are not worth a broken shelf. Private windows throw on read.
+    return DIAL_DEFAULTS;
+  }
+}
+
+function applyDials(dials: Dials) {
+  const root = document.documentElement;
+  root.style.setProperty("--proto-quote-lines", String(dials.quoteLines));
+  root.style.setProperty("--proto-note-lines", String(dials.noteLines));
+  root.style.setProperty("--proto-cover-justify", dials.coverCentred ? "center" : "flex-start");
+  // Zero lines has to be its own switch: -webkit-line-clamp: 0 is not "no lines", it is ignored,
+  // and the note would come back at full height.
+  root.style.setProperty("--proto-note-display", dials.noteLines === 0 ? "none" : "-webkit-box");
+  try {
+    window.localStorage.setItem(DIALS_KEY, JSON.stringify(dials));
+  } catch {
+    // Not worth a broken shelf either — the dials just do not survive a reload.
+  }
+}
+
+/**
  * The bar that flips between them. Dev builds only, and loud on purpose — it must never be
  * mistaken for part of the design being judged.
  */
 export function PrototypeSwitcher({ variant }: { variant: Variant }) {
+  const [dials, setDials] = useState(loadDials);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) applyDials(dials);
+  }, [dials]);
+
   if (!import.meta.env.DEV) return null;
 
   const go = (d: number) => {
@@ -346,9 +401,50 @@ export function PrototypeSwitcher({ variant }: { variant: Variant }) {
     window.location.href = url.toString();
   };
 
+  const turn = (change: Partial<Dials>) => setDials((d) => ({ ...d, ...change }));
+
   return (
     <>
       <style>{SWITCHER_CSS}</style>
+      {open && (
+        <div className="proto-dials">
+          <label>
+            Quote lines
+            <input
+              type="range"
+              min={1}
+              max={8}
+              value={dials.quoteLines}
+              onChange={(e) => turn({ quoteLines: Number(e.target.value) })}
+            />
+            <b>{dials.quoteLines}</b>
+          </label>
+          <label>
+            Note lines
+            <input
+              type="range"
+              min={0}
+              max={6}
+              value={dials.noteLines}
+              onChange={(e) => turn({ noteLines: Number(e.target.value) })}
+            />
+            {/* Zero is a real setting, not an off switch by accident: it is what the card looks
+                like with the reader's own words dropped altogether. */}
+            <b>{dials.noteLines === 0 ? "off" : dials.noteLines}</b>
+          </label>
+          <label className="proto-dial-check">
+            <input
+              type="checkbox"
+              checked={dials.coverCentred}
+              onChange={(e) => turn({ coverCentred: e.target.checked })}
+            />
+            Cover centred against the reading
+          </label>
+          <button className="proto-dial-reset" onClick={() => setDials(DIAL_DEFAULTS)}>
+            Reset
+          </button>
+        </div>
+      )}
       <div className="proto-switcher">
         <button onClick={() => go(-1)} aria-label="Previous variant">
           ←
@@ -358,6 +454,13 @@ export function PrototypeSwitcher({ variant }: { variant: Variant }) {
         </span>
         <button onClick={() => go(1)} aria-label="Next variant">
           →
+        </button>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Prototype dials"
+          aria-expanded={open}
+        >
+          ⚙
         </button>
       </div>
     </>
@@ -417,6 +520,21 @@ const CSS = `
    spent on **both** sides so the reading stays centred in the card rather than in what is left of
    it. */
 .proto-hit-pad { padding: var(--space-4) calc(var(--space-4) + 28px); }
+
+/* **B2-1: the frame stops where the reading does.** B2's card runs the full width of the shelf,
+   so the border and the ground stay put while the passage inside them shrinks and grows — on a
+   short passage that is a lot of painted card around a little text. Here the frame is sized by
+   what is in it (the quote's own ceiling caps how wide that can get), and centred.
+
+   The reading goes back to shrink-to-fit for this one: the 100% that stops a button overflowing a
+   fixed-width parent would, inside a parent sized by its children, be a width asking a width. */
+.proto-card-hug {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.proto-card-hug .proto-column { width: auto; }
+.proto-card-hug .proto-measure { justify-content: start; }
 
 /* Pinned to the card's corner, because the passage above it changes height on every draw and this
    is the control a reader presses again and again. Quiet until pointed at: it is an offer. */
@@ -491,7 +609,13 @@ const CSS = `
 }
 /* Each margin leans against the reading rather than against the card's own edge: what is in here
    belongs to the passage beside it, and pinned to the far edge it reads as a second thing. */
-.proto-side-end { align-items: flex-end; }
+.proto-side-end {
+  align-items: flex-end;
+  /* The grid holds its items at the top; this one stretches so the dial has a full column height
+     to place the cover in — head of the passage, or level with its middle. */
+  align-self: stretch;
+  justify-content: var(--proto-cover-justify, flex-start);
+}
 .proto-side-start { align-items: flex-start; }
 .proto-credit {
   font-family: var(--font-control);
@@ -522,19 +646,20 @@ const CSS = `
   color: var(--text-primary);
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  /* The dial in the switcher writes this; 3 is what it starts on. */
+  -webkit-line-clamp: var(--proto-quote-lines, 3);
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .proto-note {
+  display: var(--proto-note-display, -webkit-box);
   font-size: var(--type-note);
   line-height: var(--leading-text);
   color: var(--text-body);
   margin: var(--space-3) 0 0;
   padding-inline-start: var(--space-3);
   border-inline-start: 2px solid var(--line-firm);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: var(--proto-note-lines, 2);
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -620,5 +745,43 @@ const SWITCHER_CSS = `
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(255,255,255,0.12);
+}
+
+/* Sits above the bar, in the same black so it reads as part of the rig rather than the design. */
+.proto-dials {
+  position: fixed;
+  inset-block-end: 64px;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 280px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #14171c;
+  color: #f2f1e9;
+  font: 13px/1.3 var(--font-control), monospace;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+.proto-dials label {
+  display: grid;
+  grid-template-columns: 92px 1fr 32px;
+  align-items: center;
+  gap: 10px;
+}
+.proto-dials b { text-align: end; font-weight: 600; }
+.proto-dials input[type="range"] { width: 100%; accent-color: #7aa2d6; }
+.proto-dial-check { grid-template-columns: auto 1fr; }
+.proto-dial-reset {
+  align-self: flex-end;
+  cursor: pointer;
+  padding: 4px 10px;
+  color: inherit;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  border-radius: 999px;
+  font: inherit;
 }
 `;
