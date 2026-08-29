@@ -404,6 +404,54 @@ test("opening a passage from the shelf leaves the reader's place in that book al
   });
 });
 
+test("the draw button stays put between draws, and the card still fits a phone", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const { alice, chinese } = await twoBooks(page);
+  await rename(page, alice, "Alice's Adventures in Wonderland: and Through the Looking-Glass");
+
+  // **The two draws are as far apart as the card will ever see them**, and in both of the ways a
+  // card used to be sized by: three words against a passage that runs the whole measure, under a
+  // published title against a two-word one. Either difference on its own moved the frame's right
+  // edge, and the button rides that edge — so the second of two presses landed beside it.
+  await seedMarks(page, [
+    { bookId: alice, text: `${LATIN} ${LATIN} ${LATIN}`, note: "", createdAt: 1 },
+    { bookId: chinese, text: "短。", note: "", createdAt: 2 },
+  ]);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.reload();
+
+  const buttonLeft = async () => (await another(page).boundingBox())!.x;
+  const before = await buttonLeft();
+  await drawOther(page);
+  expect(await buttonLeft()).toBeCloseTo(before, 0);
+
+  // And the width is a ceiling rather than a size: on a phone the card is as wide as the shelf and
+  // no wider, which is what it already was for a long passage.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const box = (await card(page).boundingBox())!;
+  const shelf = (await page.locator(".library").boundingBox())!;
+  expect(box.width).toBeLessThanOrEqual(shelf.width);
+});
+
+test("the cover on the card is the shelf's rectangle rather than the publisher's", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await importBook(page, BOOKS.horizontal, /Alice/);
+  const alice = await bookIdOf(page, /Alice/);
+
+  await seedMarks(page, [{ bookId: alice, text: LATIN, note: "", createdAt: 1 }]);
+  await page.reload();
+
+  // Every book's cover comes out the same size, so a draw that turns over to a squarer book does
+  // not resize the one thing on the card that is not words. Alice's own cover is 1:1.5, which is
+  // what makes this an assertion rather than a restatement of the stylesheet.
+  const cover = (await card(page).locator(".mark-cover img").boundingBox())!;
+  expect(cover.height / cover.width).toBeCloseTo(1.42, 2);
+});
+
 test("the shelf stops widening, and centres in what is left", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);

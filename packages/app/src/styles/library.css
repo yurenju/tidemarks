@@ -102,10 +102,13 @@
 /* One marked passage: a row of housekeeping, then the reading.
    ===========================================================
    **The card is a way in, not the place revisiting happens** (ADR-0042), so what stands on it is
-   one passage, the reader's note on it, and the two presses. The frame closes around its contents
-   rather than running the shelf's width — a card sized to the widest thing in it holds still
-   while the passage inside changes length, and the reading is never a lone column adrift in a
-   very wide box.
+   one passage, the reader's note on it, and the two presses.
+
+   **The frame is a fixed width rather than one that closes around its contents.** It used to
+   close, and what that cost is 〈another〉: the card is centred, so a three-word passage — or
+   merely a book with a shorter name — drew a narrower card, and the button on its right edge
+   moved. Pressing ↻ twice in a row is the ordinary way to use this card, and the second press
+   would land beside the button rather than on it.
 
    **Both readings are held to `LINE_LENGTH`** (ADR-0012), each in its own type size, so the note
    comes out narrower than the passage and sits inside it. The room that ceiling leaves is what
@@ -115,12 +118,24 @@
      no cover of its own renders nothing at all, and a track that stays behind costs its gap — the
      frame then encloses a margin on one side only, and the card reads as though it had been
      pushed. A flex row simply has one child fewer. */
+  /* The cover's own width, named here so the frame's sum below and `.mark-cover` cannot drift
+     apart. */
+  --mark-cover-width: 64px;
   display: flex;
-  justify-content: center;
   align-items: stretch;
   gap: var(--space-5);
-  width: fit-content;
-  max-width: 100%;
+  /* The width is the passage's ceiling with everything that stands beside it added back: the
+     cover, the gap it leaves, and the card's own padding on both sides. Written as that sum
+     rather than as a number, because the ceiling follows the reader's type size (ADR-0006) and a
+     flat figure here would hand an ideographic passage fewer than the 40 characters ADR-0012
+     entitles it to on a tablet, silently.
+
+     `min()` is what keeps a phone out of it: below that width the card is simply as wide as the
+     shelf, which is what it already was for a long passage. */
+  width: min(
+    100%,
+    calc(var(--mark-cover-width) + var(--space-5) + var(--reading-measure) + 2 * var(--space-4))
+  );
   margin: var(--space-5) auto 0;
   padding: var(--space-4);
   border: 1px solid var(--line-firm);
@@ -135,11 +150,17 @@
 .mark-cover {
   display: flex;
   align-items: center;
-  width: 64px;
+  flex: none;
+  width: var(--mark-cover-width);
 }
 
+/* **The same rectangle for every book**, cropped to it — the proportions the wall of covers uses
+   (`.book-cover`). Left to their own proportions, a tall cover and a square one give the card two
+   different heights and the passage under the press moves as the draw turns over. */
 .mark-cover img {
   width: 100%;
+  aspect-ratio: 1 / 1.42;
+  object-fit: cover;
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--line-firm);
 }
@@ -147,6 +168,10 @@
 .mark-column {
   display: flex;
   flex-direction: column;
+  /* **Fills whatever the frame's floor left over**, which is what actually holds 〈another〉 still:
+     the button hangs off the end of the head row, so a column that shrank to a three-word passage
+     would carry the button in with it even inside a card that had not moved. */
+  flex: 1;
   min-width: 0;
 }
 
@@ -250,13 +275,15 @@
   text-decoration-color: var(--line-actionable);
 }
 
-/* The book's own words, in the reading face. Two lines, and the cut is this card keeping its
+/* The book's own words, in the reading face. Three lines, and the cut is this card keeping its
    promise to be a way in rather than the place the reading happens: the whole passage is one
-   press away, in the book it came from. */
+   press away, in the book it came from. Two was the first number and it was short — a marked
+   passage is usually a sentence or two, and cutting most of them mid-thought made the card read
+   as a teaser rather than as something the reader recognises. */
 .mark-quote {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   overflow: hidden;
   font-size: var(--type-lede);
   line-height: 1.6;
