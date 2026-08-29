@@ -690,7 +690,14 @@ const CSS = `
   margin-inline: auto;
 }
 .proto-card-hug .proto-column { width: auto; }
-.proto-card-hug .proto-measure { justify-content: start; }
+/* ⚠️ **Two columns here, not three.** B2-1 renders no margin on the far side, but the three-track
+   template still counted one — an empty track plus its gap, which the frame then had to enclose.
+   The reading sat 39px from the right edge against the cover's 17px on the left, and the card
+   looked as though it had been pushed. */
+.proto-card-hug .proto-measure {
+  grid-template-columns: minmax(0, max-content) auto;
+  justify-content: start;
+}
 
 /* **The housekeeping row**: what this is, which book, how long ago, and the way to another. Set
    in the label face at the smallest size the system has — everything on it is the interface
