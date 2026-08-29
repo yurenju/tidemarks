@@ -61,11 +61,6 @@ msgstr "{face}はまだ未取得"
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, other {残り約 # 時間}}"
 
-#. Where the reader is in today's marked passages, beside the row of tick marks on the shelf's card. Both values are counts; the first is the one on screen, the second is how many were drawn for today.
-#: src/components/Library.tsx
-msgid "{position} / {total}"
-msgstr "{position} / {total}"
-
 #. The how-many-times number in the book-details drawer, with its unit. A sitting is one continuous stretch of reading.
 #: src/components/AboutDrawer.tsx
 msgid "{sittings, plural, one {# sitting} other {# sittings}}"
@@ -131,10 +126,10 @@ msgstr "ずっと無料"
 msgid "An app wants to connect to your shelf. You will come back here to confirm after signing in."
 msgstr "あるアプリがあなたの本棚に接続しようとしています。サインインすると、ここに戻って確認できます。"
 
-#. Button at the foot of the shelf's card, at the far end from 'Save'. Draws another set of marked passages to look through, in place of the ones showing. Not a refresh and not a dismissal — the reader is asking for more, and nothing is being cleared. Kept short: it shares a narrow row on a phone.
+#. Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.
 #: src/components/Library.tsx
-msgid "Another five"
-msgstr "別の5つ"
+msgid "Another passage"
+msgstr "別の一節"
 
 #. Refusal shown when a code is submitted for an address that was never sent one.
 #. js-lingui-explicit-id
@@ -307,6 +302,11 @@ msgstr "フォントの取得状況"
 msgid "Font is on this device"
 msgstr "フォントはこの端末にあります"
 
+#. Eyebrow label at the top of the shelf's card, in front of the book's name. Says what the block is — a passage the reader marked, come back round. Lower case 'marks' is the same word the marking toolbar uses.
+#: src/components/Library.tsx
+msgid "From your marks"
+msgstr "マークした一節から"
+
 #. Button on the banner naming the reader's place in the book: moves the book to that place. Short — it sits beside 'Stay here'.
 #: src/components/Reader.tsx
 msgid "Go there"
@@ -466,11 +466,6 @@ msgstr "ふつう"
 msgid "Moss"
 msgstr "苔色"
 
-#. Quiet button beside 'Save' on the shelf's card. Moves on to the next of today's five passages without writing anything, and from the last one round to the first.
-#: src/components/Library.tsx
-msgid "Next"
-msgstr "次へ"
-
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
 #: src/components/Reader.tsx
@@ -597,16 +592,6 @@ msgstr "並び"
 msgid "Paid"
 msgstr "有料"
 
-#. Screen-reader name for one of the five tick marks on the shelf's card, which jumps to that passage in today's five. The value is a count.
-#: src/components/Library.tsx
-msgid "Passage {position}"
-msgstr "{position} 番目の一節"
-
-#. Quiet button on the shelf's card, beside 'Next'. Goes back to the passage before this one in today's five, and from the first one round to the last.
-#: src/components/Library.tsx
-msgid "Previous"
-msgstr "前へ"
-
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
 #: src/components/Reader.tsx
@@ -653,19 +638,12 @@ msgstr "復元に失敗しました：{reason}"
 msgid "Restore from backup"
 msgstr "バックアップから戻す"
 
-#. Replaces the 'about 3 hours left' line under a book on the wall while the card at the top of the shelf is quoting that same book. Says why this one cover is picked out — it is the book the passage above came from.
-#: src/components/Library.tsx
-msgid "Revisiting"
-msgstr "読み返し中"
-
 #. One of three typeface choices for the book: a sans-serif face. In Chinese and Japanese this is a named style rather than a description — 黑體 / ゴシック体 — so use that name, not a translation of 'sans'.
 #: src/lib/settings.ts
 msgid "Sans"
 msgstr "ゴシック体"
 
 #. Button that commits the note being typed under a marked passage.
-#. The card's one filled button, under the note box on the shelf. Writes what the reader has typed onto that marked passage and moves on to the next of the five. Shown while that passage has no note yet.
-#: src/components/Library.tsx
 #: src/components/Reader.tsx
 msgid "Save"
 msgstr "保存"
@@ -973,11 +951,6 @@ msgstr "二段"
 msgid "Type"
 msgstr "組版"
 
-#. The same filled button as 'Save', shown instead when the passage already carries a note — pressing it replaces what is there.
-#: src/components/Library.tsx
-msgid "Update"
-msgstr "更新"
-
 #. The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.
 #: src/components/AccountPanel.tsx
 msgid "US$3 a month (provisional)"
@@ -988,11 +961,6 @@ msgstr "月 US$3（暫定）"
 #: worker/auth.ts
 msgid "auth.passkey.failed"
 msgstr "検証に失敗しました"
-
-#. Placeholder in the empty note box under a marked passage on the shelf. An invitation to write, not a label — the box is empty because the reader has not written anything on this passage yet.
-#: src/components/Library.tsx
-msgid "What did this make you think?"
-msgstr "この一節から何を思いましたか。"
 
 #. Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.
 #: src/components/AccountPanel.tsx

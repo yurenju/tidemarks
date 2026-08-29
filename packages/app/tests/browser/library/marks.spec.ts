@@ -1,24 +1,15 @@
-// The shelf's own card: today's five marked passages, one at a time, from whichever books they
-// came from. **Which five, and in what order, is not asked here** — that is a sort over
-// `lastShownAt`, proven exhaustively in `src/lib/revisit.test.ts`, and the line-length ceiling
-// is `src/lib/line-length.ts`. What is asked here is what only a browser can answer: that the
-// card is what a reader meets first, that the source on it is the loudest title on the screen,
-// that it holds one height while they flick through it, that the reader's answer lines up with
-// the passage it answers, that the wall below picks out whichever book is being quoted, and that
-// pressing the passage really does put them back in the book it came from — **without that
-// arrival becoming where they had read to**, which is this entrance's own wire into 〈回訪模式〉.
-// The rule behind that one is `src/lib/visit.test.ts`'s, and the reader's other way into it is
-// `reader/visit.spec.ts`'s.
+// The shelf's own card: one marked passage, the reader's note on it, and the two presses.
+// **Which passage is not asked here** — that is a draw, proven in `src/lib/revisit.test.ts`, and
+// the line-length ceiling is `src/lib/line-length.ts`. What is asked here is what only a browser
+// can answer: that the card is what a reader meets first and holds still for the day, that the
+// passage carries its own book's measure, that the head row sheds its parts by measuring rather
+// than at a width, and that pressing the passage really does put the reader back in the book it
+// came from — **without that arrival becoming where they had read to**, which is this entrance's
+// own wire into 〈回訪模式〉. The rule behind that one is `src/lib/visit.test.ts`'s, and the
+// reader's other way into it is `reader/visit.spec.ts`'s.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import {
-  BOOKS,
-  bookCards,
-  importBook,
-  PAGE_FRAME,
-  seedProgress,
-  settled,
-} from "../support/library.js";
+import { BOOKS, bookCards, importBook, PAGE_FRAME, seedProgress } from "../support/library.js";
 
 /** A passage the reader marked, written the way the reader's own highlight would write it. */
 interface Seed {
@@ -117,16 +108,16 @@ async function seedMarks(page: Page, seeds: Seed[]): Promise<void> {
 }
 
 /**
- * Give a book a name and a credit as long as a real one gets.
+ * Give a book a name as long as a real one gets.
  *
- * The fixtures are all called things like "Alice", and the card's book column is arranged around
- * what a published title actually does to it — a subtitle after a colon, an author and a
- * translator on one line. Nothing else can put those in front of the layout: a title comes out of
- * the epub, so the only way to test a long one is to write it in.
+ * The fixtures are all called things like "Alice", and what the head row has to survive is a
+ * published title — a subtitle after a colon, fifteen characters of it. Nothing else can put one
+ * in front of the layout: a title comes out of the epub, so the only way to test a long one is to
+ * write it in.
  */
-async function rename(page: Page, bookId: string, title: string, author: string): Promise<void> {
+async function rename(page: Page, bookId: string, title: string): Promise<void> {
   await page.evaluate(
-    ([id, name, credit]) =>
+    ([id, name]) =>
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open("tidemarks");
         open.onerror = () => reject(open.error);
@@ -135,7 +126,7 @@ async function rename(page: Page, bookId: string, title: string, author: string)
           const tx = db.transaction("books", "readwrite");
           const store = tx.objectStore("books");
           const read = store.get(id);
-          read.onsuccess = () => store.put({ ...read.result, title: name, author: credit });
+          read.onsuccess = () => store.put({ ...read.result, title: name });
           tx.oncomplete = () => {
             db.close();
             resolve();
@@ -143,7 +134,7 @@ async function rename(page: Page, bookId: string, title: string, author: string)
           tx.onerror = () => reject(tx.error);
         };
       }),
-    [bookId, title, author] as const,
+    [bookId, title] as const,
   );
 }
 
@@ -157,40 +148,41 @@ async function bookIdOf(page: Page, title: RegExp): Promise<string> {
 /**
  * The card, as a region to look inside.
  *
- * The two steps through the batch are then found by the names they carry rather than by a testid
- * of their own: the testid says which block, the role and name say which control, and a name that
- * goes missing is the kind of break nobody reports (ADR-0021).
+ * The draw is then found by the name it carries rather than by a testid of its own: the testid
+ * says which block, the role and name say which control, and a name that goes missing is the kind
+ * of break nobody reports (ADR-0021).
  */
 function card(page: Page) {
   return page.getByTestId("mark-card");
 }
 
 // ⚠️ `exact`, because Playwright matches an accessible name by substring by default — and the
-// largest button on this card carries the whole passage as its name. A seeded passage with the
-// word "next" in it would otherwise match two buttons and fail in strict mode.
-const nextPassage = (page: Page) => card(page).getByRole("button", { name: "Next", exact: true });
-const previousPassage = (page: Page) =>
-  card(page).getByRole("button", { name: "Previous", exact: true });
+// other button on this card carries the whole passage as its name.
+const another = (page: Page) =>
+  card(page).getByRole("button", { name: "Another passage", exact: true });
+
+/** What the card is showing right now. */
+const passage = (page: Page) => page.getByTestId("mark-quote");
+
+/**
+ * Press 〈another〉 and wait for the card to have actually turned over.
+ *
+ * The press is dispatched synchronously and the draw behind it is a read of Dexie away, so a test
+ * that read the card straight afterwards would sometimes read the passage still on screen. With
+ * two marks seeded the draw is deterministic — the other one is the only one it may hand back.
+ */
+async function drawOther(page: Page): Promise<void> {
+  const before = await passage(page).textContent();
+  await another(page).click();
+  await expect(passage(page)).not.toHaveText(before!);
+}
 
 /** How wide the quote is allowed to run, in ems of its own type size. */
 async function quoteEms(page: Page): Promise<number> {
-  return await page.getByTestId("mark-quote").evaluate((quote) => {
+  return await passage(page).evaluate((quote) => {
     const style = getComputedStyle(quote);
     return parseFloat(style.maxWidth) / parseFloat(style.fontSize);
   });
-}
-
-/** Walks the whole batch, gathering what each card says and how tall the card stands. */
-async function walkBatch(page: Page): Promise<{ texts: string[]; heights: number[] }> {
-  const total = Number((await page.getByTestId("mark-count").textContent())!.split("/")[1]!.trim());
-  const texts: string[] = [];
-  const heights: number[] = [];
-  for (let i = 0; i < total; i++) {
-    texts.push((await page.getByTestId("mark-quote").textContent())!);
-    heights.push((await card(page).boundingBox())!.height);
-    if (i < total - 1) await nextPassage(page).click();
-  }
-  return { texts, heights };
 }
 
 const LATIN = "Alice was beginning to get very tired of sitting by her sister on the bank.";
@@ -221,137 +213,54 @@ test("nothing marked says what the slot is for", async ({ page }) => {
   await importBook(page, BOOKS.horizontal, /Alice/);
 
   await expect(page.getByTestId("marks-empty")).toBeVisible();
-  await expect(page.getByTestId("mark-card")).toHaveCount(0);
+  await expect(card(page)).toHaveCount(0);
 });
 
-test("the card draws five out of many, and goes round at both ends", async ({ page }) => {
+test("one passage, with the reader's note, the same one after a reload", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
 
-  await seedMarks(page, manyMarks(alice, 12));
-  await page.reload();
-
-  // Five of the twelve, and the count says so. Which five is `revisit.test.ts`.
-  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
-
-  // **The five go round.** They are a pile to leaf through rather than a list to work down, so
-  // neither end is a place to be stuck — and neither button ever goes dead, because a dead button
-  // is the card refusing rather than the pile ending. Where in the pile the reader is, is said by
-  // the count and the scale beside it.
-  await previousPassage(page).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("5 / 5");
-
-  await nextPassage(page).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
-
-  for (let i = 0; i < 4; i++) await nextPassage(page).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("5 / 5");
-  await expect(nextPassage(page)).toBeEnabled();
-  await expect(previousPassage(page)).toBeEnabled();
-});
-
-test("the card is one height all the way through the five", async ({ page }) => {
-  await page.goto("/");
-  const { alice, chinese } = await twoBooks(page);
-
-  // Passages of wildly different lengths, which is the whole difficulty: a card sized to its
-  // contents moves the arrows out from under the reader's thumb between one flick and the next.
   await seedMarks(page, [
-    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
-    { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
-    { bookId: chinese, text: "短。", note: "", createdAt: 3_000 },
-    { bookId: alice, text: `${LATIN} ${LATIN} ${LATIN} ${LATIN}`, note: "", createdAt: 4_000 },
-    { bookId: chinese, text: HAN.repeat(6), note: "很長的一則想法。".repeat(4), createdAt: 5_000 },
+    { bookId: alice, text: LATIN, note: "Worth coming back to.", createdAt: 1 },
   ]);
   await page.reload();
 
-  const { heights } = await walkBatch(page);
-  expect(heights).toHaveLength(5);
-  for (const height of heights) expect(height).toBeCloseTo(heights[0]!, 0);
-});
+  await expect(passage(page)).toHaveText(LATIN);
+  // The reader's own words travel with the passage, read-only. Writing them is the book's job now
+  // — there is nothing on this card to type into.
+  await expect(page.getByTestId("mark-note")).toHaveText("Worth coming back to.");
 
-test("a long title costs the card no height and the scale no room", async ({ page }) => {
-  await page.goto("/");
-  const { alice, chinese } = await twoBooks(page);
-
-  // **The column is where the card's height used to leak from.** The passage and the note box are
-  // held open to a fixed size, so the card can only change height from the book's side — and it
-  // did, until the column was taken out of the row's sizing. What replaced that is a budget: a
-  // full-size cover, two lines of title, two of credit and the scale have to fit a height that
-  // belongs to the passage. **Nothing else measures that budget**, and the way it fails is that
-  // the scale — five buttons — is clipped away silently at the foot of the column (ADR-0021).
-  await rename(
-    page,
-    chinese,
-    "原子習慣：細微改變帶來巨大成就的實證法則",
-    "作者：詹姆斯・克利爾（James Clear），譯者：蔡世偉",
-  );
-  await seedMarks(page, [
-    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
-    { bookId: chinese, text: HAN, note: "", createdAt: 2_000 },
-  ]);
-  // Desk width, which is the only arrangement with a column to overflow.
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  // **Held for the day.** The reader may not be able to say yet why a passage stayed with them,
+  // and a card that redrew every time they came back to the shelf would never give them the
+  // chance to find out (ADR-0042).
   await page.reload();
-
-  const shapes = [];
-  for (let i = 0; i < 2; i++) {
-    shapes.push(
-      await card(page).evaluate((node) => ({
-        card: node.getBoundingClientRect().bottom,
-        scale: node.querySelector(".mark-ticks")!.getBoundingClientRect().bottom,
-        height: node.getBoundingClientRect().height,
-      })),
-    );
-    if (i === 0) await nextPassage(page).click();
-  }
-
-  for (const at of shapes) {
-    // Inside the frame, not merely near it: the card clips, so a scale one pixel past this is a
-    // row of controls that is simply not there.
-    expect(at.scale).toBeLessThan(at.card);
-    expect(at.height).toBeCloseTo(shapes[0]!.height, 0);
-  }
+  await expect(passage(page)).toHaveText(LATIN);
 });
 
-test("today's five are the same five after a reload", async ({ page }) => {
+test("asking for another draws a different passage, and that one is today's now", async ({
+  page,
+}) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
 
   await seedMarks(page, manyMarks(alice, 12));
   await page.reload();
-  const first = await walkBatch(page);
+  const first = await passage(page).textContent();
 
-  // The reader may not be able to say yet why a passage stayed with them. A card that redrew
-  // every time they came back to the shelf would never give them the chance to find out.
+  // Different, and still on the shelf: the draw is the reader asking for another passage, not a
+  // way out of the screen. Which passage arrives is chance — `revisit.test.ts` holds the one
+  // promise, that it is not the one being left.
+  await another(page).click();
+  await expect(passage(page)).not.toHaveText(first!);
+  await expect(page.locator(".reader")).toHaveCount(0);
+  const drawn = await passage(page).textContent();
+
+  // **What was drawn is today's passage now** — the press is the reader asking, not a peek that a
+  // reload undoes. A press whose effect a refresh takes back reads as a press that never landed.
   await page.reload();
-  const second = await walkBatch(page);
-  expect(second.texts).toEqual(first.texts);
-});
-
-test("asking for another five replaces today's five for good", async ({ page }) => {
-  await page.goto("/");
-  await importBook(page, BOOKS.horizontal, /Alice/);
-  const alice = await bookIdOf(page, /Alice/);
-
-  await seedMarks(page, manyMarks(alice, 12));
-  await page.reload();
-
-  await nextPassage(page).click();
-  await nextPassage(page).click();
-  await expect(page.getByTestId("mark-count")).toHaveText("3 / 5");
-
-  await page.getByTestId("mark-repick").click();
-  await expect(page.getByTestId("mark-count")).toHaveText("1 / 5");
-  const drawn = await walkBatch(page);
-
-  // **The new five are today's five now** — the press is the reader asking for more, not a
-  // peek that a reload undoes. Which is also why there is no way to clear the card: anything
-  // that can be emptied becomes a thing owed.
-  await page.reload();
-  expect((await walkBatch(page)).texts).toEqual(drawn.texts);
+  await expect(passage(page)).toHaveText(drawn!);
 });
 
 test("the passage on the card carries its own book's line-length ceiling", async ({ page }) => {
@@ -368,75 +277,82 @@ test("the passage on the card carries its own book's line-length ceiling", async
   // that the ceiling comes from *this passage's own book* — a card with `40em` written into its
   // stylesheet would pass either assertion on its own, and only fail when the two disagree. The
   // numbers themselves belong to `src/lib/line-length.test.ts`, which is where they are pinned.
+  //
+  // Two marks, so one press reaches the other: the draw promises only that it will not hand back
+  // the passage being left, and with two there is one other.
   const seen = new Map<string, number>();
   for (let i = 0; i < 2; i++) {
-    seen.set((await page.getByTestId("mark-quote").textContent())!, await quoteEms(page));
-    if (i === 0) await nextPassage(page).click();
+    seen.set((await passage(page).textContent())!, await quoteEms(page));
+    // ⚠️ Waited for, not merely pressed: `click()` returns when the press is dispatched, and the
+    // draw behind it is a read of Dexie away. Reading straight after would sometimes record the
+    // passage that is still on screen, and the map would come back with one key.
+    if (i === 0) await drawOther(page);
   }
   expect(seen.get(LATIN)).toBeCloseTo(30, 1);
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
 });
 
-test("the reader's answer starts on the passage's line and the card stops with it", async ({
+test("the head row sheds its label for a long title and keeps it for a short one", async ({
   page,
 }) => {
   await page.goto("/");
   const { alice, chinese } = await twoBooks(page);
 
+  // **Two titles at one width, which is the whole of the proposition.** The row drops its parts by
+  // measuring — the label goes when the book's name has run out of room — and the way that rule
+  // fails is by being written as a breakpoint instead, which passes every test that only ever
+  // looks at one title. These two are seeded together so that the width is held constant and the
+  // title is the only thing that differs.
+  await rename(page, chinese, "原子習慣：細微改變帶來巨大成就的實證法則");
+  await rename(page, alice, "短");
   await seedMarks(page, [
     { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
-    { bookId: chinese, text: HAN, note: "再讀一次。", createdAt: 2_000 },
+    { bookId: chinese, text: HAN, note: "", createdAt: 2_000 },
   ]);
-  // Wider than the reading is allowed to be, which is the whole of what this asks: the card runs
-  // the shelf's width, and it is the reading inside it that stops and centres. Below that cap the
-  // reading fills what it is given and any arrangement passes.
-  await page.setViewportSize({ width: 1600, height: 1000 });
+  // 480 is measured rather than picked: the long title's label goes somewhere between 700 and
+  // 620, and the short title still has room for its own at 480. Anywhere in that gap makes the
+  // point; here is comfortably inside it at both ends.
+  await page.setViewportSize({ width: 480, height: 900 });
   await page.reload();
 
-  /** The two boxes that have to agree, and the one that must not move between passages. */
-  const edges = () =>
-    card(page).evaluate((node) => {
-      const quote = node.querySelector(".mark-quote")!.getBoundingClientRect();
-      const note = node.querySelector(".mark-note-input")!.getBoundingClientRect();
-      return {
-        quoteLeft: quote.left,
-        quoteRight: quote.right,
-        noteLeft: note.left,
-        noteRight: note.right,
-      };
-    });
-
-  // Both books, because the two disagree by 160px at this type size: 40 ideographs against 30
-  // Latin ems (`src/lib/line-length.ts`). A left edge worked out from anything but the passage's
-  // own would land differently for one of them, and a card sized to whatever it was given would
-  // put the note somewhere different for each.
-  const seen = new Map<string, Awaited<ReturnType<typeof edges>>>();
+  const label = card(page).getByText("From your marks");
+  const seen = new Map<string, boolean>();
   for (let i = 0; i < 2; i++) {
-    seen.set((await page.getByTestId("mark-quote").textContent())!, await edges());
-    if (i === 0) await nextPassage(page).click();
+    seen.set(
+      (await page.getByTestId("mark-book").textContent())!,
+      await label.evaluate((node) => !(node as HTMLElement).hidden),
+    );
+    if (i === 0) await drawOther(page);
   }
+  expect(seen.get("短")).toBe(true);
+  expect(seen.get("原子習慣：細微改變帶來巨大成就的實證法則")).toBe(false);
 
-  for (const text of [LATIN, HAN]) {
-    const at = seen.get(text)!;
-    // **Flush, not nearly flush.** This was 14.7px out when the indent was worked back from the
-    // quotation mark's size by a ratio, and nobody spots 14.7px as an arrangement — they read it
-    // as a mistake, which is worse than two things plainly apart.
-    expect(at.noteLeft).toBeCloseTo(at.quoteLeft, 0);
-  }
-  // **And the answer is the same width for both**, which is what the card's width cap is for: the
-  // note is the reader's own writing and does not take the book's measure, so a card that sized
-  // itself to each passage would change shape on every flick. The ideographic passage is the one
-  // that reaches that edge, so for it the two agree exactly.
+  // ⚠️ **The hairline goes with the word it separates.** The label is two elements, and dropping
+  // them one at a time left the rule standing against the edge of the card with nothing to its
+  // left, which reads as a mistake rather than as an arrangement.
   //
-  // ⚠️ **No number is written down for that edge.** It is `--reading-measure`, 40 of the reader's
-  // own body ems, which is a different figure on a coarse pointer and again if they turn their
-  // browser's text up — a `640` here would go on agreeing with a card that had stopped following
-  // the token, which is the bug these two lines exist for. The passage measures itself.
-  expect(seen.get(LATIN)!.noteRight).toBeCloseTo(seen.get(HAN)!.noteRight, 0);
-  expect(seen.get(HAN)!.noteRight).toBeCloseTo(seen.get(HAN)!.quoteRight, 0);
+  // Drawn to rather than asserted where the loop happened to stop: which of the two the card
+  // opens on is chance, and an assertion about the long title has to be made while the long
+  // title is the one showing.
+  await expect(async () => {
+    if ((await page.getByTestId("mark-book").textContent()) === "短") await another(page).click();
+    await expect(page.getByTestId("mark-book")).toHaveText(
+      "原子習慣：細微改變帶來巨大成就的實證法則",
+    );
+  }).toPass();
+  await expect(card(page).locator(".mark-label-rule")).toBeHidden();
+
+  // ⚠️ **And the row is still a row.** Dropping is only worth doing if the alternative was worse:
+  // a row that wrapped would keep every part and cost the card a line of height instead.
+  const lines = await card(page)
+    .locator(".mark-head")
+    .evaluate(
+      (node) => node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).fontSize),
+    );
+  expect(lines).toBeLessThan(3);
 });
 
-test("the book's own words on the card go back to the passage", async ({ page }) => {
+test("the words on the card go back to the passage", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const alice = await bookIdOf(page, /Alice/);
@@ -446,17 +362,9 @@ test("the book's own words on the card go back to the passage", async ({ page })
   ]);
   await page.reload();
 
-  // **Both halves of the same rule, which is why they are one test**: the book's words — the
-  // passage, and the cover and title naming it — go back to the book, while the reader's own
-  // note opens for writing. Two presses on one card, so which is which has to be legible from
-  // what is pressed.
-  await page.getByTestId("mark-quote").click();
-  await expect(page.locator(".reader")).toBeVisible();
-  expect(page.url()).toContain(`#/book/${alice}`);
-  await landedInChapterThree(page);
-
-  await page.goBack();
-  await page.getByTestId("mark-source-link").click();
+  // The card's one press out. It goes to where the passage is, which the saved position cannot
+  // do: that is where the reader stopped reading, not where this sentence is.
+  await passage(page).click();
   await expect(page.locator(".reader")).toBeVisible();
   expect(page.url()).toContain(`#/book/${alice}`);
   await landedInChapterThree(page);
@@ -480,7 +388,7 @@ test("opening a passage from the shelf leaves the reader's place in that book al
   await seedProgress(page, alice, READ_TO_CHAPTER_THREE);
   await page.reload();
 
-  await page.getByTestId("mark-quote").click();
+  await passage(page).click();
   await expect(page.locator(".reader")).toBeVisible();
   await expect(page.frameLocator(PAGE_FRAME).locator("body")).toContainText(/Rabbit-Hole/, {
     timeout: 30_000,
@@ -494,78 +402,6 @@ test("opening a passage from the shelf leaves the reader's place in that book al
   await expect(page.frameLocator(PAGE_FRAME).locator("body")).toContainText(/Caucus-Race/, {
     timeout: 30_000,
   });
-});
-
-test("a thought written on the shelf is still there after a reload", async ({ page }) => {
-  await page.goto("/");
-  await importBook(page, BOOKS.horizontal, /Alice/);
-  const alice = await bookIdOf(page, /Alice/);
-
-  await seedMarks(page, [{ bookId: alice, text: LATIN, note: "", createdAt: 1_000 }]);
-  await page.reload();
-
-  await page.getByTestId("mark-note-input").fill("Down the rabbit-hole again.");
-  // **Written by the one filled button on the card**, which is also what moves the reader on: the
-  // thought is finished, so the card hands over the next passage rather than leaving them looking
-  // at the one they have just answered. With a single passage seeded, "on" comes back round to it.
-  await page.getByTestId("mark-save").click();
-  // That the button now offers to replace what is there is the write showing from outside, before
-  // anything has been read back — and it is the half a reload cannot tell apart from a box that
-  // simply kept its text.
-  await expect(page.getByTestId("mark-save")).toHaveText("Update");
-
-  await page.reload();
-  await expect(page.getByTestId("mark-note-input")).toHaveValue("Down the rabbit-hole again.");
-});
-
-test("the source is the loudest book title on the first screen", async ({ page }) => {
-  await page.goto("/");
-  const { chinese } = await twoBooks(page);
-
-  // The book in progress is the one with nothing marked in it — the case the card has to
-  // survive, because that is the title a reader would otherwise hand the passage to.
-  await bookCards(page).filter({ hasText: "Alice" }).getByTestId("book-open").click();
-  await expect(page.locator(".reader")).toBeVisible();
-  await settled(page);
-  await page.goBack();
-  await expect(page.getByTestId("reading-now-title")).toContainText("Alice");
-
-  await seedMarks(page, [{ bookId: chinese, text: HAN, note: "", createdAt: 2_000 }]);
-  await page.reload();
-
-  await expect(page.getByTestId("mark-book")).toContainText("字重與強調");
-  const sizeOf = (id: string) =>
-    page.getByTestId(id).evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
-  expect(await sizeOf("mark-book")).toBeGreaterThan(await sizeOf("reading-now-title"));
-});
-
-test("the book the card is quoting is the one picked out on the wall", async ({ page }) => {
-  await page.goto("/");
-  const { alice, chinese } = await twoBooks(page);
-
-  // **A wire no single component can be asked about**, which is why it is here: the card owns
-  // where in the five it is, the wall owns the covers, and neither is inside the other — the card
-  // reports the book up to the shelf, which lights that book's square. Nothing else on any layer
-  // goes red if the two come apart; the wall simply stops answering the card.
-  await seedMarks(page, [
-    { bookId: chinese, text: HAN, note: "", createdAt: 2_000 },
-    { bookId: alice, text: LATIN, note: "", createdAt: 1_000 },
-  ]);
-  await page.reload();
-
-  const quoting = async () => (await page.getByTestId("mark-book").textContent())!;
-  const litSquare = page.locator("[data-testid='book-card'][data-revisiting]");
-
-  // Read off the card rather than assumed: which of the two the batch deals first is
-  // `revisit.test.ts`'s business, and this test must not have an opinion about it.
-  await expect(litSquare).toHaveCount(1);
-  await expect(litSquare).toContainText(await quoting());
-
-  // And it follows the card. The two passages are from different books, so a square that is lit
-  // once and never moved again fails here and passes above.
-  await nextPassage(page).click();
-  await expect(litSquare).toHaveCount(1);
-  await expect(litSquare).toContainText(await quoting());
 });
 
 test("the shelf stops widening, and centres in what is left", async ({ page }) => {

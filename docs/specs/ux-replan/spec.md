@@ -15,7 +15,7 @@
 > 輪詢卡，正在讀的那一本降成一橫排、也不再從封面牆濾掉，1280 那條兩欄的規則整段刪掉，書架
 > 改成封頂置中。「哪一本是正在讀」那一小節**照舊**，挑法沒動，動的是它長什麼樣。現在算數的
 > 是 [device-sizing/spec.md](../device-sizing/spec.md) 的〈書架〉與 `CONTEXT.md` 的〈回訪卡〉
-> （2026-08-26 從〈輪詢卡〉改名，見 [ADR-0038](../../adr/0038-the-revisit-card-remembers-what-it-showed.md)）。
+> （2026-08-26 從〈輪詢卡〉改名；那張卡後來縮成一個入口，見 [ADR-0042](../../adr/0042-the-revisit-card-is-a-way-in.md)）。
 
 
 狀態：已對齊，未實作。對齊日期 2026-08-12。基準：`main`（`Library.tsx`、`Reader.tsx`、`Scrubber.tsx`、

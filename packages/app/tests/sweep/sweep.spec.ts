@@ -387,14 +387,6 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await page.waitForTimeout(600);
   });
 
-  // The box is open on the card now rather than being opened by a press, so this picture is the
-  // caret in it — what the reader sees the moment they decide to answer.
-  await step("shelf-mark-writing", async () => {
-    await page.getByTestId("mark-note-input").click();
-    await expect(page.getByTestId("mark-note-input")).toBeFocused();
-    await page.waitForTimeout(300);
-  });
-
   // ---- the reader, vertical Japanese --------------------------------------
 
   await step("reader-vertical", async () => {
