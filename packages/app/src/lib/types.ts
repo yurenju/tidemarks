@@ -11,6 +11,19 @@ export interface BookRecord extends BookMeta {
   cover: Blob | null;
   updatedAt: number;
   deletedAt: number | null;
+  /**
+   * What the server last said about this book having a cover, kept so that `cover` being null
+   * can be read as "still owed" rather than "there is none".
+   *
+   * **This is the retry ledger for cover downloads.** A cover is fetched outside the sync
+   * payload, and the fetch can fail; without this the only record that one was owed lived in a
+   * local variable inside the pull that saw the row, and the cursor moved past that row anyway,
+   * so the book kept an empty card until something else happened to touch it.
+   *
+   * Missing on a book this device imported (it has the blob) and on rows written before the
+   * field existed.
+   */
+  hasCover?: boolean;
   dirtyAt?: number;
 }
 
