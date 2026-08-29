@@ -2,7 +2,7 @@
 
 日期：2026-07-31。
 
-取代 [ADR-0002](0002-epub-ts-to-frond.md) 裡「`settings.fontSize` 從百分比改成 px」那一項。
+遷到 frond 的時候 `settings.fontSize` 一度從百分比改成絕對的 px，這裡換回百分比。
 
 ## 決定
 
