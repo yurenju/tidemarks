@@ -54,6 +54,7 @@ import {
   type TurnFacts,
 } from "../lib/gesture";
 import { LONG_PRESS_MS } from "../lib/touch";
+import { BOOK_KEEPS_A_COLUMN, useMediaQuery } from "../lib/media";
 import {
   initialChrome,
   isPanel,
@@ -89,6 +90,7 @@ import {
   hitBoxes,
   markStrips,
   markVar,
+  textBoxes,
   DEFAULT_MARK,
   MARKS,
 } from "../lib/highlights";
@@ -417,7 +419,9 @@ export default function Reader({
    * what is left here is naming the event that just happened (CONTEXT.md 〈chrome〉).
    */
   const [chromeState, setChromeState] = useState(initialChrome);
-  const { chrome, panelKind, editing: editingId } = chromeState;
+  // Whether the book is still on screen with a panel up. Only `notePressed` asks (`lib/media.ts`).
+  const bookKeepsAColumn = useMediaQuery(BOOK_KEEPS_A_COLUMN);
+  const { chrome, panelKind, editing: editingId, selected: selectedNoteId } = chromeState;
   const chromeUp = chrome !== "down";
   // Told upward so the system bar can match what is under it, and told on the way out too: a
   // reader who leaves a book with the chrome up is going back to a shelf that has no chrome.
@@ -1893,9 +1897,12 @@ export default function Reader({
    * The progress being defended still comes from `positionRef`: it is the whole row, and it is
    * what a `relocate` has to be measured against to say the visit is over.
    *
-   * **Nothing is drawn over the book.** All a visit raises is the mark on the Scrubber
-   * (ADR-0040), and that is the whole of what the reader is told: they tapped the passage a
-   * moment ago and know how they got here.
+   * **A visit itself draws nothing over the book.** All it raises is the mark on the Scrubber
+   * (ADR-0040) — the way back to where reading stopped. The wash that does appear over the
+   * passage is not the visit's and does not answer the same question: it says *which mark the
+   * panel is pointing at*, it is gone the moment the panel is, and it appears whether or not a
+   * visit was entered at all. What ADR-0040 refuses is a banner announcing the jump, and there
+   * is still none.
    */
   const visitPassage = (target: string) => {
     // A second passage during a visit is still the same visit. What is being kept is where the
@@ -2003,10 +2010,12 @@ export default function Reader({
     const next: PaintedHighlight[] = [];
     for (const annotation of annotations) {
       const marked = renderer.rectsFor(annotation.cfiRange);
-      // **Two sets of boxes, and they are deliberately different.** What is painted is the
+      // **Three sets of boxes, and they are deliberately different.** What is painted is the
       // strip of wave beside the text, one per line; what a tap counts against is the text
       // itself, every rectangle of it — including the ruby annotation and the paragraph
-      // indent, which carry no mark and are still part of the passage the reader marked.
+      // indent, which carry no mark and are still part of the passage the reader marked; and
+      // what the notes panel fills in when it points here is the words alone, ruby and blanks
+      // dropped (`lib/highlights.ts` says why each one wants a different answer).
       //
       // Highlights outside this section come back with no rectangles at all, and ones on
       // another page fall outside the page box — both are dropped by the clipping inside.
@@ -2015,7 +2024,12 @@ export default function Reader({
       // highlight the clipping exists to prevent.
       const targets = hitBoxes(marked, page);
       if (targets.length > 0) {
-        next.push({ annotation, strips: markStrips(marked, page, verticalBook), targets });
+        next.push({
+          annotation,
+          strips: markStrips(marked, page, verticalBook),
+          targets,
+          wash: textBoxes(marked, page),
+        });
       }
     }
 
@@ -2184,7 +2198,15 @@ export default function Reader({
             {loadError && <p className="error">{loadError}</p>}
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
-            <HighlightLayer ref={marksRef} painted={painted} vertical={verticalBook} />
+            {/* `selectedId` is passed straight through: `chrome.ts` has already made it `null`
+                for everything that is not the notes panel standing open, so a second condition
+                here would only be a second opinion to disagree with it. */}
+            <HighlightLayer
+              ref={marksRef}
+              painted={painted}
+              vertical={verticalBook}
+              selectedId={selectedNoteId}
+            />
             {/* Only for a selection we drew: where the browser drew one it is already on
                 screen, and a second wash over it would be twice the colour. */}
             {selection?.drawn && (
@@ -2500,13 +2522,20 @@ export default function Reader({
                 key={a.id}
                 annotation={a}
                 editing={editingId === a.id}
+                pointedAt={selectedNoteId === a.id}
                 onJump={() => {
                   visitPassage(a.cfiRange);
                   void renderer?.goToCfi(a.cfiRange);
                   // And the address bar follows, so the passage on screen is one the reader can
                   // copy out and send. The jump itself has already happened — this names it.
                   onAt?.({ kind: "cfi", cfi: a.cfiRange });
-                  sendChrome({ kind: "jumped" });
+                  // **Not `jumped`, unlike the table of contents.** A chapter is a place to be
+                  // left at; a note is one of a list the reader is working through, and closing
+                  // the panel under them costs a press per passage to get back to it. So the
+                  // panel stays and the passage is washed instead — but only where the book
+                  // still has a column of its own to be seen in, which is what `keepPanel`
+                  // carries and `lib/media.ts` explains.
+                  sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
                 }}
                 onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
                 onSave={(note) => saveNote(a.id, note)}
@@ -2591,6 +2620,7 @@ export default function Reader({
 function AnnotationItem({
   annotation,
   editing,
+  pointedAt,
   onJump,
   onEdit,
   onSave,
@@ -2598,6 +2628,8 @@ function AnnotationItem({
 }: {
   annotation: Annotation;
   editing: boolean;
+  /** Whether the book is showing this passage filled in — see `aria-current` below. */
+  pointedAt: boolean;
   onJump: () => void;
   onEdit: () => void;
   onSave: (note: string) => void;
@@ -2622,9 +2654,15 @@ function AnnotationItem({
           `button` is one of the elements the drawer stands aside for
           (`button,a,input,select,textarea,label,[role="button"]`), so this is the fix and the
           keyboard route in one — the quote was not reachable by tab either. */}
+      {/* `aria-current` because the wash is the only other answer, and it is drawn on a layer
+          that is `aria-hidden` — the boxes are decoration over text a screen reader already
+          reads from the book. Before the panel started staying open, "that press landed" was
+          the whole column closing, which every reader got. What replaced it is a colour, so
+          the same fact has to be said in the tree as well (ADR-0021). */}
       <button
         type="button"
         className="annotation-quote"
+        aria-current={pointedAt || undefined}
         onClick={onJump}
         title={t({
           message: "Jump to this passage",

@@ -16,6 +16,19 @@ import { useEffect, useState } from "react";
 export const HAND_HELD_CHROME = "(any-pointer: coarse) and (max-width: 819px)";
 
 /**
+ * Where a panel stands **beside** the book rather than over it.
+ *
+ * Another copy of a string `styles/device.css` owns — the rule that gives the panel its column
+ * is `.reader[data-panel] .reader-body`'s `padding-right`, and it only exists inside this query.
+ * Below it the panel covers the page, at every width and on every pointer.
+ *
+ * What asks: pressing a quote in the notes panel. The panel is kept standing so the reader can
+ * work down the list, and that is only worth anything where the passage they were taken to is
+ * still on screen. Narrower, keeping it would hide the very thing the press was for.
+ */
+export const BOOK_KEEPS_A_COLUMN = "(min-width: 1024px)";
+
+/**
  * Whether a media query holds, kept up to date while it is being watched.
  *
  * Nothing about the **layout** may depend on this. A layout that waits on JavaScript is a
