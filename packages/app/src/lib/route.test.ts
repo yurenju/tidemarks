@@ -85,6 +85,62 @@ describe("parseHash", () => {
     });
   });
 
+  // The three spellings of "open the book here". Each one is what a different caller happens to
+  // know: a passage, a chapter, a way through the whole book.
+  it("reads each way of naming a place in a book", () => {
+    expect(parseHash("#/book/abc?at=cfi:epubcfi(/6/4!/4/2)")).toEqual({
+      screen: { kind: "book", bookId: "abc", at: { kind: "cfi", cfi: "epubcfi(/6/4!/4/2)" } },
+      drawer: null,
+    });
+    expect(parseHash("#/book/abc?at=chars:12/300")).toEqual({
+      screen: {
+        kind: "book",
+        bookId: "abc",
+        at: { kind: "chars", sectionIndex: 12, characters: 300 },
+      },
+      drawer: null,
+    });
+    expect(parseHash("#/book/abc?at=frac:0.5")).toEqual({
+      screen: { kind: "book", bookId: "abc", at: { kind: "fraction", fraction: 0.5 } },
+      drawer: null,
+    });
+  });
+
+  // A chapter with no offset is the short form, because a table of contents can say that much
+  // and nothing more.
+  it("reads a chapter on its own as its first character", () => {
+    expect(parseHash("#/book/abc?at=chars:12")).toEqual({
+      screen: {
+        kind: "book",
+        bookId: "abc",
+        at: { kind: "chars", sectionIndex: 12, characters: 0 },
+      },
+      drawer: null,
+    });
+  });
+
+  // Hand-written addresses are the point of this parameter, so a typo costs the jump and not the
+  // screen: the book still opens, at wherever the reader left it.
+  it("opens the book anyway when the address is unreadable", () => {
+    for (const hash of [
+      "#/book/abc?at=",
+      "#/book/abc?at=page:3",
+      "#/book/abc?at=cfi:",
+      "#/book/abc?at=chars:-1",
+      "#/book/abc?at=chars:2.5",
+      "#/book/abc?at=chars:12/300/900",
+      "#/book/abc?at=frac:2",
+      "#/book/abc?at=frac:half",
+    ]) {
+      expect(parseHash(hash)).toEqual({ screen: { kind: "book", bookId: "abc" }, drawer: null });
+    }
+  });
+
+  // Nothing but a book has a place inside it to open at, so the parameter is read nowhere else.
+  it("ignores an address on any other screen", () => {
+    expect(parseHash("#/?at=frac:0.5")).toEqual({ screen: shelf, drawer: null });
+  });
+
   // `d=settings` and `d=account` were drawers until settings became a floor. They are read as
   // "no drawer" rather than redirected: a stale bookmark lands on the screen it named, which
   // for `#/?d=settings` is the shelf the reader was standing on.
@@ -106,6 +162,33 @@ describe("hashFor", () => {
       { screen: { kind: "book", bookId: "abc" }, drawer: { kind: "about", bookId: "abc" } },
       // A literal percent is the case a second round of decoding gets wrong.
       { screen: shelf, drawer: { kind: "about", bookId: "100%20" } },
+      // A CFI is full of the characters a query string reserves — `/`, `:`, `,` — which is what
+      // makes a round trip worth asserting rather than assuming.
+      {
+        screen: {
+          kind: "book",
+          bookId: "abc",
+          at: { kind: "cfi", cfi: "epubcfi(/6/4!/4/2/2,/1:0,/1:5)" },
+        },
+        drawer: null,
+      },
+      {
+        screen: {
+          kind: "book",
+          bookId: "abc",
+          at: { kind: "chars", sectionIndex: 12, characters: 0 },
+        },
+        drawer: null,
+      },
+      {
+        screen: { kind: "book", bookId: "abc", at: { kind: "fraction", fraction: 0.5 } },
+        drawer: null,
+      },
+      // A drawer over a book that was opened at a passage: both halves of the query at once.
+      {
+        screen: { kind: "book", bookId: "abc", at: { kind: "fraction", fraction: 0.25 } },
+        drawer: { kind: "about", bookId: "abc" },
+      },
     ];
     for (const route of routes) {
       expect(parseHash(hashFor(route))).toEqual(route);

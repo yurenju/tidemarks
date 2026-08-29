@@ -112,9 +112,46 @@ pw_open_book chromium "草枕"
 commit。只改你剛好撞到的那一個，不必去掃全部。文件裡的選擇器沒有測試在守，唯一會發現它過期的人就是
 下一個照著做的人，而上面〈把一本書弄進 reader〉那幾行就這樣過期過一次。
 
-## 翻頁，以及怎麼問「畫面現在在哪」
+## 要看書裡某一頁，用網址過去，不要一頁一頁按
 
-翻頁本身一行就夠，鍵盤事件送到 reader 就會動：
+網址收一個位置參數 `?at=`，開書的時候會讀它，所以想看的那一段可以一次到位：
+
+```bash
+playwright-cli goto "http://localhost:5001/#/book/$BOOK_ID?at=frac:0.5"
+```
+
+三種寫法，看你手上有的是什麼：
+
+| 寫法 | 意思 | 什麼時候用 |
+| --- | --- | --- |
+| `frac:0.5` | 整本書的進度，0 到 1 | 只是要「書中間某一頁」，不在乎是哪一段 |
+| `chars:12` | 第 12 個 section 的開頭 | 要某一章的第一頁 |
+| `chars:12/300` | 第 12 個 section，往後 300 個字 | 要某一章裡面比較後面的地方 |
+| `cfi:epubcfi(…)` | 精確到字 | 手上已經有一個 CFI（畫線、位置紀錄裡的那種） |
+
+**沒有「第幾頁」這種寫法**，而且不會有：頁是排版算出來的，換一個字級或換一個視窗寬度，同一段話就落在
+另一頁。真的要某一章的第二頁，就 `chars:` 到章首再按一次翻頁。
+
+`$BOOK_ID` 從書架的卡片上讀：
+
+```bash
+playwright-cli --raw eval "() => document.querySelector('[data-testid=book-card]').dataset.bookId"
+```
+
+⚠️ **網址只在開書那一刻讀一次。** 書已經開著的時候改 `?at=` 不會有反應，因為 reader 沒有重新開書。
+要換位置就先回書架（`location.hash = '#/'`）再導過去，或直接整頁重載。反過來說，翻頁也不會把新位置寫
+回網址，所以網址上那個值是**你要求的位置**，不是**現在在哪**。
+
+到了沒有，看 `.reader` 的 `data-at`：`opening` 是還在路上，`arrived` 是已經停好了。`frac:` 這種要等
+frond 把整本書的索引建完才跳得了，所以它會比另外兩種慢一點才到位。
+
+```bash
+playwright-cli --raw eval "() => document.querySelector('.reader').dataset.at"
+```
+
+## 翻頁
+
+鍵盤事件送到 reader 就會動，一行就夠：
 
 ```bash
 playwright-cli press ArrowLeft
@@ -133,41 +170,9 @@ playwright-cli press ArrowLeft
 playwright-cli --raw eval "() => [...document.querySelectorAll('.page-btn')].map(b => b.getAttribute('aria-label') + ' ' + b.textContent.trim()).join(' | ')"
 ```
 
-真正會浪費時間的是**下一步**：翻完之後想確認翻到哪裡，用 `eval` 去讀 iframe，讀到的卻是舊內容，於是
-以為翻頁沒生效，來回多按二十幾次。
-
-原因是 `.viewer-mount` 底下**不只一個 iframe**，只有一個 `visibility: visible`，其餘放的是前後待用的
-排版結果。草枕開在第一章時量到的是這樣：
-
-| iframe | visibility | 內容 |
-| --- | --- | --- |
-| 0 | `hidden` | 目次 |
-| 1 | **`visible`** | 一（山路を登りながら…） |
-| 2 | `hidden` | 一（預先排好的下一份） |
-
-`document.querySelector('.viewer-mount iframe')` 拿的是第 0 個，它停在哪一頁跟畫面沒有關係。**每次都要
-自己挑 visible 的那一個**，而且 index 與數量都不能記起來重用：剛開書時是 2 個，翻幾頁後變 3 個；同一個
-section 裡翻頁不換 iframe，跨 section 就換人（草枕實測 1 → 1 → 2，Alice 實測 0 → 1 → 1 → 0）。
-
-```bash
-playwright-cli press ArrowLeft && playwright-cli --raw eval "() => { const f = [...document.querySelectorAll('.viewer-mount iframe')].find(x => getComputedStyle(x).visibility === 'visible'); return f.contentDocument.body.innerText.slice(0, 40) }"
-```
-
-挑對 iframe 之後還有第二個坑：**問「這個元素在不在畫面上」不能只看 `top`**。一個 section 的內容是橫向
-排成很多欄的，翻頁動的是水平位置，所以同一段話從頭到尾 `top` 都不會變，變的是 `left`。只看 `top` 會把
-四頁之外的東西判成「在畫面上」。實測一段落在 `top: 346` 的字，翻回四頁才進畫面，那四頁的 `left` 依序
-是 -4104、-2959、-1814、-669、476，一頁差一個 `innerWidth`（1105）。
-
-```bash
-playwright-cli --raw eval "() => { const f = [...document.querySelectorAll('.viewer-mount iframe')].find(x => getComputedStyle(x).visibility === 'visible'); const w = f.contentWindow; const e = f.contentDocument.querySelector('SELECTOR'); const r = e.getBoundingClientRect(); return r.left >= 0 && r.left < w.innerWidth && r.top >= 0 && r.top < w.innerHeight }"
-```
-
-`left` 是負的就往回翻，超過 `innerWidth` 就往前翻，`Math.round(r.left / w.innerWidth)` 就是還差幾頁。
-直排書換成看 `top`，道理一樣：翻頁動的是**書行進方向**那一軸。
-
-只是要看畫面的話，**`playwright-cli snapshot` 與 `screenshot` 都不必挑**，它們本來就只看得到可見的
-那一份。snapshot 裡 `f12e2` 這種 ref 的 `f12` 就是 frame 編號，翻頁後編號會變，那正好是「畫面真的換
-了」的證據。
+要看畫面的話，**`playwright-cli snapshot` 與 `screenshot` 都不必挑 iframe**，它們本來就只看得到可見的
+那一份（`.viewer-mount` 底下不只一個 iframe，其餘放的是前後待用的排版結果）。snapshot 裡 `f12e2` 這種
+ref 的 `f12` 就是 frame 編號，翻頁後編號會變，那正好是「畫面真的換了」的證據。
 
 ## 在 reader 裡按不到「書架」「目錄」「排版」
 
@@ -193,10 +198,13 @@ playwright-cli --raw eval "() => document.querySelector('.chrome').getAttribute(
 `goto file:///tmp/…` 會被擋掉：`Access to "file:" protocol is blocked`。要看那種東西就丟進
 `packages/app/public/` 由 dev server 送出來，看完刪掉。
 
-**不要用 `playwright-cli navigate` 回書架。** 書架與 reader 是同一個 hash route 的兩個狀態
+**要用 `playwright-cli goto` 就得帶著 hash**（這個子指令以前叫 `navigate`，現在不是了）。書架與 reader 是同一個 hash route 的兩個狀態
 （`#/` 與 `#/book/<id>`），導到 `http://localhost:5001/` 不帶 hash，SPA 不會重載也不會換畫面，看起來就
-像指令沒反應。逼不得已時 `eval` 改 hash 是通的（`location.hash = '#/'`），但那條路跳過了真人會碰到的
-按鈕，Stage 2 別拿它交差。
+像指令沒反應。帶著 hash 導過去是通的（上面 `?at=` 那節就是這樣用的），`eval` 改 hash 也通
+（`location.hash = '#/'`）。
+
+⚠️ 但這兩條都跳過了真人會碰到的按鈕，所以它們是**拿來到達現場的**：Stage 2 要驗的那個動作本身，還是
+得真的去點。
 
 ## CLI 問不出來的東西：`run-code`
 

@@ -71,17 +71,42 @@ export function bookCards(page: Page) {
  * `importEpubFile` would sail past a seeded fixture.
  *
  * The input is `hidden` (a styled button clicks it), which `setInputFiles` does not mind.
+ *
+ * `at` opens the book somewhere other than the front of it, in the `?at=` spelling the address
+ * bar takes (`src/lib/route.ts`): `frac:0.5`, `chars:12`, `cfi:epubcfi(…)`. **It is for reaching
+ * the scene, never for being the thing under test.** A spec about turning pages, or about the
+ * contents panel, still has to turn and still has to tap — those are what `navigation.spec.ts`
+ * is guarding, and an address that skips them leaves nobody walking that path
+ * (`docs/agents/testing.md`).
  */
-export async function openBook(page: Page, book: string): Promise<void> {
+export async function openBook(
+  page: Page,
+  book: string,
+  options: { at?: string } = {},
+): Promise<void> {
   await page.goto("/");
   await page.locator('input[type="file"][accept=".epub"]').setInputFiles(book);
 
   // The card appears once the epub has been parsed and stored.
   const cover = page.getByTestId("book-open").first();
   await expect(cover).toBeVisible({ timeout: 30_000 });
-  await cover.click();
+
+  if (options.at === undefined) {
+    await cover.click();
+  } else {
+    // By address rather than by clicking the cover: the reader is what the address is read for,
+    // and it is read once, when the book opens. Setting it afterwards would leave the book
+    // already mounted and going nowhere. The id is only knowable now — the import minted it.
+    const id = await page.getByTestId("book-card").first().getAttribute("data-book-id");
+    await page.goto(`/#/book/${encodeURIComponent(id ?? "")}?at=${encodeURIComponent(options.at)}`);
+  }
 
   await expect(page.locator(".reader")).toBeVisible();
+  // A `frac:` lands two layouts after the first one: it cannot be resolved until frond has
+  // indexed the whole book. Without this the scene would be set somewhere behind the assertion.
+  if (options.at !== undefined) {
+    await expect(page.locator('.reader[data-at="arrived"]')).toBeVisible({ timeout: 30_000 });
+  }
   await settled(page);
 }
 
