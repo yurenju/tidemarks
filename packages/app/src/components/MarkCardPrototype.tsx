@@ -27,7 +27,7 @@
  * `Another five`, no `lastShownAt` bookkeeping — those belong to whatever wins, written properly.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
 import { relativeAge, type RelativeAge } from "../lib/revisit";
 import type { Annotation, BookRecord } from "../lib/types";
@@ -68,6 +68,88 @@ function ageOf(mark: Annotation): string {
   return AGE_WORDS[relativeAge(Date.now(), mark.createdAt)];
 }
 
+/** Han, kana, hangul, and the full-width punctuation that sets with them. */
+const WIDE = /[　-〿぀-ヿ㐀-䶿一-鿿豈-﫿＀-｠]/u;
+
+/**
+ * Drop the row's optional parts, in order, until the book's title stops being cut off.
+ *
+ * ⚠️ **The trigger is the title truncating, not a screen width.** A breakpoint answers "how wide
+ * is the window", and the question here is "is this row full", which is a different one: the same
+ * card at the same width has room to spare for 《微光集》 and none at all for
+ * 《原子習慣：細微改變帶來巨大成就的實證法則》. Keyed to a width, a card with a short title loses
+ * its label for nothing.
+ *
+ * The order is `data-optional`, low first, and the two survivors are the title and the draw: the
+ * title is what tells a reader whose words these are, and the draw is the only thing on the row
+ * anyone presses.
+ *
+ * Dropped rather than wrapped, because a row that wraps is two rows — and three lines of grey
+ * label over a two-line passage is the card growing back the height these variants gave up.
+ *
+ * Done to the DOM rather than through state on purpose: hiding a part changes the row's size,
+ * which is what the observer watches, so a render-and-remeasure loop would oscillate between two
+ * stable answers forever. `busy` closes that loop — our own writes land in the same frame and are
+ * ignored.
+ */
+function useFitRow(row: React.RefObject<HTMLElement | null>, redo: unknown) {
+  useEffect(() => {
+    const node = row.current;
+    const title = node?.querySelector<HTMLElement>(".proto-book");
+    if (!node || !title) return;
+    const optional = [...node.querySelectorAll<HTMLElement>("[data-optional]")].sort(
+      (a, b) => Number(a.dataset.optional) - Number(b.dataset.optional),
+    );
+
+    let busy = false;
+    const fit = () => {
+      if (busy) return;
+      busy = true;
+      for (const el of optional) el.hidden = false;
+      for (const el of optional) {
+        // `scrollWidth > clientWidth` is the title asking for room it did not get — the ellipsis,
+        // read off the element rather than off a guess about how long a title runs.
+        if (title.scrollWidth <= title.clientWidth) break;
+        el.hidden = true;
+      }
+      requestAnimationFrame(() => {
+        busy = false;
+      });
+    };
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [row, redo]);
+}
+
+/**
+ * The passage as one run of prose, with the book's layout taken out of it.
+ *
+ * A mark can span paragraphs, and the card sets it as a single paragraph — so the line breaks are
+ * already gone, and what they leave behind is what the book put around them: an indent at the head
+ * of each paragraph, trailing space at the end of each line. Run together they read as holes in
+ * the middle of a sentence.
+ *
+ * ⚠️ **Not every space is layout, which is why this is not `replace(/\s+/g, "")`.** Between two
+ * Latin words a space is part of the language and taking it out destroys the text. Between two
+ * ideographs there is no such space in the writing at all, so one standing there came from the
+ * page rather than from the sentence. The rule is exactly that: **a run of whitespace closes up
+ * when both of its neighbours are wide characters, and otherwise collapses to a single space.**
+ *
+ * Mixed neighbours keep the space on purpose — a Latin word quoted inside a Chinese sentence is
+ * set with spaces around it, and that is the one case where the two rules disagree.
+ */
+function tidy(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.replace(/\s+/gu, (run, offset: number) => {
+    const before = trimmed[offset - 1] ?? "";
+    const after = trimmed[offset + run.length] ?? "";
+    return WIDE.test(before) && WIDE.test(after) ? "" : " ";
+  });
+}
+
 /**
  * A — the passage, and nothing else.
  *
@@ -106,11 +188,12 @@ function VariantA({ batch, books, onOpenPassage }: VariantProps) {
  * pixel width would have set the note 12 words to the line.
  */
 function Reading({ mark }: { mark: Annotation }) {
-  const ceiling = LINE_LENGTH[detectScript(mark.text)].ceiling;
+  const text = tidy(mark.text);
+  const ceiling = LINE_LENGTH[detectScript(text)].ceiling;
   return (
     <>
       <p className="proto-quote" style={{ maxWidth: `${ceiling}em` }}>
-        {mark.text}
+        {text}
       </p>
       {mark.note !== "" && (
         <p
@@ -180,6 +263,9 @@ function VariantB2({ batch, books, onOpenPassage, hug }: VariantProps & { hug?: 
   const [at, setAt] = useState(0);
   const index = Math.min(at, batch.length - 1);
   const mark = batch[index]!;
+  const head = useRef<HTMLParagraphElement>(null);
+  // Re-fit on every draw: the next passage carries a different book, and a different title length.
+  useFitRow(head, mark.id);
 
   // Another of today's, drawn rather than stepped to. Nothing on the card says what order the
   // five are in, so "next" would be a promise it cannot keep — and they are a pile to reach into,
@@ -210,11 +296,16 @@ function VariantB2({ batch, books, onOpenPassage, hug }: VariantProps & { hug?: 
               It is also what lets the draw sit in the corner without a column reserved for it. Its
               place is fixed for the same reason as before — nothing above this row changes height
               — but now it costs a row it shares rather than a margin of its own. */}
-          <p className="proto-head">
+          <p className="proto-head" ref={head}>
             <SourceLabel />
             <span className="proto-book">{books.get(mark.bookId)?.title}</span>
-            <span className="proto-dot">·</span>
-            <span>{ageOf(mark)}</span>
+            {/* Dropped in this order when the title runs out of room (`useFitRow`). The label goes
+                first: it repeats on every card, so it is learnt once and then only taking space.
+                The age goes second — it is the one thing here nothing else says. */}
+            <span className="proto-dot" data-optional="2">
+              ·
+            </span>
+            <span data-optional="2">{ageOf(mark)}</span>
             <button
               className="proto-corner"
               onClick={another}
@@ -259,8 +350,10 @@ function VariantB2({ batch, books, onOpenPassage, hug }: VariantProps & { hug?: 
 function SourceLabel() {
   return (
     <>
-      <span className="proto-label">From your notes</span>
-      <span className="proto-label-rule" aria-hidden="true" />
+      <span className="proto-label" data-optional="1">
+        From your notes
+      </span>
+      <span className="proto-label-rule" data-optional="1" aria-hidden="true" />
     </>
   );
 }
@@ -626,28 +719,9 @@ const CSS = `
 .proto-head .proto-dot { color: var(--text-faint); }
 .proto-head > span:not(.proto-book) { white-space: nowrap; flex: none; }
 
-/* **What goes first when the row runs short, in the order it is worth losing.**
-   ⚠️ The two survivors are the title and the draw, and that is the whole rule: the title is what
-   tells a reader whose words these are, and the draw is the only thing here anyone presses.
-
-   Dropped rather than wrapped. A row that wraps is two rows, and this one exists to be a single
-   band of housekeeping above the reading — three lines of grey label over a two-line passage is
-   the card growing back the height these variants were made to give up.
-
-   Both are recoverable: the label repeats on every card, so it is learnt once and then only
-   taking room, and the age is the same fact the passage's own place in the pile gives. */
-@media (max-width: 820px) {
-  .proto-label,
-  .proto-label-rule {
-    display: none;
-  }
-}
-@media (max-width: 560px) {
-  /* Everything but the book and the draw. */
-  .proto-head > span:not(.proto-book) {
-    display: none;
-  }
-}
+/* ⚠️ **What goes when the row runs short is decided by measuring, not by a breakpoint** — see
+   useFitRow in this file. A width says nothing about whether this row is full: a card at 900px
+   with a one-word title has room to spare, and the same card with a long one does not. */
 
 /* **The label, told apart from the title three ways at once** — case and tracking, weight and
    colour, and a rule between them. Any one alone is a difference that has to be explained; three
