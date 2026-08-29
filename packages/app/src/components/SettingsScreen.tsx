@@ -22,7 +22,7 @@ import type { ReactNode } from "react";
  *
  * The reader's own type panel shows the same `TypographyForm` this does. That is not the
  * duplication this change set out to kill: there is one stored record now, so the two are one
- * setting shown in two places rather than two scopes wearing identical controls (ADR-0026).
+ * setting shown in two places rather than two scopes wearing identical controls (ADR-0005).
  */
 export default function SettingsScreen({
   tab,
@@ -51,7 +51,7 @@ export default function SettingsScreen({
   return (
     <div className="settings-screen" data-testid="settings-screen">
       {/* Always back to the shelf, because that is the only door in: the reader's bar carries
-          Contents, Notes and Type and nothing else now (ADR-0026). A reader deep-linked straight
+          Contents, Notes and Type and nothing else now (ADR-0005). A reader deep-linked straight
           here
           by the login return still lands somewhere that exists. */}
       <header className="settings-header">

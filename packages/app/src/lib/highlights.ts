@@ -1,6 +1,6 @@
 // The highlight layer's geometry and colour policy.
 //
-// frond draws no highlights, and that is a decision rather than a gap (its ADR-0002):
+// frond draws no highlights, and that is a decision rather than a gap (frond ADR-0002):
 // which colours, which opacity, whether a tap opens the note — all product decisions. What
 // it hands over is the fact, `rectsFor(cfi)`, plus the `layout` event saying when those
 // rectangles went stale. This module is the policy that turns the one into the other; the

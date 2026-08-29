@@ -33,7 +33,7 @@ const fromEntries = (event: Event): boolean => {
  * **On a desk it takes its room from the book; on a hand-held it takes it from the bars.**
  * Both used to cover the book and stop short of the Scrubber, and both halves of that gave way
  * for the same reason: 〈排版〉 applies as it is dragged, so whatever the panel covers is the
- * thing the reader opened it to look at (ADR-0026). A column beside the book repaginates it —
+ * thing the reader opened it to look at (ADR-0005). A column beside the book repaginates it —
  * that is the price, and 目錄 and 筆記 are the ones paying it. On a phone there is no column to
  * give, so the entries and the Scrubber leave instead.
  *

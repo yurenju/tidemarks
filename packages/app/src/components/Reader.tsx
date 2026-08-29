@@ -373,7 +373,7 @@ export default function Reader({
   onClose: () => void;
   /** Opens 〈書的詳情〉 over the book (`#/book/<id>?d=about/<id>`). */
   onOpenAbout: () => void;
-  /** The one record every book renders from. Adjusting it here adjusts every book (ADR-0026). */
+  /** The one record every book renders from. Adjusting it here adjusts every book (ADR-0005). */
   settings: ReaderSettings;
   onSettingChange: (patch: Partial<ReaderSettings>) => void;
   onResetSettings: () => void;
@@ -1490,7 +1490,7 @@ export default function Reader({
             // too, and is refused for the same reason.
             //
             // **Ending one takes nothing off the book**: all a visit puts on screen is the
-            // Scrubber's mark (ADR-0041), which goes when `visit` does, one line below. A banner
+            // Scrubber's mark (ADR-0040), which goes when `visit` does, one line below. A banner
             // standing at this moment arrived from another device while the visit was on, and it
             // is an offer nobody has answered — reading on is not an answer to it.
             const kept = visitRef.current;
@@ -1894,7 +1894,7 @@ export default function Reader({
    * what a `relocate` has to be measured against to say the visit is over.
    *
    * **Nothing is drawn over the book.** All a visit raises is the mark on the Scrubber
-   * (ADR-0041), and that is the whole of what the reader is told: they tapped the passage a
+   * (ADR-0040), and that is the whole of what the reader is told: they tapped the passage a
    * moment ago and know how they got here.
    */
   const visitPassage = (target: string) => {
@@ -1939,7 +1939,7 @@ export default function Reader({
    *
    * **It ends a visit too, and that is the one move that carries progress backwards** — the
    * only one left in the app, since the one thing a visit does put on screen carries the reader
-   * forward to their progress rather than the progress back to them (ADR-0041). It is only
+   * forward to their progress rather than the progress back to them (ADR-0040). It is only
    * reachable while a banner from another device happens to be standing. The rule
    * during a visit is that progress only goes forward (`lib/visit.ts`), which is a rule about
    * what happens on its own; a reader who presses this has said where they are, and being told
@@ -2146,7 +2146,7 @@ export default function Reader({
           leaves the page exactly where it was, opening one of the three gives up a column and
           repaginates.
 
-          That asymmetry is the trade ADR-0026 asks for. The six settings apply as they are
+          That asymmetry is the trade ADR-0005 asks for. The six settings apply as they are
           dragged and the book above them is the preview, so a panel that covered the page was
           hiding the one thing it was opened to show. Contents and Notes pay for it: open one and the
           page numbers move, close it and they move back. If that reads badly on a real book the
@@ -2307,7 +2307,7 @@ export default function Reader({
 
             **One source: a position that arrived from another device** (`lib/elsewhere.ts`).
             Going back to a marked passage moves the reader too, and it used to raise this same
-            banner — it marks the Scrubber instead now (ADR-0041). The two look alike and are
+            banner — it marks the Scrubber instead now (ADR-0040). The two look alike and are
             not: the
             position from another device is unanswered and would be overwritten by the next page
             turn, while a visit is the reader's own tap a moment ago with nothing at stake.
@@ -2518,7 +2518,7 @@ export default function Reader({
 
         {/* Six settings, one record, every book. They are in the reader's panel rather than only
             in 〈設定〉 because this is the one place with a preview: what the panel leaves showing
-            is the real page, resetting as the reader drags (ADR-0026). */}
+            is the real page, resetting as the reader drags (ADR-0005). */}
         {panelKind === "layout" && (
           <TypographyForm
             settings={settings}

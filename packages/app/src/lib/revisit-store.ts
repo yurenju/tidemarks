@@ -38,7 +38,7 @@ export async function saveShownToday(id: string, at: number): Promise<void> {
  * Records that the card has now put this passage in front of the reader.
  *
  * ⚠️ **Nothing reads this back at the moment**, and it is written anyway. The draw is random
- * while that is being lived with (ADR-0042); the field is what an ordering by "longest unseen"
+ * while that is being lived with (ADR-0038); the field is what an ordering by "longest unseen"
  * would need, and a field that stopped being written has no history to offer when that question
  * is asked again. Writing it costs one update per draw.
  *

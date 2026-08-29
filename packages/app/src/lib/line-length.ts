@@ -176,7 +176,7 @@ function columnsFor(
   available: number,
   floor: number,
 ): 1 | 2 {
-  // frond's vertical mode is single-column whatever it is asked (its ADR-0003). Agreeing
+  // frond's vertical mode is single-column whatever it is asked (frond ADR-0003). Agreeing
   // here is what keeps `emsPerLine` describing the page the reader actually gets.
   if (vertical) return 1;
   if (choice !== "auto") return choice;

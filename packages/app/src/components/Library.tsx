@@ -249,7 +249,7 @@ export default function Library({
     >
       {/* One door and the name, and nothing else. The account used to be a second button up
           here; it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a
-          setting is a question that no longer arises (ADR-0026). */}
+          setting is a question that no longer arises (ADR-0005). */}
       <header className="library-header">
         <h1>
           <Wordmark />
@@ -367,7 +367,7 @@ function useCoverUrl(cover: Blob | null): string | null {
  * again unless they went back for it. This puts one in front of them; reading the rest of it,
  * and writing about it, happen in the book.
  *
- * ⚠️ **One a day, drawn at random and held until tomorrow** (ADR-0042). It used to be five with
+ * ⚠️ **One a day, drawn at random and held until tomorrow** (ADR-0038). It used to be five with
  * a way to leaf through them, and nothing on the card could answer why five, or why not more.
  *
  * **Two presses, and they do different things**, which is why this is not one button: the

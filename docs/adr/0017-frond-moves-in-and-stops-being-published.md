@@ -1,6 +1,7 @@
 # frond 搬進 monorepo，而且停止發到 npm
 
-日期：2026-08-11。
+日期：2026-08-11。接手 frond ADR-0008〈散布方式與授權〉與 frond ADR-0011〈monorepo，以及 frond-react
+這個 unstyled 元件層〉，那兩份已經刪掉，`packages/frond/docs/adr/` 的兩個編號空著。
 
 ## 決定
 

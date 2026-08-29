@@ -225,7 +225,7 @@ export function createGestureMachine(
   const { ownSelection } = opts;
 
   // Where and when the pointer went down, and the facts about that instant that decide what the
-  // press may become. frond deliberately does not pair a press with a release (its ADR-0002).
+  // press may become. frond deliberately does not pair a press with a release (frond ADR-0002).
   let press: {
     x: number;
     y: number;

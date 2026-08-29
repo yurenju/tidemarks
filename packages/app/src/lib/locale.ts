@@ -7,7 +7,7 @@
  * language of the interface, and a Japanese reader reading a Traditional Chinese book gets
  * exactly that: a Japanese interface around a Chinese book.
  *
- * One per device, never synced — the same argument as the typography settings (ADR-0026). A
+ * One per device, never synced — the same argument as the typography settings (ADR-0005). A
  * language is a fact about the machine in the reader's hand, not about the account behind it.
  */
 

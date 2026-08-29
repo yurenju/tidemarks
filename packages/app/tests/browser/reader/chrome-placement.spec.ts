@@ -165,7 +165,7 @@ test.describe("in a window wide enough to give up a column", () => {
 
     const panel = (await toc.boundingBox())!;
 
-    // The book gives up **exactly** the panel's column. That is the price ADR-0026 asks for a
+    // The book gives up **exactly** the panel's column. That is the price ADR-0005 asks for a
     // preview the reader can actually see — 〈排版〉 applies as it is dragged, and a panel over
     // the page hides the one surface it was opened to change.
     await expect
