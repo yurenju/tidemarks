@@ -230,9 +230,26 @@
     margin-inline: var(--space-6);
   }
 
+  /* **From here a cover is bigger, not another cover.** Below this line the wall reads well: a
+     phone gets three at 109px, and three is the count the shelf is wanted at. Past 820 the same
+     108px floor kept spending every extra pixel on another column — eleven covers across a 1600px
+     window, each of them back down to 111px — and a wall eleven artworks wide at thumbnail size is
+     a contact sheet rather than a shelf.
+
+     So the floor and the ceiling both move, and only here: 108 → 160 on the track, and 132 → 200
+     on the card. **Both halves are load-bearing.** The floor alone would fit fewer tracks and
+     then leave the covers pinned at 132 with the slack spread between them; it is the pair that
+     gives four covers at 174px on a tablet and six at 188px on a laptop. The rule over
+     `.cover-wall` in `library.css` still holds — more room buys another column — it just starts
+     buying them from a larger cover. */
   .cover-wall {
     gap: var(--space-6) var(--space-4);
     padding: var(--space-6);
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .book-card {
+    max-width: 200px;
   }
 }
 
