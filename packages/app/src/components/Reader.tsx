@@ -2670,7 +2670,9 @@ function AnnotationItem({
             "Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.",
         })}
       >
-        {annotation.text}
+        {/* The passage is cut to three lines, and the cut is on this span rather than on the
+            button around it — WebKit clamps nothing set on a control (`styles/book.css`). */}
+        <span className="annotation-quote-text">{annotation.text}</span>
       </button>
       {editing ? (
         <div className="note-editor">

@@ -725,7 +725,31 @@ button.selection-handle:active:not(:disabled) {
   text-decoration: underline;
 }
 
+/* **Three lines each, then an ellipsis**, for the passage and for the note under it.
+   ---------------------------------------------------------------------------------
+   A mark is however much text the reader dragged over, so a paragraph-long one filled the
+   panel on its own and a book with six marks read as one wall of prose — nothing was findable
+   by scanning it. Both halves are one press from being whole again: the quote leads back to
+   the passage in the book, and 〈編輯筆記〉 opens the note in a box that holds all of it.
+
+   **The clamp is on a span inside the button, not on the button.** WebKit wraps a button's
+   content in an anonymous box, so a clamp set on the control itself has one line item to count
+   and clips nothing — the passage came back full height there while chromium and firefox cut
+   it. The shelf's card met this first and answers it the same way (`.mark-quote`,
+   `library.css`). The whole passage stays in the DOM either way, so the button's accessible
+   name is still the passage: the cut is what sighted readers get, not what the mark is. */
+.annotation-quote-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
 .note-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   margin: 0.2rem 0;
   font-size: var(--type-ui);
   color: var(--text-muted);
