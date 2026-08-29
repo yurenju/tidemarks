@@ -8,6 +8,8 @@ export interface PaintedHighlight {
   strips: HighlightBox[];
   /** Where a tap counts as landing on this passage. Not the same boxes: see `Reader.tsx`. */
   targets: HighlightBox[];
+  /** The passage itself, filled in while the notes panel points at it. Also not the same boxes. */
+  wash: HighlightBox[];
 }
 
 // The highlight layer, drawn over the book.
@@ -41,17 +43,44 @@ export interface PaintedHighlight {
 // marks have to travel with the text they belong to; `Reader.tsx` writes the transform straight
 // onto this element once per animation frame rather than through a prop, because re-rendering
 // the reader sixty times a second to move one box is the whole tree paying for a transform.
+// **`selectedId` fills in one passage, and it is not the same thing as a mark.** The reader
+// pressed that passage in the notes panel and the panel stayed open, so nothing else on screen
+// says which of the marks on this page they asked for. The wave alone cannot: every mark wears
+// one. What is being answered is "this passage", not "a mark runs beside these lines", so the
+// filling follows the words themselves — its own set of boxes, `textBoxes`, which is neither
+// the strips nor the tap targets.
 export default function HighlightLayer({
   ref,
   painted,
   vertical = false,
+  selectedId = null,
 }: {
   ref?: React.Ref<HTMLDivElement>;
   painted: readonly PaintedHighlight[];
   vertical?: boolean;
+  selectedId?: string | null;
 }) {
   return (
     <div className="highlight-layer" ref={ref} aria-hidden>
+      {painted.map(({ annotation, wash }) =>
+        annotation.id !== selectedId
+          ? null
+          : wash.map((box, index) => (
+              <div
+                key={`wash-${annotation.id}-${index}`}
+                className="highlight-wash"
+                style={
+                  {
+                    left: box.left,
+                    top: box.top,
+                    width: box.width,
+                    height: box.height,
+                    "--mark": markVar(annotation.color),
+                  } as CSSProperties
+                }
+              />
+            )),
+      )}
       {painted.map(({ annotation, strips }) =>
         strips.map((strip, index) => (
           <div

@@ -9,6 +9,7 @@ import {
   hitBoxes,
   markStrips,
   markVar,
+  textBoxes,
   visibleBoxes,
   DEFAULT_MARK,
   MARKS,
@@ -339,6 +340,25 @@ describe("hitBoxes", () => {
   it("uses the text's own rectangle, not the strip beside it", () => {
     expect(hitBoxes([latinLine(0, 0, 200)], ROOMY)).toEqual([
       { left: 0, top: 0, width: 200, height: 17 },
+    ]);
+  });
+});
+
+describe("textBoxes", () => {
+  it("drops the ruby and the blank, which hit-testing keeps", () => {
+    // The third answer, and the one in the middle: it is drawn, so it follows `markStrips` in
+    // refusing the gloss and the indent — a passage filled in over its own furigana is a block
+    // of colour a line taller than the words the reader marked. `hitBoxes` above keeps both,
+    // for the opposite reason: tapping the gloss of a marked word is tapping that word.
+    const indent: MarkedRectLike = {
+      role: "blank",
+      rect: { x: 0, y: 0, width: 30, height: 17 },
+      ink: { x: 0, y: 3, width: 30, height: 14 },
+    };
+    const ruby = verticalRun(716.75, 0, 36.81, "ruby", 8);
+    const text = verticalRun(700, 0, 36.81, "text", 16);
+    expect(textBoxes([indent, ruby, text], ROOMY)).toEqual([
+      { left: 700, top: 0, width: 16, height: 36.81 },
     ]);
   });
 });

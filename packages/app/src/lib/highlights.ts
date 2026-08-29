@@ -156,6 +156,25 @@ export function markStrips(
   return visibleBoxes(strips, page);
 }
 
+/**
+ * The passage itself, for filling in — the text and nothing standing beside it.
+ *
+ * **The same `role === "text"` filter `markStrips` makes, and for the same reason.** A ruby
+ * annotation is not the passage the reader marked; it is a gloss written above it, and the
+ * blank stretches are the paragraph indent and the ragged end of a line. Filled in along with
+ * the text, they make the wash a rectangle a line taller than the words inside it — which on a
+ * vertical Japanese book means a column of colour beside every line carrying furigana.
+ *
+ * Not `hitBoxes`, which wants the opposite: a tap landing on the ruby of a marked word is still
+ * a tap on that word. What is being answered here is "which passage", and the answer is drawn.
+ */
+export function textBoxes(marked: readonly MarkedRectLike[], page: PageBox): HighlightBox[] {
+  return visibleBoxes(
+    marked.filter((one) => one.role === "text").map((one) => one.rect),
+    page,
+  );
+}
+
 /** Where a tap counts as landing on this passage: every rectangle of it, whatever it covers. */
 export function hitBoxes(marked: readonly MarkedRectLike[], page: PageBox): HighlightBox[] {
   return visibleBoxes(

@@ -22,6 +22,7 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { BOOK_THEMES, SELECTION_WASH } from "./settings";
+import { BOOK_KEEPS_A_COLUMN } from "./media";
 
 // **Read from disk, not through Vite.** `import CSS from "../index.css?raw"` looks tidier and
 // hands back an **empty string**: Vitest stubs stylesheet imports unless `css: true`, and
@@ -196,5 +197,35 @@ describe("the stylesheet's custom properties", () => {
     expect(resolve(light, "--surface-page")).toBe(BOOK_THEMES.light.background);
     expect(resolve(light, "--tide")).toBe(BOOK_THEMES.light.link);
     expect(resolve(dark, "--surface-page")).toBe(BOOK_THEMES.dark.background);
+  });
+
+  /**
+   * The width above which the book keeps a column of its own, which is also written twice.
+   *
+   * `styles/device.css` gives the panel that column — `.reader[data-panel] .reader-body`'s
+   * `padding-right`, and the rule exists only inside one `@media`. `lib/media.ts` asks the same
+   * question in JavaScript, to decide whether pressing a quote in the notes panel may leave the
+   * panel standing.
+   *
+   * ⚠️ **Unlike `HAND_HELD_CHROME`, a frame of disagreement is not what this costs.** Let the
+   * two drift and there is a band of widths where the code believes the book is beside the
+   * panel while the stylesheet draws the panel over it: the panel stays up, covering the very
+   * passage the reader pressed it for, with the page buttons underneath it. Nothing would be
+   * red — the browser suite runs at two widths, and a moved breakpoint leaves both on the same
+   * side of it.
+   */
+  test("the width JavaScript calls a desk is the width the stylesheet gives a column to", () => {
+    const query =
+      /@media\s*\(min-width:\s*(\d+)px\)\s*\{[^@]*?\.reader\[data-panel\]\s*\.reader-body/s;
+    const inCss = query.exec(CSS)?.[1];
+    const inCode = /min-width:\s*(\d+)px/.exec(BOOK_KEEPS_A_COLUMN)?.[1];
+
+    // Asserted rather than left to compare two `undefined`s: a rule that moved out of that
+    // media query is exactly the change this test is for, and it must not pass quietly.
+    expect(
+      inCss,
+      "no min-width query giving .reader-body its panel column in device.css",
+    ).toBeDefined();
+    expect(inCode).toBe(inCss);
   });
 });

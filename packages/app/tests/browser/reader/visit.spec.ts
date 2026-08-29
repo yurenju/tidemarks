@@ -6,8 +6,8 @@
 // wires that file cannot reach: that the position written on every `relocate` is really held
 // back while a visit is on, and that the page the decision is taken against is the one on screen
 // — read from `renderer.location`, because the stored `pageRange` goes stale exactly here. The
-// notes panel takes a column from the book on a desk, and that reflow keeps the reader on the
-// same page of the same CFI, which is the shape `relocate` de-duplicates away.
+// notes panel takes a column from the book on a wide desk (above 1024px), and that reflow keeps
+// the reader on the same page of the same CFI, which is the shape `relocate` de-duplicates away.
 //
 // **The reader arrives already placed**, by seeding the position and the mark rather than by
 // reading four pages into the book to produce them. The path that writes those rows for real is
@@ -217,7 +217,9 @@ test("the scrubber marks the progress a visit is holding, and the mark is the wa
   await jumpToPassage(page);
 
   // ⚠️ **Wait for the chrome to finish leaving before asking for it back.** Pressing a passage
-  // puts the bars away (`sendChrome({ kind: "jumped" })`), and a bar on its way out is still
+  // puts the bars away at this viewport — `notePressed` with `keepPanel: false`, because 1000px
+  // is under the 1024 where the panel would stand beside the book instead of over it
+  // (`lib/media.ts`) — and a bar on its way out is still
   // `visible` — `visibility` only flips at the end of the slide, on purpose. `openChrome` called
   // into that window sees a visible bar, clicks nothing, and then waits for a transform that is
   // travelling the other way.
@@ -247,8 +249,10 @@ test("a marked passage on the page in front of the reader is not a visit", async
   await expect.poll(() => storedCfi(page)).not.toBeNull();
   const here = (await storedCfi(page))!;
 
-  // ⚠️ **The panel takes a column from the book at this viewport**, so the book reflows under
-  // it. That reflow is why the decision reads `renderer.location` rather than the stored
+  // ⚠️ **The panel can take a column from the book, and then the book reflows under it.** That
+  // is the arrangement above 1024px (`styles/device.css`); this viewport is 1000, where the
+  // panel is drawn over the page instead and nothing reflows. What is being defended is the
+  // wider case. That reflow is why the decision reads `renderer.location` rather than the stored
   // `pageRange`: `relocate` de-duplicates on section, page, fraction and CFI, none of which the
   // reflow need change, so the stored range can still describe the wider layout — and a passage
   // measured against it lands outside a page the reader is looking straight at.

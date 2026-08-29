@@ -218,6 +218,12 @@ test.describe("drawing a highlight", () => {
       .click();
 
     await expect.poll(async () => await visibleText(page)).toBe(marked);
+
+    // **And the panel is gone**, because this window is 1000px wide and a panel only stands
+    // beside the book above 1024 (`lib/media.ts`). Below it the panel is drawn over the page,
+    // so keeping it would hide the passage the press was for — and leave the reader unable to
+    // turn away from it, the page buttons being underneath. The wide case is its own test.
+    await expect(page.getByTestId("panel-notes")).toBeHidden();
   });
 
   test("the mark travels with its text while the page is being dragged", async ({ page }) => {
@@ -273,6 +279,55 @@ test.describe("drawing a highlight", () => {
     await expect(page.getByTestId("panel-notes")).toBeVisible();
     await expect(page.locator(".note-editor textarea")).toBeVisible();
     expect(await visibleText(page)).toBe(before);
+  });
+});
+
+// Wide enough that the panel stands beside the book instead of over it — the one arrangement
+// where a note can be pressed and the passage still be looked at. The rest of this file runs at
+// the config's 1000px, where the panel covers the page and pressing a quote closes it.
+test.describe("a desk, where the book keeps a column beside the panel", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test.beforeEach(async ({ page }) => {
+    await openBook(page, BOOKS.vertical);
+  });
+
+  // The 接線 for `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
+  // and what no pure function can say is that the pointed-at passage becomes ink on a page the
+  // browser laid out. So this asks once, and only for the two facts the reducer cannot reach —
+  // the panel is still there to be read, and something is drawn over the passage.
+  test("pressing a quote keeps the list and fills in the passage it led to", async ({ page }) => {
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+
+    // Away from the marked page first, or landing on it would prove nothing.
+    const before = await visibleText(page);
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect.poll(async () => await visibleText(page)).not.toBe(before);
+
+    await openPanel(page, /Notes/);
+    await page
+      .getByTestId("panel-notes")
+      .getByRole("button", { name: text.slice(0, 12), exact: false })
+      .click();
+
+    // Still a list to work down, and one passage in it answered for. The wash comes from the
+    // text's own rectangles rather than the strips beside them, so it is a different count from
+    // `.highlight-box` — every mark on the page has one of those, marked or pressed.
+    await expect(page.getByTestId("panel-notes")).toBeVisible();
+    await expect(page.locator(".highlight-wash").first()).toBeVisible();
+
+    // Said in the tree as well as in ink. The wash sits on an `aria-hidden` layer, so without
+    // this a reader who cannot see the colour is told nothing at all about which quote they
+    // pressed — the kind of gap nobody files a report about (ADR-0021).
+    await expect(
+      page.getByTestId("panel-notes").getByRole("button", { name: text.slice(0, 12) }),
+    ).toHaveAttribute("aria-current", "true");
+
+    // And putting the list away takes it with it, which is the half a screenshot cannot show.
+    await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
+    await expect(page.locator(".highlight-wash")).toHaveCount(0);
   });
 });
 
