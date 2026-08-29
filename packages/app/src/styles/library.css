@@ -380,9 +380,11 @@
   min-height: var(--tap-min);
 }
 
-/* Covers, at the size a cover is for. **A wider window buys more columns, not bigger covers**:
-   the track has a ceiling, and past it the space goes into another column. Growing them
-   instead is how the large book stopped being the large book.
+/* Covers, at the size a cover is for. **Within a breakpoint a wider window buys more columns,
+   not bigger covers**: the track has a ceiling, and past it the space goes into another column.
+   Growing them instead is how the large book stopped being the large book. What crossing 820
+   buys is a larger cover, and that is a step rather than a slope — `device.css` moves both
+   numbers at once and the rule here goes on holding above the line.
 
    `auto-fill` rather than a count per breakpoint, and that is a reversal — the wall used to be
    a fixed five because "a grid that reflows puts a book in a different place on every window".
@@ -390,8 +392,11 @@
    to keep in step with five paddings. The order is unchanged and it is the order that makes a
    book findable; which row it lands on was never stable across devices anyway.
 
-   `gap` and `padding` are restated at 600 and 820 in `device.css`. Change them here and the
-   wide window keeps the old figures.
+   ⚠️ **Four things here are restated in `device.css`, and changing them here moves the phone
+   alone**: `gap` and `padding` at both 600 and 820, and — since the wall stopped spending a wide
+   window on an eleventh column — `grid-template-columns` and the card's `max-width` below at 820.
+   The two floors and the two ceilings are one pair of numbers each, held apart on purpose: the
+   phone's three covers come out of 108/132, the desktop's out of 160/200.
 
    **The book in progress is on this wall too**, in whatever square the order puts it. It used
    to be filtered out; the row above is an action rather than a second copy of the shelf, so
@@ -419,7 +424,8 @@
   flex-direction: column;
   gap: 0.6rem;
   /* Where a cover stops growing. On the card rather than on the track, for the reason given
-     over `grid-template-columns`. */
+     over `grid-template-columns` — and **the phone's ceiling only**: `device.css` lifts it to
+     200 at 820, so raising this figure alone widens nothing above that line. */
   max-width: 132px;
 }
 
@@ -581,9 +587,34 @@ button.ghost.book-more::after {
   gap: 0.15rem;
 }
 
+/* **Two lines, and the cut is what makes the wall a grid.** A grid row is as tall as the tallest
+   card in it, so one long title — a subtitle and its four clauses, which is a whole genre of
+   Chinese non-fiction cover — pushed the row below it a screenful down and left ten covers
+   standing over a field of nothing. The count per row was never the cause: fewer covers in the
+   row would have been fewer covers stretched by the same title.
+
+   What is lost is the tail of a long title, and it is not lost far: the cover's `title` says the
+   whole of it on hover, and the ⋯ beside it opens the drawer that names the book in full. The
+   wall is scanned rather than read — the same argument that took three numbers off every card. */
 .book-info strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: var(--type-ui);
   line-height: var(--leading-title);
+}
+
+/* One line each, for the same reason and against a different offender: the first status line
+   carries a chapter's own name, which is as long as the book says it is.
+   ⚠️ **Under `.book-info`, so it reaches the wall's cards and not the row above them.** The row's
+   own copy of this element clips with `text-overflow`, and `text-overflow` needs a block box —
+   `-webkit-box` here would take its ellipsis away. */
+.book-info .book-status span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
 }
 
 .book-info small {
