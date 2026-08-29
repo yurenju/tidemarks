@@ -128,6 +128,7 @@ describe("parseHash", () => {
       "#/book/abc?at=cfi:",
       "#/book/abc?at=chars:-1",
       "#/book/abc?at=chars:2.5",
+      "#/book/abc?at=chars:12/300/900",
       "#/book/abc?at=frac:2",
       "#/book/abc?at=frac:half",
     ]) {

@@ -143,7 +143,7 @@ playwright-cli --raw eval "() => document.querySelector('[data-testid=book-card]
 回網址，所以網址上那個值是**你要求的位置**，不是**現在在哪**。
 
 到了沒有，看 `.reader` 的 `data-at`：`opening` 是還在路上，`arrived` 是已經停好了。`frac:` 這種要等
-frond 把整本書的索引建完才跳得了，所以它會晚個一兩拍。
+frond 把整本書的索引建完才跳得了，所以它會比另外兩種慢一點才到位。
 
 ```bash
 playwright-cli --raw eval "() => document.querySelector('.reader').dataset.at"

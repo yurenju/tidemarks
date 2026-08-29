@@ -507,8 +507,11 @@ export default function Reader({
   // `fraction` is undefined and a jump to one cannot be resolved.
   const [indexed, setIndexed] = useState(false);
   // Whether the book has reached the place the address asked for. Only interesting while an
-  // `?at=` is in play, and only to a test waiting for the scene to be set — a `frac:` lands two
-  // layouts after the one `attach()` resolves on.
+  // `?at=` is in play, and it is published on the reader as `data-at` because **there is no
+  // other way to ask**: a `frac:` lands two layouts after the one `attach()` resolves on, so a
+  // book that has arrived and one still on its way look identical from outside. Both readers of
+  // it are automated — `tests/browser/support/library.ts` and whoever is driving the app by hand
+  // (`docs/agents/verify.md`) — and neither can wait for a moment nothing announces.
   const [arrived, setArrived] = useState(false);
   // Bumped whenever the geometry frond reports has moved — a page turn, a new section, a
   // settings change, a resize. Every measured rectangle is stale from that moment, which is
@@ -1541,6 +1544,11 @@ export default function Reader({
         scheduleSync();
       }
     };
+    // ⚠️ **`openAt` is deliberately not a dependency either, and that is what "read once" means.**
+    // It changes while the book stays open — jumping to a note's source moves the address to the
+    // passage — so depending on it would re-open the book onto the last note the reader looked
+    // at, every time they looked at one. The linter asks for it; the answer is no.
+    //
     // `t` is deliberately not a dependency. What it feeds is an error message stored in state,
     // and re-running this to refresh that wording would re-open the book — a reader who changed
     // language while looking at a failure would be sent back to page one of one that worked.

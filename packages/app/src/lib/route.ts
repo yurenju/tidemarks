@@ -162,9 +162,10 @@ function atFrom(value: string | null): At | undefined {
   if (kind === "chars") {
     // `12` is the head of chapter 12, `12/300` is 300 characters into it. The chapter alone is
     // the common case — it is what a table of contents can say — so it is what the short form is.
-    const [section, characters = "0"] = rest.split("/");
-    const sectionIndex = wholeNumber(section);
-    const into = wholeNumber(characters);
+    const parts = rest.split("/");
+    if (parts.length > 2) return undefined;
+    const sectionIndex = wholeNumber(parts[0]);
+    const into = wholeNumber(parts[1] ?? "0");
     if (sectionIndex === undefined || into === undefined) return undefined;
     return { kind: "chars", sectionIndex, characters: into };
   }
