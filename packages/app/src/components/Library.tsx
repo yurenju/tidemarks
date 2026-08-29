@@ -13,6 +13,13 @@ import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../l
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
 import type { Annotation, BookRecord } from "../lib/types";
+// ⚠️ PROTOTYPE — see MarkCardPrototype.tsx. Delete this import along with the file.
+import {
+  PrototypeCard,
+  PrototypeSwitcher,
+  readVariant,
+  usePrototypeKeys,
+} from "./MarkCardPrototype";
 import { Wordmark } from "./Wordmark";
 
 export default function Library({
@@ -139,6 +146,10 @@ export default function Library({
   const batch = (batchIds ?? [])
     .map((id) => marksById.get(id))
     .filter((m): m is Annotation => m !== undefined);
+
+  // ⚠️ PROTOTYPE — `?variant=` picks a smaller card. Absent means the card as it ships.
+  const variant = readVariant();
+  usePrototypeKeys(variant);
 
   const { t, i18n } = useLingui();
 
@@ -288,7 +299,11 @@ export default function Library({
             // Nothing at all until the draw comes back, rather than a placeholder card: it is
             // one read of Dexie away, and a card that changes what it says a moment after it
             // appears is worse than one that appears a moment later.
-            batch.length > 0 && (
+            batch.length > 0 &&
+            // ⚠️ PROTOTYPE — the switcher's variants stand in for the real card.
+            (variant !== "current" ? (
+              <PrototypeCard variant={variant} batch={batch} books={byId} onOpenPassage={onOpen} />
+            ) : (
               <MarkCard
                 // A new batch is a new card, so it arrives at the first of five with nothing
                 // left over from the last five — no half-written note, no position part-way in.
@@ -301,7 +316,7 @@ export default function Library({
                 onOpenPassage={onOpen}
                 onCurrentBook={setRevisitingBookId}
               />
-            )
+            ))
           ) : (
             <p className="empty" data-testid="marks-empty">
               <Trans comment="Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.">
@@ -336,6 +351,8 @@ export default function Library({
           </div>
         </div>
       )}
+      {/* ⚠️ PROTOTYPE — dev builds only. */}
+      <PrototypeSwitcher variant={variant} />
     </div>
   );
 }
