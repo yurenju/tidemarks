@@ -9,6 +9,7 @@ import {
   hashFor,
   openBookId,
   parseHash,
+  type At,
   type Drawer,
   type Route,
   type Screen,
@@ -38,15 +39,6 @@ export default function App() {
   // Bumped to make the shelf re-read storage after a backup lands on top of it.
   const [reloadToken, setReloadToken] = useState(0);
   /**
-   * The passage the reader tapped on the shelf's card, on its way to the book it is from.
-   *
-   * Here rather than in the hash because it is not an address: it says how this book was
-   * reached, not where the reader is, and it is spent the moment the book lays out. Putting it
-   * in the route would make a reload land back on the passage rather than where they had read
-   * on to, and would leave a stale one on every link they shared.
-   */
-  const [openAt, setOpenAt] = useState<{ bookId: string; cfiRange: string } | null>(null);
-  /**
    * The interface language, already chosen and activated before this component existed
    * (`main.tsx`). Held here only so that changing it re-renders — Lingui itself is the store.
    */
@@ -61,13 +53,6 @@ export default function App() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
-
-  // A passage tapped on the shelf is spent as soon as the reader leaves that book. Without
-  // this, opening the same book later — off the wall, or with the back button — would land
-  // them on the passage again instead of where they had actually read on to.
-  useEffect(() => {
-    if (openAt !== null && openAt.bookId !== bookId) setOpenAt(null);
-  }, [bookId, openAt]);
 
   /**
    * Whether the reader's chrome is standing up, reported by `Reader` so this file can colour
@@ -193,16 +178,31 @@ export default function App() {
   }, []);
 
   // **The state moves with the hash, rather than waiting for `hashchange` to come back round.**
-  // That round trip is a browser event, so it lands a turn after any state set alongside it —
-  // and in that gap `route` still names the screen the reader just left. The passage tapped on
-  // the shelf's card was being thrown away in exactly that gap: `setOpenAt` applied, this
-  // render still said "shelf", and the effect above read that as having left the book.
+  // That round trip is a browser event, so it lands a turn after any state set alongside it, and
+  // in that gap `route` still names the screen the reader just left — a render against a screen
+  // nobody is on. The passage tapped on the shelf's card used to be thrown away in exactly that
+  // gap, back when it was a piece of state sitting next to the route instead of part of it (#127).
   //
   // `hashchange` still arrives and still sets the route; it parses to the same value, so the
   // second write says nothing new. Back and forward reach the app through that listener alone
   // and are untouched by this.
   function go(next: Route) {
     window.location.hash = hashFor(next);
+    setRoute(next);
+  }
+
+  /**
+   * Moves the address to a place inside the book already on screen, **without a history entry**.
+   *
+   * The reader is standing where this says; the jump has happened. What it is for is the bar
+   * itself — the page they are looking at is now one they can copy out and send. Pushing an
+   * entry instead would put a back button on it that goes nowhere: the address is read when a
+   * book opens, so walking back through it would move the bar and not the book.
+   */
+  function replaceAt(at: At) {
+    if (route.screen.kind !== "book") return;
+    const next: Route = { ...route, screen: { ...route.screen, at } };
+    window.history.replaceState(null, "", hashFor(next));
     setRoute(next);
   }
 
@@ -257,7 +257,8 @@ export default function App() {
       ) : bookId ? (
         <Reader
           bookId={bookId}
-          openAt={openAt?.bookId === bookId ? openAt.cfiRange : undefined}
+          openAt={route.screen.kind === "book" ? route.screen.at : undefined}
+          onAt={replaceAt}
           onClose={() => goTo({ kind: "shelf" })}
           onOpenAbout={() => openDrawer({ kind: "about", bookId })}
           settings={settings}
@@ -269,10 +270,16 @@ export default function App() {
       ) : (
         <Library
           reloadToken={reloadToken}
-          onOpen={(id, cfiRange) => {
-            setOpenAt(cfiRange ? { bookId: id, cfiRange } : null);
-            goTo({ kind: "book", bookId: id });
-          }}
+          // A passage tapped on the revisit card travels as part of the address rather than
+          // beside it, so the reader can send it on — and so opening the same book off the wall
+          // later, with no passage named, lands where they had actually read on to.
+          onOpen={(id, cfiRange) =>
+            goTo({
+              kind: "book",
+              bookId: id,
+              ...(cfiRange ? { at: { kind: "cfi", cfi: cfiRange } as const } : {}),
+            })
+          }
           onOpenSettings={() => goTo({ kind: "settings", tab: "typography" })}
           onOpenAbout={(id) => openDrawer({ kind: "about", bookId: id })}
         />

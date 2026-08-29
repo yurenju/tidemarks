@@ -7,6 +7,7 @@ import {
   Renderer,
   type PageOffset,
   type RenderLocation,
+  type RendererStart,
   type TurnDirection,
   type TurnEdge,
   type TurnInProgress,
@@ -23,6 +24,7 @@ import {
 } from "../lib/sync";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
 import { entersVisit, leavesVisit } from "../lib/visit";
+import type { At } from "../lib/route";
 import type { Annotation, Progress } from "../lib/types";
 import {
   FONT_FAMILIES,
@@ -263,6 +265,22 @@ function recordPosition(position: Progress): void {
   scheduleSync();
 }
 
+/**
+ * What the first layout can be told about where to open, out of the address and the saved
+ * position.
+ *
+ * Two of the three addresses answer nothing here and are absent on purpose. `chars:` has its
+ * section — that much `start` can take — and its offset inside the section is applied right
+ * after, while `frac:` has to wait for the whole-book index to exist at all. Both jump once the
+ * book is up; frond's `RendererStart` says why it offers no `{ fraction }` of its own.
+ */
+function startFor(at: At | undefined, savedCfi: string | undefined): { start?: RendererStart } {
+  if (at?.kind === "cfi") return { start: { cfi: at.cfi } };
+  if (at?.kind === "chars") return { start: { sectionIndex: at.sectionIndex } };
+  if (at?.kind === "fraction") return {};
+  return savedCfi ? { start: { cfi: savedCfi } } : {};
+}
+
 /** This book's marks as Dexie holds them, in the order the panel lists them. */
 async function readAnnotations(bookId: string): Promise<Annotation[]> {
   const rows = await db.annotations.where("bookId").equals(bookId).toArray();
@@ -272,6 +290,7 @@ async function readAnnotations(bookId: string): Promise<Annotation[]> {
 export default function Reader({
   bookId,
   openAt,
+  onAt,
   onClose,
   onOpenAbout,
   settings,
@@ -282,18 +301,33 @@ export default function Reader({
 }: {
   bookId: string;
   /**
-   * Where to open, when the reader arrived asking for somewhere in particular.
+   * Where to open, when the address named somewhere in particular (`?at=`, `lib/route.ts`).
    *
-   * The shelf's revisit card is the one caller: tapping a passage there means "put me back
-   * where this came from", which the saved position cannot answer — it is wherever they stopped
-   * reading, and the passage may be a hundred pages behind it. Given to frond's `start` rather
-   * than jumped to after the first layout, so the page arrives already in the right place.
+   * Tapping a passage on the shelf's revisit card means "put me back where this came from",
+   * which the saved position cannot answer — it is wherever they stopped reading, and the
+   * passage may be a hundred pages behind it. A hand-written address is the same question asked
+   * by whoever wants a particular page on screen without turning to it.
+   *
+   * A `cfi:` is given to frond's `start`, so the page arrives already in the right place. The
+   * other two cannot be: a chapter offset and a whole-book fraction are both anchors frond only
+   * applies once a section is mounted, and a fraction needs the whole-book index as well. Those
+   * two jump after the first layout, which is a second layout of the same section rather than
+   * the mount-then-jump `start` exists to avoid.
    *
    * `undefined` for every other way in, and the saved position stands. **It does not become the
    * saved position**: opening a card is a visit, and the reader's place in the book is still
    * where they left it until they read past it (`lib/visit.ts`).
    */
-  openAt?: string;
+  openAt?: At;
+  /**
+   * Reports a place the reader jumped to inside the book, so the address bar can follow it and
+   * the page on screen is one they can copy out and send to someone.
+   *
+   * Only the jumps that name a passage — a note's source. Page turns say nothing: the address is
+   * read once when the book opens (`lib/route.ts`), and a bar that rewrote itself every turn
+   * would fill the history with pages.
+   */
+  onAt?: (at: At) => void;
   onClose: () => void;
   /** Opens 〈書的詳情〉 over the book (`#/book/<id>?d=about/<id>`). */
   onOpenAbout: () => void;
@@ -472,6 +506,10 @@ export default function Reader({
   // The Scrubber stays disabled until frond has built the whole-book index: before that
   // `fraction` is undefined and a jump to one cannot be resolved.
   const [indexed, setIndexed] = useState(false);
+  // Whether the book has reached the place the address asked for. Only interesting while an
+  // `?at=` is in play, and only to a test waiting for the scene to be set — a `frac:` lands two
+  // layouts after the one `attach()` resolves on.
+  const [arrived, setArrived] = useState(false);
   // Bumped whenever the geometry frond reports has moved — a page turn, a new section, a
   // settings change, a resize. Every measured rectangle is stale from that moment, which is
   // exactly what the highlight layer has to recompute against.
@@ -551,6 +589,7 @@ export default function Reader({
     setVisit(null);
     screenRef.current = null;
     setIndexed(false);
+    setArrived(false);
     setFraction(0);
     setSectionIndex(0);
     setChapters([]);
@@ -1083,6 +1122,15 @@ export default function Reader({
     };
 
     async function open() {
+      // Resolved by the `indexed` listener below, and awaited only by a `frac:` address. A
+      // promise rather than a flag read after `attach()` returns, because which of the two
+      // happens first is frond's business: the index is built in the background from inside
+      // `attach()`, so a short book can be indexed before this function has its renderer back.
+      let indexIsBuilt = () => {};
+      const indexBuilt = new Promise<void>((resolve) => {
+        indexIsBuilt = resolve;
+      });
+
       const record = await db.books.get(bookId);
       if (cancelled) return;
       // Stale URL (e.g. refresh after the book was deleted): back to the library.
@@ -1201,7 +1249,14 @@ export default function Reader({
       // choice: the book has not laid out yet, so there is no `renderer.location` to ask. It
       // describes whichever device and window last read this book, which is close enough for
       // the question being asked — whether the passage is somewhere the reader had got to.
-      if (openAt !== undefined && saved !== undefined && entersVisit(saved.pageRange, openAt)) {
+      //
+      // Only a `cfi:` address: it is the one that names a passage. A chapter or a fraction is a
+      // place, and going to a place is reading, not visiting one of your own marks.
+      if (
+        openAt?.kind === "cfi" &&
+        saved !== undefined &&
+        entersVisit(saved.pageRange, openAt.cfi)
+      ) {
         setVisit(saved);
       }
 
@@ -1246,10 +1301,10 @@ export default function Reader({
             { script: bookScript, rootFontSize: readRootFontSize() },
             facts,
           ),
-        // A passage asked for from the shelf beats the saved position, and only for this
-        // layout: `positionRef` above still holds where the reader actually was, so the sitting
-        // and the next pull are measured against that and not against where they looked.
-        ...((openAt ?? saved?.cfi) ? { start: { cfi: (openAt ?? saved?.cfi)! } } : {}),
+        // An address beats the saved position, and only for this layout: `positionRef` above
+        // still holds where the reader actually was, so the sitting and the next pull are
+        // measured against that and not against where they looked.
+        ...startFor(openAt, saved?.cfi),
         on: {
           load: (event) => {
             setVerticalBook(event.writingMode === "vertical-rl");
@@ -1321,7 +1376,10 @@ export default function Reader({
           // The geometry is valid again — a resize or a settings change moves every
           // rectangle without moving the reader, so `relocate` alone would miss it.
           layout: () => setGeometry((tick) => tick + 1),
-          indexed: () => setIndexed(true),
+          indexed: () => {
+            setIndexed(true);
+            indexIsBuilt();
+          },
           selection: (event) => {
             if (event.cfi === undefined || event.text.trim() === "") {
               setSelection(null);
@@ -1402,6 +1460,26 @@ export default function Reader({
       // not a contrived one. No-ops when nothing moved.
       attached.setNativeSelection(!ownSelectionRef.current);
       setRenderer(attached);
+
+      // The two addresses the first layout could not settle on its own. `chars:` is already in
+      // the right section and only moves inside it; `frac:` is a whole-book number, so it waits
+      // for the index and then asks frond which section that falls in.
+      if (openAt?.kind === "chars" && openAt.characters > 0) {
+        await attached.goToSection(openAt.sectionIndex, {
+          kind: "characters",
+          characters: openAt.characters,
+        });
+      }
+      if (openAt?.kind === "fraction") {
+        await indexBuilt;
+        if (cancelled) return;
+        await attached.goToFraction(openAt.fraction);
+      }
+      if (cancelled) return;
+      // The address has been spent. Read by `tests/browser/support/library.ts`, which otherwise
+      // has no way to tell a book that opened where it was asked from one still on its way
+      // there — the two jumps above land after the first layout has already settled.
+      setArrived(true);
     }
 
     // Arrow keys with focus outside the iframe. frond forwards the ones inside it (where the
@@ -1905,7 +1983,13 @@ export default function Reader({
     // `data-indexed` is the one fact about the whole-book index that is readable whatever state
     // the reader is in. It used to be legible from the header's percentage, and the header is
     // not on screen any more.
-    <div className="reader" data-indexed={indexed} data-panel={panelOpen || undefined}>
+    <div
+      className="reader"
+      data-indexed={indexed}
+      // Absent unless the address asked for a place, and `true` once the book is at it.
+      data-at={openAt ? (arrived ? "arrived" : "opening") : undefined}
+      data-panel={panelOpen || undefined}
+    >
       {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising 〈找〉
           leaves the page exactly where it was, opening one of the three gives up a column and
           repaginates.
@@ -2267,6 +2351,9 @@ export default function Reader({
                 onJump={() => {
                   visitPassage(a.cfiRange);
                   void renderer?.goToCfi(a.cfiRange);
+                  // And the address bar follows, so the passage on screen is one the reader can
+                  // copy out and send. The jump itself has already happened — this names it.
+                  onAt?.({ kind: "cfi", cfi: a.cfiRange });
                   sendChrome({ kind: "jumped" });
                 }}
                 onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
