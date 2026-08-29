@@ -13,7 +13,7 @@ export interface PaintedHighlight {
 // The highlight layer, drawn over the book.
 //
 // frond renders no highlights — it reports where a CFI range currently sits and when that
-// geometry went stale, and the drawing is ours (its ADR-0002). This component is deliberately
+// geometry went stale, and the drawing is ours (frond ADR-0002). This component is deliberately
 // the dumb half of that: the Reader computes which boxes are on the page in front of the
 // reader (`highlights.ts`'s `visibleBoxes`) and this paints them.
 //

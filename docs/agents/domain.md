@@ -58,8 +58,12 @@ Multi-context repo（根目錄存在 `CONTEXT-MAP.md`）：
 
 ## 引用一律寫成 `ADR-0007` 這個形狀
 
-四位數，指 frond 那套的時候前面加 `frond`。這條管**所有敘述**：程式碼註解、`CONTEXT.md`、spec、
-issue 與 PR 內文。
+四位數。這條管**所有敘述**：程式碼註解、`CONTEXT.md`、spec、issue 與 PR 內文。
+
+**預設看這句話寫在哪一邊**：`packages/frond/` 底下的裸編號指 frond 那套，其餘指 Tidemarks 那套。
+⚠️ **指另一套的時候，`ADR-` 前面一定要帶著 `frond` 這個字**（`frond ADR-0002`、`frond's ADR-0004`
+都行），因為那是唯一能把跨過去的引用跟自己那套分開的東西。**「its ADR-0002」不算**，`git grep` 找
+不到它，而它讀起來就是 Tidemarks 的 ADR-0002。
 
 理由是這個 repo 有一百多處引用散在原始碼註解與 CSS 裡（光是 frond ADR-0003 就四十幾處）。編號會
 因為下面那條規則而搬動，而搬動的時候要找出「哪些指的是這一份」，靠的就是這個寫法。寫「見上一份
