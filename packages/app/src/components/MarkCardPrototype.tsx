@@ -165,35 +165,61 @@ function VariantB({ batch, books, onOpenPassage }: VariantProps) {
  * ⚠️ **Both margins are decoration below the ceiling's reach.** They are hidden outright on a
  * narrow screen rather than stacked, because a cover stacked above a passage is the big card
  * coming back one row at a time.
+ *
+ * ⚠️ **Two presses, so the card is not one button.** The count in the right margin used to be a
+ * word inside the same button as the passage, which meant it went where the passage goes — into
+ * the book. It draws another of the day's passages onto the card instead, and a control that does
+ * something else cannot be nested inside one that leaves the screen. The reading and the book's
+ * cover are the one press that leaves; the margin is its own.
  */
 function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
-  const mark = batch[0]!;
-  const rest = batch.slice(1);
+  const [at, setAt] = useState(0);
+  const index = Math.min(at, batch.length - 1);
+  const mark = batch[index]!;
+  const rest = batch.filter((_, i) => i !== index);
+
+  // Another of today's, drawn rather than stepped to. The pile beside it is not in an order the
+  // reader can see, so "next" would be a promise the card cannot keep — and the passages are a
+  // pile to reach into, which is the same argument the shipping card makes for its own draw.
+  const another = () => {
+    const others = batch.map((_, i) => i).filter((i) => i !== index);
+    if (others.length === 0) return;
+    setAt(others[Math.floor(Math.random() * others.length)]!);
+  };
+
   return (
     <section className="proto-card" data-testid="mark-card">
-      <button className="proto-hit" onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}>
-        <div className="proto-measure">
-          <span className="proto-side proto-side-end">
-            <Cover book={books.get(mark.bookId)} size="large" />
+      <div className="proto-measure proto-hit-pad">
+        <button
+          className="proto-hit proto-hit-inline proto-side proto-side-end"
+          onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+          tabIndex={-1}
+          aria-hidden="true"
+        >
+          <Cover book={books.get(mark.bookId)} size="large" />
+        </button>
+        <button
+          className="proto-hit proto-hit-inline proto-column"
+          onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
+        >
+          <Reading mark={mark} />
+          <p className="proto-meta">
+            <span className="proto-book">{books.get(mark.bookId)?.title}</span>
+            <span className="proto-dot">·</span>
+            <span>{ageOf(mark)}</span>
+          </p>
+        </button>
+        <span className="proto-side proto-side-start">
+          <span className="proto-pile">
+            {rest.map((m) => (
+              <Cover key={m.id} book={books.get(m.bookId)} />
+            ))}
           </span>
-          <div className="proto-column">
-            <Reading mark={mark} />
-            <p className="proto-meta">
-              <span className="proto-book">{books.get(mark.bookId)?.title}</span>
-              <span className="proto-dot">·</span>
-              <span>{ageOf(mark)}</span>
-            </p>
-          </div>
-          <span className="proto-side proto-side-start">
-            <span className="proto-pile">
-              {rest.map((m) => (
-                <Cover key={m.id} book={books.get(m.bookId)} />
-              ))}
-            </span>
-            <span className="proto-more">{rest.length} more →</span>
-          </span>
-        </div>
-      </button>
+          <button className="proto-hit-inline proto-more" onClick={another}>
+            Another of today's →
+          </button>
+        </span>
+      </div>
     </section>
   );
 }
@@ -382,6 +408,25 @@ const CSS = `
   cursor: pointer;
 }
 .proto-hit:hover { background: var(--surface-page); }
+/* B2 has two presses rather than one, so the padding moves off the button and onto the grid, and
+   each button shrinks to the thing it is. */
+.proto-hit-pad { padding: var(--space-4); }
+.proto-hit-inline {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: start;
+  white-space: normal;
+  cursor: pointer;
+}
+.proto-hit-inline:hover { background: none; }
+/* The passage says it is pressable the way the shipping card's does — a rule under the words,
+   not a panel lighting up behind them. */
+.proto-hit-inline:hover .proto-quote { text-decoration: underline; text-decoration-color: var(--line-actionable); }
+/* In a column nothing is being pushed to the far end, so the row's own auto margin has to go. */
+.proto-side .proto-more { margin-inline-start: 0; }
 /* **The reading in the middle, the leftover split either side.** Both margins are \`1fr\`, so they
    are exactly the room the ceiling did not take — when the card is narrower than the ceiling they
    are zero wide and nothing has to be turned off. What stands in them is another question, and
