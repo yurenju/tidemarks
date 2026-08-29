@@ -164,6 +164,19 @@ const another = (page: Page) =>
 /** What the card is showing right now. */
 const passage = (page: Page) => page.getByTestId("mark-quote");
 
+/**
+ * Press 〈another〉 and wait for the card to have actually turned over.
+ *
+ * The press is dispatched synchronously and the draw behind it is a read of Dexie away, so a test
+ * that read the card straight afterwards would sometimes read the passage still on screen. With
+ * two marks seeded the draw is deterministic — the other one is the only one it may hand back.
+ */
+async function drawOther(page: Page): Promise<void> {
+  const before = await passage(page).textContent();
+  await another(page).click();
+  await expect(passage(page)).not.toHaveText(before!);
+}
+
 /** How wide the quote is allowed to run, in ems of its own type size. */
 async function quoteEms(page: Page): Promise<number> {
   return await passage(page).evaluate((quote) => {
@@ -270,7 +283,10 @@ test("the passage on the card carries its own book's line-length ceiling", async
   const seen = new Map<string, number>();
   for (let i = 0; i < 2; i++) {
     seen.set((await passage(page).textContent())!, await quoteEms(page));
-    if (i === 0) await another(page).click();
+    // ⚠️ Waited for, not merely pressed: `click()` returns when the press is dispatched, and the
+    // draw behind it is a read of Dexie away. Reading straight after would sometimes record the
+    // passage that is still on screen, and the map would come back with one key.
+    if (i === 0) await drawOther(page);
   }
   expect(seen.get(LATIN)).toBeCloseTo(30, 1);
   expect(seen.get(HAN)).toBeCloseTo(40, 1);
@@ -306,7 +322,7 @@ test("the head row sheds its label for a long title and keeps it for a short one
       (await page.getByTestId("mark-book").textContent())!,
       await label.evaluate((node) => !(node as HTMLElement).hidden),
     );
-    if (i === 0) await another(page).click();
+    if (i === 0) await drawOther(page);
   }
   expect(seen.get("短")).toBe(true);
   expect(seen.get("原子習慣：細微改變帶來巨大成就的實證法則")).toBe(false);

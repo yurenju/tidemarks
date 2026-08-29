@@ -52,6 +52,8 @@ export default function Library({
    * having nothing to draw.
    */
   const [shownId, setShownId] = useState<string | null>(null);
+  /** Whether a draw is already in flight — see `drawAnother`. */
+  const drawing = useRef(false);
 
   // Ordering happens below, in `sortShelf`, so the query no longer asks for one: the default
   // order reads `progress` as well as `books`, which no single Dexie index can answer. What the
@@ -79,6 +81,15 @@ export default function Library({
   }, [reloadToken]);
 
   /**
+   * The row today's id names, which is what the card is handed.
+   *
+   * A mark can go between the draw and the render — deleted, or its book was — and then this is
+   * `null` and the effect below draws again. **Read before that effect** rather than beside the
+   * card, because the effect's own condition is written in terms of it.
+   */
+  const shown = shelf.marks.find((m) => m.id === shownId) ?? null;
+
+  /**
    * Today's passage: the one already drawn today if there is one, and a fresh draw if not.
    *
    * Held to for the rest of the day on purpose. The reader may not be able to say yet why a
@@ -86,20 +97,24 @@ export default function Library({
    * the shelf would never give them the chance to.
    */
   useEffect(() => {
-    if (shownId !== null || shelf.marks.length === 0) return;
+    // ⚠️ **Keyed on the row, not on the id.** A mark can leave while the shelf is open — deleted
+    // on another device, or its book was — and a sync round then takes it out of `shelf.marks`
+    // while `shownId` still names it. Waiting on the id alone left the card gone and no draw due,
+    // so the shelf held an empty gap until the reader navigated away and back.
+    if (shown !== null || shelf.marks.length === 0) return;
     let cancelled = false;
     void (async () => {
       const kept = restoreShown(await loadShownToday(), shelf.marks, localDay(Date.now()));
       if (cancelled) return;
-      const shown = kept ?? pickOne(shelf.marks);
-      if (!shown) return;
-      if (!kept) await saveShownToday(shown.id, Date.now());
-      if (!cancelled) setShownId(shown.id);
+      const drawn = kept ?? pickOne(shelf.marks);
+      if (!drawn) return;
+      if (!kept) await saveShownToday(drawn.id, Date.now());
+      if (!cancelled) setShownId(drawn.id);
     })();
     return () => {
       cancelled = true;
     };
-  }, [shelf.marks, shownId]);
+  }, [shelf.marks, shown]);
 
   /**
    * The reader asking for another passage.
@@ -109,11 +124,21 @@ export default function Library({
    * refresh would read as the press not having happened.
    */
   async function drawAnother() {
-    const fresh = await reload();
-    const next = pickOne(fresh.marks, shownId ?? undefined);
-    if (!next) return;
-    await saveShownToday(next.id, Date.now());
-    setShownId(next.id);
+    // ⚠️ **One draw at a time.** Two presses in the same frame close over the same `shownId`, so
+    // the second would exclude the passage the first one *left* rather than the one it drew — and
+    // can hand back exactly what is already on screen, which reads as a button that did nothing.
+    // The two writes to `meta` would race as well.
+    if (drawing.current) return;
+    drawing.current = true;
+    try {
+      const fresh = await reload();
+      const next = pickOne(fresh.marks, shownId ?? undefined);
+      if (!next) return;
+      await saveShownToday(next.id, Date.now());
+      setShownId(next.id);
+    } finally {
+      drawing.current = false;
+    }
   }
 
   // Stable, because the card records a viewing from an effect keyed on which passage is showing:
@@ -121,10 +146,6 @@ export default function Library({
   const markShown = useCallback((id: string) => {
     void noteShown(id, Date.now()).then(() => scheduleSync());
   }, []);
-
-  // A mark can go between the draw and the render — deleted, or its book was. Then there is
-  // nothing to show until the effect above draws again.
-  const shown = shelf.marks.find((m) => m.id === shownId) ?? null;
 
   const { t, i18n } = useLingui();
 
@@ -371,6 +392,13 @@ function MarkCard({
   const coverUrl = useCoverUrl(book?.cover ?? null);
   const head = useRef<HTMLParagraphElement>(null);
   useFitRow(head, mark.id);
+  // One descriptor spent on both attributes: written twice, the same comment lands twice in every
+  // catalog, and a translator then sees the entry duplicated with nothing to tell the two apart.
+  const anotherLabel = t({
+    message: "Another passage",
+    comment:
+      "Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.",
+  });
 
   // The passage as one run of prose. What the book put around its paragraph breaks reads as holes
   // mid-sentence once the breaks themselves are gone — see `lib/passage.ts`.
@@ -431,16 +459,8 @@ function MarkCard({
             className="mark-another"
             data-testid="mark-another"
             onClick={onAnother}
-            title={t({
-              message: "Another passage",
-              comment:
-                "Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.",
-            })}
-            aria-label={t({
-              message: "Another passage",
-              comment:
-                "Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.",
-            })}
+            title={anotherLabel}
+            aria-label={anotherLabel}
           >
             ↻
           </button>
@@ -493,10 +513,16 @@ function MarkCard({
  * Dropped rather than wrapped, because a row that wraps is two rows — and three lines of grey
  * label over a two-line passage is the height this card exists to give up.
  *
- * ⚠️ **Written to the DOM rather than held in state**, because hiding a part changes the row's
- * size, which is what the observer watches: a render-and-remeasure loop would oscillate between
- * two stable answers forever. `busy` closes that loop — our own writes land in the same frame and
- * are ignored.
+ * ⚠️ **Written to the DOM rather than held in state.** Hiding a part changes the row's size,
+ * which is one of the things the observer watches, so a render-and-remeasure loop would go round
+ * for ever. What actually settles it is that `fit` starts by unhiding everything and recomputes
+ * from there, so running it again on its own output changes nothing; `busy` only keeps it from
+ * doing that work twice.
+ *
+ * ⚠️ **The page is watched as well as the row, and the row alone is not enough.** The card is
+ * `width: fit-content`, so once the label has gone the card is as wide as what is left — and
+ * widening the window past that does not change the row's size at all. Watching only the row, a
+ * label dropped at 600px stayed dropped at 1400px until the next draw.
  */
 function useFitRow(row: React.RefObject<HTMLElement | null>, redo: unknown) {
   useEffect(() => {
@@ -532,6 +558,7 @@ function useFitRow(row: React.RefObject<HTMLElement | null>, redo: unknown) {
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(node);
+    observer.observe(document.documentElement);
     return () => observer.disconnect();
   }, [row, redo]);
 }

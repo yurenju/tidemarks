@@ -127,7 +127,6 @@ msgid "An app wants to connect to your shelf. You will come back here to confirm
 msgstr "あるアプリがあなたの本棚に接続しようとしています。サインインすると、ここに戻って確認できます。"
 
 #. Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.
-#. Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.
 #: src/components/Library.tsx
 msgid "Another passage"
 msgstr "別の一節"
@@ -306,7 +305,7 @@ msgstr "フォントはこの端末にあります"
 #. Eyebrow label at the top of the shelf's card, in front of the book's name. Says what the block is — a passage the reader marked, come back round. Lower case 'marks' is the same word the marking toolbar uses.
 #: src/components/Library.tsx
 msgid "From your marks"
-msgstr "引いた一節から"
+msgstr "マークした一節から"
 
 #. Button on the banner naming the reader's place in the book: moves the book to that place. Short — it sits beside 'Stay here'.
 #: src/components/Reader.tsx

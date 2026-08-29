@@ -127,7 +127,6 @@ msgid "An app wants to connect to your shelf. You will come back here to confirm
 msgstr "An app wants to connect to your shelf. You will come back here to confirm after signing in."
 
 #. Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.
-#. Tooltip and screen-reader name for the ↻ button at the top right of the shelf's card. Draws a different marked passage onto the card. Not a refresh and not a dismissal — the reader is asking, and nothing is being cleared.
 #: src/components/Library.tsx
 msgid "Another passage"
 msgstr "Another passage"
