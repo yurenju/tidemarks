@@ -55,6 +55,18 @@ export default defineConfig({
 
   use: {
     baseURL: "http://localhost:5174",
+    // **Kept for a failed attempt, thrown away for a passing one.** A flake nobody can reproduce
+    // is diagnosed from what CI kept, and what CI kept was the error plus one accessibility
+    // snapshot of whatever the failing locator pointed at. #109 is what that costs: a press on
+    // Reset that left the settings untouched, where telling "the press never reached the button"
+    // from "something wrote the old values back" needs the frames either side of it, and nothing
+    // held them. A trace holds the action log and a DOM snapshot before and after every step.
+    //
+    // `retain-on-failure` rather than `on-first-retry`, because the attempt worth reading is the
+    // first one: a red here opens an issue immediately (docs/agents/flaky.md) and the retry is
+    // the attempt that often goes green. It costs a fifth of a run — the app's webkit suite is
+    // 1.0m without and 1.2m with — paid on every run, green ones included.
+    trace: "retain-on-failure",
     // Fixed, because pagination geometry is a function of the viewport: a floating size would
     // make the three browsers' numbers incomparable. Wider than frond's 800×600 so both
     // sidebars and the two-page spread have somewhere to be — this is an app, not a renderer.
