@@ -30,7 +30,11 @@ export function toSyncBook(b: BookRecord): SyncBook {
     addedAt: b.addedAt,
     updatedAt: b.updatedAt,
     deletedAt: b.deletedAt ?? null,
-    hasCover: !!b.cover,
+    // **Or the row's own claim**, which is a device that pulled this book and has not managed to
+    // download its cover yet (`lib/types.ts`). Holding the blob is not the same question as the
+    // book having one, and answering with the first would be this device reporting a cover it is
+    // still waiting for as one that does not exist.
+    hasCover: !!b.cover || !!b.hasCover,
   };
 }
 

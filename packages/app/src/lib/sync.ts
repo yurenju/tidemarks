@@ -245,8 +245,7 @@ async function pull() {
           deletedAt: rb.deletedAt,
           file: rb.deletedAt ? null : (local?.file ?? null),
           cover: rb.deletedAt ? null : (local?.cover ?? null),
-          // A tombstone is owed nothing, so it never joins the queue below.
-          hasCover: !rb.deletedAt && !!rb.hasCover,
+          hasCover: !!rb.hasCover,
           // ⚠️ **Whatever the row already said, not `undefined`.** A pull sends nothing, so it
           // is in no position to declare a book's business finished — clearing dirty is the
           // push's job and the push does it. What used to be cleared here was the flag saying
@@ -303,11 +302,19 @@ async function pull() {
   //
   // **Every book still owed one, not the ones this round happened to mention.** The cursor moves
   // below whatever happens here, so a row that arrived and failed is a row no later pull will
-  // send again; asked per round, this list would be empty for a book that has been waiting since
-  // yesterday and its card would stay blank until something else touched the row (#120). The
-  // question the row itself answers — `hasCover` with no `cover` — is asked of the whole table
-  // instead, so a failure is retried on the next round however it failed, and a request that
-  // came back as a 5xx is no different from one that threw.
+  // send again; kept as a list built while reading the round, the retry it promised could never
+  // happen and the card stayed blank until something else touched the book (#120). The question
+  // the row itself answers — `hasCover` with no `cover` — is asked of the whole table instead,
+  // so a failure comes back around however it failed: a 5xx never reached the `catch` below,
+  // and now it does not have to.
+  //
+  // ponytail: no ceiling. A cover the server promises and cannot serve (its object lost, the
+  // column still set) is asked for on every round, for as long as the book is on the shelf. Give
+  // it a backoff when someone reports the requests.
+  //
+  // ponytail: a filtered Dexie collection cannot use the keys-only path, so this walks the whole
+  // books table and deserializes each record — blobs by reference, but still every row, every
+  // round. Index the field if a shelf ever gets big enough to feel it.
   const coversToFetch = (await db.books
     .filter((b) => !!b.hasCover && !b.cover && !b.deletedAt)
     .primaryKeys()) as string[];

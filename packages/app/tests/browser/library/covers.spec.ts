@@ -1,16 +1,13 @@
 // A cover that failed to download is fetched again on a later round, when the book's row is not
 // in that round's pull.
 //
-// **Here rather than a layer down, for `elsewhere.spec.ts`'s reason**: `lib/sync.ts` reaches
-// Dexie, `fetch` and a Lingui macro, so it has no unit harness at all. And the case is two sync
-// rounds with a device's own storage carrying what it learned between them, which is a shape no
-// pure function holds: what makes the second round ask again is a field written to IndexedDB by
-// the first.
+// **Here rather than a layer down, for `reader/elsewhere.spec.ts`'s reason**: `lib/sync.ts`
+// reaches Dexie, `fetch` and a Lingui macro, so it has no unit harness at all. And the case is
+// two sync rounds with a device's own storage carrying what it learned between them, which is a
+// shape no pure function holds: what makes the second round ask again is a field written to
+// IndexedDB by the first.
 //
-// The failure it pins is #120. The cursor moves whatever the cover download does, so the row that
-// mentioned the cover is a row no later pull sends again — and the list of covers to fetch used to
-// be built from the rows that had just arrived. Nothing asked a second time, and the shelf kept a
-// card with no picture on it until something else happened to touch the book.
+// The failure it pins is #120, whose account is in `lib/sync.ts` beside the queue this is about.
 import { expect, test } from "../support/fixtures.js";
 import { fakeSync, returnToForeground } from "../support/library.js";
 import type { SyncBook } from "../../../src/lib/types.js";
@@ -73,10 +70,10 @@ test("fetches a cover that failed on a round whose pull no longer carries the bo
   // this is the state in which the old code forgot the cover for good.
   books = [];
   coverIsServable = true;
-  const asked = coverRequests;
 
   await returnToForeground(page);
 
+  // A picture where the title was standing in, which nothing but a second request could have put
+  // there.
   await expect(card.getByRole("img", { name: TITLE })).toBeVisible({ timeout: 15_000 });
-  expect(coverRequests).toBeGreaterThan(asked);
 });
