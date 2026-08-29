@@ -41,7 +41,7 @@ import { LAYOUT_STYLE_ID, layoutStylesheet } from "./layout.ts";
 import { isElement, isTextLike } from "./node-type.ts";
 import { withLayout, type ReaderSettings, type ResolveLayout } from "./settings.ts";
 import type { SectionDocument } from "./document-source.ts";
-import { textNodesIn } from "./text-index.ts";
+import { positionAtCharacter, textNodesIn } from "./text-index.ts";
 import { readWritingMode } from "./writing-mode.ts";
 
 /**
@@ -778,6 +778,60 @@ export class SectionView {
   /** Drops the selection in this document. Raises `selectionchange` when there was one. */
   clearSelection(): void {
     this.document.getSelection()?.removeAllRanges();
+  }
+
+  /**
+   * Makes `range` the selection of this document, replacing whatever was selected. Raises
+   * `selectionchange`, so a `selection` event follows exactly as it would for a reader's own
+   * drag.
+   *
+   * Nothing happens when the document has selection suppressed: `user-select: none` leaves the
+   * selection object present but refuses to hold a range, which is why the caller has to know
+   * which of the two selection routes it is on rather than trusting this to report failure.
+   */
+  select(range: Range): void {
+    const selection = this.document.getSelection();
+    if (selection === null) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  /**
+   * The first occurrence of `text` in this document, or `undefined` when it is not here.
+   *
+   * The search runs over the same flattened character stream the progress index counts
+   * (`text-index.ts`), not over one node at a time, so a phrase broken up by `<em>` or
+   * `<span>` is found whole. The flattening is what makes that work, and it is also this
+   * search's one blind spot: whitespace-only nodes are left out of the stream, so a phrase
+   * spanning a paragraph boundary has nothing between its halves here and will not match with
+   * the space the reader sees. Within a paragraph — which is every passage worth pointing at —
+   * it matches.
+   *
+   * **The first occurrence, deliberately.** A phrase that appears twice in one section has no
+   * fact distinguishing the two, and picking by anything else would be a policy; a caller
+   * needing the second one has the CFI route.
+   */
+  findText(text: string): Range | undefined {
+    if (text === "") return undefined;
+
+    const at = this.textNodes
+      .map((node) => node.data)
+      .join("")
+      .indexOf(text);
+    if (at === -1) return undefined;
+
+    const start = positionAtCharacter(this.textNodes, at);
+    // **The last character, then one past it** — rather than asking for the end position
+    // directly. `positionAtCharacter` answers a boundary with the *next* node at offset 0, and
+    // the next node here is the head of the next paragraph, so a phrase ending where its
+    // paragraph ends would come back as a range reaching across the break: the whitespace
+    // between the two blocks lands in the selection, an extra rectangle is drawn at the top of
+    // the following paragraph, and a mark made from it is stored against a passage nobody named.
+    // Asking about the last character keeps the answer inside the node the match really ends in.
+    const last = positionAtCharacter(this.textNodes, at + text.length - 1);
+    if (start === undefined || last === undefined) return undefined;
+
+    return this.rangeBetween(start, { node: last.node, offset: last.offset + 1 });
   }
 
   destroy(): void {

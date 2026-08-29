@@ -830,11 +830,7 @@ export class Renderer {
     const view = this.view;
     if (view === undefined) return [];
 
-    const parsed = typeof cfi === "string" ? tryParse(cfi) : cfi;
-    if (parsed === undefined) return [];
-    if (sectionIndexOf(parsed) !== this.sectionIndex) return [];
-
-    const range = rangeForCfi(view.document, parsed);
+    const range = this.rangeIn(cfi);
     return range === undefined ? [] : view.rectsFor(range);
   }
 
@@ -881,6 +877,98 @@ export class Renderer {
    */
   clearSelection(): void {
     this.view?.clearSelection();
+  }
+
+  /**
+   * Selects the passage a CFI names, using the browser's own selection — the other half of
+   * `clearSelection()`.
+   *
+   * Answers whether it selected anything. `false` means the CFI does not parse, names another
+   * section, or points at nothing in this one; the selection is left alone in that case rather
+   * than cleared, so a caller acting on a bad address does not also destroy what the reader
+   * had.
+   *
+   * **A `selection` event follows**, indistinguishable from one a drag produced — which is the
+   * whole point: a consumer wanting the state a reader reaches by selecting text gets there by
+   * the same route rather than by a second one it has to keep in step (Tidemarks #128).
+   *
+   * ⚠️ **It does nothing while native selection is off** (`setNativeSelection(false)`). A
+   * consumer drawing its own selection on touch has `user-select: none` on the document, and
+   * a range added under it is dropped by the browser without complaint. That consumer wants
+   * `rangeFactsFor()` instead — the geometry, to draw itself. Which of the two routes is live
+   * is the consumer's own answer (ADR-0002), so this cannot pick for it, and reporting `true`
+   * for a selection the browser then discarded is the one thing it must not do — hence the
+   * warning here rather than a `false` that would mean something else.
+   */
+  selectRange(cfi: string | Cfi): boolean {
+    const view = this.view;
+    if (view === undefined) return false;
+
+    const range = this.rangeIn(cfi);
+    if (range === undefined) return false;
+
+    view.select(range);
+    return true;
+  }
+
+  /**
+   * The same three facts `rangeFromPoints()` answers with, for a passage named by a CFI rather
+   * than by two points on screen.
+   *
+   * This is the CFI-shaped door into the take-over-selection route (ADR-0036): that route never
+   * touches the browser's selection, so it needs the geometry handed to it, and until now the
+   * only way in was two screen coordinates — which a caller holding an address does not have
+   * and would have to fake by inventing a drag.
+   *
+   * `undefined` on an unparseable CFI, one naming another section, or one pointing at nothing
+   * here. `rects` and `cfi` go stale on the next `layout`, exactly as `rangeFromPoints()`'s do.
+   */
+  rangeFactsFor(cfi: string | Cfi): RangeFacts | undefined {
+    const view = this.view;
+    if (view === undefined) return undefined;
+
+    const range = this.rangeIn(cfi);
+    if (range === undefined) return undefined;
+
+    return {
+      cfi: serializeCfi(cfiForRange(range, this.sectionIndex)),
+      text: range.toString(),
+      rects: view.rectsFor(range).map((marked) => marked.rect),
+    };
+  }
+
+  /**
+   * Where a phrase sits in the section on screen, as a CFI. `undefined` when it is not there.
+   *
+   * Only this section, not the whole book: searching the rest would mean laying out sections
+   * the reader is not looking at, and a caller that knows which passage it wants also knows
+   * which chapter it is in. The match runs across element boundaries — see `findText` in
+   * `section-view.ts` for what that covers and the one case it does not.
+   *
+   * The CFI is the currency the rest of this class already speaks, so what comes back can be
+   * handed straight to `selectRange()`, `rangeFactsFor()` or `rectsFor()`.
+   */
+  findText(text: string): string | undefined {
+    const range = this.view?.findText(text);
+    return range === undefined ? undefined : serializeCfi(cfiForRange(range, this.sectionIndex));
+  }
+
+  /**
+   * The `Range` a CFI names within the section on screen, for the two callers above.
+   *
+   * The section check is what keeps a CFI from elsewhere in the book from being answered with
+   * a range built out of whatever node the walk happened to land on — the same guard
+   * `rectsFor()` makes, for the same reason.
+   */
+  private rangeIn(cfi: string | Cfi): Range | undefined {
+    const view = this.view;
+    if (view === undefined) return undefined;
+
+    const parsed = typeof cfi === "string" ? tryParse(cfi) : cfi;
+    if (parsed === undefined) return undefined;
+    if (sectionIndexOf(parsed) !== this.sectionIndex) return undefined;
+
+    return rangeForCfi(view.document, parsed);
   }
 
   /**

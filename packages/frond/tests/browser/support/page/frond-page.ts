@@ -432,6 +432,20 @@ const harness: FrondHarness = {
     renderer?.clearSelection();
   },
 
+  selectRange(cfi): boolean {
+    return active().selectRange(cfi);
+  },
+
+  rangeFactsFor(cfi) {
+    const facts = active().rangeFactsFor(cfi);
+    if (facts === undefined) return null;
+    return { cfi: facts.cfi, text: facts.text, rects: facts.rects.map(plainRect) };
+  },
+
+  findText(text): string | null {
+    return active().findText(text) ?? null;
+  },
+
   preventTapDefaultOnPress(on): void {
     cancelsTapDefault = on;
     touchEndPrevented = null;

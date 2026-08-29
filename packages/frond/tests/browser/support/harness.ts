@@ -518,6 +518,19 @@ export interface FrondHarness {
   selectAcross(startSelector: string, endSelector: string): void;
   /** Drops the selection through the renderer's own API, rather than by reaching into the iframe. */
   clearSelection(): void;
+  /**
+   * Selects a CFI through the renderer's own API — the other half of `clearSelection`.
+   *
+   * Distinct from `selectText`, which reaches into the iframe and is how these tests fake a
+   * reader's drag; this one is the thing under test.
+   */
+  selectRange(cfi: string): boolean;
+  /** The range a CFI names, for the take-over-selection path. `null` when it names nothing here. */
+  rangeFactsFor(
+    cfi: string,
+  ): { readonly cfi: string; readonly text: string; readonly rects: readonly Rect[] } | null;
+  /** Where a phrase sits in the section on screen, as a CFI. `null` when it is not there. */
+  findText(text: string): string | null;
   /** Makes the page's `pointerdown` listener call `preventTapDefault()` on every press from now on. */
   preventTapDefaultOnPress(on: boolean): void;
   /**

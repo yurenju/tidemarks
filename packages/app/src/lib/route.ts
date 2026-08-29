@@ -18,6 +18,8 @@
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";
 const ABOUT_PREFIX = "about/";
+/** What a CFI opens with, and therefore how `?select=` tells one from a phrase. */
+const CFI_PREFIX = "epubcfi(";
 
 /** Which pane of 〈設定〉 is showing. */
 export type SettingsTab = "typography" | "account" | "language";
@@ -46,15 +48,48 @@ export type At =
   | { kind: "fraction"; fraction: number };
 
 /**
+ * A passage to arrive with already selected, so the colour row is up and the next tap draws a
+ * mark. Two spellings, told apart by their opening rather than by a tag: a CFI announces itself
+ * with `epubcfi(`, and anything else is the words themselves.
+ *
+ * `?at=` needs its tags because two of its three spellings are bare numbers; here there is no
+ * such ambiguity, and a tag would be one more thing to get right in an address people type.
+ *
+ * **A phrase is looked for in the section on screen only**, so it pairs with an `?at=` naming
+ * the chapter. Searching the rest of the book would mean laying out chapters nobody is looking
+ * at, and that is a different feature.
+ */
+export type Select = { kind: "cfi"; cfi: string } | { kind: "text"; text: string };
+
+/**
  * A floor: the screen the reader is standing on, one at a time.
  *
  * `at` hangs off the book screen rather than off `Route` because it qualifies *this* screen —
  * there is no such thing as opening the shelf at a passage, and saying so in the type is what
  * keeps `?at=` off every other address.
+ *
+ * `select` and `handles` hang there for the same reason, and `handles` hangs off `select`'s
+ * presence in `parseHash`: on its own it answers a question nobody asked.
  */
 export type Screen =
   | { kind: "shelf" }
-  | { kind: "book"; bookId: string; at?: At }
+  | {
+      kind: "book";
+      bookId: string;
+      at?: At;
+      select?: Select;
+      /**
+       * Draw the selection ourselves, with the two handles a finger can drag (ADR-0036),
+       * instead of letting the browser select natively.
+       *
+       * **Absent means native, at every window size** — including phone-sized ones, where a
+       * reader's own finger would get the drawn route. The two defaults fail differently: this
+       * one puts a selection on screen that is missing the handles, which is visible; the other
+       * puts nothing on screen at all and says nothing about why, on a window where `?select=`
+       * looks like it should have worked.
+       */
+      handles?: boolean;
+    }
   | { kind: "settings"; tab: SettingsTab };
 
 /**
@@ -83,9 +118,32 @@ export function hashFor(route: Route): string {
   const path = pathFor(route.screen);
   const query: string[] = [];
   if (route.drawer) query.push(`d=${drawerSegment(route.drawer)}`);
-  const at = route.screen.kind === "book" ? route.screen.at : undefined;
-  if (at) query.push(`at=${encodeURIComponent(atSegment(at))}`);
+  const book = route.screen.kind === "book" ? route.screen : undefined;
+  if (book?.at) query.push(`at=${encodeURIComponent(atSegment(book.at))}`);
+  // `handles` only where there is something to select, matching what `parseHash` reads back:
+  // writing it alone would put a parameter in the bar that reading the bar throws away.
+  if (book?.select) {
+    query.push(`select=${encodeURIComponent(selectSegment(book.select))}`);
+    if (book.handles) query.push("handles=1");
+  }
   return query.length === 0 ? path : `${path}?${query.join("&")}`;
+}
+
+/**
+ * The same book screen, now naming a place the reader has moved to.
+ *
+ * **`select` and `handles` come off here, and that is the point of writing the address back.**
+ * They were carried out the moment the book opened and there is no second time; left in, they
+ * would ride along on every address the reader copies from then on, and whoever they sent it to
+ * would open the book with a passage selected that nobody chose. What is being copied is where
+ * the reader is, which is what `at` says.
+ *
+ * A non-book screen comes back untouched: there is nowhere inside the shelf to be.
+ */
+export function movedTo(screen: Screen, at: At): Screen {
+  if (screen.kind !== "book") return screen;
+  const { select: _select, handles: _handles, ...book } = screen;
+  return { ...book, at };
 }
 
 /** The book the reader has open, or null on any other floor. */
@@ -98,7 +156,15 @@ function screenFrom(path: string, params: URLSearchParams): Screen {
     const id = path.slice(BOOK_PREFIX.length);
     if (id) {
       const at = atFrom(params.get("at"));
-      return { kind: "book", bookId: decodeURIComponent(id), ...(at ? { at } : {}) };
+      const select = selectFrom(params.get("select"));
+      const handles = select !== undefined && params.get("handles") === "1";
+      return {
+        kind: "book",
+        bookId: decodeURIComponent(id),
+        ...(at ? { at } : {}),
+        ...(select ? { select } : {}),
+        ...(handles ? { handles } : {}),
+      };
     }
     return { kind: "shelf" };
   }
@@ -179,11 +245,22 @@ function atFrom(value: string | null): At | undefined {
   return undefined;
 }
 
+// An empty `?select=` is "nothing to select" rather than "select nothing", on the same grounds
+// as an unreadable `?at=`: the book still opens.
+function selectFrom(value: string | null): Select | undefined {
+  if (value === null || value === "") return undefined;
+  return value.startsWith(CFI_PREFIX) ? { kind: "cfi", cfi: value } : { kind: "text", text: value };
+}
+
 function wholeNumber(value: string | undefined): number | undefined {
   // `Number` alone would take `1e3`, ` 4` and `2.5`; a section index and a character count are
   // neither negative nor fractional, and a hash that says otherwise is not one this app wrote.
   if (value === undefined || !/^\d+$/.test(value)) return undefined;
   return Number(value);
+}
+
+function selectSegment(select: Select): string {
+  return select.kind === "cfi" ? select.cfi : select.text;
 }
 
 function atSegment(at: At): string {

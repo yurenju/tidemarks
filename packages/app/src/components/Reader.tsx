@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { EpubBook } from "@yurenju/frond/epub";
+import { EpubBook, parseCfi, sectionIndexOf } from "@yurenju/frond/epub";
 import {
   Renderer,
   type PageOffset,
@@ -24,7 +24,7 @@ import {
 } from "../lib/sync";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
 import { entersVisit, leavesVisit } from "../lib/visit";
-import type { At } from "../lib/route";
+import type { At, Select } from "../lib/route";
 import type { Annotation, Progress } from "../lib/types";
 import {
   FONT_FAMILIES,
@@ -273,12 +273,38 @@ function recordPosition(position: Progress): void {
  * section — that much `start` can take — and its offset inside the section is applied right
  * after, while `frac:` has to wait for the whole-book index to exist at all. Both jump once the
  * book is up; frond's `RendererStart` says why it offers no `{ fraction }` of its own.
+ *
+ * **A `cfi:` this book cannot answer falls back to the saved position**, rather than being handed
+ * to frond anyway. frond's own fallback for an address it cannot resolve is the front of the
+ * book, and that is the wrong one here: an address is what somebody typed, and a typo in it
+ * should cost the jump, not the reader's place (`lib/route.ts` makes the same choice one layer
+ * up, for the spellings it can check). This is where every `cfi:` arrives — `?at=cfi:`,
+ * `?select=` naming a CFI, the shelf's revisit card — so it is the one place the guard has to be.
+ *
+ * "Cannot answer" is both of frond's two ways of giving up: a CFI that does not parse, and one
+ * that parses but names a section this book does not have. The second is why `sections` is a
+ * parameter — a CFI copied from another book is well-formed and points at nothing, and without
+ * the count here it would look exactly like a good one.
  */
-function startFor(at: At | undefined, savedCfi: string | undefined): { start?: RendererStart } {
-  if (at?.kind === "cfi") return { start: { cfi: at.cfi } };
+function startFor(
+  at: At | undefined,
+  savedCfi: string | undefined,
+  sections: number,
+): { start?: RendererStart } {
+  if (at?.kind === "cfi" && answerable(at.cfi, sections)) return { start: { cfi: at.cfi } };
   if (at?.kind === "chars") return { start: { sectionIndex: at.sectionIndex } };
   if (at?.kind === "fraction") return {};
   return savedCfi ? { start: { cfi: savedCfi } } : {};
+}
+
+/** Whether this book can act on a CFI at all: it parses, and it names a section that is here. */
+function answerable(cfi: string, sections: number): boolean {
+  try {
+    const index = sectionIndexOf(parseCfi(cfi));
+    return index !== undefined && index < sections;
+  } catch {
+    return false;
+  }
 }
 
 /** This book's marks as Dexie holds them, in the order the panel lists them. */
@@ -290,6 +316,8 @@ async function readAnnotations(bookId: string): Promise<Annotation[]> {
 export default function Reader({
   bookId,
   openAt,
+  select,
+  handles,
   onAt,
   onClose,
   onOpenAbout,
@@ -319,6 +347,20 @@ export default function Reader({
    * where they left it until they read past it (`lib/visit.ts`).
    */
   openAt?: At;
+  /**
+   * A passage to arrive with already selected (`?select=`, `lib/route.ts`), applied once the
+   * book has finished arriving wherever `openAt` sent it.
+   *
+   * What it is for is everything downstream of a selection — the colour row, and the mark a
+   * press on it draws. Reaching that state otherwise means simulating a drag, and a drag lands
+   * on a different number of characters every time it runs.
+   */
+  select?: Select;
+  /**
+   * Draw the selection ourselves, handles and all, instead of letting the browser select
+   * (`?handles=1`). Nothing without `select`.
+   */
+  handles?: boolean;
   /**
    * Reports a place the reader jumped to inside the book, so the address bar can follow it and
    * the page on screen is one they can copy out and send to someone.
@@ -383,6 +425,7 @@ export default function Reader({
     onChromeChange(chromeUp);
     return () => onChromeChange(false);
   }, [chromeUp, onChromeChange]);
+
   /** Hands one event to the chrome machine. */
   const sendChrome = (event: ChromeEvent) => setChromeState((now) => nextChrome(now, event));
   /**
@@ -762,6 +805,79 @@ export default function Reader({
         live,
       });
     };
+
+    /**
+     * Puts the passage `?select=` named on screen already selected, so the colour row is up and
+     * the next press draws a mark (#128, `lib/route.ts`).
+     *
+     * This half is only about **finding the passage**; `placeSelection` below puts it on screen.
+     * A phrase has to be looked for and can fail to be there at all, which a CFI cannot — that
+     * is the whole of the difference between the two spellings, and one line later they meet.
+     *
+     * Which route draws it is `handles`, and the default is the browser's own **at every window
+     * size**. On a phone-sized window that overrides what the media query decided, which is the
+     * point: the alternative default puts nothing on screen and says nothing about why.
+     *
+     * ⚠️ **The route this forces holds only until the next press.** `notePointer` flips it back
+     * on any pointer event, so a tap after this takes the selection away on a touch window.
+     * Nothing guards against it: the caller here is an address nobody types while also using the
+     * book, and a guard would be a second answer to "which route are we on" for the reader's own
+     * finger to disagree with.
+     *
+     * Failures say so in the console and leave the book open where it is. Nothing is put on
+     * screen: the only way to ask for this is to type it, so whoever gets it wrong is looking at
+     * the console already — and a message on screen would be app text, which means three
+     * catalogues (ADR-0031) for a path no reader ever reaches.
+     */
+    function applySelect(renderer: Renderer, select: Select, handles: boolean): void {
+      if (select.kind === "text") {
+        const found = renderer.findText(select.text);
+        if (found === undefined) {
+          console.warn(`?select=: "${select.text}" is not in the section on screen`);
+          return;
+        }
+        return placeSelection(renderer, found, handles);
+      }
+      placeSelection(renderer, select.cfi, handles);
+    }
+
+    /**
+     * Puts a passage on screen as a selection, by whichever of the two routes was asked for.
+     *
+     * **The geometry is asked for first on both routes**, so a range that resolves to nothing at
+     * all is reported rather than handed on: `showRange` drops a range with no rectangles, and it
+     * does so *after* having put 〈找〉 away, which would leave a bare page and no account of why.
+     *
+     * ⚠️ **It does not tell "on this page" from "further down this section".** `rectsFor` reports
+     * true geometry wherever the passage is — clipping is the consumer's policy (frond ADR-0002)
+     * — so a phrase found three pages on comes back with rectangles and gets selected, with the
+     * colour row anchored off the page. Measured, both routes behave that way. Which page the
+     * reader lands on is `?at=`'s answer, not this one's, so nothing here overrides it.
+     */
+    function placeSelection(renderer: Renderer, cfi: string, handles: boolean): void {
+      const facts = renderer.rangeFactsFor(cfi);
+      if (facts === undefined || facts.rects.length === 0) {
+        console.warn(`?select=: ${cfi} names nothing in the section on screen`);
+        return;
+      }
+
+      // **Whichever route is asked for is forced on**, rather than only the native one. The two
+      // are chosen by pointer type, and neither answer is the one this address wants: on a fine
+      // pointer the drawn route would lay our wash over a document the browser can still select
+      // natively, and the reader's next drag would paint a second selection under the first —
+      // the "book selecting two ways at once" `notePointer` exists to prevent.
+      ownSelectionRef.current = handles;
+      renderer.setNativeSelection(!handles);
+
+      if (handles) {
+        // The one entry the reader's own long press goes through, so what is on screen is what a
+        // finger produces — the collapse of 〈找〉, both coordinate systems, the handles.
+        showRange(facts, false);
+        return;
+      }
+
+      renderer.selectRange(cfi);
+    }
 
     /**
      * Carries out one thing the gesture machine asked for.
@@ -1239,6 +1355,9 @@ export default function Reader({
       // The last percentage we knew, so a `relocate` arriving before the index is built does
       // not overwrite a real reading position with 0.
       let lastPercentage = saved?.percentage ?? 0;
+      // The position the last `relocate` reported, so the next one can be asked whether anything
+      // actually moved. See the note in that handler.
+      let lastCfi: string | undefined;
       // And it is where this sitting starts from: the reader carries on from where they
       // stopped, so the ground covered is measured from there rather than from the first
       // fraction the index happens to report — which may not arrive until several pages in.
@@ -1307,7 +1426,7 @@ export default function Reader({
         // An address beats the saved position, and only for this layout: `positionRef` above
         // still holds where the reader actually was, so the sitting and the next pull are
         // measured against that and not against where they looked.
-        ...startFor(openAt, saved?.cfi),
+        ...startFor(openAt, saved?.cfi, book.readingOrder.length),
         on: {
           load: (event) => {
             setVerticalBook(event.writingMode === "vertical-rl");
@@ -1325,7 +1444,23 @@ export default function Reader({
             //
             // Only ours: a browser-drawn selection is frond's to report on, and it says so
             // itself through `selection` when the page it was on goes.
-            setSelection((now) => (now?.drawn ? null : now));
+            //
+            // ⚠️ **Only when the position really changed**, because one `relocate` reports no
+            // movement at all: frond emits a second one the moment the whole-book index is
+            // built, same section and same CFI, differing only in that the fraction has stopped
+            // being `undefined`. Clearing on that one took the selection away from `?select=`
+            // for `?at=chars:` and left it alone for `?at=frac:` — the same address either
+            // keeping or losing its selection depending on which spelling asked for the page,
+            // because `frac:` waits for that index and so has already had its no-op relocate by
+            // the time the passage is selected.
+            //
+            // The CFI is the position; frond never repeats a signature, so a changed CFI is a
+            // real move. What this gives up is a reflow that rebuilt the page around the same
+            // first character — the wash would stay put with rectangles measured before it, and
+            // nothing recomputes them (the `geometry` effect covers painted marks only). Visible
+            // rather than silent, and far rarer than the case it fixes.
+            if (at.cfi !== lastCfi) setSelection((now) => (now?.drawn ? null : now));
+            lastCfi = at.cfi;
             const percentage = at.fraction ?? lastPercentage;
             lastPercentage = percentage;
             setFraction(percentage);
@@ -1479,6 +1614,12 @@ export default function Reader({
         await attached.goToFraction(openAt.fraction);
       }
       if (cancelled) return;
+
+      // **After the jumps, not with them.** A selection is geometry, and `showRange` drops a
+      // range with no rectangles — until the two jumps above have landed, the passage is not on
+      // the page in front of anyone and both routes would come back empty.
+      if (select) applySelect(attached, select, handles === true);
+
       // The address has been spent. Read by `tests/browser/support/library.ts`, which otherwise
       // has no way to tell a book that opened where it was asked from one still on its way
       // there — the two jumps above land after the first layout has already settled.
@@ -1544,10 +1685,12 @@ export default function Reader({
         scheduleSync();
       }
     };
-    // ⚠️ **`openAt` is deliberately not a dependency either, and that is what "read once" means.**
-    // It changes while the book stays open — jumping to a note's source moves the address to the
-    // passage — so depending on it would re-open the book onto the last note the reader looked
-    // at, every time they looked at one. The linter asks for it; the answer is no.
+    // ⚠️ **`openAt`, `select` and `handles` are deliberately not dependencies either, and that is
+    // what "read once" means.**
+    // `openAt` changes while the book stays open — jumping to a note's source moves the address
+    // to the passage — so depending on it would re-open the book onto the last note the reader
+    // looked at, every time they looked at one. The other two are carried out once as the book
+    // opens and never again. The linter asks for all three; the answer is no.
     //
     // `t` is deliberately not a dependency. What it feeds is an error message stored in state,
     // and re-running this to refresh that wording would re-open the book — a reader who changed
@@ -1994,8 +2137,9 @@ export default function Reader({
     <div
       className="reader"
       data-indexed={indexed}
-      // Absent unless the address asked for a place, and `true` once the book is at it.
-      data-at={openAt ? (arrived ? "arrived" : "opening") : undefined}
+      // Absent unless the address asked for something — a place, a passage to select, or both —
+      // and `arrived` once every one of them has been carried out.
+      data-at={openAt || select ? (arrived ? "arrived" : "opening") : undefined}
       data-panel={panelOpen || undefined}
     >
       {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising 〈找〉
