@@ -78,11 +78,16 @@ export function bookCards(page: Page) {
  * contents panel, still has to turn and still has to tap — those are what `navigation.spec.ts`
  * is guarding, and an address that skips them leaves nobody walking that path
  * (`docs/agents/testing.md`).
+ *
+ * `select` arrives with a passage already selected — a CFI or the words themselves — and
+ * `handles` asks for the drawn selection rather than the browser's (`?select=`, `?handles=1`).
+ * The same caution applies twice over: what these reach is the state *after* a selection, and
+ * `touch-selection.spec.ts` is where the press that produces one has to keep being pressed.
  */
 export async function openBook(
   page: Page,
   book: string,
-  options: { at?: string } = {},
+  options: { at?: string; select?: string; handles?: boolean } = {},
 ): Promise<void> {
   await page.goto("/");
   await page.locator('input[type="file"][accept=".epub"]').setInputFiles(book);
@@ -91,20 +96,26 @@ export async function openBook(
   const cover = page.getByTestId("book-open").first();
   await expect(cover).toBeVisible({ timeout: 30_000 });
 
-  if (options.at === undefined) {
+  const query: string[] = [];
+  if (options.at !== undefined) query.push(`at=${encodeURIComponent(options.at)}`);
+  if (options.select !== undefined) query.push(`select=${encodeURIComponent(options.select)}`);
+  if (options.handles === true) query.push("handles=1");
+
+  if (query.length === 0) {
     await cover.click();
   } else {
     // By address rather than by clicking the cover: the reader is what the address is read for,
     // and it is read once, when the book opens. Setting it afterwards would leave the book
     // already mounted and going nowhere. The id is only knowable now — the import minted it.
     const id = await page.getByTestId("book-card").first().getAttribute("data-book-id");
-    await page.goto(`/#/book/${encodeURIComponent(id ?? "")}?at=${encodeURIComponent(options.at)}`);
+    await page.goto(`/#/book/${encodeURIComponent(id ?? "")}?${query.join("&")}`);
   }
 
   await expect(page.locator(".reader")).toBeVisible();
   // A `frac:` lands two layouts after the first one: it cannot be resolved until frond has
-  // indexed the whole book. Without this the scene would be set somewhere behind the assertion.
-  if (options.at !== undefined) {
+  // indexed the whole book, and `?select=` waits for every jump before it to land. Without this
+  // the scene would be set somewhere behind the assertion.
+  if (query.length > 0) {
     await expect(page.locator('.reader[data-at="arrived"]')).toBeVisible({ timeout: 30_000 });
   }
   await settled(page);

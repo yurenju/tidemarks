@@ -7,6 +7,7 @@ import { authorizeReturnTarget } from "./lib/authorize-return";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type ReaderSettings } from "./lib/settings";
 import {
   hashFor,
+  movedTo,
   openBookId,
   parseHash,
   type At,
@@ -198,10 +199,13 @@ export default function App() {
    * itself — the page they are looking at is now one they can copy out and send. Pushing an
    * entry instead would put a back button on it that goes nowhere: the address is read when a
    * book opens, so walking back through it would move the bar and not the book.
+   *
+   * What the new screen is — and what it stops carrying — is `movedTo`'s, in `lib/route.ts`
+   * beside the parsing it has to agree with.
    */
   function replaceAt(at: At) {
     if (route.screen.kind !== "book") return;
-    const next: Route = { ...route, screen: { ...route.screen, at } };
+    const next: Route = { ...route, screen: movedTo(route.screen, at) };
     window.history.replaceState(null, "", hashFor(next));
     setRoute(next);
   }
@@ -257,7 +261,9 @@ export default function App() {
       ) : bookId ? (
         <Reader
           bookId={bookId}
-          openAt={route.screen.kind === "book" ? route.screen.at : undefined}
+          openAt={openAtFor(route.screen)}
+          select={route.screen.kind === "book" ? route.screen.select : undefined}
+          handles={route.screen.kind === "book" ? route.screen.handles : undefined}
           onAt={replaceAt}
           onClose={() => goTo({ kind: "shelf" })}
           onOpenAbout={() => openDrawer({ kind: "about", bookId })}
@@ -299,4 +305,24 @@ export default function App() {
       />
     </>
   );
+}
+
+/**
+ * Where to open the book, out of the two things the address can say about it.
+ *
+ * **A `?select=` naming a CFI is also a place**, so on its own it opens the book there. The
+ * passage has to be on screen before it can be selected, which would otherwise mean writing the
+ * same long CFI into the address twice — and the second one saying nothing the first did not.
+ *
+ * `?at=` wins when both are given: that is the only way to say "open the chapter here, select
+ * something further down it". A `?select=` naming a phrase never answers this — which section
+ * holds a phrase is not knowable without reading the book, so it needs an `?at=` of its own.
+ *
+ * This is policy rather than parsing, which is why it is not in `parseHash`: the address says
+ * two things, and that one of them implies the other is a decision about this app.
+ */
+function openAtFor(screen: Screen): At | undefined {
+  if (screen.kind !== "book") return undefined;
+  if (screen.at) return screen.at;
+  return screen.select?.kind === "cfi" ? { kind: "cfi", cfi: screen.select.cfi } : undefined;
 }

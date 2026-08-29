@@ -2,7 +2,7 @@
 // to one nobody writes any more, and that every route can be written and read back unchanged.
 // The app really moving when the hash does is packages/app/tests/browser/library/drawers.spec.ts.
 import { describe, expect, it } from "vitest";
-import { hashFor, parseHash, type Route } from "./route";
+import { hashFor, movedTo, parseHash, type Route, type Screen } from "./route";
 
 const shelf = { kind: "shelf" } as const;
 
@@ -141,12 +141,95 @@ describe("parseHash", () => {
     expect(parseHash("#/?at=frac:0.5")).toEqual({ screen: shelf, drawer: null });
   });
 
+  // `?select=` takes either spelling with no tag in front, because unlike `?at=`'s three there
+  // is nothing here to confuse: a CFI announces itself.
+  it("tells a passage to select from a phrase to select by its opening", () => {
+    expect(parseHash("#/book/abc?select=epubcfi(/6/4!/4/2,/1:0,/1:5)")).toEqual({
+      screen: {
+        kind: "book",
+        bookId: "abc",
+        select: { kind: "cfi", cfi: "epubcfi(/6/4!/4/2,/1:0,/1:5)" },
+      },
+      drawer: null,
+    });
+    expect(parseHash("#/book/abc?select=%E5%B1%B1%E8%B7%AF%E3%82%92")).toEqual({
+      screen: { kind: "book", bookId: "abc", select: { kind: "text", text: "山路を" } },
+      drawer: null,
+    });
+  });
+
+  // Nothing to select is not an error, on the same grounds as an unreadable `?at=`: the book
+  // still opens.
+  it("opens the book anyway when there is nothing to select", () => {
+    expect(parseHash("#/book/abc?select=")).toEqual({
+      screen: { kind: "book", bookId: "abc" },
+      drawer: null,
+    });
+  });
+
+  // Which of the two selection routes to put it on. Absent means the browser's own, whatever
+  // size the window is — see the note on `handles` in route.ts.
+  it("reads the handles the take-over route draws", () => {
+    expect(parseHash("#/book/abc?select=%E5%B1%B1&handles=1")).toEqual({
+      screen: {
+        kind: "book",
+        bookId: "abc",
+        select: { kind: "text", text: "山" },
+        handles: true,
+      },
+      drawer: null,
+    });
+    expect(parseHash("#/book/abc?select=%E5%B1%B1&handles=0")).toEqual({
+      screen: { kind: "book", bookId: "abc", select: { kind: "text", text: "山" } },
+      drawer: null,
+    });
+  });
+
+  // On its own it says which selection to draw for a selection nobody asked for, so it is read
+  // as nothing rather than carried around waiting for one.
+  it("ignores handles with nothing to select", () => {
+    expect(parseHash("#/book/abc?handles=1")).toEqual({
+      screen: { kind: "book", bookId: "abc" },
+      drawer: null,
+    });
+  });
+
   // `d=settings` and `d=account` were drawers until settings became a floor. They are read as
   // "no drawer" rather than redirected: a stale bookmark lands on the screen it named, which
   // for `#/?d=settings` is the shelf the reader was standing on.
   it("no longer knows the drawers that became a floor", () => {
     expect(parseHash("#/?d=settings")).toEqual({ screen: shelf, drawer: null });
     expect(parseHash("#/?d=account")).toEqual({ screen: shelf, drawer: null });
+  });
+});
+
+describe("movedTo", () => {
+  // The regression this guards is invisible on the machine that causes it and permanent once the
+  // address has been sent: a reader who opened a book with `?select=` and then jumped to a note
+  // would go on copying that selection out to everyone, on every address, for the rest of the
+  // session.
+  it("stops carrying the passage to select once the reader has moved", () => {
+    const opened: Screen = {
+      kind: "book",
+      bookId: "abc",
+      at: { kind: "chars", sectionIndex: 12, characters: 0 },
+      select: { kind: "text", text: "山路を登りながら" },
+      handles: true,
+    };
+
+    const moved = movedTo(opened, { kind: "cfi", cfi: "epubcfi(/6/4!/4/2)" });
+
+    expect(moved).toEqual({
+      kind: "book",
+      bookId: "abc",
+      at: { kind: "cfi", cfi: "epubcfi(/6/4!/4/2)" },
+    });
+    expect(hashFor({ screen: moved, drawer: null })).not.toContain("select=");
+  });
+
+  // Nowhere inside a shelf to be, so there is nothing to say about it.
+  it("leaves a screen that is not a book alone", () => {
+    expect(movedTo(shelf, { kind: "fraction", fraction: 0.5 })).toEqual(shelf);
   });
 });
 
@@ -189,10 +272,42 @@ describe("hashFor", () => {
         screen: { kind: "book", bookId: "abc", at: { kind: "fraction", fraction: 0.25 } },
         drawer: { kind: "about", bookId: "abc" },
       },
+      {
+        screen: {
+          kind: "book",
+          bookId: "abc",
+          select: { kind: "cfi", cfi: "epubcfi(/6/4!/4/2/2,/1:0,/1:5)" },
+        },
+        drawer: null,
+      },
+      // A phrase full of what a query string reserves, and one that could be mistaken for the
+      // other spelling if the test only ever used ASCII.
+      {
+        screen: { kind: "book", bookId: "abc", select: { kind: "text", text: "a=b&c d/e" } },
+        drawer: null,
+      },
+      {
+        screen: {
+          kind: "book",
+          bookId: "abc",
+          at: { kind: "chars", sectionIndex: 12, characters: 0 },
+          select: { kind: "text", text: "山路を登りながら" },
+          handles: true,
+        },
+        drawer: null,
+      },
     ];
     for (const route of routes) {
       expect(parseHash(hashFor(route))).toEqual(route);
     }
+  });
+
+  // Reading the bar throws `handles` away without a `select`, so writing one there would put a
+  // parameter in the address that says nothing and comes back as nothing.
+  it("does not write handles with nothing to select", () => {
+    expect(hashFor({ screen: { kind: "book", bookId: "abc", handles: true }, drawer: null })).toBe(
+      "#/book/abc",
+    );
   });
 
   it("writes the tab into the path", () => {
