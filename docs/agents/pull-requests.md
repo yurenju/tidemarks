@@ -100,7 +100,7 @@ code-review 是有充分理由的標準流程，不必每次再回頭問使用�
 
 ## `/code-review` 之後、push 之前，跑 `/zh-check`
 
-完整順序是 commit → `/code-review` → **`/zh-check`** → push → 開 PR → 盯 CI。
+完整順序是 commit → `/code-review` → **`/zh-check`** → rebase → push → 開 PR → 盯 CI。
 
 它檢查這次改動裡的中文：先用 `node scripts/zh-lint.ts` 抓字串，再逐段讀有沒有翻譯腔。這件事
 `/code-review` 答不出來，它看的是 code；而中文寫成什麼樣子，typecheck 與測試更是完全看不到。
@@ -115,6 +115,26 @@ node scripts/zh-lint.ts .scratch/pr-body.md
 不會進 repo；順帶一個好處是中文裡的引號、驚嘆號與反引號不會被 shell 吃掉。
 
 規則與怎麼讀報告見 [`.claude/skills/zh-check/SKILL.md`](../../.claude/skills/zh-check/SKILL.md)。
+
+## push 之前先 rebase 到最新的 main
+
+一輪工作從開分支到收尾常常隔著幾個小時，這中間 main 很可能已經被別的 PR 推進過了，而這個 repo 的
+工作又常常是一連串小 PR 在動同一塊畫面。所以 push 之前先做一次：
+
+```bash
+git fetch origin main && git rebase origin/main
+```
+
+⚠️ **要在 push 之前，不是在 CI 紅了之後。** 分支落後 main 的時候，本地全綠代表的是「在幾小時前
+那份 code 上全綠」，跟 CI 會跑的東西不是同一份。等 PR 開了才發現撞在一起，改出來的 commit 讀的人
+分不出哪些是本來要做的、哪些是收拾衝突的。
+
+⚠️ **rebase 完要把驗證重跑一次**（typecheck、`npm test`、動到 reader 就再一次 `npm run test:container`）。
+自動合起來沒有衝突不代表合起來是對的。這條規則就是這樣長出來的：筆記側欄的截斷做完的同時，另一個 PR
+也在改同一個側欄的同一批檔案，git 三個檔案都自動合上了，而要看的是合完之後那一份還會不會綠。
+
+**已經有 PR 在跑的時候不要 rebase**，改用 `git merge origin/main`：force push 會把審核留言掛在
+消失的 commit 上。這條講的是還沒 push 的那個時間點。
 
 ## 跟畫面有關的變更，要截圖並由 agent 判讀
 

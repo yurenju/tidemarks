@@ -347,7 +347,8 @@ node scripts/zh-lint.ts .scratch/pr-body.md
 
 **`/implement` 收尾就直接開 PR，不要問。** 那份 skill 自己的步驟停在「commit 到當前分支」，而 commit
 完就停下來等於把做完的工作留在一個沒有人會去看的分支上。所以收尾的完整定義是：commit →
-**跑 `/code-review`** → **跑 `/zh-check`** → push → 開 PR → 盯 CI 到綠。
+**跑 `/code-review`** → **跑 `/zh-check`** → **rebase 到最新的 main 並重跑驗證** → push → 開 PR →
+盯 CI 到綠。
 
 ⚠️ **`/code-review` 那一步最常被跳過**，因為前面每一關（typecheck、測試、lint）都綠了，看起來就像
 做完了。但那些工具答得出的是「有沒有壞」，答不出「做的是不是票上要的那件事」。**綠燈不是跳過審核的

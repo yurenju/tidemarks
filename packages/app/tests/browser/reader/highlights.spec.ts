@@ -331,6 +331,73 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
   });
 });
 
+/**
+ * What the notes panel does with a mark that is longer than the panel.
+ *
+ * A prose Chinese book rather than the vertical one the rest of this file uses: the vertical
+ * fixture is ruby-annotated, which chops its paragraphs into runs of a few characters, and this
+ * needs one continuous passage long enough to overflow three lines in a column that is at most
+ * 420px wide.
+ */
+test.describe("a mark longer than the panel", () => {
+  test.beforeEach(async ({ page }) => {
+    await openBook(page, BOOKS.emphasis);
+  });
+
+  test("its quote in the notes panel stops at three lines", async ({ page }) => {
+    // **The panel must not grow with the passage.** A mark is however much text the reader
+    // dragged over, so one paragraph-long mark used to fill the whole column and a book with
+    // six of them read as one wall of prose. The cut is in `styles/book.css`, and it is
+    // geometry — how many lines a real font puts a real paragraph on, in a column whose width
+    // comes from `--panel-width`. Nothing without a layout can answer that.
+    //
+    // The passage is taken from the page rather than from `selectVisibleText`, which returns
+    // the first run of prose it finds and would leave the length of the thing under test to
+    // chance.
+    const phrase = await readerFrame(page)
+      .locator("p")
+      .evaluateAll(
+        (ps) =>
+          ps.map((p) => (p.textContent ?? "").trim()).sort((a, b) => b.length - a.length)[0] ?? "",
+      );
+    expect(
+      phrase.length,
+      "no paragraph here is long enough to overflow three lines",
+    ).toBeGreaterThan(70);
+
+    // Reopened with it selected, because `?select=` is read when a book opens (`lib/route.ts`).
+    const bookId = new URL(page.url()).hash.slice("#/book/".length).split("?")[0];
+    await page.goto(`/#/book/${bookId}?select=${encodeURIComponent(phrase)}`);
+    await page.reload();
+    await expect(page.locator('.reader[data-at="arrived"]')).toBeVisible({ timeout: 30_000 });
+    await settled(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+
+    await openPanel(page, /Notes/);
+    // The span inside the button, which is where the clamp is: WebKit counts a button's own
+    // content as one line item and clips nothing, so a clamp on the control does nothing there.
+    const quote = page.getByTestId("panel-notes").locator(".annotation-quote-text").first();
+    const measured = await quote.evaluate((el) => ({
+      shown: el.getBoundingClientRect().height,
+      whole: el.scrollHeight,
+      line: parseFloat(getComputedStyle(el).lineHeight),
+    }));
+
+    expect(
+      measured.whole,
+      "the passage fits in three lines here, so the cut would prove nothing",
+    ).toBeGreaterThan(measured.shown + 1);
+    expect(Math.round(measured.shown / measured.line)).toBe(3);
+    // Clipped for the eye only. Asserted on the accessible name rather than on the text in the
+    // DOM, because that is the half that has to survive: a screen reader and `getByRole` alike
+    // find this mark by the passage, and clipping must not take it out of the name.
+    await expect(
+      page.getByTestId("panel-notes").getByRole("button", { name: phrase, exact: false }),
+    ).toBeVisible();
+  });
+});
+
 test.describe("a wide margin, where the page and the container part company", () => {
   // The margin is what separates the two boxes, and one column at this viewport is what makes
   // it wide: the line-length ceiling (ADR-0012) hands the leftover to the margin, and the
