@@ -588,14 +588,15 @@ const AGE_LABELS: Record<RelativeAge, MessageDescriptor> = {
 /**
  * The book the reader is in the middle of, as one row.
  *
- * **A row rather than a block, and the marked passage above it is why.** Two blocks in one
- * column read as one thing with a heading, whichever of them came first — the passage was read
- * as a note on the book beside it even when the card named a different book. Labels and rules
- * between them did not touch that, because the reading comes from the arrangement. One block
- * on the screen, and the question does not arise.
+ * **A row rather than a block**, and it now stands on its own reason rather than the card's. It
+ * became a row because the card above it was a large block and two blocks stacked in one column
+ * read as one thing with a heading — the passage was taken for a note on the book beside it even
+ * when the card named a different book. The card is a row itself now, so that argument has
+ * expired; what keeps this one a row is what it is: **one action with a book's name on it**, not
+ * a shelf of one. Whether it should go back to being a block is a question for its own change,
+ * not a side effect of the card shrinking.
  *
- * The cover stays, small: it is still the fastest way to recognise a book. What goes is the
- * size — this is one action with the book's name on it, not a shelf of one.
+ * The cover stays, small: it is still the fastest way to recognise a book.
  */
 function ReadingNow({
   book,

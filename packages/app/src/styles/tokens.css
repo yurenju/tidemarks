@@ -187,13 +187,6 @@ html[data-drawer="open"] {
   --text-on-tide: var(--paper-200);
   --danger: var(--clay-600);
 
-  /* The ink the shelf's opening quotation mark is drawn in, and it has to be its own name rather
-     than a step of text or a step of tide. It is not text — it carries no words and answers to
-     no contrast ratio — and it is not tide, because nothing about it can be pressed and the
-     tide-coloured places on a screen are meant to be countable. A blue-grey the passage reads
-     over: dark enough on the page to be seen, light enough not to be read first. */
-  --quote-ink: #9aa8b8;
-
   /* The one reversal in the app, for the one thing that sits on top of the reader's own words.
      "The opposite of the paper underneath" is the rule, so both values swap with the theme
      rather than staying dark. */
@@ -320,31 +313,6 @@ html[data-drawer="open"] {
   --type-eyebrow-tracking: 0.18em;
   --leading-text: 1.8;
   --leading-title: 1.4;
-  /* How tall the passage on the shelf's revisit card stands, counted in lines rather than set in
-     pixels — the reader can turn their browser's text up, and a card measured in pixels would
-     then hold five lines instead of seven.
-
-     **A floor as well as a ceiling**, and that is the point of it: the card shows one of five
-     passages at a time, and a card that changed height as the reader flicked would move the
-     buttons out from under their thumb. What overflows fades; pressing it reaches the whole.
-
-     Its opposite number, the answer under it, needs no token — it is a `<textarea rows={3}>`,
-     and a textarea's rows are already counted in lines of its own type. There used to be a
-     `--mark-note-lines` here, spent on a `height` calculation that also had to add the sheet's
-     padding and its two hairlines back in by hand.
-
-     Five, and the number is the phone's. The quote block alone is `5 × 1.8 × --type-body`,
-     which is 9.6rem on a coarse pointer; at seven it is 13.4rem, and the card then pushes
-     〈正在讀〉 — the one action on the screen — off the bottom of a phone's first screen. That
-     costs more than the two lines are worth.
-
-     ⚠️ **Five does cut a long poem**, and that is the real price of it: seven would have held
-     the longest ones whole, and a poem short of its last line is not a shorter poem. It is
-     paid because pressing the quote opens the book at that passage, so the whole of it is one
-     press away — and because a card tall enough to hide the rest of the shelf is a worse thing
-     to have on the screen every day. Prose loses its tail and keeps its opening, which is the
-     half doing the work here: the card is a way back into the book, not the book. */
-  --mark-quote-lines: 5;
 
   /* **How wide anything the reader reads is allowed to run on the shelf**, which is a different
      question from how wide the shelf is (`.library` in `library.css`, and 1440). This is the
@@ -495,9 +463,6 @@ html[data-drawer="open"] {
      is still the further step from the page, which here means lighter rather than darker. */
   --tide: #7ea6ce;
   --tide-pressed: #9fbfe0;
-  /* Darker than the page's text here rather than lighter, which is the same move as the light
-     theme's: the mark sits *under* the passage in the reading order either way. */
-  --quote-ink: #4a6478;
   --text-on-tide: var(--night-800);
   --surface-inverse: var(--bone-100);
   --text-on-inverse: var(--night-800);
