@@ -611,8 +611,43 @@ const CSS = `
   font-size: var(--type-eyebrow);
   color: var(--text-muted);
 }
-.proto-head .proto-book { font-weight: 600; color: var(--text-body); }
+/* **The one thing on the row allowed to run out of room**, and the only one that shrinks: its
+   length is the book's, not ours. Everything else keeps its whole word or leaves entirely (below).
+   Without this a long title pushed the age onto a second line and the row stopped being a row. */
+.proto-head .proto-book {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-body);
+}
 .proto-head .proto-dot { color: var(--text-faint); }
+.proto-head > span:not(.proto-book) { white-space: nowrap; flex: none; }
+
+/* **What goes first when the row runs short, in the order it is worth losing.**
+   ⚠️ The two survivors are the title and the draw, and that is the whole rule: the title is what
+   tells a reader whose words these are, and the draw is the only thing here anyone presses.
+
+   Dropped rather than wrapped. A row that wraps is two rows, and this one exists to be a single
+   band of housekeeping above the reading — three lines of grey label over a two-line passage is
+   the card growing back the height these variants were made to give up.
+
+   Both are recoverable: the label repeats on every card, so it is learnt once and then only
+   taking room, and the age is the same fact the passage's own place in the pile gives. */
+@media (max-width: 820px) {
+  .proto-label,
+  .proto-label-rule {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  /* Everything but the book and the draw. */
+  .proto-head > span:not(.proto-book) {
+    display: none;
+  }
+}
 
 /* **The label, told apart from the title three ways at once** — case and tracking, weight and
    colour, and a rule between them. Any one alone is a difference that has to be explained; three
