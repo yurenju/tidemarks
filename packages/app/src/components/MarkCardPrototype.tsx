@@ -350,9 +350,28 @@ interface Dials {
   quoteLines: number;
   noteLines: number;
   coverCentred: boolean;
+  /**
+   * Where the line naming the book stands.
+   *
+   * `foot` is where it began — under the reading, flush left. It is the one the note's indent
+   * argues with: the note is stepped in behind its rule and the credit is not, so two things that
+   * both start "at the left" start in different places, a few pixels apart.
+   *
+   * `head` puts it above the passage, where nothing is indented yet. `footEnd` keeps it under the
+   * reading but sends it to the far end behind an em dash — the shape an attribution has under a
+   * quotation, which is what makes the dash carry its meaning rather than decorate.
+   */
+  source: "foot" | "head" | "footEnd";
 }
 
-const DIAL_DEFAULTS: Dials = { quoteLines: 3, noteLines: 2, coverCentred: false };
+// What the reading of these settled on: two lines of the passage, one of the note, the cover level
+// with the middle rather than the head.
+const DIAL_DEFAULTS: Dials = {
+  quoteLines: 2,
+  noteLines: 1,
+  coverCentred: true,
+  source: "foot",
+};
 const DIALS_KEY = "proto-dials";
 
 function loadDials(): Dials {
@@ -373,6 +392,10 @@ function applyDials(dials: Dials) {
   // Zero lines has to be its own switch: -webkit-line-clamp: 0 is not "no lines", it is ignored,
   // and the note would come back at full height.
   root.style.setProperty("--proto-note-display", dials.noteLines === 0 ? "none" : "-webkit-box");
+  // An attribute rather than a custom property, because this one changes three things at once —
+  // which end of the column, which side, and whether a dash leads it — and a rule that names the
+  // arrangement reads better than three variables that have to be set consistently.
+  root.dataset.protoSource = dials.source;
   try {
     window.localStorage.setItem(DIALS_KEY, JSON.stringify(dials));
   } catch {
@@ -439,6 +462,17 @@ export function PrototypeSwitcher({ variant }: { variant: Variant }) {
               onChange={(e) => turn({ coverCentred: e.target.checked })}
             />
             Cover centred against the reading
+          </label>
+          <label>
+            Source line
+            <select
+              value={dials.source}
+              onChange={(e) => turn({ source: e.target.value as Dials["source"] })}
+            >
+              <option value="foot">Under the reading, left</option>
+              <option value="head">Above the passage, left</option>
+              <option value="footEnd">Under the reading, right — with a dash</option>
+            </select>
           </label>
           <button className="proto-dial-reset" onClick={() => setDials(DIAL_DEFAULTS)}>
             Reset
@@ -535,6 +569,31 @@ const CSS = `
 }
 .proto-card-hug .proto-column { width: auto; }
 .proto-card-hug .proto-measure { justify-content: start; }
+
+/* **Where the book's name stands.** The column has to be a flex column for any of this: moving the
+   credit above the passage is an order change, and order only exists between flex items. */
+/* ⚠️ Items stay stretched — no align-items here. B's own row leans on the credit being full
+   width — the "5 marked →" at the end of it is placed with an auto start margin, and a credit
+   shrunk to its text has no room for that margin to fill. The one arrangement that needs a narrow
+   credit asks for it on the item, below. */
+.proto-column {
+  display: flex;
+  flex-direction: column;
+}
+:root[data-proto-source="head"] .proto-meta {
+  order: -1;
+  margin: 0 0 var(--space-3);
+}
+/* At the far end, behind an em dash — the shape an attribution takes under a quotation. The dash
+   is content rather than a character in the markup because it belongs to this arrangement only:
+   under the reading at the left it would read as a stray rule. */
+:root[data-proto-source="footEnd"] .proto-meta {
+  align-self: flex-end;
+}
+:root[data-proto-source="footEnd"] .proto-meta::before {
+  content: "—";
+  color: var(--text-faint);
+}
 
 /* Pinned to the card's corner, because the passage above it changes height on every draw and this
    is the control a reader presses again and again. Quiet until pointed at: it is an offer. */
@@ -773,6 +832,16 @@ const SWITCHER_CSS = `
 }
 .proto-dials b { text-align: end; font-weight: 600; }
 .proto-dials input[type="range"] { width: 100%; accent-color: #7aa2d6; }
+.proto-dials select {
+  grid-column: 2 / -1;
+  padding: 3px 6px;
+  color: inherit;
+  background: rgba(255,255,255,0.12);
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+}
+.proto-dials select option { color: #14171c; }
 .proto-dial-check { grid-template-columns: auto 1fr; }
 .proto-dial-reset {
   align-self: flex-end;
