@@ -444,10 +444,14 @@ function MarkCard({
             saved position cannot do: that is where they stopped reading, not where this is. */}
         <button
           className="mark-reading"
-          data-testid="mark-quote"
+          data-testid="mark-reading"
           onClick={() => onOpenPassage(mark.bookId, mark.cfiRange)}
         >
-          <span className="mark-quote" style={{ maxWidth: `${quoteCeiling}em` }}>
+          <span
+            className="mark-quote"
+            data-testid="mark-quote"
+            style={{ maxWidth: `${quoteCeiling}em` }}
+          >
             {text}
           </span>
           {/* The reader's own words, behind a rule rather than behind a label: the indent is what
