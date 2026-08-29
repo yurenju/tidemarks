@@ -311,6 +311,21 @@ test("the head row sheds its label for a long title and keeps it for a short one
   expect(seen.get("短")).toBe(true);
   expect(seen.get("原子習慣：細微改變帶來巨大成就的實證法則")).toBe(false);
 
+  // ⚠️ **The hairline goes with the word it separates.** The label is two elements, and dropping
+  // them one at a time left the rule standing against the edge of the card with nothing to its
+  // left, which reads as a mistake rather than as an arrangement.
+  //
+  // Drawn to rather than asserted where the loop happened to stop: which of the two the card
+  // opens on is chance, and an assertion about the long title has to be made while the long
+  // title is the one showing.
+  await expect(async () => {
+    if ((await page.getByTestId("mark-book").textContent()) === "短") await another(page).click();
+    await expect(page.getByTestId("mark-book")).toHaveText(
+      "原子習慣：細微改變帶來巨大成就的實證法則",
+    );
+  }).toPass();
+  await expect(card(page).locator(".mark-label-rule")).toBeHidden();
+
   // ⚠️ **And the row is still a row.** Dropping is only worth doing if the alternative was worse:
   // a row that wrapped would keep every part and cost the card a line of height instead.
   const lines = await card(page)

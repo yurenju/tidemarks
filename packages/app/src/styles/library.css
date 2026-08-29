@@ -111,11 +111,11 @@
    comes out narrower than the passage and sits inside it. The room that ceiling leaves is what
    the cover stands in. */
 .mark-card {
-  display: grid;
-  /* Two tracks, and no third: nothing stands on the far side of the reading, and an empty track
-     would still cost its gap — the frame then encloses a margin on one side only, and the card
-     reads as though it had been pushed. */
-  grid-template-columns: minmax(0, max-content) auto;
+  /* **Flex rather than a grid of two tracks**, because the cover is not always there: a book with
+     no cover of its own renders nothing at all, and a track that stays behind costs its gap — the
+     frame then encloses a margin on one side only, and the card reads as though it had been
+     pushed. A flex row simply has one child fewer. */
+  display: flex;
   justify-content: center;
   align-items: stretch;
   gap: var(--space-5);

@@ -391,7 +391,13 @@ function MarkCard({
 
   return (
     <section className="mark-card" data-testid="mark-card" data-mark-id={mark.id}>
-      <span className="mark-cover">{coverUrl !== null && <img src={coverUrl} alt="" />}</span>
+      {/* Absent rather than empty when the book has no cover of its own: a blank 64px column
+          beside the reading is a hole, and the frame closes around whatever is here. */}
+      {coverUrl !== null && (
+        <span className="mark-cover">
+          <img src={coverUrl} alt="" />
+        </span>
+      )}
       <div className="mark-column">
         {/* **One row of housekeeping, above the reading.** What this block is, which book it came
             from, how long ago, and the way to another — everything that is *about* the passage
@@ -497,20 +503,26 @@ function useFitRow(row: React.RefObject<HTMLElement | null>, redo: unknown) {
     const node = row.current;
     const title = node?.querySelector<HTMLElement>(".mark-book");
     if (!node || !title) return;
-    const optional = [...node.querySelectorAll<HTMLElement>("[data-optional]")].sort(
-      (a, b) => Number(a.dataset.optional) - Number(b.dataset.optional),
-    );
+    // ⚠️ **Grouped by rank, not one element at a time.** The label is a word *and* the hairline
+    // that separates it from the title, and dropping them one by one leaves the hairline standing
+    // with nothing to its left — a rule against the edge of the card, which reads as a mistake.
+    const ranks = new Map<string, HTMLElement[]>();
+    for (const el of node.querySelectorAll<HTMLElement>("[data-optional]")) {
+      const rank = el.dataset.optional!;
+      ranks.set(rank, [...(ranks.get(rank) ?? []), el]);
+    }
+    const groups = [...ranks.entries()].sort(([a], [b]) => Number(a) - Number(b)).map(([, g]) => g);
 
     let busy = false;
     const fit = () => {
       if (busy) return;
       busy = true;
-      for (const el of optional) el.hidden = false;
-      for (const el of optional) {
+      for (const group of groups) for (const el of group) el.hidden = false;
+      for (const group of groups) {
         // `scrollWidth > clientWidth` is the title asking for room it did not get — the ellipsis
         // itself, read off the element rather than guessed at from how long a title runs.
         if (title.scrollWidth <= title.clientWidth) break;
-        el.hidden = true;
+        for (const el of group) el.hidden = true;
       }
       requestAnimationFrame(() => {
         busy = false;
