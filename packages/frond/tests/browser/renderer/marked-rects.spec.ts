@@ -133,17 +133,23 @@ test.describe("where the ink sits inside the rectangle", () => {
     expect(heights.size).toBe(1);
   });
 
-  test("vertically, the ink is the em box and the rectangle is wider than it", async ({ page }) => {
+  test("vertically, the ink is the em box however wide the rectangle is", async ({ page }) => {
     // The wiring test for `inkAcross`, whose arithmetic is exhausted in ink.test.ts. What no
-    // pure function can show is that a real CJK face leaves this much slack in the first place:
-    // the rectangle across a vertical line is the font's ascent plus descent, a metric about
-    // the baseline direction being applied across the line. Reading it as tight — which frond
-    // did, on a measurement of a book whose first available font is a four-glyph stub — stood
-    // the mark 5px off every column.
+    // pure function can show is how wide the rectangle actually comes back, and **the three
+    // engines disagree about that** — measured on this very content at 18px:
     //
-    // The face is named rather than left to `serif`, so that the slack asserted below is a CJK
-    // face's. A Latin serif carries slack of its own and would pass this while proving nothing
-    // about the books the fault was found in.
+    // | | rectangle across the line |
+    // | --- | --- |
+    // | chromium, WebKit | 25.9 — the font's ascent plus descent |
+    // | Firefox | 18.0 — the em |
+    //
+    // So the slack this was written for exists in two engines and not the third, and the
+    // assertion has to be the em rather than the difference: frond hands back one em wherever
+    // there is room for it, and the rectangle where there is not. Asserting the slack itself
+    // passed locally on chromium and failed on Firefox in CI, which is ADR-0039's bill.
+    //
+    // The face is named rather than left to `serif` so that the rectangle is a CJK face's. A
+    // Latin serif has slack of its own and would prove nothing about the books this was found in.
     const EM = 18;
     await mount(
       page,
@@ -153,8 +159,8 @@ test.describe("where the ink sits inside the rectangle", () => {
       ),
     );
     for (const one of await marked(page)) {
-      expect(one.rect.width).toBeGreaterThan(EM);
-      expect(one.ink.width).toBeCloseTo(EM, 1);
+      expect(one.rect.width).toBeGreaterThanOrEqual(EM);
+      expect(one.ink.width).toBeCloseTo(Math.min(EM, one.rect.width), 1);
       // Centred on the rectangle, because that is where the central baseline puts the em box.
       expect(one.ink.x + one.ink.width / 2).toBeCloseTo(one.rect.x + one.rect.width / 2, 1);
       // Untouched along the line: only the axis the mark is drawn on was in question.
