@@ -12,7 +12,7 @@
  *
  *   A  — quote only. One passage, one press. No note, no writing, no controls.
  *   B  — quote plus the reader's own note. Both held to the reading ceiling, nothing beside them.
- *   B2 — the same reading, with the book in the margin it leaves and the pile in the other.
+ *   B2 — the same reading, with the book in one margin and a draw pinned in the corner.
  *   B3 — the same reading, with both margins spent on the one book it came from.
  *   C  — no passage at all: a count and the covers it came from, as a doorway.
  *
@@ -37,7 +37,7 @@ export type Variant = (typeof VARIANTS)[number];
 const NAMES: Record<Variant, string> = {
   A: "Quote only",
   B: "Quote + note, margins empty",
-  B2: "…book left, pile right",
+  B2: "…book left, draw in the corner",
   B3: "…the one book, both sides",
   C: "Doorway, no quote",
   current: "Today's card, unchanged",
@@ -154,33 +154,34 @@ function VariantB({ batch, books, onOpenPassage }: VariantProps) {
 }
 
 /**
- * B2 — the book on one side, the day's pile on the other.
+ * B2 — the book in the margin, and a way to draw another passage in the corner.
  *
- * The two margins answer two different questions, which is why they hold different things: the
- * left says *where this came from*, the right says *how much else is waiting*. Attribution moves
- * out of the line under the passage and becomes the cover, which is the fastest way anyone
- * recognises a book, and the count stops being a word at the end of a row and becomes the four
- * other spines.
+ * The margin the ceiling leaves holds the cover, which is the fastest way anyone recognises a
+ * book, so the attribution stops being a line of credits under the passage.
  *
- * ⚠️ **Both margins are decoration below the ceiling's reach.** They are hidden outright on a
- * narrow screen rather than stacked, because a cover stacked above a passage is the big card
- * coming back one row at a time.
+ * ⚠️ **The corner control is pinned to the card, not placed after the reading.** A passage is
+ * two lines or six depending on the passage, so anything that follows it lands somewhere new on
+ * every draw — and this is the one control a reader presses repeatedly. Pinned, it is in the same
+ * place before and after every press. Padding on both sides of the grid keeps the reading clear
+ * of it without pulling the centred column off centre.
  *
- * ⚠️ **Two presses, so the card is not one button.** The count in the right margin used to be a
- * word inside the same button as the passage, which meant it went where the passage goes — into
- * the book. It draws another of the day's passages onto the card instead, and a control that does
- * something else cannot be nested inside one that leaves the screen. The reading and the book's
- * cover are the one press that leaves; the margin is its own.
+ * ⚠️ **Two presses, so the card is not one button.** The control used to be a word inside the
+ * same button as the passage, which meant it went where the passage goes — into the book. It
+ * draws another of the day's passages instead, and a control that does something else cannot be
+ * nested inside one that leaves the screen. The cover and the reading are the press that leaves.
+ *
+ * ⚠️ **The margin is decoration below the ceiling's reach.** It is hidden outright on a narrow
+ * screen rather than stacked, because a cover stacked above a passage is the big card coming back
+ * one row at a time. The corner control stays: it is the only thing on here that does something.
  */
 function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
   const [at, setAt] = useState(0);
   const index = Math.min(at, batch.length - 1);
   const mark = batch[index]!;
-  const rest = batch.filter((_, i) => i !== index);
 
-  // Another of today's, drawn rather than stepped to. The pile beside it is not in an order the
-  // reader can see, so "next" would be a promise the card cannot keep — and the passages are a
-  // pile to reach into, which is the same argument the shipping card makes for its own draw.
+  // Another of today's, drawn rather than stepped to. Nothing on the card says what order the
+  // five are in, so "next" would be a promise it cannot keep — and they are a pile to reach into,
+  // which is the same argument the shipping card makes for its own draw.
   const another = () => {
     const others = batch.map((_, i) => i).filter((i) => i !== index);
     if (others.length === 0) return;
@@ -209,17 +210,19 @@ function VariantB2({ batch, books, onOpenPassage }: VariantProps) {
             <span>{ageOf(mark)}</span>
           </p>
         </button>
-        <span className="proto-side proto-side-start">
-          <span className="proto-pile">
-            {rest.map((m) => (
-              <Cover key={m.id} book={books.get(m.bookId)} />
-            ))}
-          </span>
-          <button className="proto-hit-inline proto-more" onClick={another}>
-            Another of today's →
-          </button>
-        </span>
+        {/* The margin opposite the cover is left empty on purpose: what stood in it was the four
+            other covers, and a passage read beside a stack of other books is a passage read next
+            to an inbox. */}
+        <span className="proto-side" />
       </div>
+      <button
+        className="proto-corner"
+        onClick={another}
+        title="Another of today's passages"
+        aria-label="Another of today's passages"
+      >
+        ↻
+      </button>
     </section>
   );
 }
@@ -388,6 +391,7 @@ export function usePrototypeKeys(variant: Variant) {
 
 const CSS = `
 .proto-card {
+  position: relative;
   margin: var(--space-5) var(--space-4) 0;
   border: 1px solid var(--line-firm);
   border-radius: var(--radius-surface);
@@ -409,8 +413,35 @@ const CSS = `
 }
 .proto-hit:hover { background: var(--surface-page); }
 /* B2 has two presses rather than one, so the padding moves off the button and onto the grid, and
-   each button shrinks to the thing it is. */
-.proto-hit-pad { padding: var(--space-4); }
+   each button shrinks to the thing it is. The extra inline padding is the corner control's room,
+   spent on **both** sides so the reading stays centred in the card rather than in what is left of
+   it. */
+.proto-hit-pad { padding: var(--space-4) calc(var(--space-4) + 28px); }
+
+/* Pinned to the card's corner, because the passage above it changes height on every draw and this
+   is the control a reader presses again and again. Quiet until pointed at: it is an offer. */
+.proto-corner {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-end: var(--space-3);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: var(--type-ui);
+  line-height: 1;
+  color: var(--text-faint);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.proto-corner:hover {
+  color: var(--tide);
+  border-color: var(--line-hair);
+  background: var(--surface-page);
+}
 .proto-hit-inline {
   width: auto;
   padding: 0;
@@ -425,8 +456,6 @@ const CSS = `
 /* The passage says it is pressable the way the shipping card's does — a rule under the words,
    not a panel lighting up behind them. */
 .proto-hit-inline:hover .proto-quote { text-decoration: underline; text-decoration-color: var(--line-actionable); }
-/* In a column nothing is being pushed to the far end, so the row's own auto margin has to go. */
-.proto-side .proto-more { margin-inline-start: 0; }
 /* **The reading in the middle, the leftover split either side.** Both margins are \`1fr\`, so they
    are exactly the room the ceiling did not take — when the card is narrower than the ceiling they
    are zero wide and nothing has to be turned off. What stands in them is another question, and
@@ -446,7 +475,11 @@ const CSS = `
   align-items: start;
   gap: var(--space-5);
 }
-.proto-column { min-width: 0; }
+/* ⚠️ The 100% is load-bearing. A button shrink-wraps to its content even at display: block, so
+   B2's reading — which is a button — sized itself to the passage's min-content and ran 48px past
+   the padding, straight under the corner control. A CJK passage is where it showed: it has more
+   min-content width to overflow with. */
+.proto-column { min-width: 0; width: 100%; }
 .proto-side {
   display: flex;
   flex-direction: column;
@@ -460,7 +493,6 @@ const CSS = `
    belongs to the passage beside it, and pinned to the far edge it reads as a second thing. */
 .proto-side-end { align-items: flex-end; }
 .proto-side-start { align-items: flex-start; }
-.proto-pile { display: flex; }
 .proto-credit {
   font-family: var(--font-control);
   font-size: var(--type-eyebrow);
@@ -478,6 +510,9 @@ const CSS = `
 @media (max-width: 820px) {
   .proto-measure { display: block; }
   .proto-side { display: none; }
+  /* Nothing is centred down here, so the corner's room comes out of one side only — spending it
+     on both would cost 40px of a 390px passage to keep a symmetry no one can see. */
+  .proto-hit-pad { padding-inline: var(--space-4) calc(var(--space-4) + 40px); }
 }
 
 .proto-quote {
