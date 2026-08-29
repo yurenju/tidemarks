@@ -21,7 +21,7 @@ export type FontChoice = "publisher" | "sans" | "serif";
 // book. There used to be a second layer where a single book could claim four of the six for
 // itself, and the reader had to press a button to move a change up to the default — which got
 // the direction backwards, since what a reader is nearly always saying is "this is how I read"
-// rather than "this is how this book should look" (ADR-0026).
+// rather than "this is how this book should look" (ADR-0005).
 export interface ReaderSettings {
   theme: Theme;
   /** 'publisher' keeps the book's own fonts; sans/serif resolve to a CJK stack per book language */
@@ -314,7 +314,7 @@ export function readRootFontSize(): number {
   return Number.isFinite(px) && px > 0 ? px : BROWSER_DEFAULT_PX;
 }
 
-/** One per device, all six settings, every book, never synced (ADR-0026 for the sync half). */
+/** One per device, all six settings, every book, never synced (ADR-0005 for the sync half). */
 export function loadSettings(): ReaderSettings {
   try {
     const raw = localStorage.getItem(KEY);
@@ -373,7 +373,7 @@ export function saveSettings(settings: ReaderSettings) {
  *
  * Sent anyway, and the reason is the first paragraph rather than the second: **two themes under
  * one rule is worth more than those boxes.** A reader picking a theme is saying how they read,
- * not how this book should look (ADR-0026); the dark theme has paid this since frond ADR-0014;
+ * not how this book should look (ADR-0005); the dark theme has paid this since frond ADR-0014;
  * and the sample is 25 books, not the world — the day one arrives with a paper of its own,
  * light mode already handles it.
  *

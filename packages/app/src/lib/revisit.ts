@@ -8,7 +8,7 @@
  * **One a day, drawn at random, held until tomorrow.** The holding is the part that does the
  * work: a reader who cannot yet say why a passage stayed with them needs to meet it more than
  * once, and a card that changed every time they came back to the shelf would never give them the
- * chance. Chance is only how the passage is chosen — see ADR-0042 for why it is not chosen by
+ * chance. Chance is only how the passage is chosen — see ADR-0038 for why it is not chosen by
  * how long ago the card last showed it, and for what would have to be true to change that back.
  */
 

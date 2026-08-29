@@ -148,7 +148,7 @@
 
        `70vh` is the half that bites on a shorter phone, where the form goes back to scrolling.
        That is the right way round: a form that scrolls has lost a scroll, a panel with no book
-       above it has lost the thing it covers the page for (ADR-0026). */
+       above it has lost the thing it covers the page for (ADR-0005). */
     max-height: min(70vh, 36rem);
     height: auto;
     background: var(--surface-raised);
@@ -255,7 +255,7 @@
 
 /* ≥ 1024 — wide enough that the book can give up a column and still be a book.
    ---------------------------------------------------------------------------
-   **This is where the panel stops covering the page and starts standing beside it.** ADR-0026
+   **This is where the panel stops covering the page and starts standing beside it.** ADR-0005
    asks for that: 〈排版〉 applies as it is dragged, so the page has to stay visible, and a panel
    over it hides the one surface it was opened to change. What the ADR does not say — because
    until the panel took a real share of the window it never came up — is that the trade only
@@ -277,7 +277,7 @@
 
   /* The column the panel takes **from the book**. The bars gave up their right end at every
      width (`.reader[data-panel] .chrome`); this is the half that costs a repagination, and it
-     is the price ADR-0026 asks for a preview the reader can actually see.
+     is the price ADR-0005 asks for a preview the reader can actually see.
 
      **The book's share is given up in one step**, and the panel then slides across a gap that
      is already empty. `padding-right` used to be animated, and animating it meant animating

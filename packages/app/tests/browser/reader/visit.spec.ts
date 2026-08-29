@@ -156,7 +156,7 @@ test("a visit holds the reader's place, and says nothing over the book", async (
   // exist yet, so a card arriving one render later would sail past an earlier question.
   await settled(page);
 
-  // No banner (ADR-0041): the reader tapped the passage a moment ago, and nothing is at stake in
+  // No banner (ADR-0040): the reader tapped the passage a moment ago, and nothing is at stake in
   // the way it is for a position that arrived from another device. What a visit does raise is the
   // Scrubber's mark, which the test below is about.
   await expect(page.getByTestId("elsewhere")).toBeHidden();
@@ -165,7 +165,7 @@ test("a visit holds the reader's place, and says nothing over the book", async (
 
 // **〈Stay here〉 during a visit**, which is the one move in the app that carries progress
 // backwards — and the only way to reach it is for a position from another device to arrive while
-// the visit is on. The mark a visit does raise (ADR-0041) is not another way in: it carries the
+// the visit is on. The mark a visit does raise (ADR-0040) is not another way in: it carries the
 // reader forward to the progress being kept, never the progress back to the reader.
 //
 // **What is under test is which of the two rows the button reads.** During a visit they come

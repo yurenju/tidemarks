@@ -451,7 +451,7 @@
    **It covers the book, except when the window is wide enough to give it a column of its own**
    — that is the `min-width: 1024px` block, and the reason it is a block rather than the
    default is that pushing costs the book a repagination, which only pays when there is a book
-   left over (ADR-0026).
+   left over (ADR-0005).
 
    This is not the sidebar ADR-0020 removed. That one was permanent and beside the book; this
    one is 〈找〉 wearing a different shape, and a press on the page puts the whole state away. */
@@ -466,7 +466,7 @@
 
 /* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
    page 〈排版〉 is applied to — the reader dragging 字級 was watching the one surface the panel
-   exists to change, through a scrim (ADR-0026). What is left is the press target: a press
+   exists to change, through a scrim (ADR-0005). What is left is the press target: a press
    outside the panel still closes it, it just no longer says so by dimming the book.
 
    On a desk it does not even do that, **and that is true of the narrow window too, where the

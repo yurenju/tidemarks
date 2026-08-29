@@ -2,7 +2,7 @@
    ------------------------------------------------------------------------
    **Label left, control right.** The two-line arrangement this replaced was fine for four rows
    in a panel that had nothing above it worth seeing; six rows in it push the book off a
-   hand-held entirely, and the book is the preview (ADR-0026). */
+   hand-held entirely, and the book is the preview (ADR-0005). */
 .form-rows {
   display: flex;
   flex-direction: column;

@@ -7,7 +7,7 @@ import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openPanel, segment, settled } from "../support/library.js";
 
 /**
- * Typography is **one layer**: six settings, one record, every book (ADR-0026).
+ * Typography is **one layer**: six settings, one record, every book (ADR-0005).
  *
  * The claim worth a real browser is the one a unit test cannot make — that a change made inside
  * one book is still there inside the next one, across leaving the reader and coming back. That

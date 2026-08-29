@@ -1,7 +1,7 @@
 # UX 重新規劃：介面退到書後面去
 
 > **這份 spec 描述的是底下三個工作項目當時做出來的樣子，其中排版與〈設定〉那一段已經不算數了。**
-> [ADR-0026](../../adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md) 把排版收成
+> [ADR-0005](../../adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md) 把排版收成
 > 一層、把〈設定〉從抽屜改成一層樓（`#/settings/typography`、`#/settings/account` 兩個 tab），
 > 所以底下的路由表、「閱讀器留四項覆寫」、「以後每本書都這樣排」與〈裝置預設〉這個詞都已經過期。
 > 其餘各段（書架、chrome 的三個狀態、Scrubber）不受影響。
@@ -15,7 +15,7 @@
 > 輪詢卡，正在讀的那一本降成一橫排、也不再從封面牆濾掉，1280 那條兩欄的規則整段刪掉，書架
 > 改成封頂置中。「哪一本是正在讀」那一小節**照舊**，挑法沒動，動的是它長什麼樣。現在算數的
 > 是 [device-sizing/spec.md](../device-sizing/spec.md) 的〈書架〉與 `CONTEXT.md` 的〈回訪卡〉
-> （2026-08-26 從〈輪詢卡〉改名；那張卡後來縮成一個入口，見 [ADR-0042](../../adr/0042-the-revisit-card-is-a-way-in.md)）。
+> （2026-08-26 從〈輪詢卡〉改名；那張卡後來縮成一個入口，見 [ADR-0038](../../adr/0038-the-revisit-card-is-a-way-in.md)）。
 
 
 狀態：已對齊，未實作。對齊日期 2026-08-12。基準：`main`（`Library.tsx`、`Reader.tsx`、`Scrubber.tsx`、
@@ -147,13 +147,13 @@ Scrubber 跟目錄答的是同一個問題的兩種問法（「我要跳到哪�
 第一輪做出來的東西拿去對著 54 張全畫面截圖看了一遍，外加一份外部設計 handoff 的判讀。
 **只收下 handoff 裡今天還成立的部分**：它有一半建立在已經被推翻的前提上，輕觸下方三成翻頁
 （[ADR-0024](../../adr/0024-turning-a-page-is-a-swipe-and-nothing-else.md) 拿掉了 tap 翻頁）
-與「這本書的排版」（[ADR-0026](../../adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)
+與「這本書的排版」（[ADR-0005](../../adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)
 把排版收成一層）。它另外兩項提案（直排翻頁鏡射、手機 chrome 不推內文）當時就已經做完了。
 
 ### 桌機：面板改成右欄，而且推書
 
 〈排版〉的六項是即時套用的，而面板從左邊蓋住內文、外面再壓一層 scrim，等於**讀者在調的東西正好
-是被蓋住的那個**。ADR-0026 選擇把面板放在閱讀器裡的理由就是「上面留著真的書當預覽」，而實作沒有
+是被蓋住的那個**。ADR-0005 選擇把面板放在閱讀器裡的理由就是「上面留著真的書當預覽」，而實作沒有
 兌現那句話。
 
 所以：**面板變成右側一欄，書往左縮，scrim 拿掉。**

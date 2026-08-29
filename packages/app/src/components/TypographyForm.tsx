@@ -27,7 +27,7 @@ import { webFontFraction, webFontNote, type WebFontStatus } from "../lib/web-fon
  * **One component, not two that look alike.** The bug this whole change came out of was two
  * sets of controls that rendered identically and wrote to different places; keeping one copy is
  * what stops that growing back. There is only one place to write to now, so the only thing the
- * two shells differ in is what surrounds them (ADR-0026).
+ * two shells differ in is what surrounds them (ADR-0005).
  *
  * Every row is **label left, control right**, and that is why the segmented controls below are
  * sized to their options rather than stretched across the row the way the design showed them.
@@ -159,7 +159,7 @@ export default function TypographyForm({
       />
 
       {/* The only button left. The one that promoted this book's settings to every book went
-          with the layer it promoted into (ADR-0026). */}
+          with the layer it promoted into (ADR-0005). */}
       <div className="form-actions">
         <button data-testid="setting-reset" onClick={onReset} disabled={isDefault(settings)}>
           <Trans comment="Button under the typography controls. Puts all six settings back to what Tidemarks ships with. Disabled when they already are.">
@@ -203,7 +203,7 @@ const KINDS = Object.keys(KIND_LABEL) as WebFontKind[];
  * standalone carried-fonts section in 〈設定〉 that answered the same question when nothing was
  * downloading. One position, three states — not downloaded, downloading, held — so a reader
  * asking "will picking the serif cost me a 16 MB wait" looks in one spot (ADR-0014,
- * ADR-0026).
+ * ADR-0005).
  *
  * A live status wins while there is one, because it is the more specific answer. `stored` is
  * not one of those: it says exactly what the readout below already says.

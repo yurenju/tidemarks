@@ -233,7 +233,7 @@ test("one passage, with the reader's note, the same one after a reload", async (
 
   // **Held for the day.** The reader may not be able to say yet why a passage stayed with them,
   // and a card that redrew every time they came back to the shelf would never give them the
-  // chance to find out (ADR-0042).
+  // chance to find out (ADR-0038).
   await page.reload();
   await expect(passage(page)).toHaveText(LATIN);
 });

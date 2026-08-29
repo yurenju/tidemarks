@@ -1,6 +1,6 @@
 # 別家的排版設定放在哪一層
 
-查於 2026-08-17，支撐 [ADR-0026](../../adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)。
+查於 2026-08-17，支撐 [ADR-0005](../../adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)。
 
 要回答的是四題：排版設定是全域一份還是每本書一份；如果兩層，預設方向寫哪一層；直排與橫排是不是
 各存一組字級行距；主題跟排版在不在同一個選單。
@@ -42,7 +42,7 @@
   <https://github.com/koreader/koreader/wiki/Change-defaults> ／
   <https://github.com/koreader/koreader/issues/4353>
 - **Thorium Reader** 是最值得看的一家，因為它**曾經是全域，後來刻意改掉**，而且留下了理由。
-  這條反向證據在 ADR-0026 裡正面回答過。
+  這條反向證據在 ADR-0005 裡正面回答過。
   <https://github.com/edrlab/thorium-reader/discussions/3127>
 - **Readest** 的方向跟 Thorium 相反：預設全域，per-book 是逃生門，逃生門是每一節 ⋯ 選單裡的
   `Global Settings` 勾選框。官方 wiki：「by default the custom CSS settings are saved to global
@@ -68,7 +68,7 @@
 ## 直排那一題是空白地帶
 
 十三家沒有一家找得到第一手證據顯示直排與橫排各存一組字級行距。這不等於沒有人這樣做，只表示這件事
-沒有可以抄的先例，Tidemarks 得自己拿證據。回頭的條件寫在 ADR-0026。
+沒有可以抄的先例，Tidemarks 得自己拿證據。回頭的條件寫在 ADR-0005。
 
 ## 什麼時候值得重查
 

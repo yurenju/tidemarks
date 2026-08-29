@@ -165,7 +165,7 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
  *
  * Six rows have to fit without scrolling, because the page above the panel is the preview: the
  * panel covers the book rather than pushing it here, so what shows up there is the real type
- * resetting as the reader drags (ADR-0026).
+ * resetting as the reader drags (ADR-0005).
  *
  * **Measured against the reader, not against `.chrome-gap`.** The gap is the room between the
  * bars, and while a panel is open on a hand-held there are no bars — the sheet runs to the

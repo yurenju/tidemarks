@@ -1,6 +1,7 @@
 # 從 @likecoin/epub-ts 遷到 @yurenju/frond
 
-日期：2026-07-30。
+日期：2026-07-30 改寫，前一版沒有記日期。前一版〈用 epub.ts 取代 epub.js〉的決定是換一手同 API 的
+TypeScript fork 止血。
 
 離開 epub.js 的原因是一個修不好的位置 bug：`display(cfi)` 對得到正確的 section，卻把畫面定位到那個
 section 的第 0 欄，欄位偏移沒被套上，那是 epub.js 多欄分頁的老問題，而它已經沒有人在維護。中間先

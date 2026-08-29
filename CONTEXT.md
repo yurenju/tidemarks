@@ -2,13 +2,13 @@
 
 專案共用術語表。skill 產出（issue 標題、重構提案、測試名稱）都用這裡定義的詞。
 
-渲染層是 [frond](packages/frond/README.md)（見 [ADR-0003](docs/adr/0003-epub-ts-to-frond.md) 與 [ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
+渲染層是 [frond](packages/frond/README.md)（見 [ADR-0002](docs/adr/0002-epub-ts-to-frond.md) 與 [ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
 它自己有一份 CONTEXT.md 定義「頁」、「fraction」、「CFI」、「書寫模式」這些**書與版面**的詞。
 這份表只定義 Tidemarks 這一層的詞：**決策**與**介面**。兩邊詞不重複，是刻意的：一個詞只有一個擁有者。
 
 ## Tidemarks
 
-這個 app 的名字，2026-08-19 定案（[ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)）。
+這個 app 的名字，2026-08-19 定案（[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。
 敘述裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。潮痕，指潮水退去後留在岸上的那條線：
 **來來去去，而痕跡慢慢變深**。
 
@@ -24,7 +24,7 @@ hostname 是這次改名唯一不可逆的一步：**WebAuthn 的 RP ID 有 cred
 扛。apex 留給官方網站，app 住在子網域底下。
 
 **2026-08-11 以前它叫 spine，之後到 2026-08-19 叫 Folis**，兩次改名的理由與這次取名要跑的兩條
-檢查都收在 [ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)。那些日期以前寫下的 `spine`
+檢查都收在 [ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)。那些日期以前寫下的 `spine`
 與 `Folis` 就是 Tidemarks。
 
 _Avoid_: spine（**現在只指 EPUB 封裝格式裡的 `<spine>` 元素**，而 frond 連那個意思都改用
@@ -241,7 +241,7 @@ _Avoid_: 分頁、tab（那是〈設定〉這個**畫面**的東西，正好是�
 
 **桌機上推開書，手機上把底下兩層趕走。** 兩邊付的是不同的帳，換到的是同一件事：**面板底下要看得到
 真的書**。〈排版〉是即時套用的，讀者正在調的就是那一頁的長相，蓋住它等於蓋住唯一的答案
-（[ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）。
+（[ADR-0005](docs/adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)）。
 
 - **桌機**：書讓出右邊一欄，frond 跟著重新分頁。這一筆是〈目錄〉與〈筆記〉在付，開關一次頁碼就
   動一次。原本不推的理由是「問我在哪不該把我移走」，那句話對〈目錄〉還成立，對〈排版〉不成立，
@@ -358,7 +358,7 @@ _Avoid_: 進度（`progress` 是那張表的名字，但這個詞聽起來像百
 比較新的一筆」，是哪一台、甚至是不是同一台的另一個瀏覽器，它都答不出來。文案照這個事實寫。
 
 ⚠️ **畫面上那條 banner 只有這一個來源。**〈回訪模式〉曾經也會升起同一條，2026-08-28 拿掉了
-（[ADR-0041](docs/adr/0041-a-visit-is-marked-on-the-rail-not-over-the-book.md)）。文案仍然不提「別處」，理由是上面那條：
+（[ADR-0040](docs/adr/0040-a-visit-is-marked-on-the-rail-not-over-the-book.md)）。文案仍然不提「別處」，理由是上面那條：
 Tidemarks 答不出是哪一台。
 
 _Avoid_: 另一台裝置（那是猜的，見上）、衝突（兩邊都是同一個讀者的真實行為，沒有誰錯）、更新的進度
@@ -370,7 +370,7 @@ _Avoid_: 另一台裝置（那是猜的，見上）、衝突（兩邊都是同�
 的畫線，進度仍然是一百頁；在五十頁前後翻幾頁也還是一百頁。住在 `src/lib/visit.ts`，狀態只活在
 閱讀器的記憶體裡，不存進 IndexedDB、不同步、重載就沒了。
 
-⚠️ **這個模式不打斷閱讀**（[ADR-0041](docs/adr/0041-a-visit-is-marked-on-the-rail-not-over-the-book.md)）：沒有橫幅，沒有蓋住
+⚠️ **這個模式不打斷閱讀**（[ADR-0040](docs/adr/0040-a-visit-is-marked-on-the-rail-not-over-the-book.md)）：沒有橫幅，沒有蓋住
 書的東西。畫面上只有一個地方講這件事：**定位軸上一顆小記號**，站在被保留的那筆進度的位置，寫著
 `↩ 47%`。按下去回到那一頁，而回到那一頁就等於讀過了，回訪因此結束，記號跟著消失。索引還沒建好的
 那段時間記號照樣畫出來，但跟定位軸一起是灰的、按不動：那時候整本書還沒分頁，沒有地方可以跳。
@@ -416,7 +416,7 @@ _Avoid_: 造訪模式（〈回訪卡〉已經用「回訪」，一個概念一�
 ⚠️ **搜尋幫不上這件事**，因為讀者不知道要搜什麼。一條還說不出為什麼喜歡的句子，連它跟什麼有關都
 還不知道。搜尋、標籤、雙向連結全部預設「先知道自己在找什麼」，那是這個迴圈的後段；這張卡做的是前段。
 
-**它是一個入口，不是回訪發生的地方**（[ADR-0042](docs/adr/0042-the-revisit-card-is-a-way-in.md)）。
+**它是一個入口，不是回訪發生的地方**（[ADR-0038](docs/adr/0038-the-revisit-card-is-a-way-in.md)）。
 卡上是一段引文、讀者自己寫的筆記（沒寫過就沒有這一段）、上面一列小字說這是什麼、來自哪本書、多久以前
 畫的，還有一顆換一則。**按引文回到書裡那一段**；想寫東西，在那裡寫：閱讀器的〈筆記〉面板本來就能編輯，
 多按一次，換掉的是書架第一屏上一整個寫字的區塊。留一個空輸入框在書架上，等於在那一屏放了一張
@@ -446,7 +446,7 @@ _Avoid_: 輪詢卡（舊名，「輪詢」是 polling，跟這件事無關，而
 ⚠️ **這是刻意退回來的最簡單作法，而且它有一個已知的代價。** 純隨機不記得誰出現過，所以剛看過的那條
 明天被抽中的機率跟兩年沒出現的那條一樣；收藏越大，被冷落的那批越大，而畫面上不會有任何東西說有一批
 畫線從來沒被抽到過。以前的作法是照「上次出現在卡片上是什麼時候」排序再抽，量過的數字與換回去的觸發
-條件寫在 [ADR-0042](docs/adr/0042-the-revisit-card-is-a-way-in.md)。
+條件寫在 [ADR-0038](docs/adr/0038-the-revisit-card-is-a-way-in.md)。
 
 **`lastShownAt` 還在寫，只是沒有人讀。** 它是那個排序唯一需要的欄位，而一個停止寫入的欄位，等到要用的
 那天，中間那段時間是空的。它跟著畫線同步（「我看過這句了」是**讀者**的事實）；「今天是哪一條」不
@@ -603,7 +603,7 @@ _Avoid_: 螢光筆／highlighter（那是螢光黃那一類的顏色，正好是
 ## 筆記
 
 **讀者自己寫下的那一則。** 它是這個 app 的重心，閱讀體驗是基礎，筆記體驗才是要做好的那一半
-（[ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)）。筆記是一種**思考方式**，不是一個
+（[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。筆記是一種**思考方式**，不是一個
 功能：打的、講的、紙筆寫的都算，它扛的是「反覆咀嚼」這個動作。
 
 ⚠️ **這個詞現在跟程式碼對不上，而落差是具體的。** 今天筆記是 `Annotation.note`，一個掛在
@@ -621,7 +621,7 @@ _Avoid_: 標註／annotation（那是**資料結構**的名字，一則筆記是
 ## 來源
 
 **筆記是從哪裡來的那個東西。** EPUB 是第一種，不是唯一一種，文章與影片都要放得進來
-（[ADR-0029](docs/adr/0029-the-app-is-called-tidemarks.md)）。
+（[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。
 
 ⚠️ **這個詞現在完全沒有對應的程式碼。** 今天資料模型裡只有〈書〉：`Annotation`、`progress`、
 `ReadingSession` 全部綁 `bookId`，〈寄物櫃〉（R2）存的是 epub 檔。「來源」是為了讓往後討論
@@ -644,7 +644,7 @@ _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（�
 是不是一個 em 寬」，它決定行長、字型堆疊與字形變體；介面語言只決定 Tidemarks 開口說話時用哪種
 語言。一個日本讀者用日文介面讀繁體中文書是正常的一天。
 
-跟著裝置，不跟著帳號（[ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）。
+跟著裝置，不跟著帳號（[ADR-0005](docs/adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)）。
 自動從瀏覽器判斷，讀者可以在〈設定〉裡覆寫。伺服器寄的信也照這個語言走，靠請求上的
 `Accept-Language` 帶過去。
 
@@ -677,7 +677,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 ## 排版設定
 
 **六項，一層，一份**（主題、字型、欄數、字級、行距、留白），存在這台裝置上。每一本書都照它渲染，
-**調了就是每一本都調**（[ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）。
+**調了就是每一本都調**（[ADR-0005](docs/adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)）。
 
 一份設定，兩個入口，**同一個表單元件**：閱讀時是〈排版〉面板（疊在書上，上面留著真的書當預覽），
 在書架上是〈設定〉這一層樓的〈排版〉tab。兩邊各寫一份的話，它們會慢慢長出不同的選項。
@@ -686,7 +686,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 別家的做法與這個決定的來由整理在
 [docs/specs/reading-typography/prior-art.md](docs/specs/reading-typography/prior-art.md)。
 
-**直排與橫排共用同一組字級與行距。** 這是「現在不做」而不是「決定不做」，回頭的證據寫在 ADR-0026。
+**直排與橫排共用同一組字級與行距。** 這是「現在不做」而不是「決定不做」，回頭的證據寫在 ADR-0005。
 
 **欄數**有三檔：自動、單欄、雙欄。自動照〈行長〉的規則決定（切成兩欄會讓每欄不到 28 字就不切）；明確
 選了單欄或雙欄就照做，連手機上也不擋，**做不到才 disable，不好看照做**（直排 disable 是因為 frond 的
@@ -694,7 +694,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 
 **留白**是〈行長〉的下限，不是最終值：寬螢幕上真正決定版心的是行長上限，那時候調留白不會有反應。
 
-**不跨裝置同步**（見 [ADR-0026](docs/adr/0026-the-reader-adjusts-their-own-reading-not-this-book.md)）：字級回答的是
+**不跨裝置同步**（見 [ADR-0005](docs/adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)）：字級回答的是
 「這個螢幕多大、我離它多遠」，那是裝置的事。這是刻意的，不是還沒做，bookId 兩台機器對得起來，缺的不是機制。
 
 字級是**讀者瀏覽器 root 字級的百分比**，不是絕對 px（見

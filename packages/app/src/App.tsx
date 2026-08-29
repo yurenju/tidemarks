@@ -31,7 +31,7 @@ export default function App() {
    *
    * There used to be a second piece of state here holding what the open book claimed for
    * itself, and four callbacks to move values between the two layers. All of it is gone: a
-   * reader adjusting type is saying how they read, not how this book should look (ADR-0026).
+   * reader adjusting type is saying how they read, not how this book should look (ADR-0005).
    */
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
   const [systemDark, setSystemDark] = useState(

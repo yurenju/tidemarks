@@ -110,4 +110,10 @@ CJK 在這裡常常**不是可以翻譯的文字而是資料**（fixture 的日�
 
 ## 這個 package 的 ADR 自己編號
 
-`docs/adr/` 從 0001 起，跟 Tidemarks 的 `docs/adr/` **編號重疊**。引用時寫清楚是哪一邊的，而且不要重編。
+`docs/adr/` 從 0001 起，跟 Tidemarks 的 `docs/adr/` **編號重疊**。引用一律寫成 `frond ADR-0002` 這個
+形狀，指 Tidemarks 那套的時候寫 `ADR-0017` 加相對路徑。
+
+決定變了就**改寫原本那一份**，不開新編號（`docs/agents/domain.md`〈一個問題只有一份 ADR〉）。⚠️ 但
+**問題換到 Tidemarks 那一套的時候是開新的**，這裡的編號空著：ADR-0008 與 ADR-0011 就是這樣空的，
+接手它們的是 Tidemarks 的
+[ADR-0017](../../docs/adr/0017-frond-moves-in-and-stops-being-published.md)。
