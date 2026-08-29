@@ -11,6 +11,15 @@ export interface BookRecord extends BookMeta {
   cover: Blob | null;
   updatedAt: number;
   deletedAt: number | null;
+  /**
+   * What the server last said about this book having a cover, so that a null `cover` can be
+   * read as "still owed" rather than "there is none". It is the whole record that a download is
+   * outstanding — `lib/sync.ts` has why one needs to outlive the round that learned of it.
+   *
+   * Missing on a book this device imported (it holds the blob) and on rows written before the
+   * field existed, which `db.ts`'s v4 fills in by pulling them once more.
+   */
+  hasCover?: boolean;
   dirtyAt?: number;
 }
 

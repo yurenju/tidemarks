@@ -225,7 +225,6 @@ async function pull() {
   const cursor = await getSyncCursor();
   const remote = await fetchJson<PullResponse>(`/api/sync?since=${cursor}`);
 
-  const coversToFetch: string[] = [];
   const arrivedProgress: Progress[] = [];
   const markedBooks = new Set<string>();
   await db.transaction(
@@ -246,6 +245,7 @@ async function pull() {
           deletedAt: rb.deletedAt,
           file: rb.deletedAt ? null : (local?.file ?? null),
           cover: rb.deletedAt ? null : (local?.cover ?? null),
+          hasCover: !!rb.hasCover,
           // ⚠️ **Whatever the row already said, not `undefined`.** A pull sends nothing, so it
           // is in no position to declare a book's business finished — clearing dirty is the
           // push's job and the push does it. What used to be cleared here was the flag saying
@@ -258,7 +258,6 @@ async function pull() {
           // next round clears.
           dirtyAt: local?.dirtyAt,
         });
-        if (!rb.deletedAt && rb.hasCover && !local?.cover) coversToFetch.push(rb.id);
       }
       for (const rp of remote.progress) {
         const local = await db.progress.get(rp.bookId);
@@ -299,13 +298,32 @@ async function pull() {
     for (const cb of annotationListeners) cb(markedBooks);
   }
 
-  // covers are part of shelf sync (small images); epub bodies stay lazy
+  // Covers are part of shelf sync (small images); epub bodies stay lazy.
+  //
+  // **Every book still owed one, not the ones this round happened to mention.** The cursor moves
+  // below whatever happens here, so a row that arrived and failed is a row no later pull will
+  // send again; kept as a list built while reading the round, the retry it promised could never
+  // happen and the card stayed blank until something else touched the book (#120). The question
+  // the row itself answers — `hasCover` with no `cover` — is asked of the whole table instead,
+  // so a failure comes back around however it failed: a 5xx never reached the `catch` below,
+  // and now it does not have to.
+  //
+  // ponytail: no ceiling. A cover the server promises and cannot serve (its object lost, the
+  // column still set) is asked for on every round, for as long as the book is on the shelf. Give
+  // it a backoff when someone reports the requests.
+  //
+  // ponytail: a filtered Dexie collection cannot use the keys-only path, so this walks the whole
+  // books table and deserializes each record — blobs by reference, but still every row, every
+  // round. Index the field if a shelf ever gets big enough to feel it.
+  const coversToFetch = (await db.books
+    .filter((b) => !!b.hasCover && !b.cover && !b.deletedAt)
+    .primaryKeys()) as string[];
   for (const id of coversToFetch) {
     try {
       const res = await apiFetch(`/api/books/${id}/cover`);
       if (res.ok) await db.books.update(id, { cover: await res.blob() });
     } catch {
-      // cover is cosmetic; next sync retries
+      // cover is cosmetic; the row keeps saying it is owed one, so the next sync tries again
     }
   }
 

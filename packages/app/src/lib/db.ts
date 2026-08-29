@@ -68,6 +68,19 @@ db.version(3).stores({
   fonts: "key",
 });
 
+// v4: no schema change at all — the cursor goes back to the start so that every book row is
+// pulled once more.
+//
+// `BookRecord.hasCover` is what those rows are wanted for. It is the record of a cover this
+// device is owed, and a book already sitting with the empty card of #120 is precisely a book
+// whose row no pull will send again — so without one round from the beginning, the fix would
+// only ever cover failures that happen from here on, and the shelves it was written for would
+// stay as they are.
+//
+// The re-pull costs one round of rows this device already agrees with. Every write a pull makes
+// is a merge against what is here (`lib/merge.ts`), so arriving twice changes nothing.
+db.version(4).upgrade((tx) => tx.table("meta").delete("syncCursor"));
+
 export async function getSyncCursor(): Promise<number> {
   const stored = (await db.meta.get("syncCursor"))?.value;
   return typeof stored === "number" ? stored : 0;
