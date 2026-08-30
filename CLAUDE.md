@@ -129,10 +129,14 @@ custom property。**新增樣式檔就要加進清單**，不然它既不進 bun
 | | 語言 |
 | --- | --- |
 | 程式碼檔（`.ts` `.tsx` `.css` `.html` `.mjs`、`.json` / `.jsonc` / `.yml`、`Dockerfile`、`.gitignore`、`.dockerignore`） | **英文** |
-| `README.md`（含 `packages/*/README.md`） | **英文** |
+| `README.md`（含 `packages/*/README.md`）、`LICENSE`、`THIRD-PARTY-NOTICES.md` | **英文** |
 | 文件（`docs/`、`packages/*/docs/`、`CONTEXT.md`、`CLAUDE.md`、`README.zh-TW.md`、`.scratch/`、GitHub issue／PR 內文） | 中文 |
 
 （`docs/specs/` 是 `docs/` 的一部分，也是中文。`.scratch/` 不進版控，語言一樣照這條。）
+
+**`docs/` 底下沒有英文文件**，一份都沒有。`LICENSE` 與 `THIRD-PARTY-NOTICES.md` 是英文，但理由跟
+README 不同：授權條款的中文譯本沒有法律效力，出處要照原文抄。**這兩份不要翻**。決定與理由見
+[ADR-0045](docs/adr/0045-documents-speak-chinese-and-code-speaks-english.md)。
 
 根目錄的 `README.zh-TW.md` 是 `README.md` 的中文版，兩份是同一份內容的兩個語言。**改了一邊就要改
 另一邊**。只更新一邊會留下一份看起來還算數、其實已經過期的說明，那比沒有更糟。（這條只管根目錄
@@ -144,6 +148,21 @@ custom property。**新增樣式檔就要加進清單**，不然它既不進 bun
 
 翻的時候是**重寫成英文**，不是逐字換。這個 repo 的註解在解釋「為什麼」，直譯出來
 的英文通常兩邊都讀不順。
+
+### 詞彙表的專名，兩種語言各一個記號
+
+`CONTEXT.md` 的每個詞條有中英文兩半（`### 手勢 / Gesture`），**英文那半就是程式碼裡的那個名字**。
+引用它們的時候記號跟著語言走：
+
+| 寫在哪 | 怎麼寫 |
+| --- | --- |
+| 中文文件、issue、PR | `〈手勢〉` |
+| 程式碼的註解與識別字 | `[[Gesture]]` |
+
+⚠️ **英文的註解裡不要出現 `〈…〉`**，那是這條界線最常破的地方：句子是英文的，中間夾一個中文詞。
+要指某個概念就用 `[[…]]` 加英文名；詞彙表裡沒有的概念，就先去詞彙表補一條。
+
+改識別字的時候**詞彙表的英文名要跟著改**，它不是翻譯，是同一個名字。
 
 ### 例外：中文是資料，或中文本身就是答案的時候
 
@@ -164,14 +183,20 @@ custom property。**新增樣式檔就要加進清單**，不然它既不進 bun
 換成 "vertical books start at the right" 完全成立，該翻；`chinese.ts` 的
 `书→書` 對照表換掉就沒有東西可測了。
 
-### 一次只改手上那個檔案
+### 界線已經掃乾淨了，所以有腳本在守
 
-**不做一次性全 repo 掃描**。規則是：編輯某個檔案時，發現它屬於上表「該用英文」那
-一類卻寫著中文，就順手把**那個檔案**轉掉。沒動到的檔案不用去找、不用列清單追進度。
-這是刻意選的節奏，避免一大包純翻譯的 diff 蓋掉真正的變更。
+2026-08-30 掃過一輪，程式碼檔裡的中文只剩上面那幾類資料
+（[ADR-0045](docs/adr/0045-documents-speak-chinese-and-code-speaks-english.md)）。**沒有「還沒輪到
+的檔案」這回事**，所以看到程式碼檔裡有中文註解，那是剛被寫壞的，不是還沒轉的。
 
-翻譯超過幾行的時候，**跟功能變更分成兩個 commit**，讓真正的改動在 diff 裡還讀得
-出來。
+守著它的是 `scripts/check-language.ts`，`npm run lint` 會跑，CI 也是。它掃程式碼檔裡的中日文字元，
+豁免清單寫在 `scripts/language-scan.ts` 裡。
+
+⚠️ **豁免是整個檔案的**，所以被豁免的檔案裡寫了中文註解，腳本抓不到（`toc.test.ts` 就同時有中文
+fixture 與英文測試名稱）。**清單維持在十幾個檔案的規模**，要往裡面加檔案之前先確認那個檔案真的整份
+都是資料；它開始變長就是規則在鬆掉。
+
+翻譯超過幾行的時候，**跟功能變更分成兩個 commit**，讓真正的改動在 diff 裡還讀得出來。
 
 ## Agent skills
 
