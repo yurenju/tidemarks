@@ -10,8 +10,11 @@
 渲染層是 [frond](packages/frond/README.md)（見 [ADR-0002](docs/adr/0002-epub-ts-to-frond.md) 與 [ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
 它自己有一份 CONTEXT.md 定義「頁」、「fraction」、「CFI」、「書寫模式」這些**書與版面**的詞。
 這份表只定義 Tidemarks 這一層的詞：**決策**與**介面**。兩邊詞不重複，是刻意的：一個詞只有一個擁有者。
+唯一的例外是〈自帶字型 / Carried font〉，兩邊各講同一件事的一端，理由寫在 frond 那份的條目裡。
 
-## Tidemarks
+## 名字 / The name
+
+### Tidemarks
 
 這個 app 的名字，2026-08-19 定案（[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。
 敘述裡寫 `Tidemarks`，識別字、套件名與網域寫 `tidemarks`。潮痕，指潮水退去後留在岸上的那條線：
@@ -36,7 +39,9 @@ _Avoid_: spine（**現在只指 EPUB 封裝格式裡的 `<spine>` 元素**，而
 `readingOrder`）、Spine、Folis（都是舊名字，寫下來的時候一定是在講改名這件事本身）、
 Tidemark 單數（複數是刻意的，指的是累積的那些痕跡，不是那個現象）
 
-## 手勢 / Gesture
+## 讀者的動作 / What the reader does
+
+### 手勢 / Gesture
 
 讀者在書上做的每一個動作**代表什麼意思**，以及那些意思互相牴觸的時候誰贏。住在
 `packages/app/src/lib/gesture.ts`，`createGestureMachine(nav, opts)` 造出來，`.send(event)` 吃事件、
@@ -92,7 +97,7 @@ Tidemark 單數（複數是刻意的，指的是累積的那些痕跡，不是�
 
 _Avoid_: 按壓（裝不下方向鍵與頁鈕，而它們也走這台狀態機）、`Pager`／`RenditionPort`（都不存在了）
 
-## Navigator
+### Navigator
 
 擁有「這本書哪一邊是下一頁」，就這一件事。三個成員（`onSide`／`dragTowards`／`edgeFor`）共用一份
 `rtl`，因為一本書把其中一個反轉了、另一個沒有，下一頁就會從它正要離開的那一邊滑進來。
@@ -113,7 +118,7 @@ _Avoid_: 按壓（裝不下方向鍵與頁鈕，而它們也走這台狀態機�
   上跟 `dragTowards` 對應的那一半，而它**要看書的方向**，沒有手指可以問，就只剩書可以問。
 - **section 邊界穿越已經不在它身上**：frond 的 `next()`／`previous()` 自己走到隔壁 section。
 
-## 翻頁方向 / Turn direction
+### 翻頁方向 / Turn direction
 
 哪一邊是「下一頁」。**是整本書的性質，不是某一節的**，來自 package document 的
 `page-progression-direction`（`rtl` 就是右開本，left = next）。書沒宣告時（EPUB 2 根本沒這個屬性）
@@ -128,7 +133,9 @@ fallback 只認直排、不認橫排，也是同一件事的延伸：第一個�
 
 _Avoid_: 直排＝右開（大多數直排書是右開，但那是兩個獨立的事實）
 
-## 紙／墨／潮 / Paper, Ink, Tide
+## 材質 / Materials
+
+### 紙／墨／潮 / Paper, Ink, Tide
 
 Tidemarks 視覺上的三個**材質**，是所有視覺判斷的根據（[ADR-0022](docs/adr/0022-the-interface-is-a-print-shop.md)，
 規則的展開在 [docs/design-system.md](docs/design-system.md)）。
@@ -150,7 +157,9 @@ _Avoid_: 主題色／theme color（那是一個可以換的變數，而潮是一
 品牌色（Tidemarks 的品牌是那三個材質加襯線，不是一個色票）、卡片（「卡」在這裡是紙的一種，
 不是 Material 那一套的元件）、藍色（畫面上有三個藍，講「藍色」等於沒有指定哪一個）
 
-## chrome
+## 介面的結構 / How the interface is built
+
+### chrome
 
 閱讀時**不常駐**的那一整組介面：頂列（回書架、書名、目錄、筆記、排版、詳情）與底列（章節、
 Scrubber）。它不是一塊面板，是一個**狀態**。閱讀器同一時間只成立三個狀態的其中一個，每一層的出現
@@ -226,7 +235,7 @@ Chrome for Android 也會出現，所以**瀏覽器一律寫全名**，單獨的
 
 _Avoid_: 工具列（那是〈標〉狀態那一條，不是整組）、HUD、overlay（太籠統，目錄與筆記本來就是浮層）
 
-## 三種面：畫面、抽屜、面板 / Surfaces: Screen, Drawer, Panel
+### 三種面：畫面、抽屜、面板 / Surfaces: Screen, Drawer, Panel
 
 介面上會蓋出來的東西只有這三種，**分法是「它講的是不是底下那個東西」**：
 
@@ -241,7 +250,7 @@ _Avoid_: 工具列（那是〈標〉狀態那一條，不是整組）、HUD、ov
 所以它是一層樓；書的詳情講的就是底下那本書。這條分法也能預測下一個東西該去哪，那是舊那條做
 不到的。
 
-## 抽屜 / Drawer
+### 抽屜 / Drawer
 
 **疊在當前畫面上**，講的是底下那個畫面裡的某個東西：目前只有〈書的詳情〉。它不取代底下的畫面，
 因為讀者看完就回去。
@@ -256,7 +265,7 @@ _Avoid_: 工具列（那是〈標〉狀態那一條，不是整組）、HUD、ov
 _Avoid_: 分頁、tab（那是〈設定〉這個**畫面**的東西，正好是抽屜不是的）、對話框（dialog 是實作
 長相，抽屜講的是「疊在誰上面」）、側欄（那是〈面板〉，而且它疊在**書**上面、不進 hash）
 
-## 面板 / Panel
+### 面板 / Panel
 
 閱讀器的目錄／筆記／排版三張面，**寬畫面上是右緣一整欄、窄畫面上佔滿整個畫面**（〈排版〉例外，
 見下）。同一個元件（`Panel`）的三種錨法，不是三個東西：幾套版面就是幾套 bug，而它們回答的是同一個
@@ -293,7 +302,7 @@ Android 返回鍵才關得掉它們。在那之前它們仍然是面板，只是
 _Avoid_: sidebar／側欄（指得到舊那兩個常駐的，而那正是被拿掉的東西）、sheet（那是它在手機上的
 長相，不是它的名字）、抽屜（見上）
 
-## Scrubber
+### Scrubber
 
 底部的「拖拉定位軸」：讓使用者拖或點就快速跳到全書任一位置的控制項，和 Navigator（一次翻一頁）
 互補。以 frond 的整書 fraction 為座標；拖拉中只更新預覽泡泡（章節標題＋百分比），放開才真的跳。
@@ -303,7 +312,7 @@ _Avoid_: sidebar／側欄（指得到舊那兩個常駐的，而那正是被拿�
 
 _Avoid_: 進度條、progress bar、slider、seek bar（都指同一個東西，統一叫 Scrubber）。
 
-## 唯讀進度條 / Readout
+### 唯讀進度條 / Readout
 
 **不是 Scrubber**，而且畫出來就是為了不像它。目前只有一個：字型下載那條。
 
@@ -316,7 +325,9 @@ _Avoid_: 進度條、progress bar、slider、seek bar（都指同一個東西，
 
 _Avoid_: 進度軸（那是 Scrubber）、loading bar（它報的是位元組，不是「畫面還沒好」）
 
-## 行長 / Line length
+## 書怎麼排 / How the book is set
+
+### 行長 / Line length
 
 一行放得下幾個字。**直排橫排是同一件事**：橫排的一行是欄寬，直排的一行是文字區的高度，只是落在
 不同的軸上。單位是 **em**，因為對方塊字 em 就是字數，而且讀者調字級時行會變寬、字數不變。
@@ -331,7 +342,7 @@ _Avoid_: 進度軸（那是 Scrubber）、loading bar（它報的是位元組，
 _Avoid_: 版心（那是「行長×欄數＋留白」整塊，不是一行）、行寬（橫排讀起來對，直排就錯了，直排的一行
 是垂直的）、measure（英文排版的詞，這份文件用中文）
 
-## 書寫系統 / Writing system
+### 書寫系統 / Writing system
 
 一本書的字**是不是一個 em 寬**：方塊字（中文、日文、韓文漢字）一格，拉丁一半。〈行長〉的上限靠它
 分兩個數字。
@@ -343,7 +354,7 @@ _Avoid_: 版心（那是「行長×欄數＋留白」整塊，不是一行）、
 _Avoid_: 語言（它答的不是「這本書是什麼語言」，而且會讓人拿去決定字型或〈介面語言〉，那是別的
 判斷，而且現在真的有一個那樣的東西了）、簡繁（`detectVariant` 那個，答的是另一個問題）
 
-## 自帶字型 / Carried font
+### 自帶字型 / Carried font
 
 Tidemarks 自己那一份 Noto CJK，**在這台裝置上有沒有**。讀者開了真的有漢字的書才下載，位元組存進 Dexie，
 要用的時候做成 `blob:` URL 交給 frond（見
@@ -370,7 +381,9 @@ Tidemarks 自己那一份 Noto CJK，**在這台裝置上有沒有**。讀者開
 _Avoid_: 內嵌字型（暗示跟 app shell 一起打包，而它正好相反，不進 precache）、web font（太泛，書自己
 也可能帶字型，那是書的資源不是 Tidemarks 的）
 
-## 閱讀位置 / Reading position
+## 讀到哪 / Where the reader is
+
+### 閱讀位置 / Reading position
 
 讀者在一本書裡讀到哪：一個**點**（`progress` 的 `cfi`）。它跨裝置有意義，所以它同步、走 LWW，是 server 上關於「讀到哪」的唯一答案。
 
@@ -386,7 +399,7 @@ _Avoid_: 內嵌字型（暗示跟 app shell 一起打包，而它正好相反，
 
 _Avoid_: 進度（`progress` 是那張表的名字，但這個詞聽起來像百分比，而位置的主體是 CFI）、當前頁（那是 frond 的「頁」，是範圍不是點）
 
-## 別處的位置 / Position from elsewhere
+### 別處的位置 / Position from elsewhere
 
 同一本書在別的地方寫下、而且比這台新的那一筆〈閱讀位置〉。
 
@@ -404,7 +417,9 @@ Tidemarks 答不出是哪一台。
 _Avoid_: 另一台裝置（那是猜的，見上）、衝突（兩邊都是同一個讀者的真實行為，沒有誰錯）、更新的進度
 （「更新」聽起來像該自動採用，而這整條規則就是不自動採用）
 
-## 回訪模式 / Revisit mode
+## 回訪 / Revisiting
+
+### 回訪模式 / Revisit mode
 
 **讀者回頭去看自己畫過的一段話，這段期間閱讀進度只前進、不後退。** 讀者讀到第一百頁，按了一條第五十頁
 的畫線，進度仍然是一百頁；在五十頁前後翻幾頁也還是一百頁。住在 `src/lib/visit.ts`，狀態只活在
@@ -444,7 +459,7 @@ _Avoid_: 另一台裝置（那是猜的，見上）、衝突（兩邊都是同�
 _Avoid_: 造訪模式（〈回訪卡〉已經用「回訪」，一個概念一個詞）、預覽模式（沒有「預覽」這回事，讀者
 真的在讀那一段）、鎖定進度（聽起來像讀者要自己開關的功能）
 
-## 回訪卡 / Revisit card
+### 回訪卡 / Revisit card
 
 **書架第一屏最上面那張卡，每天端出一條畫線。** 畫線本來只活在閱讀器的〈筆記〉面板裡，而那個面板一次
 只講一本書，所以在某本書畫過的句子，除非重新打開那本書，否則不會再出現在眼前。這張卡是為了讓它出現。
@@ -477,7 +492,7 @@ _Avoid_: 輪詢卡（舊名，「輪詢」是 polling，跟這件事無關，而
 考核也沒有記憶強度，那是 Anki 的語彙）、筆記牆／時間軸（那是被否掉的那個形狀）、carousel（英文詞，
 而且它沒有自動輪播）
 
-## 畫線的抽法 / Daily draw
+### 畫線的抽法 / Daily draw
 
 〈回訪卡〉今天那一條是怎麼來的：**從全部畫線裡隨機抽一條**，抽中的寫進不同步的 `meta` 表，當天不再
 改變。按「換一則」就再抽一次，唯一的保證是**不會抽到剛剛那一條**（整個書架只有一條畫線的時候除外，
@@ -494,7 +509,9 @@ _Avoid_: 輪詢卡（舊名，「輪詢」是 polling，跟這件事無關，而
 
 _Avoid_: 複習排程／SRS（沒有記憶強度、沒有評分、答錯不會更頻繁）、隊伍（沒有排隊這回事了，是抽的）
 
-## 書架 / Shelf
+## 那面牆與它的順序 / The shelf and its order
+
+### 書架 / Shelf
 
 讀者的那一面牆，也是畫面上那個詞（按鈕與空狀態都寫「書架」）。它是一個結構：**書、進度、閱讀時段、
 螢光筆**四塊，由 `src/lib/shelf.ts` 的 `shelfProjection` 從 IndexedDB 的四張表算出來，畫面上的每一樣
@@ -509,7 +526,7 @@ _Avoid_: 複習排程／SRS（沒有記憶強度、沒有評分、答錯不會�
 
 _Avoid_: 書櫃、library（畫面上那個詞是「書架」）、書單（那是要讀的清單，不是手上有的書）
 
-## 正在讀 / Reading now
+### 正在讀 / Reading now
 
 書架第一屏那一橫排的主角：**有 `progress`、而且還沒讀完的書裡，`lastReadAt` 最晚的那一本**。只讀了 1%
 也算，讀者確實停在那本書的中間。
@@ -531,7 +548,7 @@ _Avoid_: 書櫃、library（畫面上那個詞是「書架」）、書單（那�
 _Avoid_: 當前書、current book（聽起來像「開著的那一本」，而這個詞在書架上才有意義，閱讀器裡沒有第二
 本書要跟它比）
 
-## 最近碰過 / Last touched
+### 最近碰過 / Last touched
 
 書架的預設順序：`max(lastReadAt, addedAt)`，也就是**上次讀到哪一本**與**剛匯入哪一本**共用的那個時刻。
 
@@ -548,7 +565,7 @@ _Avoid_: 當前書、current book（聽起來像「開著的那一本」，而�
 _Avoid_: 最近閱讀（少掉匯入那一半，而那一半正是 max 存在的理由）、last modified（那是檔案的事）、
 書櫃（那一面牆叫**書架**，畫面上的按鈕與空狀態都這樣寫，詞彙表不該另起一個）
 
-## 書名排序 / Title order
+### 書名排序 / Title order
 
 書架按書名排時用的 collation。**綁〈介面語言〉，不綁 `navigator.language`**，介面與書架永遠是
 同一種語言。讀瀏覽器語系的話，把介面設成繁中的讀者會拿到中文介面配 Unicode 碼序的書架，兩邊都
@@ -561,7 +578,9 @@ _Avoid_: 最近閱讀（少掉匯入那一半，而那一半正是 max 存在的
 
 _Avoid_: 筆畫排序（筆畫只是繁中的答案，換個介面語言就換一種）、字母序（中文沒有）
 
-## 接管選取 / Owned selection
+## 讀者留下的東西 / What the reader leaves
+
+### 接管選取 / Owned selection
 
 觸控上，Tidemarks 自己做的 text selection，取代瀏覽器原生那一套
 （[ADR-0036](docs/adr/0036-touch-selection-is-ours-not-the-browsers.md)，實作見 issue #49）。長按
@@ -603,7 +622,7 @@ _Avoid_: 筆畫排序（筆畫只是繁中的答案，換個介面語言就換�
 
 _Avoid_: 自製選取／custom selection（都漏掉「只接管觸控、桌機留原生」這半，而那半是整個決定的重點）
 
-## Highlight layer
+### Highlight layer
 
 疊在書上面畫重點的那一層。frond 不畫 highlight（它給 `rectsFor(cfi)` 的真實幾何與 `layout` 事件），
 所以顏色、透明度、深色模式的混色、以及「點一下開筆記」都是這一層的決策（用哪四個顏色見〈螢光〉）。
@@ -616,7 +635,7 @@ _Avoid_: 自製選取／custom selection（都漏掉「只接管觸控、桌機�
 
 _Avoid_: annotation layer（`Annotation` 是資料，這是畫出來的那一層）, overlay（太籠統）
 
-## 螢光 / Mark
+### 螢光 / Mark
 
 讀者在書上留下的標記，四個**墨水色**：蓼藍 `indigo`、赭石 `ochre`、苔綠 `moss`、松煙 `soot`。
 **預設的蓼藍就是品牌記號色**，不改設定的話，讀者畫的線就是這個 app 名字的意思。
@@ -643,7 +662,7 @@ _Avoid_: annotation layer（`Annotation` 是資料，這是畫出來的那一層
 _Avoid_: 螢光筆／highlighter（那是螢光黃那一類的顏色，正好是換掉的東西）、標註（`Annotation`
 是資料，含筆記；螢光只是它畫出來的樣子）
 
-## 筆記 / Note
+### 筆記 / Note
 
 **讀者自己寫下的那一則。** 它是這個 app 的重心，閱讀體驗是基礎，筆記體驗才是要做好的那一半
 （[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。筆記是一種**思考方式**，不是一個
@@ -661,7 +680,7 @@ _Avoid_: 螢光筆／highlighter（那是螢光黃那一類的顏色，正好是
 _Avoid_: 標註／annotation（那是**資料結構**的名字，一則筆記是它的內容之一）、highlight（那是
 畫在書上的螢光，沒有字）、note（`Annotation.note` 那個欄位名保留給欄位，敘述裡寫「筆記」）
 
-## 來源 / Source
+### 來源 / Source
 
 **筆記是從哪裡來的那個東西。** EPUB 是第一種，不是唯一一種，文章與影片都要放得進來
 （[ADR-0019](docs/adr/0019-the-app-is-called-tidemarks.md)）。
@@ -679,7 +698,9 @@ id，舊的筆記與進度對不回去，**那是對的**，重新匯入本來�
 _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（沒有講出「它是被讀的東西」）、
 書（**書是來源的一種**，兩個詞不能互換）
 
-## 介面語言 / Interface language
+## 介面說哪種話 / What the interface speaks
+
+### 介面語言 / Interface language
 
 讀者選的、**Tidemarks 自己那些字**用哪一種語言。三種：英文、繁體中文、日文。
 
@@ -697,7 +718,7 @@ _Avoid_: 內容／content（太籠統，什麼都是內容）、item／entry（�
 _Avoid_: 語系、locale（太泛，聽起來還管日期與數字格式；那些是跟著介面語言走的結果，不是它本身）、
 語言（會跟書的語言混掉，那是〈書寫系統〉與 `detectVariant` 的地盤）
 
-## 詞條 / Message
+### 詞條 / Message
 
 catalog 裡的一筆。身分由**英文原文**決定，加上有寫的話的 `context`，所以改一個英文字就是換一條
 詞條，舊的變孤兒、新的沒有譯文。「翻譯過期」因此不是一種獨立的狀態，它就是「缺漏」。
@@ -710,14 +731,16 @@ Worker 的詞條是例外，它們自己取 id（`email.magicCode.subject`），
 
 _Avoid_: 字串（`.po` 以外的字串多得是）、key（英文原文就是 key，講 key 會讓人以為要另外取名字）
 
-## catalog
+### catalog
 
 一種語言的全部詞條，一個檔案（`packages/app/src/locales/<locale>.po`）。原文那一份
 （`en.po`）也是一個 catalog，只是它的譯文永遠等於自己。
 
 _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具自己的用字）
 
-## 排版設定 / Typography settings
+## 讀者調得動的東西 / What the reader can adjust
+
+### 排版設定 / Typography settings
 
 **六項，一層，一份**（主題、字型、欄數、字級、行距、留白），存在這台裝置上。每一本書都照它渲染，
 **調了就是每一本都調**（[ADR-0005](docs/adr/0005-the-reader-adjusts-their-own-reading-not-this-book.md)）。
@@ -747,7 +770,7 @@ _Avoid_: 語言檔、翻譯檔（沒有比較清楚，而且 catalog 是工具�
 _Avoid_: 全域設定（含糊，講不出「全域」的邊界其實停在這台機器上）、使用者偏好（暗示跟著人走，
 正好相反）、裝置預設與書的覆寫（設定只有一層，這兩個詞的前提不存在）
 
-## 設定 / Settings
+### 設定 / Settings
 
 一層樓（`#/settings/...`），不是抽屜，**三個 tab**，由近到遠：
 
@@ -764,7 +787,9 @@ _Avoid_: 全域設定（含糊，講不出「全域」的邊界其實停在這�
 
 _Avoid_: 偏好設定（跟〈排版設定〉的 Avoid 同一個理由）、選項、設定抽屜
 
-## 帳號 / Account
+## 帳號與伺服器 / Account and server
+
+### 帳號 / Account
 
 （決定與代價見 [ADR-0015](docs/adr/0015-an-account-is-only-as-strong-as-its-inbox.md)。）
 
@@ -783,7 +808,7 @@ _Avoid_: 驗證碼（那是 CAPTCHA 的詞）、recovery code（**要拿掉的**
 承接：passkey 全丟時的救援、換 hostname 時的搬家、收尾驗證的登入繞道）、magic link（寄的是碼不是
 連結：連結會被 email client 先點掉，碼還可以在手機上讀、在電腦上打）
 
-## 訂閱 / Subscription
+### 訂閱 / Subscription
 
 一個帳號**現在有沒有伺服器那一半**：同步與 MCP 開著沒有。〈上線〉之後付款成功才建得了帳號，所以
 帳號誕生的那一刻它一定是開著的；之後它會自己過期，而**帳號不會**。
@@ -803,7 +828,7 @@ _Avoid_: 會員（暗示等級制，而 ADR-0011 只有一個級距）、付費�
 而且訂閱停掉之後那個人還在）、`subscribeSync` 那個 subscribe（那是 sync 狀態的 observer，跟付費
 無關）
 
-## 開放註冊 / Open signup
+### 開放註冊 / Open signup
 
 註冊的閘門開著沒有。**沒開放的時候只有白名單上的 email 建得了帳號**，開放之後任何人都可以。
 
@@ -822,7 +847,7 @@ _Avoid_: 會員（暗示等級制，而 ADR-0011 只有一個級距）、付費�
 _Avoid_: 邀請制（沒有邀請碼這種東西，名單是維護者單方面加的）、註冊模式（「模式」在這份文件裡
 是書寫模式那一類）、beta（講不出這裡真正要講的事：資料還可以清）
 
-## 上線 / Launch
+### 上線 / Launch
 
 **開發階段**：現在。使用者是維護者自己，加上白名單裡那幾個人，所以**資料可以丟**，schema
 要改就改，migration 裡直接砍掉重建也算數。**但丟之前要寄信通知、並且給得出匯出**：白名單裡
@@ -848,7 +873,9 @@ _Avoid_: 部署、deploy、release、production（**這四件事都已經成立�
 翻面的是閘門的模式，不是入口的種類）、第一個非維護者的使用者（曾經是這條線的候選，但白名單
 那批人是**明知資料會被清掉**才進來的，所以他們不翻這條線）
 
-## 退路 / Exit
+## 承諾 / Promises
+
+### 退路 / Exit
 
 開源要換到的東西，兩件具體的事：**維護者收掉服務之後，讀者自己架得起來**；**維護者漲價之後，
 讀者搬得走**（見 [ADR-0009](docs/adr/0009-open-source-buys-an-exit-not-contributions.md)）。
@@ -875,7 +902,7 @@ _Avoid_: 部署、deploy、release、production（**這四件事都已經成立�
 _Avoid_: 開源（那是手段，不是要換到的東西）、可攜性（聽起來像匯出格式，而這裡講的是整套服務
 搬得走）
 
-## 寄物櫃 / Locker
+### 寄物櫃 / Locker
 
 Tidemarks 對使用者上傳的書所站的位置：**收下、保管、只還給本人**。這個詞由
 [ADR-0010](docs/adr/0010-spine-is-never-the-path-to-a-book.md) 引入，
@@ -888,7 +915,9 @@ Tidemarks 對使用者上傳的書所站的位置：**收下、保管、只還�
 _Avoid_: 網路硬碟（那一類服務有分享連結，正好是 Tidemarks 沒有的那一半）、雲端書櫃（「書櫃」暗示
 給人看，而寄物櫃的重點是只還給本人）、平台（Tidemarks 不是雙邊的，沒有第三人）
 
-## 畫面巡檢 / Screen sweep
+## 工具 / Tooling
+
+### 畫面巡檢 / Screen sweep
 
 一次走完 app **每一個畫面**、把每一張都截下來的那趟。腳本在 `packages/app/tests/sweep/`，
 `npm run shots` 跑它，圖落在 `.scratch/shots/{desktop,mobile}/`，每次覆蓋。

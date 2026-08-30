@@ -6,37 +6,37 @@ frond 是一個 TypeScript 的 EPUB 渲染函式庫，只做 EPUB，直排與橫
 
 ## 書
 
-**書 / Book**:
+### 書 / Book
 不帶修飾語的「書」指**實際流通的 EPUB**：由真實工具鏈（calibre、InDesign、Sigil）產出、真的到讀者手上的那些。這是這個專案的預設情況，所以它**不該帶修飾語**：frond 的正確性對它量，規格只是參考。
 _Avoid_: 真書, 野書（書就是書，沒有真假、也沒有野生與否。加修飾語會反過來暗示「範本書」才是預設，而那正好與現實相反）
 
-**範本書 / Model book**:
+### 範本書 / Model book
 規格假設的那本書：完全合規，每個欄位都照 spec 寫。**它是假想的**：樣本裡一本都沒有。照範本書推出來的實作會在合成 fixture 上三家全綠，然後在實際的書上壞掉，所以它在這個專案裡出現的場合幾乎都是反例（「這是範本書的形狀，不是書實際的形狀」）。
 _Avoid_: 樣本書（樣本已經指那 33 本實際的書，兩者剛好相反）, 標準書, 理想書
 
-**合成 fixture / Synthetic fixture**:
+### 合成 fixture / Synthetic fixture
 產生器寫出來的書，一個病症一個檔（ADR-0007）。它既不是書也不是範本書，它是刻意把某一種真實病症孤立出來的產物，其餘部分保持健康。
 _Avoid_: 測試書, 假書
 
-**樣本 / Survey**:
+### 樣本 / Survey
 ADR-0010 那次掃描的 **33 本繁中／簡中商業書**。文件裡凡是「常態」「例外」的判斷都以它為依據，所以引用數字時要說清楚是這一批（例如「樣本裡 31 本兩者都有」）。
 _Avoid_: 拿它泛指任意一批書
 
 ## 書的結構
 
-**readingOrder**:
+### readingOrder
 一本書的閱讀順序，即 EPUB 封裝格式中 `<spine>` 所定義的內容順序。用 W3C Publication Manifest / Readium 的正式用詞而非規格原詞，因為 `spine`（書脊）是行話，字面與「閱讀順序」的關聯只有內行人知道。
 _Avoid_: spine, 書脊
 
-**Section**:
+### Section
 readingOrder 中的單一項目，對應一份 XHTML 內容文件。frond 每個 Section 渲染在一個 iframe 內。
 _Avoid_: chapter, 章節（章節是 TOC 的概念，與 Section 不是一對一）
 
-**TOC**:
+### TOC
 書的目錄：有層次的標題與位置對照，供讀者跳章。這是**概念**，與承載它的檔案格式無關。
 _Avoid_: 目次, navigation, nav（後者是載體之一，見下）
 
-**導覽文件 / Navigation document**:
+### 導覽文件 / Navigation document
 承載 TOC 的那份檔案。EPUB 3 用 `nav.xhtml`，EPUB 2 用 `toc.ncx`，**兩者都在是常態**，優先順序與不一致時的處置見 ADR-0010。
 _Avoid_: 拿 nav 或 NCX 泛指全體（各自只是兩種載體之一）, 拿 TOC 指載體（那是概念）
 
@@ -44,15 +44,15 @@ frond 支援兩種載體，所以 TOC 與導覽文件**必須分開講**。混�
 
 ## 書寫方向
 
-**直排 / Vertical writing**:
+### 直排 / Vertical writing
 CJK 的縱向書寫（`writing-mode: vertical-rl`），字由上而下、行由右而左。frond 的直排一律**單欄**，一欄等於一個 viewer 高。
 _Avoid_: 垂直排版, vertical mode, 直書
 
-**橫排 / Horizontal writing**:
+### 橫排 / Horizontal writing
 橫向書寫（`writing-mode: horizontal-tb`）。橫排才有單欄／雙欄的選擇。
 _Avoid_: 水平排版, 橫書
 
-**頁面推進方向 / Page progression direction**:
+### 頁面推進方向 / Page progression direction
 翻頁往哪個方向前進，即 EPUB 3 的 `page-progression-direction`（`rtl` / `ltr`）。**與書寫方向是兩件事**：它宣告在封裝文件裡由 `EpubBook` 回報，書寫方向宣告在樣式表裡由 `Renderer` 回報；直排的中日文書通常是 `rtl`，但橫排的 RTL 語言也是 `rtl`。EPUB 2 沒有這個屬性，此時 frond 回報「書沒說」而不是預設值（ADR-0010）。
 _Avoid_: 拿它當直排的同義詞, 閱讀方向, ppd（縮寫只在程式碼裡用）
 
@@ -60,59 +60,59 @@ _Avoid_: 拿它當直排的同義詞, 閱讀方向, ppd（縮寫只在程式碼�
 
 三者優先順序固定為：讀者設定 > frond 修正 > 書的宣告。
 
-**書的宣告 / Book's declaration**:
+### 書的宣告 / Book's declaration
 書自己的樣式表所表達的排版意圖。預設一律尊重，書醜不是介入理由。
 
-**frond 修正 / frond's correction**:
+### frond 修正 / frond's correction
 frond 主動覆寫書的宣告。只有兩種情況成立：內容讀不到（溢出被裁、重疊、空白頁），或讀者設定被書擋住（書用 `!important` 蓋掉讀者的選擇）。每一項都登記在封閉清單裡。
 
-**讀者設定 / Reader settings**:
+### 讀者設定 / Reader settings
 讀者對呈現的顯式要求（字型、字級、行高、邊界、單欄／雙欄、主題、generic family 解析、自帶字型、字形變體、字重量化）。永遠贏過另外兩者。
 
-**版面設定 / Layout settings**:
+### 版面設定 / Layout settings
 讀者設定裡**要等版面成形才答得出來**的那兩項：邊界與欄數。其餘每一項都在文件還是字串的時候就寫進去了（降 `!important`、絕對字級換成 `rem`、補上 generic family、把書讀不到的顏色配到讀者的頁面上），而那時候還沒有文件可以讀書寫方向；這兩項是排完才套上去的，邊界是把 iframe 內縮，欄數進 frond 注入的樣式表。所以只有這兩項能由消費端在**每一次版面**當下回答（`ResolveLayout`），字級之類的要是也開放，唯一的實作方式是重建文件再排一次，而那正是消費端來用這個入口要避開的事。
 _Avoid_: 版面參數（那個詞連頁距、欄寬一起指，那些是 frond 自己算的）
 
-**generic family 解析 / Generic family resolution**:
+### generic family 解析 / Generic family resolution
 書寫 `font-family: serif` 時它**沒有指名字型**，而是把選擇委派給平台；而 CJK 之下三家瀏覽器對這個委派的答案各不相同（ADR-0004、`docs/browser-quirks.md` #4）。讀者設定可以指名這個委派要解析成什麼，補上書沒有做的那個決定，與「字型」那一項的差別是它只碰書委派出去的部分，書**指名過**的字型一律不動。沒設就不代換，平台照舊決定。
 _Avoid_: 拿它當「字型設定」的同義詞（那一項是整本覆寫）
 
-**自帶字型 / Carried font**:
+### 自帶字型 / Carried font
 消費端把字型的**位元組**交給 frond（一個絕對 URL，通常是 `blob:`），由 frond 在書的文件裡發成 `@font-face`。解決的是 generic family 解析與「字型」這兩項都解決不了的那半：它們交的是**名字**，而名字只有在那台機器裝了那個 face 時才算數。**交出位元組不等於套用**，要用在哪裡仍然由「字型」或 generic family 解析決定，所以自架書自己指名的那支字型，不必覆寫書的任何選擇。這件事消費端做不到：`@font-face` 是 per-document 的，而書在 iframe 裡（ADR-0006）。
 ⚠️ **這個詞兩份詞彙表都有**，是兩份表裡唯一重複的一個，而兩邊講的是同一件事的兩端：Tidemarks 那份講「這台裝置上有沒有那份位元組」，這裡講「位元組交進來之後 frond 拿它做什麼」。所以英文名兩邊一樣（`Carried font`），不要在任何一邊另取一個。
 _Avoid_: 自訂字型（聽起來像整本換字型）, 字型上傳
 
-**字重量化 / Font-weight quantisation**:
+### 字重量化 / Font-weight quantisation
 消費端交來兩個字重與一條界線，frond 把書自己寫的 `font-weight` 值**重述**成那兩個之一。存在的理由很窄：消費端交來的自帶字型可能是一支被兩條窄 `@font-face` 釘在兩個字重上的可變字型，而 CSS 的字重匹配在那個安排下有個缺口，使書寫的 `500` 落到內文那條、強調畫得跟內文一模一樣，**而且在宣告那一層補不起來**（機制寫在 `css.ts` 的 `quantiseFontWeights`，量測在 Tidemarks 的 `docs/specs/cjk-web-font/measurements.md` 第十二節）。三個數字都是消費端的，frond 對它們沒有意見；frond 出的是「碰得到書的宣告」這個能力，而 iframe 外面的消費端碰不到（ADR-0006）。`font` 簡寫是**追加一條長寫法**而不是重寫，所以拆不壞任何東西：讀不出來就什麼都不加。
 _Avoid_: 字重覆寫（聽起來像整本壓成一個字重）、粗體修正（它同時管內文那一半）
 
-**字形變體 / Glyph variant**:
+### 字形變體 / Glyph variant
 同一個碼位在繁體、簡體、日文、韓文的不同字形。泛 CJK 字型（Noto CJK 是常態）四套都帶在同一個檔案裡，用 `locl` 依語言切換，而觸發它的是書的 `lang`：**書宣告 `lang="zh"` 時三家都畫簡體字形**，即使那是一本繁體書。讀者設定可以指定要用哪一套（OpenType 的 `ZHT` / `ZHS` / `JAN` / `KOR`），發成 `font-language-override`，**書的 `lang` 屬性一個字都不動**（那個屬性還管斷行與螢幕閱讀器）。WebKit 不認這個屬性（`docs/browser-quirks.md`），落在那裡是失效而不是壞掉。
 _Avoid_: 語言設定（那聽起來像 UI 語言）, 簡繁轉換（那會改字，這只換字形）
 
 ## 分頁
 
-**頁 / Page**:
+### 頁 / Page
 一屏看得到的內容。**頁是版面的產物，不是書的性質**，同一本書換一個 viewport、換一個字級就是另一組頁。所以 frond 只回報「這一節共幾頁、現在第幾頁」，不回報全書頁數：那個數字看起來像書的性質，實際上會在讀者調字級時整批改變。要跨整本書的位置就用 fraction。
 _Avoid_: 螢幕, 畫面（那是裝置的概念）, 拿頁數當書的性質
 
-**分頁軸 / Pagination axis**:
+### 分頁軸 / Pagination axis
 頁往哪一條軸推進。橫排是 x、直排是 y，因為分欄的欄沿**行內軸**排列並溢出，而直排的行內軸是垂直的。這是整個分頁幾何的地基，實測見 `docs/browser-quirks.md`。
 _Avoid_: 捲動方向（同一條軸，但那個詞暗示讀者在捲動，而讀者捲不動它）
 
-**頁距 / Page pitch**:
+### 頁距 / Page pitch
 相鄰兩頁在分頁軸上的距離。**它不等於一頁的長度**，兩頁之間隔著一個欄距，而那條縫落在畫面外，讀者看不到。翻頁就是把捲動位置移動一個頁距。
 _Avoid_: 頁寬, 頁高（兩者都把它綁在某一條軸上，而它是隨書寫方向換軸的）
 
-**鄰頁面 / Adjacent view**:
+### 鄰頁面 / Adjacent view
 現在這一頁的前一頁與後一頁，各自排在自己的 iframe 裡、藏著等被拖進來（ADR-0013）。**它不是次一等的 view**：翻頁被收下時它就地變成「頁」，沒有任何重建，所以頁做得到的事它從一開始就要做得到。常駐而不是拖曳開始才建，因為拖曳開始的那一刻正好是建不起來的時候，手指已經在動了。
 _Avoid_: 預覽（那是消費端看到的效果，不是這個東西）, 快取（它不是同一份東西的副本，是另一頁）
 
-**進行中的翻頁 / Turn in progress**:
+### 進行中的翻頁 / Turn in progress
 已經開始、還沒被決定的一次翻頁：讀者的手指還按著。frond 握著兩個 view 的位移與結束時回到格線，消費端只餵「往哪一邊、移了幾 px」與「這一下算不算數」（ADR-0013）。往哪一邊算下一頁、放手的門檻、阻尼曲線都是政策，一項都不在這裡。
 _Avoid_: 手勢（frond 不消費手勢，它收下的是位移）, 動畫（收尾要不要動、動多久是消費端的事）
 
-**介入 / Intervention**:
+### 介入 / Intervention
 frond 主動覆寫書的宣告。清單是封閉的，四種理由見 ADR-0003 與 `src/renderer/interventions.ts`。**「frond 自己那一層 CSS」與「把宣告翻譯成瀏覽器認得的寫法」不算介入**，前者書從未宣告過，後者書的意圖沒有被改變。
 _Avoid_: 覆寫（那是四種理由裡其中兩種的效果，不是全體）, hack, 修正（ADR-0003 用「frond 修正」指權威順序的中間層，範圍比這個詞窄）
 
@@ -120,31 +120,31 @@ _Avoid_: 覆寫（那是四種理由裡其中兩種的效果，不是全體）, 
 
 這一組詞劃的是 ADR-0002 那條線。
 
-**事實 / Fact**:
+### 事實 / Fact
 「這本書是什麼、在這個 viewport 下是什麼樣子、現在在哪裡」：書寫方向、簡體還是繁體、頁數、目前位置的 CFI 與 fraction、某個範圍佔據的矩形、某一刻指標在容器座標的哪一點按下去了。frond 只回報事實。**有信心的推測也算事實**，只要不確定時誠實回報（`detectVariant` 沒有信號時回 `null`）。
 _Avoid_: 狀態（那個詞同時指 React 的 state 與「現在是第幾頁」，而兩者在這個 repo 裡要分得開）
 
-**政策 / Policy**:
+### 政策 / Policy
 「使用者怎麼操作它」：往左滑算下一頁還是上一頁、哪個鍵翻頁、點了書裡的連結要不要跳過去、目錄畫成側欄還是下拉。**frond 一項都不做，而且沒有任何一層擺得下**：`@yurenju/frond-react` 收掉之後，「要 import 才生效的預設政策」這個落點不存在了（ADR-0002）。政策全部在消費端。
 _Avoid_: 互動邏輯, UX（兩者都把「誰該決定」這一格模糊掉，而那正是這個詞存在的理由）
 
 ## 書之外
 
-**外框 / Outer frame**:
+### 外框 / Outer frame
 iframe 之外、由消費端的 CSS 管得到的那一層：viewport 這個盒子本身、工具列、翻頁按鈕、進度條。**與書的內容是硬邊界**：書渲染在 iframe 內（ADR-0006），外面的 CSS 進不去，書裡面的排版一律走讀者設定。
 _Avoid_: UI, 殼（前者泛指全體、含括了書；後者聽起來像「不重要的那一層」，而版面決定看得見的一切）
 
 ## 位置
 
-**CFI**:
+### CFI
 EPUB Canonical Fragment Identifier：書中的精確位置或範圍。用於閱讀進度回位與 annotation 的定位。
 _Avoid_: locator, position, 書籤
 
-**fraction**:
+### fraction
 全書閱讀進度，0 到 1 的比例。用於拖拉定位軸一類的整書導覽。與 CFI 是**不同的位置概念**：CFI 精確但不可比大小，fraction 可比大小但粗。
 _Avoid_: percentage, progress, 百分比
 
-**頁範圍 / Page range**:
+### 頁範圍 / Page range
 當前那一頁涵蓋的 CFI 範圍，從第一個字到最後一個字（`RenderLocation.pageRange`）。
 
 跟**位置**分開講，因為它們回答不同的問題：位置是一個**點**（讀者在哪），頁範圍是一個**範圍**（讀者看得到什麼）。消費端要把眼前這段交給別的東西處理時要的是後者，而**它算不出來**，頁是版面的產物，範圍隨 viewport 與字級改變，那些數字只有 frond 握著。
@@ -153,7 +153,7 @@ _Avoid_: percentage, progress, 百分比
 
 _Avoid_: 當前頁的 CFI（聽起來像一個點）, 可視範圍（那是矩形的事，這是書裡的範圍）
 
-**矩形 / Rect**:
+### 矩形 / Rect
 一個 CFI 範圍此刻在容器座標裡佔的位置（`rectsFor()`）。消費端畫 highlight 用的就是這個。
 
 指的是**內容自己的框**：文字的行框，加上圖片一類 replaced element 的框。**不是裝著它們的段落的框**，段落的框寬是一整欄，跟這個範圍選了幾個字無關。兩種混在一起消費端也分不出來，只能從寬度猜。
@@ -162,7 +162,7 @@ _Avoid_: 當前頁的 CFI（聽起來像一個點）, 可視範圍（那是矩�
 
 _Avoid_: 選取範圍（那是書裡的範圍，這是畫面上的位置）, bounding box（那是一個框，這是一串）
 
-**頁框 / Page box**:
+### 頁框 / Page box
 當前這一頁在容器座標裡的那個框（`pageBox()`）。**矩形**要裁掉不在這一頁的部分時，裁的是它。
 
 **它不等於容器**：容器含著讀者的留白，頁被那圈留白往內縮，而相鄰兩頁只隔一個 `COLUMN_GAP`。所以留白只要比那個間隔寬，下一頁的開頭就落在容器**之內**，拿容器去裁的消費端會把下一頁的重點畫進這一頁的留白裡（Tidemarks #41）。量到的一組：容器 1273、留白 157，下一頁從 1156 開始，比容器右緣還內縮 117。
@@ -173,7 +173,7 @@ _Avoid_: 容器（那是消費端給的那個元素，比頁大一圈）, viewpo
 
 ## 定位
 
-**定位 / Locating**:
+### 定位 / Locating
 把 CFI 換成樹裡的位置，或把位置寫成 CFI。**是樹的規則，不是 DOM 的規則**（ADR-0012），CFI 規格 2.2 的編號規則裡沒有一條碰得到版面或瀏覽器，所以它住在零 DOM 的那一層，同一份走訪同時服務瀏覽器與 Node。
 
 跟**排版**分開：定位不需要排版，而需要排版的（分頁、矩形）不可能在瀏覽器外面做。這條界線決定了 `EpubBook` 層能做到哪裡。
@@ -182,9 +182,9 @@ _Avoid_: 解析 CFI（那是文法層 `cfi.ts` 的事，只在字串與結構之
 
 ## 測試
 
-**對照實作 / Reference implementation**:
+### 對照實作 / Reference implementation
 拿來當答案來源的**另一套獨立實作**。斷言的形式因此是「與它的輸出一致」，而不是「與我手寫的預期值一致」，後者只驗證得了「我理解的規格」，而對格式的誤解會讓預期值跟著一起錯。目前的對照實作是 `fflate` 與 `fast-xml-parser`：`tests/node/support/epub-archive.ts` 用它們把產生器寫出來的合成 fixture 讀回來，理由見該檔檔頭。
 _Avoid_: 差分測試（「差分」命名的是比對這個動作，字面聽起來像 diff 前後兩次輸出，而重點在於基準來自另一套實作）, 基準實作（「基準」在效能語境已經是 benchmark）, 交叉驗證（ML 已經佔用）, 背對背測試（英文圈的同義詞，中文字面不透明）
 
-**對照實作測試 / Reference-implementation test**:
+### 對照實作測試 / Reference-implementation test
 同一份輸入餵給 frond 與對照實作，斷言輸出一致。能比的只有**雙方都該同意的事實**：位元組、良不良構；錯誤訊息與資料形狀本來就該不同，比不得。它補的是廣度（一次掃完整批樣本），不取代針對已知邊界手寫的測試：它只證明兩邊一致，不證明兩邊都對。
