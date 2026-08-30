@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExempt, scanFile } from "./language-scan.ts";
+import { formatFindings, isExempt, scanFile } from "./language-scan.ts";
 
 const rules = (path: string, text: string) => scanFile(path, text).map((f) => f.rule);
 
@@ -44,6 +44,58 @@ describe("what it leaves alone", () => {
 
   it("leaves a file with no Chinese in it at all", () => {
     expect(rules("src/a.ts", "export const x = 1;")).toEqual([]);
+  });
+});
+
+// The two mechanisms that decide what rule 2 weighs. Both have been wrong once, and both fail the
+// same way when they are: the check goes quiet rather than loud.
+describe("what gets weighed", () => {
+  it("keeps checking after an unmatched backtick", () => {
+    // Counting backticks per line latched here: one odd line and every later line was skipped.
+    const text = ["// a `backtick that never closes", "// 這一行整句都是中文，該被抓到"].join("\n");
+    expect(rules("src/a.ts", text)).toEqual(["chinese-line"]);
+  });
+
+  it("keeps checking after a template literal closes", () => {
+    const text = [
+      "const h = `",
+      "  <p>本文がここにあります。</p>",
+      "`;",
+      "// 這一行是中文註解",
+    ].join("\n");
+    expect(scanFile("src/a.ts", text).map((f) => f.line)).toEqual([4]);
+  });
+
+  it("does not read an apostrophe in a comment as a string delimiter", () => {
+    // "the reader's … the book's" looks like a quoted span, and taking it out would drop the
+    // Chinese between them. Here the Chinese outweighs the English, so it has to be counted.
+    expect(
+      rules("src/a.ts", "// the reader's 目錄 與 筆記 兩張面板都在這裡，講的是同一件事"),
+    ).toEqual(["chinese-line"]);
+  });
+
+  it("does not count English that a comment has put in quotes", () => {
+    // Stripping the quoted half would leave the titles alone on the line and read as Chinese.
+    expect(
+      rules("src/a.ts", '// "the whole English sentence lives in here" 草枕 入境大廳'),
+    ).toEqual([]);
+  });
+
+  it("leaves a Chinese title mark that is data rather than a citation", () => {
+    expect(rules("src/a.ts", 'const t = "陶淵明〈桃花源記〉";')).toEqual([]);
+  });
+});
+
+describe("the report", () => {
+  it("says so plainly when there is nothing to say", () => {
+    expect(formatFindings([])).toBe("Code is English throughout.");
+  });
+
+  it("names the file, the line, and what to do instead", () => {
+    const findings = scanFile("src/a.ts", "// The three panels 〈找〉 can raise.");
+    expect(formatFindings(findings)).toContain("src/a.ts:1");
+    expect(formatFindings(findings)).toContain("[[Gesture]]");
+    expect(formatFindings(findings)).toContain("1 to fix.");
   });
 });
 

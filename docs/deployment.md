@@ -57,10 +57,10 @@ build 環境拿得到，這正是重點：一次部署是「某個分支上發�
 | 變數 | | 值 |
 |---|---|---|
 | `CF_WORKER_NAME` | 必填 | Worker 的名字，例如 `tidemarks` |
-| `CF_D1_NAME` | 必填 | D1 資料庫名稱（步驟 2） |
-| `CF_D1_ID` | 必填 | D1 的 `database_id`（步驟 2） |
-| `CF_R2_BUCKET` | 必填 | R2 bucket 名稱（步驟 2） |
-| `CF_KV_ID` | 必填 | KV namespace id（步驟 2） |
+| `CF_D1_NAME` | 必填 | D1 資料庫名稱（步驟 1） |
+| `CF_D1_ID` | 必填 | D1 的 `database_id`（步驟 1） |
+| `CF_R2_BUCKET` | 必填 | R2 bucket 名稱（步驟 1） |
+| `CF_KV_ID` | 必填 | KV namespace id（步驟 1） |
 | `CF_RP_ID` | 必填 | passkey 綁在哪個主機名上。**第一把 passkey 註冊之後就永久鎖死**，改了等於作廢所有 passkey |
 | `CF_ORIGIN` | 必填 | `https://` 加上那個主機名 |
 | `CF_ROUTE` | 選填 | 自訂網域。不設的話 Worker 回應在 `<CF_WORKER_NAME>.<你的子網域>.workers.dev` |
@@ -163,7 +163,7 @@ openssl rand -hex 32 | npx wrangler secret put COOKIE_SECRET --name <CF_WORKER_N
    npx wrangler secret put RESEND_API_KEY --name <CF_WORKER_NAME>
    ```
 
-設了 key 卻沒有 `CF_MAIL_FROM` 的話，它會**大聲拒絕**，而不是安靜退回去印 log。一份自認為在寄信的
+設了 key 卻沒有 `CF_MAIL_FROM` 的話，它會**當場報錯**，而不是安靜退回去印 log。一份自認為在寄信的
 部署，絕對不可以把登入碼默默印在讀得到的 log 裡。
 
 真的寄失敗的時候，理由寫在 Worker 的 log 裡，而且寫得明白：Resend 回的狀態碼與它送回來的內容。
@@ -206,7 +206,7 @@ Builds → Connect）。Builds 有 API，但建一份 build 設定需要一組 *
    **上面那個表單裡的每一個指令都必須是根目錄的 npm script，絕對不要直接叫工具。** 根目錄的
    `package.json` 知道每個 package 住在哪裡，所以搬動 package 的時候，沒有人需要記得回去改
    dashboard 裡的一個表單。寫成 `wrangler` 的指令會在 repo 根目錄找設定，而那裡沒有
-   `wrangler.jsonc`。而且它宣告這件事的方式，是 merge 之後的一次部署失敗。上面那個 preview 指令
+   `wrangler.jsonc`。而你會知道這件事，是在 merge 之後看到一次部署失敗。上面那個 preview 指令
    當年就是這樣在 app 搬進 `packages/` 的時候壞掉的。
 
 Cloudflare 為此簽出來的 build token 已經蓋得住這裡每一次部署要做的事，D1 也含在內。真的有 build
@@ -271,7 +271,7 @@ migration 可能落在它要服務的那個 Worker **後面**，而那正是這�
 兩種形狀 Cloudflare 都沒有寫進文件：
 [D1 migration 的參考文件](https://developers.cloudflare.com/d1/reference/migrations/)只講機制，
 一個字都沒提部署順序；而 GitHub Actions 的範例部署的是一個不碰資料庫的 Worker。所以這一節是一個
-**決定**，不是照著誰的食譜做。
+**決定**，不是照抄來的做法。
 
 ## 7. 誰可以建帳號
 
@@ -327,6 +327,6 @@ npx wrangler d1 execute DB --local \
 - **刪一本書**留的是墓碑，R2 上那個物件**不會**被回收（一個檔案大約 5 MB；哪天儲存真的變成問題再回
   來處理）。
 - **session** 撐 90 天。passkey 全丟不等於帳號沒了：用寄來的登入碼回得去，再從帳號面板加一把新的。
-  信箱掉了才是另一回事，帳號的強度就跟它一模一樣。
+  信箱掉了才是另一回事：**信箱有多安全，帳號就有多安全。**
 - **登入碼**活 10 分鐘，扛得住五次猜錯，用過一次就作廢。再要一組，上一組就失效。`magic_codes` 裡的
   列會在同一個位址發新碼的時候順手清掉。

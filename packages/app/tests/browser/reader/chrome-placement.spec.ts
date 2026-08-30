@@ -136,7 +136,7 @@ test.describe("in a window with no room for a book beside a panel", () => {
       .toBe([reader.x, reader.y, reader.width, reader.height].map(Math.round).join());
   });
 
-  test("leaves [[Layout]] a sheet, because the page above it is the preview", async ({ page }) => {
+  test("leaves Layout a sheet, because the page above it is the preview", async ({ page }) => {
     // The one face that takes the full-screen rule back (ADR-0005): what [[Layout]] covers is the
     // thing it was opened to change, so it stops and lets the book show above it.
     await openChrome(page);

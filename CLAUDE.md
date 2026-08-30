@@ -198,8 +198,9 @@ shown while it downloads`）。
 `〈…〉`、一行裡字串以外的部分中文比英文多、測試名稱裡有中文。**它不是「有沒有中文字」那種檢查**，
 因為書名與 fixture 的中文是資料，理由與代價見 ADR-0045。
 
-豁免清單在 `scripts/language-scan.ts` 裡，只收**中文本身就是主題**的檔案（`zh-rules.ts`、
-`chinese.ts`、`locale.ts`、`prototype/`）。⚠️ 豁免是整個檔案的，所以那些檔案裡寫了中文註解，腳本
+豁免清單在 `scripts/language-scan.ts` 裡，只收**中文本身就是主題**的檔案，現在是九個項目
+（`zh-rules.ts`、`zh-lint.ts`、`language-scan.ts`、`chinese.ts`、`locale.ts`、`prototype/`，
+加上其中三個的測試）。⚠️ 豁免是整個檔案的，所以那些檔案裡寫了中文註解，腳本
 看不到。**清單短是這件事還可以接受的唯一原因**，要加檔案之前先確認它真的整份都是資料。
 
 翻譯超過幾行的時候，**跟功能變更分成兩個 commit**，讓真正的改動在 diff 裡還讀得出來。

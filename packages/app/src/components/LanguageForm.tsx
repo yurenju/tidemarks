@@ -5,7 +5,7 @@ import { LOCALES, type Locale } from "../lib/locale";
 /**
  * [[Settings]]'s [[Language]] tab: which language Tidemarks speaks, and nothing else.
  *
- * **A tab of its own rather than a row inside [[Type]]**, because [[Type]] is about the book — every
+ * **A tab of its own rather than a row inside the Type tab**, because Type is about the book — every
  * control in it changes how the text an author wrote is laid out, and none of them changes a
  * word Tidemarks says. Interface language is the exact opposite, and filing it under typography
  * would have been the first crack in a line the glossary draws deliberately (CONTEXT.md,

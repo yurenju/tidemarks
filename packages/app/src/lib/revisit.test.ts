@@ -38,7 +38,7 @@ describe("pickOne", () => {
     }
   });
 
-  // Better the same passage again than an empty card: a reader with one mark pressing [[another]]
+  // Better the same passage again than an empty card: a reader with one mark pressing [[Another passage]]
   // has asked for something, and there is nothing else to give them.
   it("hands back the same passage when it is the only one", () => {
     const marks = [mark("a", 1)];

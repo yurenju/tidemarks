@@ -52,7 +52,7 @@ test("the book the reader was in the middle of leads the shelf", async ({ page }
   await expect(bookCards(page).first()).toContainText("Alice");
 });
 
-test("the card's ⋯ opens [[About]] for that book", async ({ page }) => {
+test("the card's ⋯ opens About for that book", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const bookId = await bookIdOf(page);

@@ -34,7 +34,7 @@ const drawAtRandom: Draw = (marks) => marks[Math.floor(Math.random() * marks.len
  *
  * `movingOn` is the passage the reader has just asked to leave, and the only thing the draw
  * promises: whatever comes back, it is not that one. ⚠️ Unless it is the only mark there is —
- * a reader with one passage who presses [[another]] has asked for something, and an empty card
+ * a reader with one passage who presses [[Another passage]] has asked for something, and an empty card
  * is a worse answer than the same passage again.
  */
 export function pickOne(

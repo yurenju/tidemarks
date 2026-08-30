@@ -14,11 +14,32 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { formatFindings, scanFile, type Finding } from "./language-scan.ts";
 
-const EXTENSIONS = ["ts", "tsx", "mjs", "css", "html", "json", "jsonc", "yml"];
+// Every kind of file CLAUDE.md's table calls English. `.po` is here for the comments lingui
+// extracts into it: those are written for translators, and they carry whatever the source said —
+// so a Chinese citation in a comment reaches a second reader before anyone notices.
+const EXTENSIONS = [
+  "ts",
+  "tsx",
+  "mjs",
+  "css",
+  "html",
+  "json",
+  "jsonc",
+  "yml",
+  "sh",
+  "sql",
+  "conf",
+  "po",
+];
+const NAMED = ["Dockerfile", ".gitignore", ".dockerignore"];
 
-const tracked = execFileSync("git", ["ls-files", ...EXTENSIONS.map((e) => `*.${e}`)], {
-  encoding: "utf8",
-})
+// ⚠️ Paths come back relative to wherever git was run, and `isExempt` matches from the repository
+// root — so this has to be run from the root, which is what `npm run lint` does.
+const tracked = execFileSync(
+  "git",
+  ["ls-files", ...EXTENSIONS.map((e) => `*.${e}`), ...NAMED.map((n) => `*${n}`)],
+  { encoding: "utf8" },
+)
   .trim()
   .split("\n")
   .filter(Boolean);

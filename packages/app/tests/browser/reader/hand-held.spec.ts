@@ -172,7 +172,7 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
  * bottom edge of the screen. Asking the gap would compare the sheet against a box it is no
  * longer inside of, which is how a rule keeps passing after it has stopped meaning anything.
  */
-test("[[Layout]] leaves the book showing above it", async ({ page }) => {
+test("Layout leaves the book showing above it", async ({ page }) => {
   await openPanel(page, "Type");
 
   const popup = (await page.getByTestId("panel-layout").boundingBox())!;
@@ -227,7 +227,7 @@ test("[[Layout]] leaves the book showing above it", async ({ page }) => {
 test.describe("in Chinese, where the form was measured", () => {
   test.use({ locale: "zh-TW" });
 
-  test("[[Layout]] fits without scrolling", async ({ page }) => {
+  test("Layout fits without scrolling", async ({ page }) => {
     await openPanel(page, "排版");
 
     const body = page.locator("[data-testid='panel-layout'] .panel-body");

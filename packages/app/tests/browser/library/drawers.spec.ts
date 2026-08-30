@@ -11,7 +11,7 @@ import { BOOKS, bookCards, importBook, segment } from "../support/library.js";
  * — a floor replaces what was under it, a drawer does not.
  */
 
-test("opens [[Settings]] from the shelf and comes back to the same tab after a reload", async ({
+test("opens Settings from the shelf and comes back to the same tab after a reload", async ({
   page,
 }) => {
   await page.goto("/");
@@ -60,7 +60,7 @@ test("leaves the shelf visible behind the details drawer", async ({ page }) => {
   await expect(bookCards(page).first()).toBeVisible();
 });
 
-test("a theme set in [[Settings]] is still set after a reload", async ({ page }) => {
+test("a theme set in Settings is still set after a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("open-settings").click();
 

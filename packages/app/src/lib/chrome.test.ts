@@ -21,7 +21,7 @@ const at = (over: Partial<ChromeState> = {}): ChromeState => ({ ...initialChrome
 const run = (state: ChromeState, ...events: ChromeEvent[]): ChromeState =>
   events.reduce(nextChrome, state);
 
-describe("[[Marking]] displaces whatever [[Find]] was showing", () => {
+describe("Marking displaces whatever Find was showing", () => {
   it.each(["up", "layout", "down"] as const)("puts the chrome away from %s", (chrome) => {
     expect(nextChrome(at({ chrome }), { kind: "selectionArrived" }).chrome).toBe("down");
   });
@@ -74,7 +74,7 @@ describe("two things wanting the chrome at once", () => {
     expect(after.chrome).toBe("down");
   });
 
-  it("leaves [[Contents]] standing where the book keeps a column of its own", () => {
+  it("leaves Contents standing where the book keeps a column of its own", () => {
     // A chapter pressed on a desk is one of a list the reader may be working through, and the
     // book they were sent to is still on screen beside the panel. Closing it would cost a press
     // per chapter to get back — the same argument `notePressed` already makes for a passage.

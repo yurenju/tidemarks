@@ -103,7 +103,7 @@ export default function Segmented<T extends string | number>({
             role="radio"
             aria-checked={option.value === value}
             /* One tab stop for the whole group, on whichever cell is chosen — a radio group is
-               one control, and tabbing through four cells to leave 主題 would make it four. */
+               one control, and tabbing through four cells to leave [[Theme]] would make it four. */
             tabIndex={option.value === value ? 0 : -1}
             data-testid={`${testId}-${option.value}`}
             className="segment"

@@ -587,7 +587,7 @@ describe("Dragging a selection by one of its two ends", () => {
     ]);
   });
 
-  it("holds [[Marking]] down while the finger is on it, and lets it up when the finger goes", () => {
+  it("holds Marking down while the finger is on it, and lets it up when the finger goes", () => {
     // A colour row raised mid-drag appears under the finger that raised it and then chases the
     // selection across the page (CONTEXT.md [[chrome]]).
     const m = machine();

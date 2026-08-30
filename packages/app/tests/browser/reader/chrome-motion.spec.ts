@@ -56,9 +56,7 @@ test("keeps the bars in the tree while they are down, so they have a way to leav
   await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 });
 
-test("brings them home when [[Find]] stands, and takes them back when it ends", async ({
-  page,
-}) => {
+test("brings them home when Find stands, and takes them back when it ends", async ({ page }) => {
   await openChrome(page);
 
   const home = await page.evaluate(() => {
