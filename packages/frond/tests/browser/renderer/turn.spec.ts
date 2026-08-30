@@ -267,7 +267,7 @@ test.describe("a turn is not the only thing that can move the reader", () => {
 
 test.describe("a vertical book", () => {
   test("moves sideways all the same, though it paginates downwards", async ({ page }) => {
-    // The whole reason a turn cannot be done by scrolling: a 直排 book's next page is *below*
+    // The whole reason a turn cannot be done by scrolling: a vertical book's next page is *below*
     // in its own document (`geometry.ts`), and the reader must be shown it arriving from the
     // side. Two documents in two frames is what makes the two independent.
     await mountFixture(page, "vertical-japanese");

@@ -164,7 +164,7 @@ export function staleFontKeys(storedKeys: readonly string[]): readonly string[] 
 /**
  * Which faces to fetch for the font the reader picked.
  *
- * Only what is needed right now — a reader who never picks 黑體 never pays for it. Switching
+ * Only what is needed right now — a reader who never picks [[Sans]] never pays for it. Switching
  * the setting later fetches the other one then, which is the same code path as opening the
  * first book.
  *

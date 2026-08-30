@@ -343,13 +343,13 @@ describe("frondSettings with the faces Tidemarks carries", () => {
       expect(mapped.fontWeights).toBeUndefined();
     });
 
-    it("pins the serif to 300 and 800 when the reader picked 明體", () => {
+    it("pins the serif to 300 and 800 when the reader picked the serif", () => {
       const mapped = frondSettings({ ...base, fontFamily: "serif" }, withSerif);
       expect(mapped.fontFaces?.map((face) => face.weight)).toEqual(["300 300", "800 800"]);
       expect(mapped.fontWeights).toEqual({ normal: 300, bold: 800, boundary: 500 });
     });
 
-    it("pins the sans to 300 and 600 when the reader picked 黑體", () => {
+    it("pins the sans to 300 and 600 when the reader picked the sans", () => {
       // 600 rather than 800: the sans has even strokes and separates a stop earlier, while
       // the serif's stroke contrast needs the extra weight before the difference reads.
       const mapped = frondSettings({ ...base, fontFamily: "sans" }, withSans);
@@ -374,7 +374,7 @@ describe("frondSettings with the faces Tidemarks carries", () => {
     });
 
     it("asks for no restating when the face in hand is the other kind", () => {
-      // A device that fetched 黑體 earlier and is now on 明體: there is a carried face, and it
+      // A device that fetched [[Sans]] earlier and is now on [[Serif]]: there is a carried face, and it
       // is not the one the weights are pinned onto. The book is in the platform's serif until
       // ours arrives, and its weights are none of our business until then.
       const mapped = frondSettings({ ...base, fontFamily: "serif" }, withSans);

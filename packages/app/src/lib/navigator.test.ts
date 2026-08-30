@@ -25,7 +25,7 @@ describe("Turn direction — one answer per book, not per section", () => {
   it("a horizontal section settles nothing, so a later vertical one can still speak", () => {
     // The section that lays out first is not the book's first: the reader is put back where
     // they stopped (`start: { cfi }`). Letting a full-page image divider settle the direction
-    // would lock an undeclared 直排 book backwards for the whole session, with nothing left
+    // would lock an undeclared vertical book backwards for the whole session, with nothing left
     // that could correct it.
     const direction = createDirection(undefined);
 
@@ -39,7 +39,7 @@ describe("Turn direction — one answer per book, not per section", () => {
 
   it("a horizontal section later in the book does not flip a right-to-left one", () => {
     // The bug this pins: a part divider that is one full-page image, with no link to the
-    // book's stylesheet, lays out `horizontal-tb` in the middle of a 直排 book. Deriving
+    // book's stylesheet, lays out `horizontal-tb` in the middle of a vertical book. Deriving
     // the direction from it swapped the tap zones — the reader tapped forward where they
     // always had and went back a page, then forward onto the divider again, with no way
     // through.

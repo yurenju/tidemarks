@@ -21,7 +21,7 @@ import { BOOKS, openBook, openPanel, readerFrame, segment } from "../support/lib
 const BOLD = "800";
 
 /**
- * Puts the book under 明體 and waits until the reader's weights are actually in force.
+ * Puts the book under [[Serif]] and waits until the reader's weights are actually in force.
  *
  * **Waiting on the face being stored is not enough**, and firefox is where that showed: the
  * download landing is one event and frond rebuilding the document with the new settings is
@@ -36,7 +36,7 @@ async function readInSerif(page: Page): Promise<void> {
   await openBook(page, BOOKS.emphasis);
   await openPanel(page, "Type");
 
-  // Picking 明體 is what puts the book under Tidemarks' two weights at all. Left on the
+  // Picking [[Serif]] is what puts the book under Tidemarks' two weights at all. Left on the
   // book's own fonts, its 300/500/600 are drawn as written and nothing here applies.
   await segment(page, "setting-font-family", "serif").click();
 

@@ -79,14 +79,14 @@ test.describe("typography, one layer", () => {
     await expect(lineHeight(page)).toHaveValue("1.8");
   });
 
-  test("欄數 is taken away over a vertical book and offered over a horizontal one", async ({
+  test("Columns is taken away over a vertical book and offered over a horizontal one", async ({
     page,
   }) => {
     await importBoth(page);
 
     // CONTEXT.md [[Typography settings]]: a choice is disabled only when it cannot be honoured, never
     // when it would merely look bad. Two columns on a phone looks bad and stays the reader's
-    // call; frond cannot paginate a 直排 book in more than one column at all. This is the one
+    // call; frond cannot paginate a vertical book in more than one column at all. This is the one
     // row in [[Layout]] that depends on the book underneath it, and it moved into this panel
     // with the other five.
     await open(page, TITLES.vertical);
@@ -136,7 +136,7 @@ test.describe("typography, one layer", () => {
 
     // And it wraps, so the group has no dead end.
     //
-    // Focus is taken again rather than assumed to have stayed: changing 留白 relaid the book out,
+    // Focus is taken again rather than assumed to have stayed: changing [[Margin]] relaid the book out,
     // and frond moves the focus onto the page it just painted so that the arrow keys keep turning
     // pages. Which is a real thing to know — a second press without this line goes to the book and
     // turns a page, which puts the whole panel away — but it is frond's rule, not this control's,
@@ -146,7 +146,7 @@ test.describe("typography, one layer", () => {
     await expect(segment(page, "setting-margin", 0)).toHaveAttribute("aria-checked", "true");
 
     // The arrows stayed inside the control. They reach a document-level handler that turns pages
-    // otherwise, and a page turn puts [[Find]] away — so the reader adjusting 留白 from the keyboard
+    // otherwise, and a page turn puts [[Find]] away — so the reader adjusting [[Margin]] from the keyboard
     // would watch the panel vanish. The panel still standing is that not happening.
     await expect(page.getByTestId("panel-layout")).toBeVisible();
 

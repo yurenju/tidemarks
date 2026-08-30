@@ -38,7 +38,7 @@ describe("parseHash", () => {
 
   // Settings is a floor rather than a drawer now, so a bare `#/settings` names a real screen.
   // It opens on the tab a reader almost always came for, instead of being dropped for the shelf.
-  it("lands a tabless settings hash on 排版", () => {
+  it("lands a tabless settings hash on Type", () => {
     expect(parseHash("#/settings")).toEqual({
       screen: { kind: "settings", tab: "typography" },
       drawer: null,

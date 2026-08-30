@@ -169,7 +169,7 @@ export default function App() {
   }, []);
 
   // An agent's OAuth flow sends a session-less browser here to log in, and the login lives in
-  // [[Settings]]'s 帳號 tab — so go there. Putting it in the hash rather than in a piece of state
+  // [[Settings]]'s [[Account]] tab — so go there. Putting it in the hash rather than in a piece of state
   // means a refresh on the way through does not lose it.
   useEffect(() => {
     if (!authorizeReturnTarget(window.location.search)) return;

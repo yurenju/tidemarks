@@ -106,7 +106,7 @@
 }
 
 /* A block of tide, not a wave. The wave is [[Mark]] — a mark the reader has already made, which
-   is 墨; a selection is 潮, because it can still move and may yet come to nothing. Same shape
+   is [[Ink]]; a selection is [[Tide]], because it can still move and may yet come to nothing. Same shape
    for both and the reader cannot tell "I marked this" from "I am about to", and indigo against
    tide is the closest pair of colours there is here (CONTEXT.md [[Paper, Ink, Tide]]).
 
@@ -294,9 +294,9 @@ button.selection-handle:active:not(:disabled) {
 
 /* The passage the reader pressed in the notes panel, while that panel is still open.
 
-   **Its own ink, thinned — not `--selection-wash`.** 潮 means "this may still move and may yet
+   **Its own ink, thinned — not `--selection-wash`.** [[Tide]] means "this may still move and may yet
    come to nothing", and this passage is neither: it is a mark the reader already made and has
-   just asked to be shown. Mixing its own `--mark` keeps the answer in 墨, and keeps four marks
+   just asked to be shown. Mixing its own `--mark` keeps the answer in [[Ink]], and keeps four marks
    on one page distinguishable while one of them is being pointed at.
 
    No mask: the wave beside the text is still drawn over this, and the two say different things —
@@ -600,7 +600,7 @@ button.selection-handle:active:not(:disabled) {
    **This replaced `flex-wrap`,** which was six children finding their own way onto two lines on
    a phone — and the rule, being the `border-left` of whichever button happened to land first on
    the second line, went with it: a vertical hairline standing at the start of a row with
-   nothing to its left, pushing 重點＋筆記 off centre. What it divided was gone and it was still
+   nothing to its left, pushing [[Mark and note]] off centre. What it divided was gone and it was still
    being drawn. Two groups and one declared breakpoint say the same thing without asking the
    layout engine where the line fell. */
 .mark-inks,

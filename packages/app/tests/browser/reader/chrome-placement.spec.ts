@@ -60,7 +60,7 @@ test("keeps the Scrubber on the bottom edge", async ({ page }) => {
  */
 test("puts the chapter under the Scrubber rather than in the title bar", async ({ page }) => {
   // Jumped to a real chapter first, because the book opens on its cover and the cover is not in
-  // any chapter — the label is absent there on purpose ("沒話說就不說"), so asserting against a
+  // any chapter — the label is absent there on purpose (nothing to say, so it says nothing), so asserting against a
   // freshly opened book would be asserting against the empty case.
   await waitForIndex(page);
   await openPanel(page, "Contents");
@@ -233,8 +233,8 @@ test.describe("in a window wide enough to give up a column", () => {
  *
  * The three used to be three drawers, exclusive in the reader's state but not in the DOM: the
  * one going out ran an `onClose` that did not ask whether it was still the one showing, and it
- * wrote the bare bar over the panel that had just opened. The reader pressed 筆記 while 排版
- * stood, watched the column close, and pressed 筆記 again.
+ * wrote the bare bar over the panel that had just opened. The reader pressed [[Notes]] while [[Layout]]
+ * stood, watched the column close, and pressed [[Notes]] again.
  *
  * Written as a walk through all three rather than as the one pair that was reported, because the
  * bug had nothing to do with which two: any switch went through the same stale handler.

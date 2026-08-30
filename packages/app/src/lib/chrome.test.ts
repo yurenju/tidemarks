@@ -88,7 +88,7 @@ describe("two things wanting the chrome at once", () => {
 
 // **A note stops being edited the moment the panel stops standing**, and nothing has to be lost
 // with it: the words are committed when the box loses focus, so what closes here is the editor
-// and not the writing (ADR-0044's 代價). Held any longer, `editing` would still be set the next
+// and not the writing (ADR-0044, on what it costs). Held any longer, `editing` would still be set the next
 // time [[Notes]] was raised, and the box that remounts takes the focus — which on a phone means
 // pressing [[Notes]] to read a list and getting a keyboard.
 describe("the note being written", () => {

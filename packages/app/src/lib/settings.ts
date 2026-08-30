@@ -485,7 +485,7 @@ export function frondSettings(
   const chosen = settings.fontFamily === "publisher" ? undefined : settings.fontFamily;
 
   // **The kind the reader picked, not any kind.** A device that fetched the sans earlier and
-  // is now on 明體 has a face in hand and none of it is the one being restated onto — the book
+  // is now on [[Serif]] has a face in hand and none of it is the one being restated onto — the book
   // renders in the platform's serif, which has whatever weights it has. Restating the book's
   // 500 as 800 there is an intervention against a face nobody chose the weights of.
   const pinned = chosen !== undefined && webFonts.some((font) => font.kind === chosen);
@@ -534,7 +534,7 @@ export function frondSettings(
  *
  * `family` is a CSS value, so it carries its own quotes. The descriptors are where the
  * reader's choice lands: keeping the book's own fonts declares the whole axis and the book's
- * weights are drawn as written, while picking 黑體 or 明體 declares two single-value ranges
+ * weights are drawn as written, while picking [[Sans]] or [[Serif]] declares two single-value ranges
  * that pin every weight onto one of the reader's two (`web-font.ts`'s
  * `faceWeightDescriptors`).
  *

@@ -26,7 +26,7 @@ const fromEntries = (event: Event): boolean => {
 };
 
 /**
- * 目錄, 筆記 and 排版 — one shell, two anchors. Under 820px it comes up from the bottom edge;
+ * [[Contents]], [[Notes]] and [[Layout]] — one shell, two anchors. Under 820px it comes up from the bottom edge;
  * wider, it is a column down the right side, because a full-width sheet rising from the bottom
  * of a 1400px window is a phone's answer given to a desk.
  *
@@ -34,7 +34,7 @@ const fromEntries = (event: Event): boolean => {
  * cover the book and stop short of the Scrubber, and both halves of that gave way for the same
  * reason: [[Layout]] applies as it is dragged, so whatever the panel covers is the thing the reader
  * opened it to look at (ADR-0005). A column beside the book repaginates it — that is the price,
- * and 目錄 and 筆記 are the ones paying it. Narrow there is no column to give, so the entries and
+ * and [[Contents]] and [[Notes]] are the ones paying it. Narrow there is no column to give, so the entries and
  * the Scrubber leave instead, and [[Contents]] and [[Notes]] go on to take the whole screen: what a
  * sheet would leave above itself there is not a book anyone can read
  * (ADR-0044).
@@ -79,7 +79,7 @@ export default function Panel({
         if (next) return;
         // **A press on the entry that opened this is not an outside press.** Base UI dismisses on
         // `pointerdown`, and the entry's own `onClick` arrives after it — so a reader pressing
-        // 目錄 while 目錄 stands had the panel closed by this handler and reopened a moment later
+        // [[Contents]] while [[Contents]] stands had the panel closed by this handler and reopened a moment later
         // by the toggle, which read the state as already closed. The entry looked dead.
         //
         // The press is the entry's, and one press does one thing. Filtering it here rather than

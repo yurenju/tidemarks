@@ -34,7 +34,7 @@
 @import "./styles/reader.css";
 
 /* The six typography settings, in both shells that show them — the reader's panel and the
-   排版 tab of [[Settings]] — along with the font download line, its progress bar, and the note
+   [[Type]] tab of [[Settings]] — along with the font download line, its progress bar, and the note
    that follows a font job. */
 @import "./styles/typography.css";
 

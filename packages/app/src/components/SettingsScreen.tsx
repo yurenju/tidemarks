@@ -72,7 +72,7 @@ export default function SettingsScreen({
           open={tab}
           tab="typography"
           label={
-            <Trans comment="[[Settings]]tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
+            <Trans comment="[[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
               Type
             </Trans>
           }
@@ -82,7 +82,7 @@ export default function SettingsScreen({
           open={tab}
           tab="account"
           label={
-            <Trans comment="[[Settings]]tab holding sign-in, billing and backup.">Account</Trans>
+            <Trans comment="[[Settings]] tab holding sign-in, billing and backup.">Account</Trans>
           }
           onTab={onTab}
         />
@@ -91,7 +91,7 @@ export default function SettingsScreen({
           open={tab}
           tab="language"
           label={
-            <Trans comment="[[Settings]]tab holding the interface language. One word, sits beside Type and Account.">
+            <Trans comment="[[Settings]] tab holding the interface language. One word, sits beside Type and Account.">
               Language
             </Trans>
           }

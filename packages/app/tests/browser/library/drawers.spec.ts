@@ -32,7 +32,7 @@ test("each tab has an address of its own", async ({ page }) => {
 
   expect(new URL(page.url()).hash).toBe("#/settings/account");
   await page.reload();
-  // 帳號's own first line, so this is the pane and not merely the screen.
+  // [[Account]]'s own first line, so this is the pane and not merely the screen.
   await expect(page.getByText("No account needed to read", { exact: false })).toBeVisible();
 });
 

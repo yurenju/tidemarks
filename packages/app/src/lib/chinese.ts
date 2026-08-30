@@ -48,7 +48,7 @@ export function detectVariant(
 // Windows-only — so before `Songti` was named, the whole serif stack fell through to
 // `Georgia`, which has no Han glyphs, and from there to the keyword `serif`. iOS maps that
 // keyword to nothing Chinese: the characters land on the system face, PingFang, which is a
-// sans. That is why picking 明體 on an iPhone looked identical to 黑體 and to the book's own
+// sans. That is why picking [[Serif]] on an iPhone looked identical to [[Sans]] and to the book's own
 // font — all three were PingFang. `Songti TC`/`Songti SC` are preinstalled on iOS and macOS
 // alike, so naming them is what makes the choice mean anything on either.
 const SANS_TC =

@@ -86,7 +86,7 @@ test.describe("horizontal book", () => {
   });
 });
 
-test.describe("vertical book (直排)", () => {
+test.describe("vertical book", () => {
   test.beforeEach(async ({ page }) => {
     await openBook(page, BOOKS.vertical);
     await settled(page);
@@ -100,7 +100,7 @@ test.describe("vertical book (直排)", () => {
     // `touch.ts`, the inversion applied in `navigator.ts`, and the direction read out of a real
     // EPUB's package document. The same drag on the horizontal book would prove only the first.
     //
-    // The pages still move sideways — a 直排 book paginates downwards inside its own document,
+    // The pages still move sideways — a vertical book paginates downwards inside its own document,
     // and the reader must never be shown that (frond ADR-0013).
     const before = await visibleText(page);
     const finger = await farEnoughToTurn(page);

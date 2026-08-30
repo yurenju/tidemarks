@@ -246,7 +246,7 @@ test.describe("in Chinese, where the form was measured", () => {
  * Six controls do not fit across a phone, and the bar used to let flexbox find its own way onto
  * two lines. The rule between the four inks and the two words went with it: it was the
  * `border-left` of whichever button landed first on the second row, so it stood at the start of
- * a line with nothing to its left, pushing 重點＋筆記 off centre. Two groups and one declared
+ * a line with nothing to its left, pushing [[Mark and note]] off centre. Two groups and one declared
  * breakpoint replaced that.
  *
  * Asserted rather than screenshotted because a screenshot of it cannot be produced honestly from

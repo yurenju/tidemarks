@@ -25,7 +25,7 @@ import {
  * on frond.
  */
 
-test.describe("vertical book (直排)", () => {
+test.describe("vertical book", () => {
   test.beforeEach(async ({ page }) => {
     await openBook(page, BOOKS.vertical);
   });

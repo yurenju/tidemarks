@@ -149,7 +149,7 @@ test.describe("scrubber", () => {
     const before = await visibleText(page);
     const box = (await page.getByTestId("scrubber-track").boundingBox())!;
 
-    // 直排 books mirror the axis: the book's head is on the right, so **leftward** is forward.
+    // Vertical books mirror the axis: the book's head is on the right, so **leftward** is forward.
     // Dragging to the left edge on this book therefore means "towards the end".
     await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2);
     await page.mouse.down();

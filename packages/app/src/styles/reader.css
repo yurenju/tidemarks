@@ -242,7 +242,7 @@
   align-self: stretch;
 }
 
-/* 目錄／筆記／排版, and the door to [[About]]. The right end of the top row by default; on a
+/* [[Contents]] / [[Notes]] / [[Layout]], and the door to [[About]]. The right end of the top row by default; on a
    hand-held it drops to a row of its own above the Scrubber, where a thumb is.
 
    **One row, not two.** They were stacked — a title bar half empty and an entry bar half empty,
@@ -437,7 +437,7 @@
   }
 }
 
-/* The panel — 目錄, 筆記, 排版.
+/* The panel — [[Contents]], [[Notes]], [[Layout]].
    ---------------------------------
    **One shell wearing three faces**, and one instance of it: `Reader.tsx` swaps the contents
    rather than raising a second drawer, so moving between the three closes nothing, remounts
@@ -465,7 +465,7 @@
 }
 
 /* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
-   page [[Layout]] is applied to — the reader dragging 字級 was watching the one surface the panel
+   page [[Layout]] is applied to — the reader dragging [[Size]] was watching the one surface the panel
    exists to change, through a scrim (ADR-0005). What is left is the press target: a press
    outside the panel still closes it, it just no longer says so by dimming the book.
 

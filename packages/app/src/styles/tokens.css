@@ -157,7 +157,7 @@ html[data-drawer="open"] {
      which is a different question from "which layer is this". */
   --fill-selected: var(--blue-selected);
   /* The wash over a passage being selected — **tide, because a selection can still move**. A
-     mark is 墨 and wears the wave; this is 潮 and wears a block of colour, and the two must not
+     mark is [[Ink]] and wears the wave; this is [[Tide]] and wears a block of colour, and the two must not
      be the same shape (ADR-0036, CONTEXT.md [[Owned selection]]). Flat rather than a `color-mix` of
      `--tide`, because the same value has to travel to frond as a plain colour and a copy of an
      expression is harder to compare than a copy of a value. Low enough that CJK strokes read
@@ -298,7 +298,7 @@ html[data-drawer="open"] {
      Latin sans reads comfortably at is a size the same measurement leaves Han strokes merging
      at. Chinese practice puts body text at 16–18px and treats 12px as the floor for anything
      at all — so body starts at 16 and the smallest step, the eyebrow over a settings group,
-     lands on 12 rather than under it. [[Settings]]'s 帳號 tab is where the old numbers showed
+     lands on 12 rather than under it. [[Settings]]'s [[Account]] tab is where the old numbers showed
      worst, being the one screen that is mostly prose at `--type-note` and `--type-eyebrow`. */
   --type-display: 2rem;
   --type-title: 1.375rem;
@@ -416,7 +416,7 @@ html[data-drawer="open"] {
      tenth of a 2560px display, so the same strip that crowds the book on the small screen
      reads as a bookmark on the large one. The floor is where a chapter title stops wrapping to
      three lines; the ceiling is where a list of chapters stops being a list and starts being a
-     second column of prose. Both are judgement, not measurement — if a real book's 目錄 says
+     second column of prose. Both are judgement, not measurement — if a real book's [[TOC]] says
      otherwise, they are the two numbers to move. */
   --panel-width: clamp(300px, 24vw, 420px);
 }

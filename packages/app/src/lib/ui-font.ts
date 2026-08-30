@@ -6,7 +6,7 @@
  * alone, and a shelf that cannot be read until it arrives is not a shelf. So the chrome names
  * the platform's serif stack and takes what the machine has.
  *
- * A reader who picked 明體 has our copy on this device already, though, and the book is
+ * A reader who picked [[Serif]] has our copy on this device already, though, and the book is
  * rendered inside an iframe (frond's ADR-0006) — `@font-face` is per-document, so the face
  * frond declares in there reaches not one character of the shelf. Registering the same bytes
  * on this document is what lets the interface use them, and it costs no download: the blob is

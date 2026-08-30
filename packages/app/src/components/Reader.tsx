@@ -2696,7 +2696,7 @@ function AnnotationItem({
     // WebKit scrolls the page to reveal a focused element and there is no first-party answer to
     // whether it scrolls back when the keyboard goes — an iPhone was seen leaving ~152pt of blank
     // below the panel afterwards, which matches the overflow to within 6pt but was never
-    // confirmed (ADR-0044's 代價). Read before the focus below, not after, or it records the
+    // confirmed (ADR-0044, on what it costs). Read before the focus below, not after, or it records the
     // number the focus already moved.
     const scrollWas = window.scrollY;
 

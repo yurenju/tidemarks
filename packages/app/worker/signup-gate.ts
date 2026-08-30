@@ -3,7 +3,7 @@
 // The gate stands at account creation only. Logging in never passes through it: taking
 // somebody off the allowlist does not take away data that is already theirs.
 //
-// See CONTEXT.md[[Open signup]].
+// See CONTEXT.md [[Open signup]].
 
 /**
  * Whether signup is open, from `wrangler.jsonc`'s `OPEN_SIGNUP` var.

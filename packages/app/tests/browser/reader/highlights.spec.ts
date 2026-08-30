@@ -305,7 +305,7 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     await openBook(page, BOOKS.vertical);
   });
 
-  // The 接線 for `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
+  // The one wire up to `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
   // and what no pure function can say is that the pointed-at passage becomes ink on a page the
   // browser laid out. So this asks once, and only for the facts the reducer cannot reach — the
   // panel is still there to be read, something is drawn over the passage, and that ink outlives

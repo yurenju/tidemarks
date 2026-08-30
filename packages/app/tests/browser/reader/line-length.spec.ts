@@ -64,7 +64,7 @@ test.describe("the line-length ceiling", () => {
     await settled(page);
     expect((await columns(page)).count).toBe(1);
 
-    // 欄數 is one of the six, and all six are in the reader's own [[Layout]] panel now (ADR-0005).
+    // [[Columns]] is one of the six, and all six are in the reader's own [[Layout]] panel now (ADR-0005).
     await openPanel(page, "Type");
     await segment(page, "setting-columns", 2).click();
     await page.keyboard.press("Escape");

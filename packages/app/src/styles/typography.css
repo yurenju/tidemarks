@@ -1,4 +1,4 @@
-/* [[Layout]]'s six, in both shells: the reader's panel and [[Settings]]'s 排版 tab.
+/* [[Layout]]'s six, in both shells: the reader's panel and [[Settings]]'s [[Type]] tab.
    ------------------------------------------------------------------------
    **Label left, control right.** The two-line arrangement this replaced was fine for four rows
    in a panel that had nothing above it worth seeing; six rows in it push the book off a
@@ -24,8 +24,8 @@
   align-items: center;
   justify-content: space-between;
   /* The control drops below its label when it will not fit beside it, and only then. A segmented
-     設定 cannot shrink — its cells are words — so in the reader's column (236px at the time,
-     300px at its narrowest now) 主題's three options ran off the edge and 深色 was cut in half.
+     setting cannot shrink — its cells are words — so in the reader's column (236px at the time,
+     300px at its narrowest now) [[Theme]]'s three options ran off the edge and [[Dark]] was cut in half.
      The extra width does not make this rule redundant: the floor still has to hold on the
      narrowest window that gets a column at all. Wrapping is what makes one arrangement
      serve both shells: label-beside in [[Settings]] and on a phone's sheet, label-above in the narrow
@@ -116,7 +116,7 @@
   z-index: 2;
 }
 
-/* A chosen cell in a group nobody can press — 欄數 over a 直排 book, where frond cannot honour
+/* A chosen cell in a group nobody can press — [[Columns]] over a vertical book, where frond cannot honour
    two columns at all. It still has to say which value is standing, and it must not say it in
    tide: that blue is the colour for what can be acted on (ADR-0022), and a tide-filled cell
    that refuses the press is the one thing that rule exists to prevent. A step of paper says it
@@ -134,10 +134,10 @@
   max-width: 11rem;
 }
 
-/* The line under 字型: what this device is holding, or what a fetch is doing. Full width and
+/* The line under [[Font]]: what this device is holding, or what a fetch is doing. Full width and
    under the row rather than beside it, because the download bar needs somewhere to lie.
    ------------------------------------------------------------------------------------
-   **It is the tail of 字型, not a row of its own**, so the row above gives up its rule and
+   **It is the tail of [[Font]], not a row of its own**, so the row above gives up its rule and
    this one closes the pair. With both rules drawn the note sat in a box between two hairlines,
    which reads as a seventh setting — one that says something rather than doing anything. The
    note keeps its own top padding at nothing, so it sits under the words it belongs to rather

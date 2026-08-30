@@ -29,12 +29,12 @@ export const BOOKS_DIR = resolve(
  * route instead (`docs/agents/verify.md`).
  */
 export const BOOKS = {
-  /** 直排日文——草枕. ppd=rtl, ruby, 傍點. Every direction-inversion claim rides on this one. */
+  /** Vertical Japanese — 草枕. ppd=rtl, ruby, 傍點. Every direction-inversion claim rides on this one. */
   vertical: join(BOOKS_DIR, "kusamakura-vertical-japanese.epub"),
-  /** 橫排英文——Alice. Illustrations mixed into the text. */
+  /** Horizontal English — Alice. Illustrations mixed into the text. */
   horizontal: join(BOOKS_DIR, "alice-in-wonderland-horizontal.epub"),
   /**
-   * 橫排繁中, written for the weight question: body at 300, `.sans` at 500, `.six-hundred`
+   * Horizontal Traditional Chinese, written for the weight question: body at 300, `.sans` at 500, `.six-hundred`
    * at 600, `h1` at 700. Nothing else in `tests/books/` declares a numeric weight, so this is
    * the only fixture on which the reader's two-weight rule is visible at all.
    */
@@ -949,14 +949,14 @@ export async function openPanel(page: Page, label: string | RegExp): Promise<voi
 }
 
 /**
- * One cell of a segmented setting — 主題, 欄數, 字型 or 留白.
+ * One cell of a segmented setting — [[Theme]], [[Columns]], [[Font]] or [[Margin]].
  *
  * Four of [[Layout]]'s six put every option on the page instead of hiding them behind a native
  * `<select>`, so choosing one is a click on the cell rather than a `selectOption`, and reading
  * back which is chosen is `aria-checked` rather than `toHaveValue`. This helper exists so the
  * specs spell that once: `segment(page, "setting-margin", 48)`.
  *
- * 行距 and 字級 are not segmented — six long labels and a slider — so they stay as they were.
+ * [[Line height]] and [[Size]] are not segmented — six long labels and a slider — so they stay as they were.
  */
 export function segment(page: Page, setting: string, value: string | number) {
   return page.getByTestId(`${setting}-${value}`);

@@ -5,7 +5,7 @@ import { handleReach, washRect, type Rect, type SelectionEnds } from "../lib/sel
 // a handle at each end of it.
 //
 // **A wash, not a wave.** The wave belongs to [[Mark]] — to a mark the reader has already made,
-// which is 墨. A selection is still 潮: it can move, and it may yet come to nothing. Drawing
+// which is [[Ink]]. A selection is still [[Tide]]: it can move, and it may yet come to nothing. Drawing
 // both the same shape would leave the reader unable to tell "I marked this" from "I am about to"
 // (CONTEXT.md [[Owned selection]]), and indigo against tide is the closest pair of colours in the app.
 //
