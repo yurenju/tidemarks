@@ -1,4 +1,4 @@
-/* 〈排版〉's six, in both shells: the reader's panel and 〈設定〉's 排版 tab.
+/* [[Layout]]'s six, in both shells: the reader's panel and [[Settings]]'s 排版 tab.
    ------------------------------------------------------------------------
    **Label left, control right.** The two-line arrangement this replaced was fine for four rows
    in a panel that had nothing above it worth seeing; six rows in it push the book off a
@@ -28,7 +28,7 @@
      300px at its narrowest now) 主題's three options ran off the edge and 深色 was cut in half.
      The extra width does not make this rule redundant: the floor still has to hold on the
      narrowest window that gets a column at all. Wrapping is what makes one arrangement
-     serve both shells: label-beside in 〈設定〉 and on a phone's sheet, label-above in the narrow
+     serve both shells: label-beside in [[Settings]] and on a phone's sheet, label-above in the narrow
      column, without either being a second layout to keep in step. */
   flex-wrap: wrap;
   gap: var(--space-3);

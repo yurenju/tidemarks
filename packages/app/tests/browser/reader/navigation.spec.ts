@@ -36,7 +36,7 @@ declare global {
  * "false" is the first value logged however soon it flips.
  *
  * **This used to watch the Scrubber's own `aria-disabled`**, and it cannot any more: the Scrubber
- * is on screen only in 〈找〉, so it mounts when the reader asks for it rather than when the book
+ * is on screen only in [[Find]], so it mounts when the reader asks for it rather than when the book
  * opens, and by then the index is usually built. What is watched instead is the fact underneath.
  * The track reads `disabled={!indexed}` off it in one line, and the test below pins the two ends
  * of that line together.
@@ -104,7 +104,7 @@ test.describe("table of contents", () => {
 
     // **The list is still standing, and that is the point of pressing a chapter here.** A jump
     // used to put the whole chrome away, which made this assertion a race against a 300 ms exit
-    // transition — the mark was always right, the list holding it had simply gone. Now 〈目錄〉
+    // transition — the mark was always right, the list holding it had simply gone. Now [[Contents]]
     // stays wherever the book it sent the reader to is still on screen beside it, which this
     // window is wide enough for, so the answer can be read where the reader would read it.
     //

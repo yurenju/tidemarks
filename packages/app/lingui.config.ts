@@ -5,7 +5,7 @@ import { formatter } from "@lingui/format-po";
  * The interface's own words, in three languages.
  *
  * **English is the source**, which is what makes the code and its comments one language
- * (CLAUDE.md, 〈程式碼用英文，文件用中文〉). The Traditional Chinese that used to be written
+ * (CLAUDE.md, on which language each kind of file is written in). The Traditional Chinese that
  * straight into the JSX is now a catalog entry, carried over word for word rather than
  * retranslated — see ADR-0031 for what that trade costs and buys.
  *

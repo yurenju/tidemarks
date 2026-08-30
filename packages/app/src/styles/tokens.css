@@ -158,7 +158,7 @@ html[data-drawer="open"] {
   --fill-selected: var(--blue-selected);
   /* The wash over a passage being selected — **tide, because a selection can still move**. A
      mark is 墨 and wears the wave; this is 潮 and wears a block of colour, and the two must not
-     be the same shape (ADR-0036, CONTEXT.md 〈接管選取〉). Flat rather than a `color-mix` of
+     be the same shape (ADR-0036, CONTEXT.md [[Owned selection]]). Flat rather than a `color-mix` of
      `--tide`, because the same value has to travel to frond as a plain colour and a copy of an
      expression is harder to compare than a copy of a value. Low enough that CJK strokes read
      through it — a heavy selection colour over Han characters is what #52 ② is about.
@@ -298,7 +298,7 @@ html[data-drawer="open"] {
      Latin sans reads comfortably at is a size the same measurement leaves Han strokes merging
      at. Chinese practice puts body text at 16–18px and treats 12px as the floor for anything
      at all — so body starts at 16 and the smallest step, the eyebrow over a settings group,
-     lands on 12 rather than under it. 〈設定〉's 帳號 tab is where the old numbers showed
+     lands on 12 rather than under it. [[Settings]]'s 帳號 tab is where the old numbers showed
      worst, being the one screen that is mostly prose at `--type-note` and `--type-eyebrow`. */
   --type-display: 2rem;
   --type-title: 1.375rem;
@@ -392,14 +392,14 @@ html[data-drawer="open"] {
      of book between them on the way in. One number, and each group moves as one piece.
 
      Over-shooting is free: the extra is spent past the edge, where nothing is drawn. Falling
-     short is not — a bar that stops before the edge is left standing over the book in 〈讀〉 — so
+     short is not — a bar that stops before the edge is left standing over the book in [[Read]] — so
      this is generous, and `chrome-motion.spec.ts` measures that it clears both stacks in both
      arrangements. `rem`, because the bars are built out of text and grow with it.
 
      **8rem was not generous enough, and the way that showed is worth keeping.** The bottom bar
      grew by `--chrome-bottom-safe` and the entries above it, which travel the same distance from
      the same stack, stopped 6px short of the edge — visible only as a sliver of bar over the
-     book in 〈讀〉, and only on a hand-held. Two engines' worth of `hand-held.spec.ts` said so
+     book in [[Read]], and only on a hand-held. Two engines' worth of `hand-held.spec.ts` said so
      before any human could have. Raised past what the current stack needs rather than to fit
      it: the number that matters is the one still clearing when the next line is added to a bar.
 

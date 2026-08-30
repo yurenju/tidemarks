@@ -5,7 +5,7 @@
 // passage carries its own book's measure, that the head row sheds its parts by measuring rather
 // than at a width, and that pressing the passage really does put the reader back in the book it
 // came from — **without that arrival becoming where they had read to**, which is this entrance's
-// own wire into 〈回訪模式〉. The rule behind that one is `src/lib/visit.test.ts`'s, and the
+// own wire into [[Revisit mode]]. The rule behind that one is `src/lib/visit.test.ts`'s, and the
 // reader's other way into it is `reader/visit.spec.ts`'s.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
@@ -165,7 +165,7 @@ const another = (page: Page) =>
 const passage = (page: Page) => page.getByTestId("mark-quote");
 
 /**
- * Press 〈another〉 and wait for the card to have actually turned over.
+ * Press [[another]] and wait for the card to have actually turned over.
  *
  * The press is dispatched synchronously and the draw behind it is a read of Dexie away, so a test
  * that read the card straight afterwards would sometimes read the passage still on screen. With

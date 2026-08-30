@@ -118,7 +118,7 @@ test.describe("a vertical book", () => {
   });
 
   test("the colour row waits for the finger to lift", async ({ page }) => {
-    // 〈標〉 begins when the finger does not (CONTEXT.md 〈chrome〉). Raised any earlier the row
+    // [[Marking]] begins when the finger does not (CONTEXT.md [[chrome]]). Raised any earlier the row
     // would sit under the finger that raised it, and chase the selection while it is extended.
     const finger = (type: "pointerdown" | "pointerup") =>
       page.evaluate(

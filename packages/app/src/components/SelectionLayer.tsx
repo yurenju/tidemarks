@@ -4,10 +4,10 @@ import { handleReach, washRect, type Rect, type SelectionEnds } from "../lib/sel
 // The selection the app draws itself, on touch (ADR-0036): a wash over the chosen passage and
 // a handle at each end of it.
 //
-// **A wash, not a wave.** The wave belongs to 〈螢光〉 — to a mark the reader has already made,
+// **A wash, not a wave.** The wave belongs to [[Mark]] — to a mark the reader has already made,
 // which is 墨. A selection is still 潮: it can move, and it may yet come to nothing. Drawing
 // both the same shape would leave the reader unable to tell "I marked this" from "I am about to"
-// (CONTEXT.md 〈接管選取〉), and indigo against tide is the closest pair of colours in the app.
+// (CONTEXT.md [[Owned selection]]), and indigo against tide is the closest pair of colours in the app.
 //
 // **Only the handles take pointer events**, and the layer as a whole must not: the page under it
 // has to keep receiving the presses that turn it. So the wash is inert and each handle captures

@@ -951,7 +951,7 @@ export async function openPanel(page: Page, label: string | RegExp): Promise<voi
 /**
  * One cell of a segmented setting — 主題, 欄數, 字型 or 留白.
  *
- * Four of 〈排版〉's six put every option on the page instead of hiding them behind a native
+ * Four of [[Layout]]'s six put every option on the page instead of hiding them behind a native
  * `<select>`, so choosing one is a click on the cell rather than a `selectOption`, and reading
  * back which is chosen is `aria-checked` rather than `toHaveValue`. This helper exists so the
  * specs spell that once: `segment(page, "setting-margin", 48)`.

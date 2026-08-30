@@ -2,7 +2,7 @@
  * Which marked passage reaches the shelf's card today, and how old it reads as.
  *
  * The card exists to keep a passage alive through the stretch where the reader cannot yet say
- * why it mattered — see CONTEXT.md 〈回訪卡〉 for what that is worth. This file is the half of it
+ * why it mattered — see CONTEXT.md [[Revisit card]] for what that is worth. This file is the half of it
  * that can be answered without a browser: which passage comes up, and how long ago it was marked.
  *
  * **One a day, drawn at random, held until tomorrow.** The holding is the part that does the
@@ -34,7 +34,7 @@ const drawAtRandom: Draw = (marks) => marks[Math.floor(Math.random() * marks.len
  *
  * `movingOn` is the passage the reader has just asked to leave, and the only thing the draw
  * promises: whatever comes back, it is not that one. ⚠️ Unless it is the only mark there is —
- * a reader with one passage who presses 〈another〉 has asked for something, and an empty card
+ * a reader with one passage who presses [[another]] has asked for something, and an empty card
  * is a worse answer than the same passage again.
  */
 export function pickOne(

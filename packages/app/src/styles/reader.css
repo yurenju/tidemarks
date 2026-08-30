@@ -1,6 +1,6 @@
 /* Reader
    ------
-   Three states, one at a time (CONTEXT.md 〈chrome〉). 〈讀〉 is the book alone; 〈找〉 lays the two
+   Three states, one at a time (CONTEXT.md [[chrome]]). [[Read]] is the book alone; [[Find]] lays the two
    bars **over** it rather than beside it. Over, because a bar that took its own room would
    shrink the page and repaginate the book — asking where you are would move you. */
 .reader {
@@ -14,10 +14,10 @@
   overscroll-behavior: none;
 }
 
-/* 〈找〉, in one box: a column the height of the reader, laid over the book. The box itself
+/* [[Find]], in one box: a column the height of the reader, laid over the book. The box itself
    catches nothing and each bar takes its pointer events back while it is up (`[data-up]`
    below), so a press on the page between them still reaches frond and still puts the chrome
-   away. `data-up` is the whole of the state as CSS reads it; the box is here in 〈讀〉 too, with
+   away. `data-up` is the whole of the state as CSS reads it; the box is here in [[Read]] too, with
    the bars parked off the edges.
 
    A grid, because that is what lets the entries change *ends* on a phone and change *rows* on a
@@ -27,7 +27,7 @@
 
    `right` is the column a panel takes on a desk. Not `width`, so the bars stay pinned to the
    left edge and only give up their right end — and `0` the rest of the time, so nothing about
-   〈讀〉 or a bare 〈找〉 depends on this rule at all. */
+   [[Read]] or a bare [[Find]] depends on this rule at all. */
 .chrome {
   position: absolute;
   inset: 0;
@@ -59,7 +59,7 @@
 
 /* A position that arrived from another device, and the two ways of answering it.
    ------------------------------------------------------------------------------
-   **A row of the chrome's grid, but not one of the bars.** It is not part of 〈找〉: it does not
+   **A row of the chrome's grid, but not one of the bars.** It is not part of [[Find]]: it does not
    slide, it does not hide, and a tap on the page does not put it away, because the reader never
    asked for it and it is holding something that the next page turn would otherwise overwrite
    (`lib/elsewhere.ts`). So it takes its pointer events unconditionally — the box above it is
@@ -68,7 +68,7 @@
    Its row sits under the top bar in both arrangements, and the bars keep their space while they
    are down (`visibility: hidden`, not `display: none`). That is what makes this a **fixed**
    place: raising the chrome does not shift the banner, and lowering it does not slide a bar
-   over it. The price is a bar's worth of clear space above it in 〈讀〉, which reads as an inset
+   over it. The price is a bar's worth of clear space above it in [[Read]], which reads as an inset
    from the top edge rather than as a gap.
 
    Raised, hairlined, no cast — the same pair as the bars (ADR-0028), and for the same reason
@@ -80,7 +80,7 @@
   /* **A card, not a fourth bar.** Left to fill the width it measured 1873px on a 1920 window,
      with the sentence ending at 324 and the answers starting at 1650 — a white band across the
      whole screen holding one short line, which is the loudest thing ADR-0020 allows anywhere
-     near a book. The bars may span everything because they are 〈找〉; this is not 〈找〉, it does
+     near a book. The bars may span everything because they are [[Find]]; this is not [[Find]], it does
      not slide away, and looking like a bar says it is the same kind of thing.
 
      **Centred, and that is not symmetry for its own sake.** A vertical book starts at the right
@@ -166,14 +166,14 @@
   grid-area: bottom;
 }
 
-/* The three bars, in the state 〈讀〉 leaves them: parked past the edge they came from, hidden,
+/* The three bars, in the state [[Read]] leaves them: parked past the edge they came from, hidden,
    and catching nothing. **The layer stays in the tree the whole time** — a state that is
    unmounted cannot leave, and the bars would blink out half-way through going away.
 
    **One step off the page, and no shadow** (ADR-0028). These used to take `--surface-page`
    itself — the same token as the book, not a value near it — which left a hairline carrying two
    jobs at once: dividing the two planes, and saying which of them is on top. It can do the
-   first. 〈找〉 lays these bars *over* the book rather than beside it, so the second has to be
+   first. [[Find]] lays these bars *over* the book rather than beside it, so the second has to be
    said by the surface. A shadow would say it too, and is not allowed to: a bar is glued to the
    screen, and only what can be picked up casts (ADR-0022). The hairline stays — in the dark the
    step is 1.08:1, and under a low backlight the line is the only half of the pair left.
@@ -207,7 +207,7 @@
   transform: translateY(var(--chrome-slide));
 }
 
-/* 〈找〉: home, and live. The pointer is granted here rather than above so that a bar on its way
+/* [[Find]]: home, and live. The pointer is granted here rather than above so that a bar on its way
    out cannot be pressed half-way — the tap that sent it away must not be able to catch it. */
 .chrome[data-up] .chrome-top,
 .chrome[data-up] .chrome-nav,
@@ -242,7 +242,7 @@
   align-self: stretch;
 }
 
-/* 目錄／筆記／排版, and the door to 〈書的詳情〉. The right end of the top row by default; on a
+/* 目錄／筆記／排版, and the door to [[About]]. The right end of the top row by default; on a
    hand-held it drops to a row of its own above the Scrubber, where a thumb is.
 
    **One row, not two.** They were stacked — a title bar half empty and an entry bar half empty,
@@ -354,7 +354,7 @@
    Neither says how far. The percentage is inside the sheet, where a number can be read; from
    across a page what is wanted is "still going".
 
-   The sweep, for 〈排版〉: a rule travelling under the word, because what the button is busy
+   The sweep, for [[Layout]]: a rule travelling under the word, because what the button is busy
    doing is resetting type. It wraps the label rather than the button, so the line is the width
    of the word and not of the padding. */
 .busy-underline {
@@ -454,7 +454,7 @@
    left over (ADR-0005).
 
    This is not the sidebar ADR-0020 removed. That one was permanent and beside the book; this
-   one is 〈找〉 wearing a different shape, and a press on the page puts the whole state away. */
+   one is [[Find]] wearing a different shape, and a press on the page puts the whole state away. */
 /* The reader's whole box, and a layer above the chrome so a column can stand beside the bars
    rather than inside the room between them. It catches nothing itself. */
 .panel-host {
@@ -465,7 +465,7 @@
 }
 
 /* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
-   page 〈排版〉 is applied to — the reader dragging 字級 was watching the one surface the panel
+   page [[Layout]] is applied to — the reader dragging 字級 was watching the one surface the panel
    exists to change, through a scrim (ADR-0005). What is left is the press target: a press
    outside the panel still closes it, it just no longer says so by dimming the book.
 
@@ -478,7 +478,7 @@
    standing.
 
    Nothing is lost by that. A press on the page already puts the panel away — not through this
-   element but through frond, which reports the tap as unclaimed and drops the chrome to 〈讀〉
+   element but through frond, which reports the tap as unclaimed and drops the chrome to [[Read]]
    (`Reader.tsx`). Making this catch the press would take that path away, not add one. */
 .panel-backdrop {
   position: absolute;

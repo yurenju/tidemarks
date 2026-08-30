@@ -70,7 +70,7 @@ test.describe("horizontal book", () => {
 
   test("a drag turns the page with the chrome up, and puts the chrome away", async ({ page }) => {
     // Dragging cannot be mistaken for "put this away", so it is not blocked while the bars are
-    // up — and a page turn ends 〈找〉, whichever route asked for it. The rule itself is decided in
+    // up — and a page turn ends [[Find]], whichever route asked for it. The rule itself is decided in
     // the machine and pinned for all three routes in src/lib/gesture.test.ts; this is the one
     // wiring test that says the bars really came down over a real book.
     const before = await visibleText(page);

@@ -373,7 +373,7 @@ export default function Reader({
    */
   onAt?: (at: At) => void;
   onClose: () => void;
-  /** Opens 〈書的詳情〉 over the book (`#/book/<id>?d=about/<id>`). */
+  /** Opens [[About]] over the book (`#/book/<id>?d=about/<id>`). */
   onOpenAbout: () => void;
   /** The one record every book renders from. Adjusting it here adjusts every book (ADR-0005). */
   settings: ReaderSettings;
@@ -416,7 +416,7 @@ export default function Reader({
   /**
    * Which of the reader's states is standing, which panel it last showed, and which note is being
    * written. One value with one writer: `lib/chrome.ts` owns every rule about how it changes, and
-   * what is left here is naming the event that just happened (CONTEXT.md 〈chrome〉).
+   * what is left here is naming the event that just happened (CONTEXT.md [[chrome]]).
    */
   const [chromeState, setChromeState] = useState(initialChrome);
   // Whether the book is still on screen with a panel up. Only `notePressed` asks (`lib/media.ts`).
@@ -467,7 +467,7 @@ export default function Reader({
    * The last position the screen reported, visit or not.
    *
    * Two refs rather than one because a visit splits the question in two: `positionRef` is what
-   * this device claims about the book, and this is where the reader is looking. 〈Stay here〉
+   * this device claims about the book, and this is where the reader is looking. [[Stay here]]
    * needs the second — during a visit the first is a hundred pages away, and writing it back
    * would be the button doing nothing at all.
    */
@@ -533,7 +533,7 @@ export default function Reader({
     /**
      * The finger is still down on it.
      *
-     * 〈標〉 waits for that finger to lift (CONTEXT.md 〈chrome〉): a colour row raised mid-drag
+     * [[Marking]] waits for that finger to lift (CONTEXT.md [[chrome]]): a colour row raised mid-drag
      * appears under the finger that raised it and then chases the selection across the page.
      * Always false for a browser-drawn selection, which is only reported once it has settled.
      */
@@ -781,7 +781,7 @@ export default function Reader({
     /**
      * Puts a range frond has just located on screen as the selection.
      *
-     * The one route into 〈標〉 for a selection we drew, so everything that has to be true of one
+     * The one route into [[Marking]] for a selection we drew, so everything that has to be true of one
      * is true here once: the chrome goes down, the geometry is converted into both systems that
      * need it — the container's, for the wash and the handles, and the top window's, for the
      * colour row — and `live` says whether the finger has finished.
@@ -799,7 +799,7 @@ export default function Reader({
       const ends = selectionEnds(facts.rects, verticalRef.current);
       if (!anchor || !ends) return;
 
-      // 〈標〉 displaces 〈找〉, same as the browser-drawn route below.
+      // [[Marking]] displaces [[Find]], same as the browser-drawn route below.
       sendChrome({ kind: "selectionArrived" });
       setSelection({
         cfiRange: facts.cfi,
@@ -850,7 +850,7 @@ export default function Reader({
      *
      * **The geometry is asked for first on both routes**, so a range that resolves to nothing at
      * all is reported rather than handed on: `showRange` drops a range with no rectangles, and it
-     * does so *after* having put 〈找〉 away, which would leave a bare page and no account of why.
+     * does so *after* having put [[Find]] away, which would leave a bare page and no account of why.
      *
      * ⚠️ **It does not tell "on this page" from "further down this section".** `rectsFor` reports
      * true geometry wherever the passage is — clipping is the consumer's policy (frond ADR-0002)
@@ -875,7 +875,7 @@ export default function Reader({
 
       if (handles) {
         // The one entry the reader's own long press goes through, so what is on screen is what a
-        // finger produces — the collapse of 〈找〉, both coordinate systems, the handles.
+        // finger produces — the collapse of [[Find]], both coordinate systems, the handles.
         showRange(facts, false);
         return;
       }
@@ -962,7 +962,7 @@ export default function Reader({
           setSelection((now) => (now === null ? null : { ...now, live: true }));
           return;
         case "settleSelection":
-          // 〈標〉 may stand up now the finger has finished (CONTEXT.md 〈chrome〉).
+          // [[Marking]] may stand up now the finger has finished (CONTEXT.md [[chrome]]).
           setSelection((now) => (now === null ? null : { ...now, live: false }));
           return;
         case "dropSelection":
@@ -1238,7 +1238,7 @@ export default function Reader({
     // rendered outside this effect, so they reach it the way the handles do.
     //
     // **A page turn puts the chrome away**, whichever route asked for it — that is one half of
-    // how 〈找〉 ends (CONTEXT.md 〈chrome〉). It is decided in the machine along with the turn
+    // how [[Find]] ends (CONTEXT.md [[chrome]]). It is decided in the machine along with the turn
     // itself, so a route found later cannot turn a page with the interface still up.
     onSideRef.current = (side) => {
       send({ kind: "side", side });
@@ -1534,7 +1534,7 @@ export default function Reader({
               dropSelection();
               return;
             }
-            // 〈標〉 displaces 〈找〉, with no exception made for either. The colour row is placed
+            // [[Marking]] displaces [[Find]], with no exception made for either. The colour row is placed
             // against the selection's own rectangles (`toolbar-position`), and one more layer
             // for it to dodge is one more way that placement comes out wrong.
             sendChrome({ kind: "selectionArrived" });
@@ -1638,7 +1638,7 @@ export default function Reader({
       // **Unless a control is using them.** Left and right belong to whatever has the focus
       // first: they move the size slider, they open and walk the line-height options, and they choose a
       // cell in the segmented settings. Turning a page as well means every adjustment made from
-      // the keyboard also moves the reader, and 〈找〉 closing on the way out takes the panel
+      // the keyboard also moves the reader, and [[Find]] closing on the way out takes the panel
       // with it — so the reader watches the thing they were adjusting disappear.
       //
       // `closest` rather than a tag check, because a segmented cell is a `<button>` and only its
@@ -2108,7 +2108,7 @@ export default function Reader({
   /**
    * Writes the note down. **Committing and closing the box are two things now**, and this is the
    * first of them: it says nothing to the chrome, so it is safe to call from the editor being
-   * taken away — which is every way out of a note except pressing 〈完成〉 (ADR-0044).
+   * taken away — which is every way out of a note except pressing [[Done]] (ADR-0044).
    */
   async function persistNote(id: string, note: string) {
     const now = Date.now();
@@ -2117,7 +2117,7 @@ export default function Reader({
     scheduleSync();
   }
 
-  /** 〈完成〉: the same write, and then the editor closes. */
+  /** [[Done]]: the same write, and then the editor closes. */
   async function saveNote(id: string, note: string) {
     await persistNote(id, note);
     sendChrome({ kind: "noteSaved" });
@@ -2167,12 +2167,12 @@ export default function Reader({
       data-panel={panelOpen || undefined}
       /* Which face, kept **whether or not one is standing** — the same reason `panelKind` itself
          is kept (`lib/chrome.ts`): Base UI holds the popup mounted for the 180ms it takes to
-         slide out. Written on the open/closed attribute instead, 〈排版〉's sheet would lose the
+         slide out. Written on the open/closed attribute instead, [[Layout]]'s sheet would lose the
          rule that keeps it a sheet at the instant it started leaving, and snap to full screen for
          the length of its own exit. `[data-panel]` stays the boolean every other rule reads. */
       data-panel-kind={panelKind}
     >
-      {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising 〈找〉
+      {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising [[Find]]
           leaves the page exactly where it was, opening one of the three gives up a column and
           repaginates.
 
@@ -2264,11 +2264,11 @@ export default function Reader({
         </div>
       </div>
 
-      {/* 〈找〉, laid over the book in one box. The three pieces are ordered by CSS rather than
+      {/* [[Find]], laid over the book in one box. The three pieces are ordered by CSS rather than
           by this file: the entries sit above the Scrubber on a hand-held and up in the top bar
           everywhere else, and neither arrangement is a different component (ADR-0023).
 
-          **It stays in the tree while 〈讀〉 stands**, parked off the edges it came from, because
+          **It stays in the tree while [[Read]] stands**, parked off the edges it came from, because
           a state that is unmounted cannot leave: the bars would blink out mid-slide. `data-up`
           is the whole of the state as CSS reads it — down, they are outside the reader's box and
           `visibility: hidden`, so nothing on this layer is reachable by a pointer, by the
@@ -2353,7 +2353,7 @@ export default function Reader({
             turn, while a visit is the reader's own tap a moment ago with nothing at stake.
 
             **In the chrome's grid but not one of its bars**: it never slides, never hides, and
-            is not part of 〈找〉 — the reader did not ask for it and cannot dismiss it with a
+            is not part of [[Find]] — the reader did not ask for it and cannot dismiss it with a
             tap on the page. It sits in a row of its own under the top bar, which is a fixed
             place in both states, so raising the chrome does not move it and lowering the chrome
             does not put it under anything. The cost is a bar's worth of space above it while
@@ -2388,8 +2388,8 @@ export default function Reader({
               {Math.round(elsewhere.position.percentage * 100)}%
             </p>
             {/* **The pair is one thing and wraps as one.** Left loose among the other pieces, a
-                393px screen fitted the timestamp and 〈Go there〉 on one row and pushed 〈Stay
-                here〉 onto another — two answers to one question, on separate lines, one of them
+                393px screen fitted the timestamp and [[Go there]] on one row and pushed
+                [[Stay here]] onto another — two answers to one question, on separate lines, one of them
                 looking like the answer to something else. */}
             <div className="elsewhere-actions">
               <button className="primary" onClick={goElsewhere}>
@@ -2444,7 +2444,7 @@ export default function Reader({
             /* **The CFI, not the fraction the mark is drawn at.** A fraction is rounded to a
                page boundary on the way in — measured: a mark standing at 47% landed at 43% —
                and the reader pressing this is asking for the page they left, not for a page
-               four per cent away from it. It is the same jump 〈Go there〉 makes, for the same
+               four per cent away from it. It is the same jump [[Go there]] makes, for the same
                reason.
 
                Nothing here ends the visit: arriving is what ends it. The `relocate` this
@@ -2517,7 +2517,7 @@ export default function Reader({
                   onClick={() => {
                     void renderer?.goTo({ path: item.path, fragment: item.fragment });
                     // Same question `notePressed` asks, and the same answer: a chapter is one of
-                    // a list the reader may be working down, so 〈目錄〉 is left standing where
+                    // a list the reader may be working down, so [[Contents]] is left standing where
                     // the book it sent them to is still on screen beside it. Narrower, the panel
                     // is over the book and would hide the chapter it just took them to.
                     sendChrome({ kind: "jumped", keepPanel: bookKeepsAColumn });
@@ -2569,7 +2569,7 @@ export default function Reader({
         )}
 
         {/* Six settings, one record, every book. They are in the reader's panel rather than only
-            in 〈設定〉 because this is the one place with a preview: what the panel leaves showing
+            in [[Settings]] because this is the one place with a preview: what the panel leaves showing
             is the real page, resetting as the reader drags (ADR-0005). */}
         {panelKind === "layout" && (
           <TypographyForm
@@ -2582,9 +2582,9 @@ export default function Reader({
         )}
       </Panel>
 
-      {/* 〈標〉 waits for the finger to lift. While it is still down the reader has the wash and
+      {/* [[Marking]] waits for the finger to lift. While it is still down the reader has the wash and
           the two handles and nothing else — a colour row raised mid-drag would sit under the
-          finger that raised it and chase the selection across the page (CONTEXT.md 〈chrome〉). */}
+          finger that raised it and chase the selection across the page (CONTEXT.md [[chrome]]). */}
       {selection && !selection.live && (
         <div
           ref={toolbarRef}
@@ -2669,7 +2669,7 @@ function AnnotationItem({
 
   /**
    * **The words are written down when the box goes away, by whatever took it.** A tap on the
-   * page, a page turn, the panel closing, the reader pressing 〈完成〉 — all of them end up here,
+   * page, a page turn, the panel closing, the reader pressing [[Done]] — all of them end up here,
    * because all of them end `editing` and this runs on the way out.
    *
    * `blur` is not what listens, and could not be: removing a focused element does not fire it in
@@ -2686,7 +2686,7 @@ function AnnotationItem({
   committedRef.current = annotation.note;
   const persistRef = useRef(onPersist);
   persistRef.current = onPersist;
-  /** Set by 〈刪除〉, so the cleanup does not write a note onto a row that has just been buried. */
+  /** Set by [[Delete]], so the cleanup does not write a note onto a row that has just been buried. */
   const removedRef = useRef(false);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
 

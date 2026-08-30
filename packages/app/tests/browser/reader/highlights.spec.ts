@@ -451,7 +451,7 @@ test.describe("a wide margin, where the page and the container part company", ()
       .filter({ hasText: /Rabbit-Hole/ })
       .first()
       .click();
-    // **Put 〈目錄〉 away before measuring anything.** A chapter pressed at this width leaves the
+    // **Put [[Contents]] away before measuring anything.** A chapter pressed at this width leaves the
     // panel standing, and a standing panel is a column taken off the book — so the margin below
     // would be measured against a page laid out for a narrower reader than the one the test is
     // about. Pressing the entry again is what a reader would do to get their book back, and it

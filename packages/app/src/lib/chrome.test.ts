@@ -2,7 +2,7 @@
 //
 // Two kinds of question live here, and they are the two a screen answers slowly or not at all.
 // **Which of two things wins the same frame** — a panel standing open when a selection arrives,
-// 〈Notes〉 pressed while 〈Type〉 is showing, a note being edited when the reader taps the page
+// [[Notes]] pressed while [[Type]] is showing, a note being edited when the reader taps the page
 // away. Each rule is obvious alone; the answer used to be reading order across eleven
 // `setChrome` calls, and the only way to ask it was three browsers. And **what a value's whole
 // life looks like** — every way into the notes panel and every one of the eight ways out of it,
@@ -21,7 +21,7 @@ const at = (over: Partial<ChromeState> = {}): ChromeState => ({ ...initialChrome
 const run = (state: ChromeState, ...events: ChromeEvent[]): ChromeState =>
   events.reduce(nextChrome, state);
 
-describe("〈標〉 displaces whatever 〈找〉 was showing", () => {
+describe("[[Marking]] displaces whatever [[Find]] was showing", () => {
   it.each(["up", "layout", "down"] as const)("puts the chrome away from %s", (chrome) => {
     expect(nextChrome(at({ chrome }), { kind: "selectionArrived" }).chrome).toBe("down");
   });
@@ -74,7 +74,7 @@ describe("two things wanting the chrome at once", () => {
     expect(after.chrome).toBe("down");
   });
 
-  it("leaves 〈目錄〉 standing where the book keeps a column of its own", () => {
+  it("leaves [[Contents]] standing where the book keeps a column of its own", () => {
     // A chapter pressed on a desk is one of a list the reader may be working through, and the
     // book they were sent to is still on screen beside the panel. Closing it would cost a press
     // per chapter to get back — the same argument `notePressed` already makes for a passage.
@@ -89,8 +89,8 @@ describe("two things wanting the chrome at once", () => {
 // **A note stops being edited the moment the panel stops standing**, and nothing has to be lost
 // with it: the words are committed when the box loses focus, so what closes here is the editor
 // and not the writing (ADR-0044's 代價). Held any longer, `editing` would still be set the next
-// time 〈Notes〉 was raised, and the box that remounts takes the focus — which on a phone means
-// pressing 〈Notes〉 to read a list and getting a keyboard.
+// time [[Notes]] was raised, and the box that remounts takes the focus — which on a phone means
+// pressing [[Notes]] to read a list and getting a keyboard.
 describe("the note being written", () => {
   it("opens the panel and starts editing in one move", () => {
     expect(nextChrome(at(), { kind: "openNote", id: "a" })).toMatchObject({
@@ -104,7 +104,7 @@ describe("the note being written", () => {
     ["the reader taps the chrome away", { kind: "tapped" } as const],
     ["a page turn puts the chrome away", { kind: "turned" } as const],
     ["the panel dismisses itself", { kind: "panelDismissed" } as const],
-    ["〈排版〉 takes the panel over", { kind: "togglePanel", panel: "layout" } as const],
+    ["[[Layout]] takes the panel over", { kind: "togglePanel", panel: "layout" } as const],
     ["a selection arrives", { kind: "selectionArrived" } as const],
   ])("stops editing when %s", (_what, event) => {
     const after = run(at(), { kind: "openNote", id: "a" }, event);
@@ -112,7 +112,7 @@ describe("the note being written", () => {
   });
 
   it("raises a bare list rather than a box with the focus, having been left mid-note", () => {
-    // The whole of the report this rule came from: a note left half written, 〈Notes〉 pressed
+    // The whole of the report this rule came from: a note left half written, [[Notes]] pressed
     // some time later to read the list, and a keyboard covering it.
     const after = run(
       at(),
@@ -160,7 +160,7 @@ describe("the passage the notes panel is pointing at", () => {
 
   it.each([
     ["a page turn", { kind: "turned" } as const],
-    ["a chapter pressed in 〈目錄〉", { kind: "jumped", keepPanel: false } as const],
+    ["a chapter pressed in [[Contents]]", { kind: "jumped", keepPanel: false } as const],
     ["a selection arriving", { kind: "selectionArrived" } as const],
   ])("stops pointing after %s", (_what, event) => {
     const after = nextChrome(at({ chrome: "notes", selected: "a" }), event);
@@ -170,20 +170,20 @@ describe("the passage the notes panel is pointing at", () => {
   it.each([
     ["a tap on the page", { kind: "tapped" } as const],
     ["the panel dismissing itself", { kind: "panelDismissed" } as const],
-    ["〈Notes〉 pressed again to close it", { kind: "togglePanel", panel: "notes" } as const],
-    ["〈排版〉 taking the panel over", { kind: "togglePanel", panel: "layout" } as const],
-    ["〈目錄〉 taking the panel over", { kind: "togglePanel", panel: "toc" } as const],
+    ["[[Notes]] pressed again to close it", { kind: "togglePanel", panel: "notes" } as const],
+    ["[[Layout]] taking the panel over", { kind: "togglePanel", panel: "layout" } as const],
+    ["[[Contents]] taking the panel over", { kind: "togglePanel", panel: "toc" } as const],
   ])("goes on pointing through %s, which leaves the reader on the same page", (_what, event) => {
     // **The wash outlives the panel now**, because on a narrow window pressing a quote is how a
     // reader asks to be shown the passage — and the panel has to go for them to see it. What
-    // ends it is leaving the page the passage is on, not the panel closing. Closing 〈Notes〉 by
+    // ends it is leaving the page the passage is on, not the panel closing. Closing [[Notes]] by
     // pressing it again is that same move made from the bar rather than from the quote.
     const after = nextChrome(at({ chrome: "notes", selected: "a" }), event);
     expect(after.selected).toBe("a");
   });
 
   it("stops pointing when the panel is raised again, having been pressed last time", () => {
-    // The reader who reopens 〈Notes〉 has pressed nothing in it. A passage still lit from the
+    // The reader who reopens [[Notes]] has pressed nothing in it. A passage still lit from the
     // last time they had it open is the app answering a question nobody asked.
     const after = run(
       at({ chrome: "notes" }),
@@ -196,7 +196,7 @@ describe("the passage the notes panel is pointing at", () => {
   });
 
   it("points at the note a tap on the page opened, not at the one pressed before it", () => {
-    // Two ways in: tapping a mark on the page, and having ticked 〈標記並註記〉. Both send
+    // Two ways in: tapping a mark on the page, and having ticked [[Mark and note]]. Both send
     // `openNote`, and both used to leave the wash on whichever passage was pressed last —
     // lighting one passage while the note being written belonged to another.
     const after = run(

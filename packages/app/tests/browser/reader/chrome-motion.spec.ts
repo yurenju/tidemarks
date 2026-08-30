@@ -7,13 +7,13 @@ import { expect, test } from "../support/fixtures.js";
 import { BOOKS, openBook, openChrome } from "../support/library.js";
 
 /**
- * 〈找〉 arrives and leaves by sliding, and this file watches the one number that slide depends
+ * [[Find]] arrives and leaves by sliding, and this file watches the one number that slide depends
  * on: `--chrome-slide`, the distance every bar travels.
  *
  * It is one distance for a stack of two bars — the entries stand against the title bar, not
  * against the edge of the screen — so it has to be **longer than either stack is tall**. Too
  * long costs nothing, because the extra is spent past the edge where nothing is drawn. Too
- * short leaves a bar standing over the book in 〈讀〉, and nothing else in this suite would say
+ * short leaves a bar standing over the book in [[Read]], and nothing else in this suite would say
  * so: the tests that measure the chrome all raise it first.
  *
  * Measured with the chrome down, so there is no animation to race. The hand-held arrangement,
@@ -42,7 +42,7 @@ async function clearances(page: Page): Promise<{ bar: string; clearance: number 
 
 test("parks every bar past the edge it came from", async ({ page }) => {
   for (const { bar, clearance } of await clearances(page)) {
-    expect(clearance, `${bar} is still over the book in 〈讀〉`).toBeGreaterThan(0);
+    expect(clearance, `${bar} is still over the book in [[Read]]`).toBeGreaterThan(0);
   }
 });
 
@@ -56,7 +56,9 @@ test("keeps the bars in the tree while they are down, so they have a way to leav
   await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 });
 
-test("brings them home when 〈找〉 stands, and takes them back when it ends", async ({ page }) => {
+test("brings them home when [[Find]] stands, and takes them back when it ends", async ({
+  page,
+}) => {
   await openChrome(page);
 
   const home = await page.evaluate(() => {

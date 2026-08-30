@@ -46,7 +46,7 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
  * It also settles `lib/session.ts`'s flag from the answer, which is what makes the flag
  * self-healing: the panel asks this on mount, so a browser holding a valid cookie without the
  * flag — one that was signed in before the flag existed, or that lost localStorage — gets it
- * back the first time the reader opens 〈帳號〉.
+ * back the first time the reader opens [[Account]].
  */
 export async function me(): Promise<{ userId: string } | null> {
   const res = await apiFetch("/auth/me");

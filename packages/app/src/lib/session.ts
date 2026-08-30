@@ -6,7 +6,7 @@
  *
  * The session lives in an HttpOnly cookie, which is the right place for it and unreadable from
  * here. So the only way to ask "am I signed in" is to make a request — and a request is the very
- * thing that must not happen. CONTEXT.md's 〈退路〉 promises that without registering, not one
+ * thing that must not happen. CONTEXT.md's [[Exit]] promises that without registering, not one
  * byte of a book, a note or a reading position leaves the device; sync used to push first and
  * learn from the 401 afterwards, which meant the payload had already left. This is what turns
  * that promise into something a reader can check with a network panel.

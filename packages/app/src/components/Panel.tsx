@@ -32,10 +32,10 @@ const fromEntries = (event: Event): boolean => {
  *
  * **Wide, it takes its room from the book; narrow, it takes it from the bars.** Both used to
  * cover the book and stop short of the Scrubber, and both halves of that gave way for the same
- * reason: 〈排版〉 applies as it is dragged, so whatever the panel covers is the thing the reader
+ * reason: [[Layout]] applies as it is dragged, so whatever the panel covers is the thing the reader
  * opened it to look at (ADR-0005). A column beside the book repaginates it — that is the price,
  * and 目錄 and 筆記 are the ones paying it. Narrow there is no column to give, so the entries and
- * the Scrubber leave instead, and 〈目錄〉 and 〈筆記〉 go on to take the whole screen: what a
+ * the Scrubber leave instead, and [[Contents]] and [[Notes]] go on to take the whole screen: what a
  * sheet would leave above itself there is not a book anyone can read
  * (ADR-0044).
  *
@@ -100,9 +100,9 @@ export default function Panel({
          one includes the bar it came from — the Scrubber goes dead and the other two buttons
          stop answering, which is the opposite of what "stops short of the Scrubber" was for.
 
-         ⚠️ **Under 820px 〈目錄〉 and 〈筆記〉 now cover the whole screen, and a thing that covers
+         ⚠️ **Under 820px [[Contents]] and [[Notes]] now cover the whole screen, and a thing that covers
          the whole screen ought to trap.** It is not done here, and not by oversight: `inert`
-         stops presses as well as focus, and 〈排版〉 is a sheet at that width with a live page
+         stops presses as well as focus, and [[Layout]] is a sheet at that width with a live page
          above it that a press is meant to reach (`.panel-backdrop` takes it to dismiss the
          sheet). So trapping has to be per face, and it belongs with the rest of what makes these
          two drawers rather than panels — the hash and the back button, in #148. */

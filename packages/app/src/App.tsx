@@ -70,8 +70,8 @@ export default function App() {
   // platform paints its own system bar in.
   //
   // **It takes the colour of whatever is directly under it**, which is what ADR-0028 asked for
-  // and what makes the seam disappear. Under 〈找〉 that is the reader's top bar, one step off
-  // the page; under 〈讀〉 and on every other screen there is no bar there, and the surface that
+  // and what makes the seam disappear. Under [[Find]] that is the reader's top bar, one step off
+  // the page; under [[Read]] and on every other screen there is no bar there, and the surface that
   // reaches the top edge is the page itself. The bar used to be `--surface-raised` in all three,
   // which left a lit strip hanging over a book with nothing beneath it to belong to.
   //
@@ -169,7 +169,7 @@ export default function App() {
   }, []);
 
   // An agent's OAuth flow sends a session-less browser here to log in, and the login lives in
-  // 〈設定〉's 帳號 tab — so go there. Putting it in the hash rather than in a piece of state
+  // [[Settings]]'s 帳號 tab — so go there. Putting it in the hash rather than in a piece of state
   // means a refresh on the way through does not lose it.
   useEffect(() => {
     if (!authorizeReturnTarget(window.location.search)) return;

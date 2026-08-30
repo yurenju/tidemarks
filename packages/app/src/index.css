@@ -34,7 +34,7 @@
 @import "./styles/reader.css";
 
 /* The six typography settings, in both shells that show them — the reader's panel and the
-   排版 tab of 〈設定〉 — along with the font download line, its progress bar, and the note
+   排版 tab of [[Settings]] — along with the font download line, its progress bar, and the note
    that follows a font job. */
 @import "./styles/typography.css";
 
@@ -43,7 +43,7 @@
 @import "./styles/book.css";
 
 /* The panels that come in over a screen rather than inside the reader: the drawers, and
-   〈設定〉. */
+   [[Settings]]. */
 @import "./styles/drawers.css";
 
 /* Last, and it has to be: the two questions about the device. What a coarse pointer makes

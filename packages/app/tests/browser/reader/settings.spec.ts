@@ -84,10 +84,10 @@ test.describe("typography, one layer", () => {
   }) => {
     await importBoth(page);
 
-    // CONTEXT.md 〈排版設定〉: a choice is disabled only when it cannot be honoured, never
+    // CONTEXT.md [[Typography settings]]: a choice is disabled only when it cannot be honoured, never
     // when it would merely look bad. Two columns on a phone looks bad and stays the reader's
     // call; frond cannot paginate a 直排 book in more than one column at all. This is the one
-    // row in 〈排版〉 that depends on the book underneath it, and it moved into this panel
+    // row in [[Layout]] that depends on the book underneath it, and it moved into this panel
     // with the other five.
     await open(page, TITLES.vertical);
     await expect(segment(page, "setting-columns", 2)).toBeDisabled();
@@ -146,7 +146,7 @@ test.describe("typography, one layer", () => {
     await expect(segment(page, "setting-margin", 0)).toHaveAttribute("aria-checked", "true");
 
     // The arrows stayed inside the control. They reach a document-level handler that turns pages
-    // otherwise, and a page turn puts 〈找〉 away — so the reader adjusting 留白 from the keyboard
+    // otherwise, and a page turn puts [[Find]] away — so the reader adjusting 留白 from the keyboard
     // would watch the panel vanish. The panel still standing is that not happening.
     await expect(page.getByTestId("panel-layout")).toBeVisible();
 
@@ -170,7 +170,7 @@ test.describe("typography, one layer", () => {
     await importBoth(page);
     await open(page, TITLES.horizontal);
 
-    // The reader's bar used to carry a fourth entry into 〈設定〉 purely because the theme could
+    // The reader's bar used to carry a fourth entry into [[Settings]] purely because the theme could
     // not be reached from in here. It is the panel's first row now, so that door is gone.
     await segment(page, "setting-theme", "dark").click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

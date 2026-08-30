@@ -1,16 +1,16 @@
 // What the reader's chrome is showing, as one value that only this file writes.
 //
-// The three states are mutually exclusive on purpose (CONTEXT.md 〈chrome〉), but until this file
+// The three states are mutually exclusive on purpose (CONTEXT.md [[chrome]]), but until this file
 // existed that was a property of eleven scattered `setChrome` calls rather than of anything that
 // could be read in one place — and reading order was the only thing saying which of two writers
-// in the same frame won. That had already shipped a bug once: pressing 〈Notes〉 while 〈Type〉
+// in the same frame won. That had already shipped a bug once: pressing [[Notes]] while [[Type]]
 // stood, and the outgoing panel's `onClose` writing `"up"` over the panel that had just opened.
 //
 // **A pure function, not a `createChromeMachine()`.** Unlike the gesture machine this has no
 // timer, no sampling and nothing to inject, so there is no state to hide — React keeps it, and
 // two copies of a state is two copies that can drift apart.
 //
-// **It owns 〈找〉, not 〈標〉.** A selection's rectangles, CFI and `live` stay in `Reader.tsx`,
+// **It owns [[Find]], not [[Marking]].** A selection's rectangles, CFI and `live` stay in `Reader.tsx`,
 // for the same reason the gesture machine refuses to hold frond's objects: the part of them
 // hardest to fake in node is the part that matters. What lives here is the *rule* — a selection
 // arriving puts the chrome away — under the name `selectionArrived`.
@@ -19,14 +19,14 @@
 // turn hits that path (the chrome is usually already down), and a fresh object each time is a
 // whole extra Reader render per page — which `tests/browser/reader/turn-pacing.spec.ts` measures.
 
-/** The three panels 〈找〉 can raise. A separate name so nothing can ask to "open the bar". */
+/** The three panels [[Find]] can raise. A separate name so nothing can ask to "open the bar". */
 export const PANEL_KINDS = ["toc", "notes", "layout"] as const;
 export type PanelKind = (typeof PANEL_KINDS)[number];
 
 /**
  * The one value: the book alone, the bare bars, or one of the three panels standing open.
  *
- * 〈標〉 is not in here. It is not this value's to enter: a selection arrives from frond, and what
+ * [[Marking]] is not in here. It is not this value's to enter: a selection arrives from frond, and what
  * it does here is put this back to `"down"`.
  */
 export type Chrome = "down" | "up" | PanelKind;
@@ -55,8 +55,8 @@ export interface ChromeState {
    *
    * **It lives only while the notes panel stands**, and `settle` is what ends it, so no
    * transition below has to remember to. Nothing is lost by closing early: a note commits when
-   * its box loses the focus. Held any longer, the box would remount the next time 〈Notes〉 was
-   * raised and take the focus with it — which on a phone is a reader pressing 〈Notes〉 to read a
+   * its box loses the focus. Held any longer, the box would remount the next time [[Notes]] was
+   * raised and take the focus with it — which on a phone is a reader pressing [[Notes]] to read a
    * list and getting a keyboard over it.
    */
   readonly editing: string | null;
@@ -67,7 +67,7 @@ export interface ChromeState {
    * too narrow for the book to keep a column, pressing a quote is how a reader asks to be shown
    * the passage, and the panel has to close for them to see it — so a wash that ended with the
    * panel ended exactly when it was wanted. `turned` and `jumped` are what clear it now, along
-   * with the two events that put a different answer on screen: a new selection, and 〈Notes〉
+   * with the two events that put a different answer on screen: a new selection, and [[Notes]]
    * raised again by a reader who has pressed nothing in it.
    *
    * **It is here rather than in `Reader.tsx` because every one of those already passes through
@@ -89,7 +89,7 @@ export type ChromeEvent =
    * different places. They no longer land on the same result either.
    *
    * `keepPanel` means the same thing it means on `notePressed`, and is answered the same way:
-   * a chapter is one of a list the reader may be working down, so 〈目錄〉 stays standing where
+   * a chapter is one of a list the reader may be working down, so [[Contents]] stays standing where
    * the book it sent them to is still on screen beside it.
    */
   | { kind: "jumped"; keepPanel: boolean }
@@ -104,7 +104,7 @@ export type ChromeEvent =
    * wait on JavaScript; this is the same boundary from the other side).
    */
   | { kind: "notePressed"; id: string; keepPanel: boolean }
-  /** frond handed up a selection. 〈標〉 displaces 〈找〉, with no exception made for either. */
+  /** frond handed up a selection. [[Marking]] displaces [[Find]], with no exception made for either. */
   | { kind: "selectionArrived" }
   /** One of the three bar buttons. Pressing the one already showing drops back to the bare bar. */
   | { kind: "togglePanel"; panel: PanelKind }
@@ -171,11 +171,11 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // The wash goes either way: the reader has been taken somewhere else in the book.
       return settle(state, event.keepPanel ? state.chrome : "down", state.editing, null);
     case "togglePanel": {
-      // **Only 〈Notes〉 being *raised* clears the wash**, and only that. A reader who opens the
+      // **Only [[Notes]] being *raised* clears the wash**, and only that. A reader who opens the
       // list again has pressed nothing in it, so a passage lit from the last time they had it
       // open is the app answering a question nobody asked. Every other move through this event
       // leaves the reader on the page they were on with the passage they chose still lit:
-      // opening 〈目錄〉 or 〈排版〉, and closing 〈Notes〉 again — that last one is how a narrow
+      // opening [[Contents]] or [[Layout]], and closing [[Notes]] again — that last one is how a narrow
       // window looks at the passage at all.
       const raisingNotes = event.panel === "notes" && state.chrome !== "notes";
       return settle(

@@ -112,7 +112,7 @@ test("centres the chapter, and holds its line even where there is no chapter", a
  *
  * **There is no third arrangement any more.** This used to be three: a column that pushed the
  * book above 1024, a column that covered it between 820 and 1023, and a sheet below. The middle
- * one is gone — under 820 〈目錄〉 and 〈筆記〉 cover everything, because what a column or a sheet
+ * one is gone — under 820 [[Contents]] and [[Notes]] cover everything, because what a column or a sheet
  * leaves over at that width is not a book anyone can read (ADR-0044). So one width each side of
  * 820 is the whole of it, which is why there is no third test at the suite's own 1000: it is over
  * the line and would be asking the wide case a second time.
@@ -136,8 +136,8 @@ test.describe("in a window with no room for a book beside a panel", () => {
       .toBe([reader.x, reader.y, reader.width, reader.height].map(Math.round).join());
   });
 
-  test("leaves 〈排版〉 a sheet, because the page above it is the preview", async ({ page }) => {
-    // The one face that takes the full-screen rule back (ADR-0005): what 〈排版〉 covers is the
+  test("leaves [[Layout]] a sheet, because the page above it is the preview", async ({ page }) => {
+    // The one face that takes the full-screen rule back (ADR-0005): what [[Layout]] covers is the
     // thing it was opened to change, so it stops and lets the book show above it.
     await openChrome(page);
     const reader = (await page.locator(".reader").boundingBox())!;
@@ -177,7 +177,7 @@ test.describe("in a window wide enough to give up a column", () => {
     const panel = (await toc.boundingBox())!;
 
     // The book gives up **exactly** the panel's column. That is the price ADR-0005 asks for a
-    // preview the reader can actually see — 〈排版〉 applies as it is dragged, and a panel over
+    // preview the reader can actually see — [[Layout]] applies as it is dragged, and a panel over
     // the page hides the one surface it was opened to change.
     await expect
       .poll(async () =>

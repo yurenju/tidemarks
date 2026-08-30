@@ -1,4 +1,4 @@
-// The promise in CONTEXT.md's 〈退路〉, as a number: a reader who never registered imports a
+// The promise in CONTEXT.md's [[Exit]], as a number: a reader who never registered imports a
 // book, reads it, and leaves the tab — and nothing goes to the server. `lib/session.ts` is what
 // holds it up; this is the only place that checks it end to end, because the check is about
 // requests a running app does or does not make.
@@ -21,7 +21,7 @@ import { BOOKS, openBook, settled } from "../support/library.js";
  * ## Why it counts `/auth` as well
  *
  * The sentence being pinned is the whole one — not a byte, to anybody — so the assertion is
- * every request to the Worker, not just `/api/sync`. This spec never opens 〈帳號〉, which is the
+ * every request to the Worker, not just `/api/sync`. This spec never opens [[Account]], which is the
  * one screen with a reason to ask the server anything while signed out. `support/fixtures.ts`
  * answers `/auth/*` locally, which does not affect the count: these are the requests the app
  * made, not the ones that found a server.

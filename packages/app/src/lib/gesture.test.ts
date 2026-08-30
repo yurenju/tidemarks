@@ -231,7 +231,7 @@ describe("A still finger held past the clock", () => {
 
   it("lets the selection settle when the finger lifts, and spends the press on it", () => {
     // Nothing else may read that release: it neither raises the chrome nor puts the selection
-    // back down. 〈標〉 waits for the finger either way (CONTEXT.md 〈chrome〉).
+    // back down. [[Marking]] waits for the finger either way (CONTEXT.md [[chrome]]).
     const m = machine();
     m.send(press());
     m.send({ kind: "longPressFired" });
@@ -355,7 +355,7 @@ describe("Dragging the page", () => {
   });
 
   it("takes the page when the drag went past a third of it, and puts the chrome away", () => {
-    // The whole of what 〈找〉 ending on a page turn is made of, on this route.
+    // The whole of what [[Find]] ending on a page turn is made of, on this route.
     const m = machine();
     m.send(press({ x: 400 }));
     m.send({ kind: "move", x: 350, y: 300, at: 16, turn: null });
@@ -587,9 +587,9 @@ describe("Dragging a selection by one of its two ends", () => {
     ]);
   });
 
-  it("holds 〈標〉 down while the finger is on it, and lets it up when the finger goes", () => {
+  it("holds [[Marking]] down while the finger is on it, and lets it up when the finger goes", () => {
     // A colour row raised mid-drag appears under the finger that raised it and then chases the
-    // selection across the page (CONTEXT.md 〈chrome〉).
+    // selection across the page (CONTEXT.md [[chrome]]).
     const m = machine();
     expect(
       kinds(m.send({ kind: "handleDown", end: "end", point: { x: 300, y: 200 }, ends }).intents),

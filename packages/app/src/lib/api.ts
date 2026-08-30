@@ -2,7 +2,7 @@
  * `fetch`, with the one header every request to the Worker has to carry.
  *
  * The Worker answers in a language, and the only thing it knows about the caller is the
- * request. `Accept-Language` is that channel: what a reader chose in 〈設定〉 is stated on every
+ * request. `Accept-Language` is that channel: what a reader chose in [[Settings]] is stated on every
  * call, so a refusal or a sign-in letter comes back in the language the app around it is in.
  *
  * **The browser's own header is not enough**, which is the whole reason this exists. A reader

@@ -105,10 +105,10 @@
   z-index: 1;
 }
 
-/* A block of tide, not a wave. The wave is 〈螢光〉 — a mark the reader has already made, which
+/* A block of tide, not a wave. The wave is [[Mark]] — a mark the reader has already made, which
    is 墨; a selection is 潮, because it can still move and may yet come to nothing. Same shape
    for both and the reader cannot tell "I marked this" from "I am about to", and indigo against
-   tide is the closest pair of colours there is here (CONTEXT.md 〈紙／墨／潮〉).
+   tide is the closest pair of colours there is here (CONTEXT.md [[Paper, Ink, Tide]]).
 
    The value is `--selection-wash`, which the browser's own `::selection` inside the book takes
    too — by way of `lib/settings.ts`, since a stylesheet out here does not reach that document. */
@@ -730,7 +730,7 @@ button.selection-handle:active:not(:disabled) {
    A mark is however much text the reader dragged over, so a paragraph-long one filled the
    panel on its own and a book with six marks read as one wall of prose — nothing was findable
    by scanning it. Both halves are one press from being whole again: the quote leads back to
-   the passage in the book, and 〈編輯筆記〉 opens the note in a box that holds all of it.
+   the passage in the book, and [[Edit note]] opens the note in a box that holds all of it.
 
    **The clamp is on a span inside the button, not on the button.** WebKit wraps a button's
    content in an anonymous box, so a clamp set on the control itself has one line item to count

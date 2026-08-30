@@ -16,7 +16,7 @@ export const SHELF_ORDERS: { label: MessageDescriptor; value: ShelfOrder }[] = [
     label: msg({
       message: "Recently touched",
       comment:
-        "One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it 〈最近碰過〉, deliberately not 「最近閱讀」.",
+        "One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it [[Last touched]], deliberately not 「最近閱讀」.",
     }),
     value: "recent",
   },
