@@ -2105,12 +2105,22 @@ export default function Reader({
     if (withNote) sendChrome({ kind: "openNote", id: annotation.id });
   }
 
-  async function saveNote(id: string, note: string) {
+  /**
+   * Writes the note down. **Committing and closing the box are two things now**, and this is the
+   * first of them: it says nothing to the chrome, so it is safe to call from the editor being
+   * taken away — which is every way out of a note except pressing 〈完成〉 (ADR-0044).
+   */
+  async function persistNote(id: string, note: string) {
     const now = Date.now();
     await db.annotations.update(id, { note, updatedAt: now, dirtyAt: now });
     setAnnotations((prev) => prev.map((a) => (a.id === id ? { ...a, note } : a)));
-    sendChrome({ kind: "noteSaved" });
     scheduleSync();
+  }
+
+  /** 〈完成〉: the same write, and then the editor closes. */
+  async function saveNote(id: string, note: string) {
+    await persistNote(id, note);
+    sendChrome({ kind: "noteSaved" });
   }
 
   async function removeAnnotation(a: Annotation) {
@@ -2155,6 +2165,12 @@ export default function Reader({
       // and `arrived` once every one of them has been carried out.
       data-at={openAt || select ? (arrived ? "arrived" : "opening") : undefined}
       data-panel={panelOpen || undefined}
+      /* Which face, kept **whether or not one is standing** — the same reason `panelKind` itself
+         is kept (`lib/chrome.ts`): Base UI holds the popup mounted for the 180ms it takes to
+         slide out. Written on the open/closed attribute instead, 〈排版〉's sheet would lose the
+         rule that keeps it a sheet at the instant it started leaving, and snap to full screen for
+         the length of its own exit. `[data-panel]` stays the boolean every other rule reads. */
+      data-panel-kind={panelKind}
     >
       {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising 〈找〉
           leaves the page exactly where it was, opening one of the three gives up a column and
@@ -2198,9 +2214,11 @@ export default function Reader({
             {loadError && <p className="error">{loadError}</p>}
             {/* frond's container. It sizes and paginates itself from this box. */}
             <div ref={mountRef} className="viewer-mount" />
-            {/* `selectedId` is passed straight through: `chrome.ts` has already made it `null`
-                for everything that is not the notes panel standing open, so a second condition
-                here would only be a second opinion to disagree with it. */}
+            {/* `selectedId` is passed straight through: `chrome.ts` owns when a passage stops
+                being pointed at, so a second condition here would only be a second opinion to
+                disagree with it. **It is deliberately still washed with no panel standing** —
+                on a narrow window that is the whole point of pressing a quote, and the wash is
+                then the only thing on screen saying which passage it was (ADR-0044). */}
             <HighlightLayer
               ref={marksRef}
               painted={painted}
@@ -2498,7 +2516,11 @@ export default function Reader({
                   disabled={item.path === ""}
                   onClick={() => {
                     void renderer?.goTo({ path: item.path, fragment: item.fragment });
-                    sendChrome({ kind: "jumped" });
+                    // Same question `notePressed` asks, and the same answer: a chapter is one of
+                    // a list the reader may be working down, so 〈目錄〉 is left standing where
+                    // the book it sent them to is still on screen beside it. Narrower, the panel
+                    // is over the book and would hide the chapter it just took them to.
+                    sendChrome({ kind: "jumped", keepPanel: bookKeepsAColumn });
                   }}
                 >
                   {item.label}
@@ -2538,7 +2560,8 @@ export default function Reader({
                   sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
                 }}
                 onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
-                onSave={(note) => saveNote(a.id, note)}
+                onPersist={(note) => void persistNote(a.id, note)}
+                onSave={(note) => void saveNote(a.id, note)}
                 onRemove={() => removeAnnotation(a)}
               />
             ))}
@@ -2623,6 +2646,7 @@ function AnnotationItem({
   pointedAt,
   onJump,
   onEdit,
+  onPersist,
   onSave,
   onRemove,
 }: {
@@ -2632,6 +2656,8 @@ function AnnotationItem({
   pointedAt: boolean;
   onJump: () => void;
   onEdit: () => void;
+  /** Write the words down without closing anything. Called on every way out of the box. */
+  onPersist: (note: string) => void;
   onSave: (note: string) => void;
   onRemove: () => void;
 }) {
@@ -2641,8 +2667,121 @@ function AnnotationItem({
     if (editing) setDraft(annotation.note);
   }, [editing, annotation.note]);
 
+  /**
+   * **The words are written down when the box goes away, by whatever took it.** A tap on the
+   * page, a page turn, the panel closing, the reader pressing 〈完成〉 — all of them end up here,
+   * because all of them end `editing` and this runs on the way out.
+   *
+   * `blur` is not what listens, and could not be: removing a focused element does not fire it in
+   * every engine, so the one route that matters most on a phone — the system taking the panel
+   * away — would be the one that lost the words. Cleanup runs whatever happened.
+   *
+   * The refs are so this effect depends on `editing` alone. Watching the callback or the stored
+   * note would tear the effect down and put it back on every save, and the teardown *is* the
+   * write, so it would write again with what it had just written.
+   */
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const committedRef = useRef(annotation.note);
+  committedRef.current = annotation.note;
+  const persistRef = useRef(onPersist);
+  persistRef.current = onPersist;
+  /** Set by 〈刪除〉, so the cleanup does not write a note onto a row that has just been buried. */
+  const removedRef = useRef(false);
+  const boxRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (!editing) return;
+    // ponytail: puts `window.scrollY` back by hand rather than proving nobody moved it.
+    // WebKit scrolls the page to reveal a focused element and there is no first-party answer to
+    // whether it scrolls back when the keyboard goes — an iPhone was seen leaving ~152pt of blank
+    // below the panel afterwards, which matches the overflow to within 6pt but was never
+    // confirmed (ADR-0044's 代價). Read before the focus below, not after, or it records the
+    // number the focus already moved.
+    const scrollWas = window.scrollY;
+
+    const box = boxRef.current;
+    if (box !== null) {
+      // **Brings the item to the top of the list, then focuses.** "First in the item" is not
+      // "first on screen": the panel lists every mark in the book, so the 31st one being edited
+      // sits thirty items down a scroll container. Scrolling the container is what makes
+      // ADR-0044's rule true; `preventScroll` below then stops the *window* being scrolled as
+      // well, which is the half iOS does uninvited.
+      const list = box.closest<HTMLElement>(".panel-body");
+      const item = box.closest<HTMLElement>(".annotation-item");
+      if (list !== null && item !== null) {
+        list.scrollTop += item.getBoundingClientRect().top - list.getBoundingClientRect().top;
+      }
+      // `autoFocus` cannot carry `preventScroll`, which is the whole reason this is a ref and an
+      // effect rather than an attribute. WebKit reveals a focused element by moving the enclosing
+      // scroll view — `window.scrollY` on this side — and skips that entirely when the flag is
+      // set (`WKContentViewInteraction.mm`).
+      //
+      // ⚠️ Here rather than in the ref callback: an inline callback is a new function every
+      // render, so React detaches and reattaches it each time — and the box would steal the focus
+      // back on any render at all, deleting a *different* note being enough to do it. On a phone
+      // that is the keyboard coming back up over a reader who just dismissed it.
+      box.focus({ preventScroll: true });
+    }
+
+    return () => {
+      const unsaved = draftRef.current !== committedRef.current;
+      if (unsaved && !removedRef.current) persistRef.current(draftRef.current);
+      if (window.scrollY !== scrollWas) window.scrollTo({ top: scrollWas });
+    };
+  }, [editing]);
+
   return (
     <div className="annotation-item" style={{ borderLeftColor: markVar(annotation.color) }}>
+      {/* **The box is the first thing in the item, and that is the whole of ADR-0044.** A virtual
+          keyboard takes the bottom of the screen and tells the layout nothing about it — no
+          viewport unit moves — and then scrolls the whole page to bring a covered caret into
+          view, which is what threw the panel off the top of an iPhone. Nothing here asks how tall
+          the keyboard is. The caret starts where a keyboard cannot reach, so there is nothing for
+          the scroll to do.
+
+          Being first in the item is only half of it — the list is scrolled to this item as well,
+          in the effect above. Neither half is enough alone: first-in-the-item with the list left
+          where it was puts the box thirty rows down, and a scrolled list with the box under the
+          quote puts it back under the keyboard. */}
+      {editing && (
+        <div className="note-editor">
+          <textarea
+            ref={boxRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            // **Two ways for the words to reach the database, and they cover different exits.**
+            // This one is the ordinary case: the reader moves the focus somewhere else while the
+            // panel stays open — pressing this note's own quote on a desk does exactly that, and
+            // the editor is still standing afterwards, so the cleanup has not run and would not
+            // run before a reload. The cleanup covers what this cannot: removing a focused
+            // element does not fire `blur` in every engine, so the panel being taken away — the
+            // route that matters most on a phone — arrives only there.
+            onBlur={() => {
+              if (draft === committedRef.current) return;
+              committedRef.current = draft;
+              onPersist(draft);
+            }}
+            placeholder={t({
+              message: "Note…",
+              comment:
+                "Placeholder in the empty note box under a marked passage. The ellipsis is one character.",
+            })}
+          />
+          <button
+            onClick={() => {
+              // Claimed before the write is asked for, so the cleanup above sees the words as
+              // already down and does not send them a second time.
+              committedRef.current = draft;
+              onSave(draft);
+            }}
+          >
+            <Trans comment="Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.">
+              Done
+            </Trans>
+          </button>
+        </div>
+      )}
       {/* **A real button, and the panel it sits in is why.** Base UI's drawer claims a press
           that does not land on something interactive, so that a swipe anywhere on the panel
           dismisses it — and claiming it means capturing the pointer, which retargets the
@@ -2674,27 +2813,7 @@ function AnnotationItem({
             button around it — WebKit clamps nothing set on a control (`styles/book.css`). */}
         <span className="annotation-quote-text">{annotation.text}</span>
       </button>
-      {editing ? (
-        <div className="note-editor">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={t({
-              message: "Note…",
-              comment:
-                "Placeholder in the empty note box under a marked passage. The ellipsis is one character.",
-            })}
-            autoFocus
-          />
-          <button onClick={() => onSave(draft)}>
-            <Trans comment="Button that commits the note being typed under a marked passage.">
-              Save
-            </Trans>
-          </button>
-        </div>
-      ) : (
-        annotation.note && <p className="note-text">{annotation.note}</p>
-      )}
+      {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}
       <div className="annotation-actions">
         {!editing && (
           <button onClick={onEdit}>
@@ -2709,7 +2828,16 @@ function AnnotationItem({
             )}
           </button>
         )}
-        <button onClick={onRemove}>
+        <button
+          onClick={() => {
+            // Claimed before the row goes, so the cleanup above does not write the draft back
+            // onto a mark that has just been given a tombstone. Nothing resurrects either way —
+            // `deletedAt` stays set and merging is last-write-wins on the tombstone — but it
+            // would push `updatedAt` and `dirtyAt` and send a row nobody asked to sync.
+            removedRef.current = true;
+            onRemove();
+          }}
+        >
           <Trans comment="Button under a marked passage: removes the mark and any note on it.">
             Delete
           </Trans>

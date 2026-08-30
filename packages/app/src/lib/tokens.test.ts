@@ -204,15 +204,14 @@ describe("the stylesheet's custom properties", () => {
    *
    * `styles/device.css` gives the panel that column — `.reader[data-panel] .reader-body`'s
    * `padding-right`, and the rule exists only inside one `@media`. `lib/media.ts` asks the same
-   * question in JavaScript, to decide whether pressing a quote in the notes panel may leave the
-   * panel standing.
+   * question in JavaScript, for the three things CSS cannot decide: whether pressing a quote or a
+   * chapter may leave the panel standing, and which way a finger swipes it away.
    *
-   * ⚠️ **Unlike `HAND_HELD_CHROME`, a frame of disagreement is not what this costs.** Let the
-   * two drift and there is a band of widths where the code believes the book is beside the
-   * panel while the stylesheet draws the panel over it: the panel stays up, covering the very
-   * passage the reader pressed it for, with the page buttons underneath it. Nothing would be
-   * red — the browser suite runs at two widths, and a moved breakpoint leaves both on the same
-   * side of it.
+   * ⚠️ **A frame of disagreement is not what this costs.** Let the two drift and there is a band
+   * of widths where the code believes the book is beside the panel while the stylesheet draws the
+   * panel over it: the panel stays up, covering the very passage the reader pressed it for, with
+   * the page buttons underneath it. Nothing would be red — the browser suite runs at a handful of
+   * widths, and a moved breakpoint can leave every one of them on the same side of it.
    */
   test("the width JavaScript calls a desk is the width the stylesheet gives a column to", () => {
     const query =

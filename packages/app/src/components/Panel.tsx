@@ -2,7 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { SegmentLabel } from "./Segmented";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactNode } from "react";
-import { HAND_HELD_CHROME, useMediaQuery } from "../lib/media";
+import { BOOK_KEEPS_A_COLUMN, useMediaQuery } from "../lib/media";
 
 /**
  * Whether the thing that dismissed this panel was one of the three entries that raise it.
@@ -26,22 +26,25 @@ const fromEntries = (event: Event): boolean => {
 };
 
 /**
- * 目錄, 筆記 and 排版 — one shell, two anchors. On a hand-held it rises from the bottom edge;
- * everywhere else it is a column down the right side, because a full-width sheet rising from
- * the bottom of a 1400px window is a phone's answer given to a desk.
+ * 目錄, 筆記 and 排版 — one shell, two anchors. Under 820px it comes up from the bottom edge;
+ * wider, it is a column down the right side, because a full-width sheet rising from the bottom
+ * of a 1400px window is a phone's answer given to a desk.
  *
- * **On a desk it takes its room from the book; on a hand-held it takes it from the bars.**
- * Both used to cover the book and stop short of the Scrubber, and both halves of that gave way
- * for the same reason: 〈排版〉 applies as it is dragged, so whatever the panel covers is the
- * thing the reader opened it to look at (ADR-0005). A column beside the book repaginates it —
- * that is the price, and 目錄 and 筆記 are the ones paying it. On a phone there is no column to
- * give, so the entries and the Scrubber leave instead.
+ * **Wide, it takes its room from the book; narrow, it takes it from the bars.** Both used to
+ * cover the book and stop short of the Scrubber, and both halves of that gave way for the same
+ * reason: 〈排版〉 applies as it is dragged, so whatever the panel covers is the thing the reader
+ * opened it to look at (ADR-0005). A column beside the book repaginates it — that is the price,
+ * and 目錄 and 筆記 are the ones paying it. Narrow there is no column to give, so the entries and
+ * the Scrubber leave instead, and 〈目錄〉 and 〈筆記〉 go on to take the whole screen: what a
+ * sheet would leave above itself there is not a book anyone can read
+ * (ADR-0044).
  *
- * Which anchor is which is settled in CSS, so the layout never waits on JavaScript. The one
- * thing decided here is the direction a finger dismisses it, and that has no layout to get
- * wrong. This replaced a component called `BottomSheet` whose comment promised the desktop
- * would keep getting the phone's sheet because "two layouts is two sets of bugs" — still true,
- * which is why this is one component with one close path and two anchors, not two components.
+ * Which anchor is which is settled in CSS, so the layout never waits on JavaScript. What is
+ * decided here is behaviour with no layout to get wrong: the direction a finger dismisses it,
+ * and whether it holds the focus. This replaced a component called `BottomSheet` whose comment
+ * promised the desktop would keep getting the phone's sheet because "two layouts is two sets of
+ * bugs" — still true, which is why this is one component with one close path and two anchors,
+ * not two components.
  */
 export default function Panel({
   open,
@@ -68,7 +71,7 @@ export default function Panel({
   children: ReactNode;
 }) {
   const { t, i18n } = useLingui();
-  const handHeld = useMediaQuery(HAND_HELD_CHROME);
+  const besideTheBook = useMediaQuery(BOOK_KEEPS_A_COLUMN);
   return (
     <BaseDrawer.Root
       open={open}
@@ -95,9 +98,16 @@ export default function Panel({
          **And not `'trap-focus'` either, which the drawers on the shelf do use.** Trapping the
          focus means marking everything outside the panel `inert`, and everything outside this
          one includes the bar it came from — the Scrubber goes dead and the other two buttons
-         stop answering, which is the opposite of what "stops short of the Scrubber" was for. */
+         stop answering, which is the opposite of what "stops short of the Scrubber" was for.
+
+         ⚠️ **Under 820px 〈目錄〉 and 〈筆記〉 now cover the whole screen, and a thing that covers
+         the whole screen ought to trap.** It is not done here, and not by oversight: `inert`
+         stops presses as well as focus, and 〈排版〉 is a sheet at that width with a live page
+         above it that a press is meant to reach (`.panel-backdrop` takes it to dismiss the
+         sheet). So trapping has to be per face, and it belongs with the rest of what makes these
+         two drawers rather than panels — the hash and the back button, in #148. */
       modal={false}
-      swipeDirection={handHeld ? "down" : "right"}
+      swipeDirection={besideTheBook ? "right" : "down"}
     >
       <BaseDrawer.Portal container={container}>
         <BaseDrawer.Backdrop className="panel-backdrop" />

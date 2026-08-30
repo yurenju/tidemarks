@@ -102,14 +102,12 @@ test.describe("table of contents", () => {
     await page.locator(".toc-item", { hasText: /^一$/ }).click();
     await settled(page);
 
-    // **Asked for again, not read off the closing sheet.** A jump puts the chrome away
-    // (CONTEXT.md 〈chrome〉), so the list the reader clicked is on its way out — it lives about
-    // 300 ms, the length of its exit transition, and then unmounts. Asserting into that window
-    // is a race the test loses whenever the machine is busy: the mark was always correct, the
-    // list holding it had simply gone. Re-opening is also the real question a reader asks —
-    // "where am I now" is asked the next time they open the table of contents.
-    await openPanel(page, "Contents");
-
+    // **The list is still standing, and that is the point of pressing a chapter here.** A jump
+    // used to put the whole chrome away, which made this assertion a race against a 300 ms exit
+    // transition — the mark was always right, the list holding it had simply gone. Now 〈目錄〉
+    // stays wherever the book it sent the reader to is still on screen beside it, which this
+    // window is wide enough for, so the answer can be read where the reader would read it.
+    //
     // Marked without waiting for the whole-book index: the section is known from the first
     // `relocate`, which is why this rides on `sectionIndex` rather than on the fraction.
     await expect(current).toHaveText("一");

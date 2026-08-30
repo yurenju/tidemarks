@@ -65,15 +65,17 @@
   }
 }
 
-/* A hand-held: a coarse pointer **and** a window small enough that the top of it is a stretch.
-   Then, and only then, the entries drop to the bottom edge where the thumb already is, and the
-   panel they raise comes up from that edge rather than in from the side.
+/* Under 820: a window with no room for a book beside anything. The entries drop to the bottom
+   edge where a thumb already is, and the panel they raise comes up from that edge rather than in
+   from the side.
 
-   The pair of conditions is the whole point. A desktop window dragged narrow is not a phone —
-   the hand is on a mouse — and a tablet in landscape is not one either, because at 1024px the
-   bottom edge is a long way from the text. `Panel.tsx` names the same query for the one thing
-   CSS cannot decide there, which is the direction a finger dismisses the panel. */
-@media (any-pointer: coarse) and (max-width: 819px) {
+   **Width alone, and that is this file's own rule** (ADR-0023): where a thing sits is a question
+   about the window, and a desktop window dragged to 700px has exactly the room a phone has. It
+   used to ask `any-pointer: coarse` as well, on the grounds that a narrow desktop window is not a
+   phone — true about the *hand*, which is why hit areas still ask it, and beside the point for
+   where the panel goes. `lib/media.ts` names the other side of this same line for the three
+   things CSS cannot decide. */
+@media (max-width: 819px) {
   /* One column, and the entries drop below the book so the thumb can reach them. Same markup,
      same component; only the template changes. */
   .chrome {
@@ -107,7 +109,7 @@
 
   /* The panel spans the full width here, so there is no right end for the bars to give up and
      nothing for a shortened bar to stay clear of. The one undo left in this query: the book's
-     column is not in here any more because the rule that takes it only exists above 1024px. */
+     column is not in here any more because the rule that takes it only exists above 820px. */
   .reader[data-panel] .chrome {
     right: 0;
   }
@@ -127,12 +129,37 @@
     pointer-events: none;
   }
 
-  /* Up from the bottom edge and across the full width: there is no room here to give a panel a
-     column of its own, and a 300px strip on a 390px screen would leave the book in a gutter. */
+  /* **The whole screen.** Up from the bottom edge still, but it does not stop: there is no room
+     here to give a panel a column of its own, and what a sheet leaves above itself at this width
+     is not a book anyone can read. 393×852 with a keyboard up leaves 418pt for a panel whose own
+     cap is 576 — so the sheet was already overflowing before it covered anything
+     (ADR-0044).
+
+     〈排版〉 is the exception and takes this back below, because the page above it is the preview
+     (ADR-0005). It is written as the exception rather than as the rule so that the face which
+     needs the book has to say so, and the two that do not need nothing. */
   .panel-popup {
+    inset: 0;
+    width: auto;
+    max-height: none;
+    height: auto;
+    background: var(--surface-raised);
+    border: none;
+    border-radius: 0;
+    transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
+  }
+
+  /* 〈排版〉 alone keeps the sheet, and the book above it.
+
+     ⚠️ **`data-panel-kind`, not `data-panel`.** The open/closed attribute goes the instant the
+     chrome closes, and Base UI keeps the popup mounted for the 180ms it takes to leave — so a
+     rule hung on it would drop this sheet back to full screen for the whole of its own exit.
+     `data-panel-kind` is written whether or not a panel is standing (`Reader.tsx`). */
+  .reader[data-panel-kind="layout"] .panel-popup {
     top: auto;
     left: 0;
     right: 0;
+    bottom: 0;
     width: auto;
     /* 36rem, up from 29 — and the room came from the two bars, not from the book.
        ------------------------------------------------------------------------
@@ -158,14 +185,25 @@
     transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
   }
 
-  /* A press on the book above the sheet puts it away. Only here: everywhere else the bars are
-     still standing and a full-box target would sit on them (see `.panel-backdrop`). */
+  /* A press on the book above the 〈排版〉 sheet puts it away. Only here: everywhere else the bars
+     are still standing and a full-box target would sit on them (see `.panel-backdrop`). It is
+     not narrowed to that one face because it does not have to be — under the other two the popup
+     covers the backdrop, so there is nothing left of it for a press to land on. */
   .panel-backdrop {
     pointer-events: auto;
   }
 
-  .panel-popup[data-starting-style],
-  .panel-popup[data-ending-style] {
+  /* Both arrangements come up from the bottom edge and leave the same way.
+
+     ⚠️ **The selector is weighted to win, and it has to be.** `transform` is set twice above —
+     once on `.panel-popup` (0,1,0) for the full-screen pair, and once on the 〈排版〉 rule, which
+     is (0,3,0). A bare `.panel-popup[data-starting-style]` is (0,2,0), so it lost to 〈排版〉 and
+     took that sheet's entrance and exit away entirely: it appeared and vanished on the spot
+     while the other two still slid. Nothing measured it, because every spec polls for the panel
+     to come to rest before it reads anything. (0,4,0) here beats both outright rather than
+     tying with one of them and living off source order. */
+  .reader[data-panel-kind] .panel-popup[data-starting-style],
+  .reader[data-panel-kind] .panel-popup[data-ending-style] {
     transform: translateY(100%);
   }
 }
@@ -174,9 +212,15 @@
    ----------
    Where things sit, and nothing about how big a finger is. Written narrow-first, so each of
    these adds rather than undoes. 390 is the floor rather than a breakpoint, and there is no
-   rule above 1024 at all: the shelf stops at `.library`'s `max-width` and the reader's book
-   gains nothing from a fourth step, so past that point the same screen is simply centred in
-   more desk. A width query above a cap would have nothing to say. */
+   rule above 820 at all: the shelf stops at `.library`'s `max-width` and the reader's book
+   gains nothing from a further step, so past that point the same screen is simply centred in
+   more desk. A width query above a cap would have nothing to say.
+
+   **820 has two blocks, and they answer different questions.** The one below is the shelf's — how
+   much room a row of covers gets. The reader's is further down, and it is the line the panel
+   stops covering the page at; it carries its own reasoning and its own reason for being that
+   number, which `lib/media.ts` and `lib/tokens.test.ts` both depend on. Sharing a number is not
+   sharing a reason, so they stay apart. */
 
 /* ≥ 600 — a narrow window on a desktop, a phone in landscape, a split screen. */
 @media (min-width: 600px) {
@@ -253,22 +297,26 @@
   }
 }
 
-/* ≥ 1024 — wide enough that the book can give up a column and still be a book.
-   ---------------------------------------------------------------------------
+/* ≥ 820 — wide enough that the book can give up a column and still be a book.
+   --------------------------------------------------------------------------
    **This is where the panel stops covering the page and starts standing beside it.** ADR-0005
    asks for that: 〈排版〉 applies as it is dragged, so the page has to stay visible, and a panel
-   over it hides the one surface it was opened to change. What the ADR does not say — because
-   until the panel took a real share of the window it never came up — is that the trade only
-   pays while there is a book left afterwards. Below this line there is not: a 900px window
-   handing over 300px leaves 600px, which is one column of text and two-thirds of a page.
+   over it hides the one surface it was opened to change.
 
-   So the narrow window keeps the preview by covering less of the page rather than by pushing
-   what is left into a gutter, and the reader gets back what the wide window's arrangement was
-   spending: nothing repaginates at all down here.
+   This line used to be 1024, on the grounds that the trade only pays while there is a book left
+   afterwards — a 900px window handing over 300px leaves 600px, one column of text and two-thirds
+   of a page. It moved down to 820 because what it was being compared against changed: under this
+   line 〈目錄〉 and 〈筆記〉 now take the *whole* screen (ADR-0044), so the choice at 900px is no
+   longer "squeeze the book or cover a little of it", it is "leave 600px of book or leave none".
+   At the line itself the book keeps 520px, which is thin and is still a book.
+
+   820 rather than a number of its own because ADR-0023's table already had it, and the same line
+   now answers both questions this file asks about a panel: whether it is a column, and whether
+   the book keeps room beside it.
 
    Written as an addition rather than as an undo — the file is narrow-first, and covering is
-   what the panel does everywhere else, hand-held sheet included. */
-@media (min-width: 1024px) {
+   what the panel does below. */
+@media (min-width: 820px) {
   /* **Nothing about the card is restated at these widths, and that is the card's own doing.**
      It is `width: fit-content` and centred, so it is already as wide as the widest thing on it
      and no wider — the reading stops at the reader's ceiling (ADR-0012) whatever the window

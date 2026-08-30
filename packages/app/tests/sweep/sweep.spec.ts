@@ -234,12 +234,15 @@ test("sweeps every screen", async ({ page }, testInfo) => {
       await openPanel("Contents", "panel-toc");
       await page.getByTestId("panel-toc").getByRole("button", { name: chapter }).first().click();
       await settled(page);
-      // Choosing a chapter dismisses the panel, and on a hand-held it slides out from the bottom
-      // rather than vanishing. Without this wait the next screen — the one named `reader-plain` —
+      // **Choosing a chapter no longer dismisses the panel at every width**, so this asks for it
+      // to go rather than waiting for it to. Above 820 the book keeps a column beside 〈目錄〉 and
+      // the panel stays, on the grounds that a chapter is one of a list a reader may be working
+      // down (`lib/chrome.ts`); narrower it goes on its own, and `closePanel` returns at once.
+      //
+      // Waiting is still what the wait was for: on a hand-held the panel slides out rather than
+      // vanishing, and without seeing it gone the next screen — the one named `reader-plain` —
       // was a picture of the table of contents on its way off the bottom of the phone.
-      await expect(page.locator(".reader")).not.toHaveAttribute("data-panel", /.*/, {
-        timeout: 10_000,
-      });
+      await closePanel();
     }
   };
 

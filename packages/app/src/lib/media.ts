@@ -1,32 +1,31 @@
 import { useEffect, useState } from "react";
 
 /**
- * Where the reader's entries live, in the words CSS asks the question in.
- *
- * `styles/device.css` asks it too, for the bars themselves, and the rule that does names
- * this file.
- * Two copies of one string, because CSS cannot read a constant — and this copy decides only
- * which way a finger dismisses a panel, so a frame of disagreement costs nothing.
- *
- * `any-pointer` rather than `pointer`: it is about whether a finger can reach this screen at
- * all, not about which pointer happens to be in use (ADR-0023). **A drag in progress asks a
- * different question and does not come here** — it has an event, and the event knows what is
- * touching it (`Scrubber`).
- */
-export const HAND_HELD_CHROME = "(any-pointer: coarse) and (max-width: 819px)";
-
-/**
- * Where a panel stands **beside** the book rather than over it.
+ * Where a panel stands **beside** the book rather than over the whole screen.
  *
  * Another copy of a string `styles/device.css` owns — the rule that gives the panel its column
  * is `.reader[data-panel] .reader-body`'s `padding-right`, and it only exists inside this query.
- * Below it the panel covers the page, at every width and on every pointer.
+ * `lib/tokens.test.ts` fails if the two ever drift.
  *
- * What asks: pressing a quote in the notes panel. The panel is kept standing so the reader can
- * work down the list, and that is only worth anything where the passage they were taken to is
- * still on screen. Narrower, keeping it would hide the very thing the press was for.
+ * **Width alone, and no pointer query**, because where a thing sits is a question about the
+ * window (ADR-0023): a desktop window dragged under 820 has the same room a phone has, and the
+ * hand on the mouse does not give it any more. How big to draw what is in it is the other
+ * question, and `any-pointer` is still what answers that.
+ *
+ * **One line, two questions, and today they have the same answer.** Above it a panel is a column
+ * and the book keeps the rest; below it there is no book left worth keeping, so 〈目錄〉 and
+ * 〈筆記〉 take the whole screen (〈排版〉 does not — ADR-0005 needs the page it is applied to).
+ * Kept as one constant because a second name for the same number is a second number waiting to
+ * be moved on its own; if the two ever want different lines, split it then and say why.
+ *
+ * Three things ask, and none of them is a layout:
+ * - pressing a quote or a chapter in a panel, which may leave the panel standing only where the
+ *   place it sent the reader to is still on screen beside it;
+ * - which way a finger swipes a panel away;
+ * - whether the panel traps the focus, which it must when it covers everything and must not when
+ *   it leaves the Scrubber and the other two entries standing.
  */
-export const BOOK_KEEPS_A_COLUMN = "(min-width: 1024px)";
+export const BOOK_KEEPS_A_COLUMN = "(min-width: 820px)";
 
 /**
  * Whether a media query holds, kept up to date while it is being watched.

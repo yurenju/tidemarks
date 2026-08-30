@@ -230,6 +230,11 @@ msgstr "Delete “{title}”?"
 msgid "dev build"
 msgstr "dev build"
 
+#. Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.
+#: src/components/Reader.tsx
+msgid "Done"
+msgstr "Done"
+
 #. Shown in place of the book when its epub could not be fetched and the failure carried no reason of its own.
 #: src/components/Reader.tsx
 msgid "Download failed"
@@ -642,11 +647,6 @@ msgstr "Restore from backup"
 #: src/lib/settings.ts
 msgid "Sans"
 msgstr "Sans"
-
-#. Button that commits the note being typed under a marked passage.
-#: src/components/Reader.tsx
-msgid "Save"
-msgstr "Save"
 
 #. Screen-reader name for the draggable handle at the end of a passage the reader is selecting by touch. Dragging it moves that end of the selection.
 #: src/components/SelectionLayer.tsx

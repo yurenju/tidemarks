@@ -449,7 +449,7 @@
    it (`Panel.tsx`).
 
    **It covers the book, except when the window is wide enough to give it a column of its own**
-   — that is the `min-width: 1024px` block, and the reason it is a block rather than the
+   — that is the `min-width: 820px` block, and the reason it is a block rather than the
    default is that pushing costs the book a repagination, which only pays when there is a book
    left over (ADR-0005).
 
@@ -543,7 +543,7 @@
    the whole of "the panel stops short of it" (docs/specs/ux-replan/spec.md). The hand-held is
    the one arrangement that takes this back, because there the panel spans the full width and
    the bars have gone (`device.css`). The book giving up its own width to the panel is a
-   separate question and a wider one — it starts at 1024, also in `device.css`. */
+   separate question and a wider one — it starts at 820, also in `device.css`. */
 .reader[data-panel] .chrome {
   right: var(--panel-width);
 }
