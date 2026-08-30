@@ -97,7 +97,7 @@ describe("list_books", () => {
   });
 
   it("floats a book imported ten seconds ago above one read last week", async () => {
-    // The shelf's order is 最近碰過, not 最近閱讀 (CONTEXT.md): an import counts as touching a
+    // The shelf's order is [[Last touched]], not "most recently read" (CONTEXT.md): an import counts as touching a
     // book. Sorting on reading time alone puts every fresh import below everything ever
     // opened, because a book nobody has read has no progress row to sort by.
     const ctx = context({

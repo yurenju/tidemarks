@@ -113,7 +113,7 @@ function chapterTitles(book: EpubBook): (index: number) => string | undefined {
 }
 
 /**
- * The shelf's own order, which is 最近碰過 and not 最近閱讀 (CONTEXT.md): the later of when the
+ * The shelf's own order, which is [[Last touched]] and not "most recently read" (CONTEXT.md): the later of when the
  * reader last read a book and when they imported it.
  *
  * A book nobody has opened has no `progress` row at all, so ordering on reading time alone

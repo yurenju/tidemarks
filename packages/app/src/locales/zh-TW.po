@@ -18,8 +18,8 @@ msgstr ""
 msgid ": {reason}"
 msgstr "：{reason}"
 
+#. The way out of [[Settings]], always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.
 #. The way out of the reader, in the top bar. The ‹ is part of the label. 'Shelf' is the screen listing every book — the app's home.
-#. The way out of 〈設定〉, always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.
 #: src/components/Reader.tsx
 #: src/components/SettingsScreen.tsx
 msgid "‹ Shelf"
@@ -95,7 +95,7 @@ msgstr "{title} 的詳情"
 msgid "About this book"
 msgstr "書的詳情"
 
-#. 〈設定〉tab holding sign-in, billing and backup.
+#. [[Settings]] tab holding sign-in, billing and backup.
 #: src/components/SettingsScreen.tsx
 msgid "Account"
 msgstr "帳號"
@@ -225,7 +225,7 @@ msgstr "刪除"
 msgid "Delete “{title}”?"
 msgstr "刪除「{title}」？"
 
-#. Stands in for the commit hash in 〈設定〉's footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.
+#. Stands in for the commit hash in [[Settings]]'s footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.
 #: src/lib/version.ts
 msgid "dev build"
 msgstr "開發版"
@@ -388,8 +388,8 @@ msgstr "留著"
 msgid "Keep reading"
 msgstr "繼續讀"
 
-#. Label of the only control in 〈設定〉's language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
-#. 〈設定〉tab holding the interface language. One word, sits beside Type and Account.
+#. Label of the only control in [[Settings]]'s language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
+#. [[Settings]] tab holding the interface language. One word, sits beside Type and Account.
 #: src/components/LanguageForm.tsx
 #: src/components/SettingsScreen.tsx
 msgid "Language"
@@ -623,7 +623,7 @@ msgstr "讀到 {percent}%"
 msgid "Reading progress"
 msgstr "閱讀進度"
 
-#. One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it 〈最近碰過〉, deliberately not 「最近閱讀」.
+#. One of two ways to order the shelf, in a control beside 'Title'. Touched rather than read: half of what this order does is float freshly imported books, which nobody has read yet. The glossary calls it [[Last touched]], deliberately not 「最近閱讀」.
 #: src/lib/shelf-order-choices.ts
 msgid "Recently touched"
 msgstr "最近碰過"
@@ -663,7 +663,7 @@ msgstr "選取起點"
 msgid "Serif"
 msgstr "明體"
 
-#. The one door out of the shelf, in the header beside the app's name. Opens 〈設定〉.
+#. The one door out of the shelf, in the header beside the app's name. Opens [[Settings]].
 #. Title of the settings screen. Shares its entry with the button on the shelf that opens it.
 #: src/components/Library.tsx
 #: src/components/SettingsScreen.tsx
@@ -859,7 +859,7 @@ msgstr "這本書還乾淨。選一段字，就留下記號。"
 msgid "This book's marks and notes go with it, on your other devices too."
 msgstr "這本書的重點與筆記會一起刪掉，其他裝置上的也會。"
 
-#. Tooltip on the build stamp in 〈設定〉's footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.
+#. Tooltip on the build stamp in [[Settings]]'s footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.
 #: src/components/SettingsScreen.tsx
 msgid "This build came from a working tree with uncommitted changes"
 msgstr "這個版本是從有未提交變更的工作目錄建置的"
@@ -870,7 +870,7 @@ msgstr "這個版本是從有未提交變更的工作目錄建置的"
 msgid "auth.passkey.rpIdMismatch"
 msgstr "這台的 RP_ID 設成 {configured}，但你現在連的是 {host}，passkey 在這個網址上不能用。改用 email 登入碼進去，或修正部署設定。"
 
-#. Under the language control in 〈設定〉. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.
+#. Under the language control in [[Settings]]. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.
 #: src/components/LanguageForm.tsx
 msgid "This device only — the language follows the machine in your hand, not your account. Books are unaffected: each one is laid out in whatever it was written in."
 msgstr "只在這台裝置上。語言跟著手上這台機器走，不跟著帳號。書不受影響，每一本都照它原本的語言排版。"
@@ -945,7 +945,7 @@ msgstr "雙欄"
 
 #. Bar button raising the panel holding the six typography settings. Same word as that panel's own title.
 #. Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.
-#. 〈設定〉tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.
+#. [[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.
 #: src/components/Reader.tsx
 #: src/components/SettingsScreen.tsx
 msgid "Type"

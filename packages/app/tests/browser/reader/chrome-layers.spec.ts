@@ -103,7 +103,7 @@ test("cuts the focus halo out of the bar the button is standing on", async ({ pa
 test("hands the platform whatever surface reaches the top edge", async ({ page }) => {
   const down = await surfaces(page);
 
-  // 〈讀〉: no bar up there, so the top edge is the page itself. This is the half that used to be
+  // [[Read]]: no bar up there, so the top edge is the page itself. This is the half that used to be
   // wrong — a lit strip of the chrome's surface hanging over a book with no chrome in it.
   expect(down.page).toMatch(/^#[0-9a-f]{6}$/i);
   expect(down.themeColor.toLowerCase()).toBe(down.page.toLowerCase());

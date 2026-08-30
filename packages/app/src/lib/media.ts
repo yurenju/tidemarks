@@ -13,8 +13,8 @@ import { useEffect, useState } from "react";
  * question, and `any-pointer` is still what answers that.
  *
  * **One line, two questions, and today they have the same answer.** Above it a panel is a column
- * and the book keeps the rest; below it there is no book left worth keeping, so 〈目錄〉 and
- * 〈筆記〉 take the whole screen (〈排版〉 does not — ADR-0005 needs the page it is applied to).
+ * and the book keeps the rest; below it there is no book left worth keeping, so [[Contents]] and
+ * [[Notes]] take the whole screen ([[Layout]] does not — ADR-0005 needs the page it is applied to).
  * Kept as one constant because a second name for the same number is a second number waiting to
  * be moved on its own; if the two ever want different lines, split it then and say why.
  *

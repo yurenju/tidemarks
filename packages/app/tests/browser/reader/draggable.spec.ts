@@ -16,7 +16,7 @@ import {
 /**
  * What tells the reader a bar can be dragged.
  *
- * The reader's 〈找〉 state can show two bars at once: the Scrubber, which seeks through the
+ * The reader's [[Find]] state can show two bars at once: the Scrubber, which seeks through the
  * whole book, and the read-only bar under the font download line. Taking the Scrubber for a
  * progress bar costs nothing. The other confusion is the one that hurts — dragging what looked
  * like a Scrubber and landing somewhere else in the book, with no "back to where I was".
@@ -64,7 +64,7 @@ test("the read-only bar says it cannot, and is never tide", async ({ page }) => 
   // against the same tokens the Scrubber above resolves. What it does **not** cover is
   // `Reader.tsx` still putting these classes and `role="progressbar"` on the element — renaming
   // them there would leave this passing. That half is held by the rule in docs/design-system.md
-  // 〈能拖與不能拖〉 and by CONTEXT.md 〈唯讀進度條〉.
+  // on what may and may not be dragged, and by CONTEXT.md [[Readout]].
   await page.evaluate(() => {
     const bar = document.createElement("div");
     bar.className = "font-progress";

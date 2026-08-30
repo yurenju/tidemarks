@@ -19,7 +19,7 @@ export type SegmentLabel = string | MessageDescriptor;
  * `Select` has an open issue where opening one freezes the main thread — are both about
  * components that *hide* the options until asked. This hides nothing: it is a radio group
  * wearing one border. What decides which settings get it is the options, not the library:
- * three or four of them, each a word or two. 行距 has six and they read 「更寬鬆（2.0）」,
+ * three or four of them, each a word or two. [[Line height]] has six, and in Chinese they read 「更寬鬆（2.0）」,
  * so it stays a `<select>`; that is the line, and it is about what fits.
  *
  * The chosen cell is filled with tide rather than underlined with it. Fill survives being
@@ -103,7 +103,7 @@ export default function Segmented<T extends string | number>({
             role="radio"
             aria-checked={option.value === value}
             /* One tab stop for the whole group, on whichever cell is chosen — a radio group is
-               one control, and tabbing through four cells to leave 主題 would make it four. */
+               one control, and tabbing through four cells to leave [[Theme]] would make it four. */
             tabIndex={option.value === value ? 0 : -1}
             data-testid={`${testId}-${option.value}`}
             className="segment"

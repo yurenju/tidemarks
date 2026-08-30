@@ -30,7 +30,7 @@ describe("pickOne", () => {
   });
 
   // The one thing the caller is owed when it asks for another: not the one already showing. Every
-  // other property of the draw is chance, which is what "全隨機" means here.
+  // other property of the draw is chance, which is what "wholly random" means here.
   it("never hands back the passage it was asked to move on from", () => {
     const marks = [mark("a", 1), mark("b", 2), mark("c", 3)];
     for (let i = 0; i < 50; i++) {
@@ -38,7 +38,7 @@ describe("pickOne", () => {
     }
   });
 
-  // Better the same passage again than an empty card: a reader with one mark pressing 〈another〉
+  // Better the same passage again than an empty card: a reader with one mark pressing [[Another passage]]
   // has asked for something, and there is nothing else to give them.
   it("hands back the same passage when it is the only one", () => {
     const marks = [mark("a", 1)];

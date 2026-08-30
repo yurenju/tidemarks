@@ -103,7 +103,7 @@ test("pays for that clearance out of the bar rather than only on a phone's CSS",
 });
 
 test("sends the entries back to the bottom edge, not the top one", async ({ page }) => {
-  // The other half of the same rule, and the half no other test would notice: 〈找〉 leaves the
+  // The other half of the same rule, and the half no other test would notice: [[Find]] leaves the
   // way it arrived, so here the entries have to park below the screen with the Scrubber rather
   // than above it with the title bar. Measured with the chrome down, so nothing is in flight.
   const parked = await page.evaluate(() => {
@@ -161,7 +161,7 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
 });
 
 /**
- * How much of the book 〈排版〉 leaves, measured rather than claimed.
+ * How much of the book [[Layout]] leaves, measured rather than claimed.
  *
  * Six rows have to fit without scrolling, because the page above the panel is the preview: the
  * panel covers the book rather than pushing it here, so what shows up there is the real type
@@ -172,7 +172,7 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
  * bottom edge of the screen. Asking the gap would compare the sheet against a box it is no
  * longer inside of, which is how a rule keeps passing after it has stopped meaning anything.
  */
-test("〈排版〉 leaves the book showing above it", async ({ page }) => {
+test("Layout leaves the book showing above it", async ({ page }) => {
   await openPanel(page, "Type");
 
   const popup = (await page.getByTestId("panel-layout").boundingBox())!;
@@ -183,7 +183,7 @@ test("〈排版〉 leaves the book showing above it", async ({ page }) => {
     clientHeight: el.clientHeight,
   }));
   console.log(
-    `〈排版〉: ${Math.round(reader.height - popup.height)}px of book above it, ` +
+    `[[Layout]]: ${Math.round(reader.height - popup.height)}px of book above it, ` +
       `${scrollHeight - clientHeight}px of the form below the fold`,
   );
 
@@ -215,7 +215,7 @@ test("〈排版〉 leaves the book showing above it", async ({ page }) => {
  *
  * The suite runs in English — the source language, so a failure reads as a difference in
  * behaviour rather than one in translation (`playwright.config.ts`). English is wider:
- * 「無 小 中 大」 is four characters where "None Small Medium Large" is nineteen, so 〈留白〉's
+ * 「無 小 中 大」 is four characters where "None Small Medium Large" is nineteen, so [[Margin]]'s
  * four cells no longer fit beside their label and that row takes a second line. Measured in the
  * test image at 390×844: the form is 543px against a 506px box, and the whole of that 37px is
  * that one row.
@@ -227,7 +227,7 @@ test("〈排版〉 leaves the book showing above it", async ({ page }) => {
 test.describe("in Chinese, where the form was measured", () => {
   test.use({ locale: "zh-TW" });
 
-  test("〈排版〉 fits without scrolling", async ({ page }) => {
+  test("Layout fits without scrolling", async ({ page }) => {
     await openPanel(page, "排版");
 
     const body = page.locator("[data-testid='panel-layout'] .panel-body");
@@ -246,7 +246,7 @@ test.describe("in Chinese, where the form was measured", () => {
  * Six controls do not fit across a phone, and the bar used to let flexbox find its own way onto
  * two lines. The rule between the four inks and the two words went with it: it was the
  * `border-left` of whichever button landed first on the second row, so it stood at the start of
- * a line with nothing to its left, pushing 重點＋筆記 off centre. Two groups and one declared
+ * a line with nothing to its left, pushing [[Mark and note]] off centre. Two groups and one declared
  * breakpoint replaced that.
  *
  * Asserted rather than screenshotted because a screenshot of it cannot be produced honestly from

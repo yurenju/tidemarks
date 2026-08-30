@@ -11,9 +11,9 @@
 // back: a hash the app writes is a hash the browser announces back to it, and every turn would
 // also be a history entry, so the back button would walk pages instead of leaving the book.
 //
-// 〈設定〉 is in the path rather than in `d=` because it stopped being a drawer: it says nothing
+// [[Settings]] is in the path rather than in `d=` because it stopped being a drawer: it says nothing
 // about the screen the reader came from, which is the whole test for a floor (CONTEXT.md,
-// 〈三種面〉). Its tab is part of that path, so each tab has an address of its own.
+// [[Surfaces]]). Its tab is part of that path, so each tab has an address of its own.
 
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";
@@ -21,7 +21,7 @@ const ABOUT_PREFIX = "about/";
 /** What a CFI opens with, and therefore how `?select=` tells one from a phrase. */
 const CFI_PREFIX = "epubcfi(";
 
-/** Which pane of 〈設定〉 is showing. */
+/** Which pane of [[Settings]] is showing. */
 export type SettingsTab = "typography" | "account" | "language";
 
 const SETTINGS_TABS: SettingsTab[] = ["typography", "account", "language"];

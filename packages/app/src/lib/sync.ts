@@ -340,7 +340,7 @@ export async function syncNow(): Promise<void> {
   //
   // **The state is left exactly as it was.** Setting `idle` here would wipe the
   // `unauthenticated` an expired session has just left behind — the next visibility change would
-  // erase 〈帳號〉's "sign in again", which is the one thing that path has to say.
+  // erase [[Account]]'s "sign in again", which is the one thing that path has to say.
   if (!isSignedIn()) return;
 
   if (running) {

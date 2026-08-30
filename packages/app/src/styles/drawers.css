@@ -78,8 +78,8 @@
 }
 
 /* The content primitives below carry two names on purpose, and share one rule list rather than
-   being copied. They appear on two different surfaces — 〈書的詳情〉 is a drawer, 〈帳號〉 is a
-   pane of the 〈設定〉 floor — and each prefix is true where it is used. One declaration block
+   being copied. They appear on two different surfaces — [[About]] is a drawer, [[Account]] is a
+   pane of the [[Settings]] floor — and each prefix is true where it is used. One declaration block
    is what keeps them from drifting into two products' worth of styling. */
 .drawer-section,
 .settings-section {
@@ -148,7 +148,7 @@
   gap: 0.5rem;
 }
 
-/* The first thing in 〈帳號〉, and the whole point of that tab: reading is free. */
+/* The first thing in [[Account]], and the whole point of that tab: reading is free. */
 .drawer-lede,
 .settings-lede {
   margin: 0;
@@ -180,11 +180,11 @@
   gap: 1rem;
 }
 
-/* 〈設定〉: a floor, not a drawer
+/* [[Settings]]: a floor, not a drawer
    -----------------------------
    It replaces the screen rather than stacking on one, which is what lets it hold tabs at all —
    a drawer that took a tab bar would be asking the reader to navigate inside something they
-   opened to glance at (CONTEXT.md 〈三種面〉). Column layout so the footer sits on the bottom
+   opened to glance at (CONTEXT.md [[Surfaces]]). Column layout so the footer sits on the bottom
    edge whatever the pane above it does. */
 .settings-screen {
   display: flex;

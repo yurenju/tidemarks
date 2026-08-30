@@ -164,7 +164,7 @@ test("a visit holds the reader's place, and says nothing over the book", async (
   expect(await storedCfi(page)).toBe(away);
 });
 
-// **〈Stay here〉 during a visit**, which is the one move in the app that carries progress
+// **[[Stay here]] during a visit**, which is the one move in the app that carries progress
 // backwards — and the only way to reach it is for a position from another device to arrive while
 // the visit is on. The mark a visit does raise (ADR-0040) is not another way in: it carries the
 // reader forward to the progress being kept, never the progress back to the reader.

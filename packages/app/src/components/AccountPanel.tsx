@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<SyncState["status"], MessageDescriptor | null> = {
 };
 
 /**
- * 〈帳號〉: the half of Tidemarks that runs on someone else's machine, and whether the reader
+ * [[Account]]: the half of Tidemarks that runs on someone else's machine, and whether the reader
  * wants it.
  *
  * The line it draws is the product's: **a book runs in the browser, so reading costs nothing;
@@ -54,7 +54,7 @@ const STATUS_LABEL: Record<SyncState["status"], MessageDescriptor | null> = {
  * nowhere else — a login box on the shelf would ask every reader to answer a question most of
  * them never need to.
  *
- * It is a **pane of 〈設定〉**, not a surface of its own: it brings no shell, no title and no
+ * It is a **pane of [[Settings]]**, not a surface of its own: it brings no shell, no title and no
  * close button, because the screen around it already has all three.
  */
 export default function AccountPanel({ onImported }: { onImported: () => void }) {
@@ -90,7 +90,7 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
 
       <Billing />
       <SignIn />
-      {/* 〈連上的 agent〉 goes here, between the keys and the backup: it is a thing you revoke,
+      {/* The connected agents go here, between the keys and the backup: it is a thing you revoke,
           which is the same kind of act as logging a device out. It needs a Worker endpoint and
           a D1 query that do not exist yet (#130). */}
       <Backup onImported={onImported} />

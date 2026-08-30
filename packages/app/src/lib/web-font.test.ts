@@ -87,11 +87,11 @@ describe("fontLanguageFor", () => {
 });
 
 describe("webFontsFor", () => {
-  it("fetches the serif face when the reader picked 明體", () => {
+  it("fetches the serif face when the reader picked the serif", () => {
     expect(webFontsFor("serif").every((f) => f.kind === "serif")).toBe(true);
   });
 
-  it("fetches the sans face when the reader picked 黑體", () => {
+  it("fetches the sans face when the reader picked the sans", () => {
     expect(webFontsFor("sans").every((f) => f.kind === "sans")).toBe(true);
   });
 

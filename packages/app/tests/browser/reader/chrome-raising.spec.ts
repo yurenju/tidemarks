@@ -13,7 +13,7 @@ import { BOOKS, openBook, openChrome, selectVisibleText } from "../support/libra
  * chrome through `openChrome`, and most of them call it on a quiet page — so nothing else here
  * would notice if that helper went back to clicking once and hoping.
  *
- * It did notice, once, in CI: 〈the highlight is counted on the notes button〉 painted a
+ * It did notice, once, in CI: "the highlight is counted on the notes button" painted a
  * highlight, and the browser's own selection inside the iframe outlived the toolbar by a few
  * tens of milliseconds. The single click landed in that window, was spent on the selection, and
  * the helper waited five seconds for a chrome nobody had asked for (#170).

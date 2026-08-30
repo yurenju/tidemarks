@@ -19,7 +19,7 @@ interface Details {
 }
 
 /**
- * 〈書的詳情〉: what this one book has cost the reader, and the two things they can do to it.
+ * [[About]]: what this one book has cost the reader, and the two things they can do to it.
  *
  * The numbers used to sit on the card, under every cover on the shelf. They answer "how much
  * of this one have I read", which is looking back — the shelf is for picking what to open next,

@@ -9,11 +9,11 @@ import { BUILD, formatBuild } from "../lib/version";
 import type { ReactNode } from "react";
 
 /**
- * 〈設定〉: everything that is not a book.
+ * [[Settings]]: everything that is not a book.
  *
  * A floor rather than a drawer, and that is the whole reason it can hold tabs. What it says has
  * nothing to do with the screen the reader came from — which is exactly the test a floor has to
- * pass and a drawer has to fail (CONTEXT.md, 〈三種面〉). It used to stack over the shelf or over
+ * pass and a drawer has to fail (CONTEXT.md, [[Surfaces]]). It used to stack over the shelf or over
  * a book as `?d=settings`, which is why it never had room for anything but one list.
  *
  * **Three tabs, ordered near to far**: type is touched most days, the account a few times a
@@ -56,7 +56,7 @@ export default function SettingsScreen({
           by the login return still lands somewhere that exists. */}
       <header className="settings-header">
         <button className="ghost" onClick={onBack} data-testid="settings-back">
-          <Trans comment="The way out of 〈設定〉, always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.">
+          <Trans comment="The way out of [[Settings]], always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.">
             ‹ Shelf
           </Trans>
         </button>
@@ -72,7 +72,7 @@ export default function SettingsScreen({
           open={tab}
           tab="typography"
           label={
-            <Trans comment="〈設定〉tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
+            <Trans comment="[[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
               Type
             </Trans>
           }
@@ -81,7 +81,9 @@ export default function SettingsScreen({
         <Tab
           open={tab}
           tab="account"
-          label={<Trans comment="〈設定〉tab holding sign-in, billing and backup.">Account</Trans>}
+          label={
+            <Trans comment="[[Settings]] tab holding sign-in, billing and backup.">Account</Trans>
+          }
           onTab={onTab}
         />
         {/* Last, because it is the rarest: a reader sets this once and never returns. */}
@@ -89,7 +91,7 @@ export default function SettingsScreen({
           open={tab}
           tab="language"
           label={
-            <Trans comment="〈設定〉tab holding the interface language. One word, sits beside Type and Account.">
+            <Trans comment="[[Settings]] tab holding the interface language. One word, sits beside Type and Account.">
               Language
             </Trans>
           }
@@ -124,7 +126,7 @@ export default function SettingsScreen({
             ? t({
                 message: "This build came from a working tree with uncommitted changes",
                 comment:
-                  "Tooltip on the build stamp in 〈設定〉's footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.",
+                  "Tooltip on the build stamp in [[Settings]]'s footer, shown only when the '+' after the commit hash is there. It explains what that '+' means.",
               })
             : undefined
         }

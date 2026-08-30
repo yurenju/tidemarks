@@ -11,7 +11,7 @@ import { BOOKS, bookCards, importBook, segment } from "../support/library.js";
  * — a floor replaces what was under it, a drawer does not.
  */
 
-test("opens 〈設定〉 from the shelf and comes back to the same tab after a reload", async ({
+test("opens Settings from the shelf and comes back to the same tab after a reload", async ({
   page,
 }) => {
   await page.goto("/");
@@ -32,7 +32,7 @@ test("each tab has an address of its own", async ({ page }) => {
 
   expect(new URL(page.url()).hash).toBe("#/settings/account");
   await page.reload();
-  // 帳號's own first line, so this is the pane and not merely the screen.
+  // [[Account]]'s own first line, so this is the pane and not merely the screen.
   await expect(page.getByText("No account needed to read", { exact: false })).toBeVisible();
 });
 
@@ -43,7 +43,7 @@ test("back leaves the settings screen and lands on the shelf, not outside the ap
   await page.getByTestId("open-settings").click();
   await expect(page.getByTestId("settings-screen")).toBeVisible();
 
-  // What Android's back button does. This pins only that 〈設定〉 is a real history entry, which
+  // What Android's back button does. This pins only that [[Settings]] is a real history entry, which
   // is a property of it being a route at all; how the panels and the tabs themselves should
   // stack in history is still open, in #157.
   await page.goBack();
@@ -60,7 +60,7 @@ test("leaves the shelf visible behind the details drawer", async ({ page }) => {
   await expect(bookCards(page).first()).toBeVisible();
 });
 
-test("a theme set in 〈設定〉 is still set after a reload", async ({ page }) => {
+test("a theme set in Settings is still set after a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("open-settings").click();
 

@@ -14,7 +14,7 @@
 // **Which side of the seam a number sits on is decided by who asks it**, not by whether it is
 // arithmetic. `startsDrag` is asked by three callers and belongs to `touch.ts`; the two small
 // predicates below are asked once each, from inside a transition, and reading them anywhere else
-// would be reading them out of the state they are about. What CONTEXT.md 〈手勢〉 keeps is the
+// would be reading them out of the state they are about. What CONTEXT.md [[Gesture]] keeps is the
 // rest of the shape of this module — the three things it refuses to touch, and why. It is not
 // repeated here; two copies of a list is one copy that goes stale.
 //
@@ -137,7 +137,7 @@ export type GestureIntent =
   | { kind: "beginSelection"; at: Point }
   /** Take the selection out to where the finger is now, anchored at its far end. */
   | { kind: "extendSelection"; from: Point; to: Point }
-  /** The finger is on the selection: 〈標〉 waits (CONTEXT.md 〈chrome〉). */
+  /** The finger is on the selection: [[Marking]] waits (CONTEXT.md [[chrome]]). */
   | { kind: "holdSelection" }
   /** The finger has finished with it, so the colour row may stand up. */
   | { kind: "settleSelection" }
@@ -540,7 +540,7 @@ export function createGestureMachine(
           selecting = null;
           break;
         case "side":
-          // A page turn puts the chrome away, whichever route asked for it (CONTEXT.md 〈chrome〉).
+          // A page turn puts the chrome away, whichever route asked for it (CONTEXT.md [[chrome]]).
           intents.push({ kind: "lowerChrome" });
           intents.push({ kind: "commandTurn", towards: nav.onSide(event.side) });
           break;

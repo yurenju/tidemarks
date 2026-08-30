@@ -29,7 +29,7 @@ import { incomingEdge } from "./touch";
  *
  * Taking the answer from whichever section is on screen is what made a reader unable to get
  * past 入境大廳's part dividers: those are single full-page images with no link to the book's
- * stylesheet, so they lay out `horizontal-tb` inside a 直排 book. On that one page the tap
+ * stylesheet, so they lay out `horizontal-tb` inside a vertical book. On that one page the tap
  * zones and the page buttons swapped ends, so tapping forward went back — and from the page
  * behind it, tapping forward returned to the divider.
  *
@@ -40,7 +40,7 @@ import { incomingEdge } from "./touch";
  * **Only a vertical section settles that fallback**, which is not the same as "the first
  * section wins". The first section to lay out is not the book's first: the reader is put back
  * where they stopped (`start: { cfi }`), so it can perfectly well be one of those image
- * dividers. Letting it settle the answer would lock an undeclared 直排 book backwards for the
+ * dividers. Letting it settle the answer would lock an undeclared vertical book backwards for the
  * whole session, and nothing afterwards could correct it. An undeclared book therefore reads
  * left-to-right until some section lays out vertically — which is also the right answer for a
  * book where none ever does.

@@ -105,7 +105,7 @@
    one passage, the reader's note on it, and the two presses.
 
    **The frame is a fixed width rather than one that closes around its contents.** It used to
-   close, and what that cost is 〈another〉: the card is centred, so a three-word passage — or
+   close, and what that cost is [[Another passage]]: the card is centred, so a three-word passage — or
    merely a book with a shorter name — drew a narrower card, and the button on its right edge
    moved. Pressing ↻ twice in a row is the ordinary way to use this card, and the second press
    would land beside the button rather than on it.
@@ -168,7 +168,7 @@
 .mark-column {
   display: flex;
   flex-direction: column;
-  /* **Fills whatever the frame's floor left over**, which is what actually holds 〈another〉 still:
+  /* **Fills whatever the frame's floor left over**, which is what actually holds [[Another passage]] still:
      the button hangs off the end of the head row, so a column that shrank to a three-word passage
      would carry the button in with it even inside a card that had not moved. */
   flex: 1;
@@ -324,7 +324,7 @@
 
 /* Two classes, so this beats `.book-cover`'s own `width: 100%` wherever the two rules end up
    sitting. 26px wide is 37 tall at the cover's proportions, which is what keeps the row itself
-   under 48 while 〈Keep reading〉 still takes the whole target a finger needs. */
+   under 48 while [[Keep reading]] still takes the whole target a finger needs. */
 .reading-now .book-cover {
   flex: 0 0 auto;
   width: 1.625rem;
@@ -429,7 +429,7 @@
   max-width: 132px;
 }
 
-/* The one door to 〈書的詳情〉, over the cover's top corner: it is not part of choosing a book,
+/* The one door to [[About]], over the cover's top corner: it is not part of choosing a book,
    so it does not take a row of its own under every one of them.
 
    Selected as `button.ghost` and not by the class alone, because the ghost rule clears the

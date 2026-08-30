@@ -62,7 +62,7 @@ export function formatBuild(build: BuildInfo): string {
           msg({
             message: "dev build",
             comment:
-              "Stands in for the commit hash in 〈設定〉's footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.",
+              "Stands in for the commit hash in [[Settings]]'s footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.",
           }),
         ),
   ];

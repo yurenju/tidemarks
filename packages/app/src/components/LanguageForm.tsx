@@ -3,13 +3,13 @@ import Segmented from "./Segmented";
 import { LOCALES, type Locale } from "../lib/locale";
 
 /**
- * 〈設定〉's 語言 tab: which language Tidemarks speaks, and nothing else.
+ * [[Settings]]'s [[Language]] tab: which language Tidemarks speaks, and nothing else.
  *
- * **A tab of its own rather than a row inside 排版**, because 排版 is about the book — every
+ * **A tab of its own rather than a row inside the Type tab**, because Type is about the book — every
  * control in it changes how the text an author wrote is laid out, and none of them changes a
  * word Tidemarks says. Interface language is the exact opposite, and filing it under typography
  * would have been the first crack in a line the glossary draws deliberately (CONTEXT.md,
- * 〈書寫系統〉: that judgement is not the one that picks an interface language).
+ * [[Writing system]]: that judgement is not the one that picks an interface language).
  *
  * Last of the three tabs, which is the order the others already follow: nearest is what a
  * reader touches most days. This one is touched about once.
@@ -33,7 +33,7 @@ export default function LanguageForm({
         label={t({
           message: "Language",
           comment:
-            "Label of the only control in 〈設定〉's language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.",
+            "Label of the only control in [[Settings]]'s language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.",
         })}
         testId="setting-locale"
         options={LOCALES}
@@ -42,7 +42,7 @@ export default function LanguageForm({
       />
 
       <p className="form-note">
-        <Trans comment="Under the language control in 〈設定〉. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.">
+        <Trans comment="Under the language control in [[Settings]]. Explains the two things a reader is most likely to wonder: whether this travels with the account, and whether it changes their books.">
           This device only — the language follows the machine in your hand, not your account. Books
           are unaffected: each one is laid out in whatever it was written in.
         </Trans>

@@ -21,7 +21,7 @@ import { carriedFontKinds, type WebFontKind } from "../lib/web-font";
 import { webFontFraction, webFontNote, type WebFontStatus } from "../lib/web-font-store";
 
 /**
- * The six, once. Two shells wear this: the reader's own typography panel and 〈設定〉's
+ * The six, once. Two shells wear this: the reader's own typography panel and [[Settings]]'s
  * typography tab.
  *
  * **One component, not two that look alike.** The bug this whole change came out of was two
@@ -200,7 +200,7 @@ const KINDS = Object.keys(KIND_LABEL) as WebFontKind[];
  * mentioned.
  *
  * It used to be two things in two places: a running download line here in the reader, and a
- * standalone carried-fonts section in 〈設定〉 that answered the same question when nothing was
+ * standalone carried-fonts section in [[Settings]] that answered the same question when nothing was
  * downloading. One position, three states — not downloaded, downloading, held — so a reader
  * asking "will picking the serif cost me a 16 MB wait" looks in one spot (ADR-0014,
  * ADR-0005).

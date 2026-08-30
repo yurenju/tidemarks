@@ -235,7 +235,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
       await page.getByTestId("panel-toc").getByRole("button", { name: chapter }).first().click();
       await settled(page);
       // **Choosing a chapter no longer dismisses the panel at every width**, so this asks for it
-      // to go rather than waiting for it to. Above 820 the book keeps a column beside 〈目錄〉 and
+      // to go rather than waiting for it to. Above 820 the book keeps a column beside [[Contents]] and
       // the panel stays, on the grounds that a chapter is one of a list a reader may be working
       // down (`lib/chrome.ts`); narrower it goes on its own, and `closePanel` returns at once.
       //

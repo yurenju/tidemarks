@@ -2,7 +2,7 @@
  * Which language Tidemarks' own words are in — the interface language, and nothing else.
  *
  * **This is not the book's language.** What a book is written in is a fact frond states about
- * that book (CONTEXT.md, 〈書寫系統〉), and it decides the line-length ceiling, the font stack
+ * that book (CONTEXT.md, [[Writing system]]), and it decides the line-length ceiling, the font stack
  * and the glyph variant the book is drawn with. None of that moves when the reader changes the
  * language of the interface, and a Japanese reader reading a Traditional Chinese book gets
  * exactly that: a Japanese interface around a Chinese book.

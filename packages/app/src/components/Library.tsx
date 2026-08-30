@@ -248,7 +248,7 @@ export default function Library({
       }}
     >
       {/* One door and the name, and nothing else. The account used to be a second button up
-          here; it is a tab of 〈設定〉 now, so asking the reader whether an account counts as a
+          here; it is a tab of [[Settings]] now, so asking the reader whether an account counts as a
           setting is a question that no longer arises (ADR-0005). */}
       <header className="library-header">
         <h1>
@@ -256,7 +256,7 @@ export default function Library({
         </h1>
         <div className="library-actions">
           <button className="ghost" onClick={onOpenSettings} data-testid="open-settings">
-            <Trans comment="The one door out of the shelf, in the header beside the app's name. Opens 〈設定〉.">
+            <Trans comment="The one door out of the shelf, in the header beside the app's name. Opens [[Settings]].">
               Settings
             </Trans>
           </button>
@@ -371,7 +371,7 @@ function useCoverUrl(cover: Blob | null): string | null {
  * a way to leaf through them, and nothing on the card could answer why five, or why not more.
  *
  * **Two presses, and they do different things**, which is why this is not one button: the
- * reading goes back to the passage inside its book, and 〈another〉 draws a different passage
+ * reading goes back to the passage inside its book, and [[Another passage]] draws a different passage
  * without leaving the shelf.
  */
 function MarkCard({
@@ -431,7 +431,7 @@ function MarkCard({
             from, how long ago, and the way to another — everything that is *about* the passage
             rather than part of it. Above rather than below because the note below is indented
             behind its rule: two lines that both begin "at the left" would begin a few pixels
-            apart. It is also what lets 〈another〉 keep still — nothing above this row changes
+            apart. It is also what lets [[Another passage]] keep still — nothing above this row changes
             height, so the button does not move when a longer passage arrives. */}
         <p className="mark-head" ref={head}>
           <span className="mark-label" data-optional="1">
@@ -506,8 +506,8 @@ function MarkCard({
  * card at the same width has room to spare for a three-character title and none at all for a
  * fifteen-character one. Keyed to a width, a card with a short title loses its label for nothing.
  *
- * The order is `data-optional`, low first, and the two survivors are the title and 〈another〉:
- * the title is what tells a reader whose words these are, and 〈another〉 is the only thing on the
+ * The order is `data-optional`, low first, and the two survivors are the title and [[Another passage]]:
+ * the title is what tells a reader whose words these are, and [[Another passage]] is the only thing on the
  * row anyone presses.
  *
  * Dropped rather than wrapped, because a row that wraps is two rows — and three lines of grey

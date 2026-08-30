@@ -31,7 +31,7 @@ export type WebFontStatus =
   /**
    * Offline, or the fetch failed. The reader stays on the platform stack; the caller says so
    * once, in a toast (`WEB_FONT_UNAVAILABLE_NOTE`), rather than leaving a picked face to change
-   * nothing without a word — see ADR-0014's 〈下載中怎麼讓讀者看到〉.
+   * nothing without a word — see ADR-0014, on what the reader is shown while it downloads.
    */
   | { state: "unavailable" };
 

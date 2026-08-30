@@ -70,7 +70,7 @@ test.describe("horizontal book", () => {
 
   test("a drag turns the page with the chrome up, and puts the chrome away", async ({ page }) => {
     // Dragging cannot be mistaken for "put this away", so it is not blocked while the bars are
-    // up — and a page turn ends 〈找〉, whichever route asked for it. The rule itself is decided in
+    // up — and a page turn ends [[Find]], whichever route asked for it. The rule itself is decided in
     // the machine and pinned for all three routes in src/lib/gesture.test.ts; this is the one
     // wiring test that says the bars really came down over a real book.
     const before = await visibleText(page);
@@ -86,7 +86,7 @@ test.describe("horizontal book", () => {
   });
 });
 
-test.describe("vertical book (直排)", () => {
+test.describe("vertical book", () => {
   test.beforeEach(async ({ page }) => {
     await openBook(page, BOOKS.vertical);
     await settled(page);
@@ -100,7 +100,7 @@ test.describe("vertical book (直排)", () => {
     // `touch.ts`, the inversion applied in `navigator.ts`, and the direction read out of a real
     // EPUB's package document. The same drag on the horizontal book would prove only the first.
     //
-    // The pages still move sideways — a 直排 book paginates downwards inside its own document,
+    // The pages still move sideways — a vertical book paginates downwards inside its own document,
     // and the reader must never be shown that (frond ADR-0013).
     const before = await visibleText(page);
     const finger = await farEnoughToTurn(page);

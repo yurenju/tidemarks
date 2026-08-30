@@ -305,7 +305,7 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     await openBook(page, BOOKS.vertical);
   });
 
-  // The 接線 for `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
+  // The one wire up to `lib/chrome.test.ts`'s lifecycle: that file walks every way out of the panel,
   // and what no pure function can say is that the pointed-at passage becomes ink on a page the
   // browser laid out. So this asks once, and only for the facts the reducer cannot reach — the
   // panel is still there to be read, something is drawn over the passage, and that ink outlives
@@ -451,7 +451,7 @@ test.describe("a wide margin, where the page and the container part company", ()
       .filter({ hasText: /Rabbit-Hole/ })
       .first()
       .click();
-    // **Put 〈目錄〉 away before measuring anything.** A chapter pressed at this width leaves the
+    // **Put [[Contents]] away before measuring anything.** A chapter pressed at this width leaves the
     // panel standing, and a standing panel is a column taken off the book — so the margin below
     // would be measured against a page laid out for a narrower reader than the one the test is
     // about. Pressing the entry again is what a reader would do to get their book back, and it

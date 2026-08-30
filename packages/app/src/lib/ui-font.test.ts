@@ -20,7 +20,7 @@ describe("uiFontFaces", () => {
     expect(faces.map((face) => face.family)).toEqual([SERIF]);
   });
 
-  // The reader picked 黑體 for their books. That says nothing about the chrome, which is set
+  // The reader picked [[Sans]] for their books. That says nothing about the chrome, which is set
   // in a serif whatever the book is set in.
   it("never takes the sans, even when it is here", () => {
     expect(uiFontFaces([SANS])).toEqual([]);
