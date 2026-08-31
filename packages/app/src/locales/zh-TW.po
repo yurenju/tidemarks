@@ -542,7 +542,7 @@ msgstr "筆記 ({markCount})"
 #. Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.
 #: src/components/Library.tsx
 msgid "Nothing marked yet. A passage you mark while reading comes back to you here."
-msgstr "還沒有畫線。讀的時候畫下一段，它就會回到這裡。"
+msgstr "還沒劃重點。讀的時候劃下一段，它就會回到這裡。"
 
 #. Toast shown once a downloaded face has been applied to the book. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog.
 #: src/lib/web-font-store.ts
@@ -567,7 +567,7 @@ msgstr "連上之後，它讀得到：\n"
 "\n"
 "  · 你書架上所有的書，包含內文\n"
 "  · 你讀到哪裡、當下看到的那一頁\n"
-"  · 你畫的重點與寫的筆記\n"
+"  · 你劃的重點與寫的筆記\n"
 "\n"
 "它<strong>不能</strong>改動任何東西，也不能刪書。你隨時可以在 Tidemarks 裡收回。"
 

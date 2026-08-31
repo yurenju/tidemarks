@@ -92,7 +92,7 @@ pre-sync data is not migrated (confirmed decision)`。這份 ADR 是把那次的
 ## 原本的事件為什麼作廢
 
 原本的觸發事件是**「拿掉 passkey-only、開放一般 email 註冊」那一刻**。當時判斷它在收費的
-計畫下**永遠不會發生**，理由有兩條，而**兩條在 2026-08-09 都作廢了**（見
+計畫底下**永遠不會發生**，理由有兩條，而**兩條在 2026-08-09 都作廢了**（見
 [ADR-0015](0015-an-account-is-only-as-strong-as-its-inbox.md)）：
 
 | 當時寫的 | 現在 |
