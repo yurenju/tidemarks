@@ -1831,7 +1831,24 @@ function tryParse(cfi: string): Cfi | undefined {
   }
 }
 
-/** Yields the thread once. `setTimeout(0)` schedules to the next task in all three. */
+/**
+ * Yields the thread once, letting the browser paint and handle input before we
+ * parse the next section.
+ *
+ * Not `setTimeout(resolve, 0)`: HTML clamps timers nested more than five deep to
+ * a 4ms minimum, and indexing is one long chain of them. On a 182-section book
+ * that clamp alone costs 700-1300ms while the actual counting takes 21ms. A
+ * `MessageChannel` message is also a fresh task, but carries no such floor, and
+ * all three engines have it. (`scheduler.yield()` fits better but is
+ * Chromium-only; see frond ADR-0004.)
+ */
 function yieldToBrowser(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(undefined);
+  });
 }
