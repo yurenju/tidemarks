@@ -91,7 +91,7 @@ msgstr "About {title}"
 #. Screen-reader name for the button in the reader's bar that opens the panel describing the open book.
 #. Title of the book-details panel, used only in the moment before the book itself has loaded — after that the panel wears the book's own title. Shares its entry with the reader's bar button that opens it.
 #: src/components/AboutBook.tsx
-#: src/components/Reader.tsx
+#: src/components/reader-messages.ts
 msgid "About this book"
 msgstr "About this book"
 
@@ -196,6 +196,7 @@ msgstr "Columns"
 
 #. Bar button raising the panel that lists the book's chapters. Same word as that panel's own title.
 #. Title of the panel listing the book's chapters, and the label of the bar button that raises it.
+#: src/components/reader-messages.ts
 #: src/components/Reader.tsx
 msgid "Contents"
 msgstr "Contents"
@@ -470,8 +471,7 @@ msgid "Moss"
 msgstr "Moss"
 
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
-#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
-#: src/components/Reader.tsx
+#: src/components/reader-messages.ts
 msgid "Next page"
 msgstr "Next page"
 
@@ -523,7 +523,7 @@ msgid "Note…"
 msgstr "Note…"
 
 #. Title of the panel listing what the reader has marked in this book, and the label of the bar button that raises it.
-#: src/components/Reader.tsx
+#: src/components/reader-messages.ts
 msgid "Notes"
 msgstr "Notes"
 
@@ -596,8 +596,7 @@ msgid "Paid"
 msgstr "Paid"
 
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
-#. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.
-#: src/components/Reader.tsx
+#: src/components/reader-messages.ts
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -944,6 +943,7 @@ msgstr "Two"
 #. Bar button raising the panel holding the six typography settings. Same word as that panel's own title.
 #. Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.
 #. [[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.
+#: src/components/reader-messages.ts
 #: src/components/Reader.tsx
 #: src/components/SettingsScreen.tsx
 msgid "Type"

@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { I18n, MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type PageOffset, type Renderer } from "@yurenju/frond/renderer";
 import { db } from "../lib/db";
@@ -13,26 +12,12 @@ import {
   type BookSessionReport,
 } from "../lib/book-session";
 import { usePlace } from "../lib/usePlace";
-// `Panel` here is the address's spelling of one, aliased because the component of that name is
-// the shell it is drawn in — two halves of the same thing, and both are in this file.
-import { samePanel, type At, type Panel as PanelAddress, type Select } from "../lib/route";
+import { usePanelAddress, type ReaderPanel } from "../lib/usePanelAddress";
+import type { At, Select } from "../lib/route";
 import type { Annotation } from "../lib/types";
-import {
-  FONT_FAMILIES,
-  frondSettings,
-  readRootFontSize,
-  type FontChoice,
-  type ReaderSettings,
-} from "../lib/settings";
+import { frondSettings, readRootFontSize, type ReaderSettings } from "../lib/settings";
 import type { Script } from "../lib/line-length";
-import { webFontsFor } from "../lib/web-font";
-import {
-  ensureWebFont,
-  webFontAppliedNote,
-  WEB_FONT_UNAVAILABLE_NOTE,
-  type LoadedWebFont,
-  type WebFontStatus,
-} from "../lib/web-font-store";
+import { useCarriedFont } from "../lib/useCarriedFont";
 import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
 import {
   chromeShowing,
@@ -53,12 +38,14 @@ import SelectionLayer from "./SelectionLayer";
 import SelectionToolbar from "./SelectionToolbar";
 import Scrubber from "./Scrubber";
 import ElsewhereBanner from "./ElsewhereBanner";
+import FontToast from "./FontToast";
+import { READER_MESSAGES } from "./reader-messages";
 
 /**
  * What the one panel calls itself while it is showing each of the three.
  *
- * The state the three are is `lib/chrome.ts`'s; this is what they are *called*, which stays here
- * because moving it would move a catalog entry into `lib/`.
+ * The state the three are is `lib/chrome.ts`'s; this is what they are *called*, and the words
+ * themselves are next door in `reader-messages.ts`.
  *
  * The `data-testid` is here rather than at the call site because it is the same question the
  * title answers — which of the three is up — and answering it twice is how the two drift apart.
@@ -66,35 +53,10 @@ import ElsewhereBanner from "./ElsewhereBanner";
  * merge below is a change to the shell, and a shell change should not rewrite five suites.
  */
 const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string }> = {
-  toc: {
-    title: msg({
-      message: "Contents",
-      comment:
-        "Title of the panel listing the book's chapters, and the label of the bar button that raises it.",
-    }),
-    testId: "panel-toc",
-  },
-  notes: {
-    title: msg({
-      message: "Notes",
-      comment:
-        "Title of the panel listing what the reader has marked in this book, and the label of the bar button that raises it.",
-    }),
-    testId: "panel-notes",
-  },
-  layout: {
-    title: msg({
-      message: "Type",
-      comment:
-        "Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.",
-    }),
-    testId: "panel-layout",
-  },
+  toc: { title: READER_MESSAGES.panelToc, testId: "panel-toc" },
+  notes: { title: READER_MESSAGES.panelNotes, testId: "panel-notes" },
+  layout: { title: READER_MESSAGES.panelLayout, testId: "panel-layout" },
 };
-
-// How long the applied/unavailable toast stays before it clears itself. Long enough to read a
-// short line, short enough not to sit over the page.
-const FONT_TOAST_MS = 2600;
 
 /**
  * Moves the highlight layer with the page a turn is sliding.
@@ -108,16 +70,6 @@ function slideMarks(layer: HTMLElement | null, at: PageOffset): void {
   if (layer === null) return;
   layer.style.transform = at.x === 0 && at.y === 0 ? "" : `translate(${at.x}px, ${at.y}px)`;
 }
-
-// The reader-facing name of a font choice, from its one source. The toast names the face the
-// download applied, and the dropdown is where that name is defined.
-const fontFamilyLabel = (i18n: I18n, choice: FontChoice): string => {
-  const found = FONT_FAMILIES.find((f) => f.value === choice);
-  return found ? i18n._(found.label) : "";
-};
-
-/** The reader's own three faces as the address spells them (`lib/route.ts`). */
-type ReaderPanel = PanelAddress & { kind: PanelKind };
 
 export default function Reader({
   bookId,
@@ -205,7 +157,7 @@ export default function Reader({
    */
   onChromeChange: (up: boolean) => void;
 }) {
-  const { t, i18n } = useLingui();
+  const { i18n } = useLingui();
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   /**
@@ -256,85 +208,9 @@ export default function Reader({
   /** Hands one event to the chrome machine. */
   const sendChrome = (event: ChromeEvent) => setChromeState((now) => nextChrome(now, event));
 
-  /**
-   * The mirror, chrome → address.
-   *
-   * ⚠️ **Compared before written**, or this and its twin below would take turns telling each
-   * other the same news forever.
-   *
-   * ⚠️ **It stands aside on the pass where the address is what moved**, which is what
-   * `mirrored` is for. React runs this before its twin below, so on the render that follows a
-   * back press it would otherwise see a chrome still showing the panel the address has just
-   * dropped, call that a disagreement, and **push the panel straight back on** — the back button
-   * would do nothing at all, and the entry it popped would be replaced by a new one. Measured:
-   * every back-button case in `tests/browser/reader/panel-address.spec.ts` failed exactly that
-   * way. Identity is the right test here: a new object is what App hands down when, and only
-   * when, the route has moved.
-   *
-   * ⚠️ **And it says nothing more until the address has answered**, which is what `asked` is
-   * for. Going a storey shallower is a `history.back()`, and that is asynchronous: for the frame
-   * or so until the browser announces the new address, the chrome and the address still
-   * disagree. **One press of the reader's often moves the chrome twice in that window** — a
-   * press on the page button beside a standing panel is an outside press *and* a page turn, so
-   * the chrome goes `notes → up → down` in two commits — and each commit would ask for a
-   * `back()` of its own. Measured: one press walked the reader out of the panel, out of the
-   * book, and onto the shelf, and `reader/visit.spec.ts` was the only thing that saw it.
-   *
-   * `onPanel` is read through a ref for the same reason, one layer down: a new callback identity
-   * on every render of `App` must not be a reason to ask again either.
-   */
-  const onPanelRef = useRef(onPanel);
-  onPanelRef.current = onPanel;
-  const mirrored = useRef(panel);
-  const asked = useRef(false);
-  useEffect(() => {
-    if (mirrored.current !== panel || asked.current) return;
-    // The book id rides along even though the screen underneath is that same book, because that
-    // is the rule for every panel: reading the hash never means looking at what is below it.
-    const showing: ReaderPanel | null = isPanel(chrome)
-      ? {
-          kind: chrome,
-          bookId,
-          ...(chrome === "notes" && editingId !== null ? { noteId: editingId } : {}),
-        }
-      : null;
-    if (samePanel(showing, panel)) return;
-    asked.current = true;
-    onPanelRef.current(showing);
-  }, [chrome, editingId, bookId, panel]);
-
-  /**
-   * The mirror, address → chrome. Back, forward, and a hand-typed address all arrive here.
-   *
-   * **Translated into the events the machine already has**, rather than writing the state: a
-   * panel going away is a `panelDismissed` whether the reader pressed the ✕ or Android's back
-   * button, and a machine with a second way to be closed is a machine with two rules to keep in
-   * step (`lib/chrome.ts` says what that cost the last time).
-   */
-  useEffect(() => {
-    // Noted before anything is sent, so the twin above knows the address has answered and may
-    // speak again on the renders that follow. **Every route the address can move by comes
-    // through here** — `history.back()` by way of `hashchange`, and the two writes App makes by
-    // way of the state it sets alongside them — so there is no way for it to be left waiting on
-    // an answer that never arrives.
-    mirrored.current = panel;
-    asked.current = false;
-    if (panel === null) {
-      if (isPanel(chrome)) sendChrome({ kind: "panelDismissed" });
-      return;
-    }
-    if (chrome !== panel.kind) sendChrome({ kind: "togglePanel", panel: panel.kind });
-    const noteId = panel.kind === "notes" ? (panel.noteId ?? null) : null;
-    if (noteId !== null && noteId !== editingId) sendChrome({ kind: "openNote", id: noteId });
-    // Stepping back out of a note and into the list it came from. `noteSaved` is the machine's
-    // name for "the editor is finished with", which is what this is: a note commits when its box
-    // loses the focus, so there is nothing left to save by the time the address has moved.
-    if (noteId === null && editingId !== null) sendChrome({ kind: "noteSaved" });
-    // ⚠️ **Keyed on the address alone**, though `chrome` and `editingId` are read inside. They
-    // are read to decide whether anything has to be *sent*, never to decide what: this direction
-    // of the mirror only has something to say when the address has moved, and re-running it on
-    // every move the chrome makes of its own accord would have it answering its own twin.
-  }, [panel]);
+  // The panel layer and the address bar, kept saying the same thing in both directions
+  // (`lib/usePanelAddress.ts`). Nothing comes back: what it does is keep the two in step.
+  usePanelAddress({ panel, onPanel, chrome, editingId, bookId, sendChrome });
 
   /**
    * A `?d=notes/<book>/<note>` naming a mark this book no longer has.
@@ -450,23 +326,21 @@ export default function Reader({
   // The third answer read off that one sample, and deliberately not `script` — see
   // `web-font.ts`'s `needsWebFont`.
   const [wantsWebFont, setWantsWebFont] = useState(false);
-  // The faces already on this device, which is what frond is handed. Empty until one arrives,
-  // and empty for good when the reader is offline — the book renders in the platform's face
-  // either way.
-  const [webFonts, setWebFonts] = useState<readonly LoadedWebFont[]>([]);
-  // What the settings panel says about the fetch. `null` until there is anything to say.
-  const [webFontStatus, setWebFontStatus] = useState<WebFontStatus | null>(null);
-  // Whether a face is on the network right now, which is what the Aa button traces its border
-  // for. Set only once a fetch actually reaches the wire, so a face that comes back from the
-  // device shows nothing — a cached switch is instant and silent, no trace, no toast.
-  const [fontBusy, setFontBusy] = useState(false);
-  // The one-off note that fires once at the end of the whole job — applied, or could not be
-  // had. `null` when there is nothing to announce. Distinct from `webFontStatus`, which is the
-  // running line in the panel; this is the toast that explains the reflow after the fact.
-  const [fontToast, setFontToast] = useState<string | null>(null);
-  // Read by the open path, which builds the first settings before any of this is in state.
-  const webFontsRef = useRef(webFonts);
-  webFontsRef.current = webFonts;
+  /**
+   * The face this book wants, fetched in the background and everything that says so on screen
+   * (`lib/useCarriedFont.ts`).
+   *
+   * All this component knows about it is that a book either wants a face or does not. What
+   * applies the result is the settings effect below — `webFonts` is in its dependencies, so a
+   * face arriving is a settings change like any other.
+   */
+  const {
+    webFonts,
+    webFontsRef,
+    status: webFontStatus,
+    busy: fontBusy,
+    toast: fontToast,
+  } = useCarriedFont(wantsWebFont, settings.fontFamily);
   // right-opening book: the next page is to the left. Decided once per book — see
   // `createDirection`; a section that lays out horizontally must not flip it.
   const [rtl, setRtl] = useState(false);
@@ -605,85 +479,6 @@ export default function Reader({
     // No `relayout()` alongside: a rebuild ends in a mount, and a mount asks the resolver.
     void renderer.applySettings(next);
   }, [renderer, settings, resolvedTheme, simplified, script, webFonts, wantsWebFont]);
-
-  /**
-   * Fetching the face this book needs, in the background.
-   *
-   * Deliberately its own effect rather than part of opening the book: the book is readable
-   * while this runs, and 16 MB on a phone connection is not something to hold a page turn
-   * for. What applies the result is the settings effect above — `webFonts` is in its
-   * dependencies, so a face arriving is a settings change like any other.
-   *
-   * It runs again when the reader switches serif to sans or back, because that is when the
-   * other face
-   * becomes the one they are looking at. A face already on the device comes back from Dexie
-   * without touching the network.
-   */
-  useEffect(() => {
-    if (!wantsWebFont) return;
-    let cancelled = false;
-
-    void (async () => {
-      // Whether a face both came down the wire *and* applied, and whether one could not be
-      // had. These decide the one-off toast at the end: nothing for a job that was all cache
-      // (instant, silent), an applied note once a downloaded face is on the page, a failure
-      // note only when nothing the reader picked could be had.
-      let netApplied = false;
-      let failed = false;
-      try {
-        // A loop over what is now one file per kind. It used to be two — Regular first, so the
-        // body text arrived before the headings — and the loop is kept because the shape of
-        // "fetch what this setting needs" is the setting's business rather than the count's.
-        for (const font of webFontsFor(settings.fontFamily)) {
-          let downloading = false;
-          const loaded = await ensureWebFont(font, (status) => {
-            if (cancelled) return;
-            setWebFontStatus(status);
-            // The trace comes up the moment a fetch reaches the wire, and is cleared once, in
-            // `finally`. That used to matter across two faces, so the indicator did not flicker
-            // off between Regular finishing and Bold starting; with one file it is simply where
-            // the clearing belongs.
-            if (status.state === "downloading") {
-              downloading = true;
-              setFontBusy(true);
-            }
-          });
-          if (cancelled) return;
-          if (!loaded) {
-            // offline; the platform stack stands, and there is no second try this pass
-            failed = true;
-            break;
-          }
-          // Only a face that reached the wire earns the applied toast, so a cached switch stays
-          // silent; a face that came from the device applies without setting this.
-          if (downloading) netApplied = true;
-          setWebFonts((held) => [...held.filter((f) => f.family !== loaded.family), loaded]);
-        }
-      } finally {
-        if (!cancelled) setFontBusy(false);
-      }
-      if (cancelled) return;
-      // One toast for the whole job. The applied note wins whenever a downloaded face is on
-      // the page: the reader is reading in the face they picked, so a failure note would
-      // contradict what is on screen. It is for when nothing they picked could be had at all.
-      if (netApplied)
-        setFontToast(webFontAppliedNote(i18n, fontFamilyLabel(i18n, settings.fontFamily)));
-      else if (failed) setFontToast(i18n._(WEB_FONT_UNAVAILABLE_NOTE));
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // `i18n` is left out for the same reason as above: this effect fetches 16 MB, and the only
-    // thing the locale feeds is the wording of a toast that clears itself after 2.6 seconds.
-  }, [wantsWebFont, settings.fontFamily]);
-
-  // The toast says its piece and clears itself: it explains the reflow, it is not a control.
-  useEffect(() => {
-    if (fontToast === null) return;
-    const id = setTimeout(() => setFontToast(null), FONT_TOAST_MS);
-    return () => clearTimeout(id);
-  }, [fontToast]);
 
   /**
    * Re-read this book's marks when a pull has written some.
@@ -904,19 +699,7 @@ export default function Reader({
           <button
             className="page-btn"
             onClick={() => sessionRef.current?.turnPage("left")}
-            aria-label={
-              rtl
-                ? t({
-                    message: "Next page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-                : t({
-                    message: "Previous page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-            }
+            aria-label={i18n._(rtl ? READER_MESSAGES.nextPage : READER_MESSAGES.previousPage)}
           >
             ‹
           </button>
@@ -958,19 +741,7 @@ export default function Reader({
           <button
             className="page-btn"
             onClick={() => sessionRef.current?.turnPage("right")}
-            aria-label={
-              rtl
-                ? t({
-                    message: "Previous page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-                : t({
-                    message: "Next page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-            }
+            aria-label={i18n._(rtl ? READER_MESSAGES.previousPage : READER_MESSAGES.nextPage)}
           >
             ›
           </button>
@@ -1044,11 +815,7 @@ export default function Reader({
           <button
             className="ghost reader-about"
             onClick={onOpenAbout}
-            aria-label={t({
-              message: "About this book",
-              comment:
-                "Screen-reader name for the button in the reader's bar that opens the panel describing the open book.",
-            })}
+            aria-label={i18n._(READER_MESSAGES.about)}
             data-testid="reader-about"
           >
             ⋯
@@ -1249,13 +1016,7 @@ export default function Reader({
       </Panel>
 
       <SelectionToolbar toolbar={selectionView.toolbar} />
-      {/* The one-off note that explains the reflow after the fact — applied, or could not be
-          had. `role="status"` so a screen reader hears it; it clears itself (FONT_TOAST_MS). */}
-      {fontToast !== null && (
-        <div className="font-toast" role="status">
-          {fontToast}
-        </div>
-      )}
+      <FontToast note={fontToast} />
     </div>
   );
 }
