@@ -16,9 +16,9 @@ export interface MetaRow {
 /**
  * One CJK face Tidemarks carries (ADR-0014), as it sits on this device.
  *
- * **A Blob, not an ArrayBuffer.** A face is 19 MB, and an ArrayBuffer read back out of
- * IndexedDB is 19 MB of memory; a Blob read back out is still a reference to something the
- * browser keeps on disk until it is asked for.
+ * **A Blob, where a book is bytes** (ADR-0047). A face is 19 MB and is only ever handed to
+ * `URL.createObjectURL`, so a Blob read back out stays a reference to something the browser
+ * keeps on disk; an ArrayBuffer read back out is 19 MB of memory.
  */
 export interface FontRow {
   /**
@@ -81,29 +81,60 @@ db.version(3).stores({
 // is a merge against what is here (`lib/merge.ts`), so arriving twice changes nothing.
 db.version(4).upgrade((tx) => tx.table("meta").delete("syncCursor"));
 
-// v5: `BookRecord.file` and `.cover` stopped being Blobs (`types.ts` has why). No schema change
-// — Dexie stores whatever the record holds — so this exists only to let the rows already on a
-// device say something true.
+/** Set by v5 below, cleared once every book on this device holds bytes. */
+const BOOKS_IN_BLOBS = "booksInBlobs";
+
+// v5: `BookRecord.file` and `.cover` stopped being Blobs (ADR-0047). No schema change — Dexie
+// stores whatever the record holds — so all this does is leave a note for the conversion below.
 //
-// **The bytes are dropped rather than converted.** Turning a Blob into an ArrayBuffer means
-// awaiting `blob.arrayBuffer()`, and an IndexedDB transaction closes on the first await of a
-// promise that is not its own — so the conversion cannot happen inside an upgrade at all. What
-// it drops is re-fetchable: a book with a null `file` is exactly the state lazy download is
-// written for (`Reader.tsx` fetches it on open), and a null `cover` beside `hasCover` is the
-// state `lib/sync.ts` already asks the server about on the next round.
-//
-// The reader's own work — where they are, what they marked, what they wrote — is in other
-// tables and is not touched. A reader who never registered re-imports the epub, which is the
-// cost this takes, and it is taken because Tidemarks has not launched (ADR-0004).
-db.version(5).upgrade((tx) =>
-  tx
-    .table("books")
-    .toCollection()
-    .modify((book: { file: unknown; cover: unknown }) => {
-      if (book.file instanceof Blob) book.file = null;
-      if (book.cover instanceof Blob) book.cover = null;
-    }),
-);
+// **The note, rather than the conversion.** Turning a Blob into an ArrayBuffer means awaiting
+// `blob.arrayBuffer()`, and an IndexedDB transaction closes on the first await of a promise that
+// is not its own, so it cannot happen inside an upgrade. It does not have to: what an upgrade is
+// needed for is knowing that this device has rows in the old shape, and one meta row records
+// that for the pass that runs next.
+db.version(5).upgrade((tx) => tx.table("meta").put({ key: BOOKS_IN_BLOBS, value: 1 }));
+
+/**
+ * Rewrites any book still holding Blobs, before the first query sees one.
+ *
+ * **Converted rather than dropped, and the difference is a book the reader cannot get back.**
+ * Nulling `file` looks harmless — a null one is exactly what lazy download is written for — but
+ * only for a book whose bytes are on the server. A reader who never registered has no server,
+ * so the row would stay on the shelf and answer every open with "Download failed", for good;
+ * registering afterwards would not repair it, because `sync.ts` skips a book with no body when
+ * it pushes and the server row would be minted without one. The cover is worse: the re-fetch is
+ * gated on `hasCover`, which only a pull ever sets, so a never-synced book would lose its cover
+ * with no path back at all.
+ *
+ * Dexie waits on this handler before letting any other query through, so nothing reads a row
+ * mid-conversion. It runs once: v5 leaves the flag, this clears it, and every later start pays
+ * one `meta` lookup.
+ *
+ * ⚠️ **Every query here goes through `vip`, the instance Dexie hands the handler, and not
+ * through `db`.** A query on `db` while "ready" is still running is queued *behind* it, so this
+ * would sit waiting for itself — the app opens to a reader that never renders a page, with
+ * nothing logged. `reader/stored-shape.spec.ts` is what caught that, and is why it exists.
+ */
+db.on("ready", async (vip) => {
+  const open = vip as typeof db;
+  if ((await open.meta.get(BOOKS_IN_BLOBS)) === undefined) return;
+
+  // Read, convert, write — the awaits are why this cannot be an upgrade, and out here they cost
+  // nothing but time. A shelf is tens of books, and this happens once on one build.
+  for (const book of await open.books.toArray()) {
+    const file: unknown = book.file;
+    const cover: unknown = book.cover;
+    if (!(file instanceof Blob) && !(cover instanceof Blob)) continue;
+    await open.books.update(book.id, {
+      ...(file instanceof Blob ? { file: await file.arrayBuffer() } : {}),
+      ...(cover instanceof Blob
+        ? { cover: { bytes: await cover.arrayBuffer(), type: cover.type } }
+        : {}),
+    });
+  }
+
+  await open.meta.delete(BOOKS_IN_BLOBS);
+});
 
 export async function getSyncCursor(): Promise<number> {
   const stored = (await db.meta.get("syncCursor"))?.value;

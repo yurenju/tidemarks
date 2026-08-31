@@ -27,6 +27,12 @@ const build = {
   builtAt: new Date().toISOString(),
 };
 
+// Set by `playwright.config.ts` for the server the browser suite runs against, and by nothing
+// else. Announced because the only way it reaches a build a person then keeps is by being left
+// in a shell, and a Tidemarks with no service worker is not a failure anything else would report.
+const noServiceWorker = process.env.TIDEMARKS_NO_SW === "1";
+if (noServiceWorker) console.warn("TIDEMARKS_NO_SW=1 — building without the service worker");
+
 // https://vite.dev/config/
 export default defineConfig({
   define: { __BUILD__: JSON.stringify(build) },
@@ -51,7 +57,7 @@ export default defineConfig({
       //
       // The screen sweep is deliberately not given this: it still runs the dev server
       // (`playwright.sweep.config.ts`), which is what keeps `npm run dev` exercised in CI.
-      disable: process.env.TIDEMARKS_NO_SW === "1",
+      disable: noServiceWorker,
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache
       workbox: {

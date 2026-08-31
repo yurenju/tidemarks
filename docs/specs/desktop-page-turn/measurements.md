@@ -147,9 +147,9 @@ frond 三個 frame 輪替的時候它就變了，而 frond 沒有把 section 放
 一開始看起來像「production build 重繪比較多」，但同一台機器、同一批測試，掉幀率兩邊幾乎一樣
 （0~2% 對 2~5%），所以不是「app 變快、幀變多」那種解釋。
 
-把每個 `Paint` 事件按所屬 frame 分開數之後才看清楚：多出來的重繪**全部在 app 自己的文件裡**，
+把每個 `Paint` 事件按所屬 frame 分開數之後才看清楚：多出來的重繪**全部發生在 app 自己那一層**，
 書的 iframe 只有零星幾次。而 dev 那一份的分段標籤裡混著 `Render`、`Commit`、`Remaining Effects`、
-`Waiting for Paint` —— 那是 **React 開發模式自己發出的 `console.timeStamp`**。
+`Waiting for Paint`。那是 **React 開發模式自己發出的 `console.timeStamp`**。
 
 ### 缺口在哪
 
@@ -158,7 +158,7 @@ frond 三個 frame 輪替的時候它就變了，而 frond 沒有把 section 放
 的標籤底下，`follow` 就成了 0。
 
 諷刺的是 `SEGMENT` 那些標籤早就加了 `tidemarks:` 前綴，註解也寫著「任何人都可能呼叫
-`console.timeStamp`，而 trace 不會說是誰」—— 前綴加了，但切段的時候從來沒有拿它來過濾。
+`console.timeStamp`，而 trace 不會說是誰」。前綴加了，但切段的時候從來沒有拿它來過濾。
 
 修法是一行：只有 `tidemarks:` 開頭的標記能結束一段，其他的直接跳過，讓它落在的那一段繼續有效。
 
@@ -177,8 +177,8 @@ frond 三個 frame 輪替的時候它就變了，而 frond 沒有把 section 放
 
 ### 這推翻了 §4 的哪幾句
 
-- 「方向鍵那 220ms 幾乎不重繪，`slide` 是 0」—— 實際是 6.7。那個 0 是被 React 的標記切走的。
-- 「方向鍵這條路對『拿掉 layer』不敏感，還是 2」—— 實際從 11.2 變成 21.5，slide 從 6.7 變成
+- 「方向鍵那 220ms 幾乎不重繪，`slide` 是 0」：實際是 6.7。那個 0 是被 React 的標記切走的。
+- 「方向鍵這條路對『拿掉 layer』不敏感，還是 2」：實際從 11.2 變成 21.5，slide 從 6.7 變成
   17.3。它跟拖曳一樣敏感。
 - 因此 `COMMAND_PAINTS_PER_TURN_CEILING` **不再是從算術推出來的**，它現在跟拖曳那個一樣，兩端
   都是量到的。

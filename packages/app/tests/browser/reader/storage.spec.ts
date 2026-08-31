@@ -1,7 +1,8 @@
 // A platform assumption kept on its own so that a failure names it rather than arriving as a
 // batch of books that will not import (testing.md principle 3): what each engine will accept into
-// IndexedDB. The last of the three is what says when support/fixtures.ts can stop launching
-// WebKit with a profile on disk.
+// IndexedDB. It is the measurement ADR-0047 rests on — a book is bytes because of what the second
+// test below reports — and the reason `support/fixtures.ts` still keeps `testWithProfile` around
+// for the one spec that stores a font face.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 

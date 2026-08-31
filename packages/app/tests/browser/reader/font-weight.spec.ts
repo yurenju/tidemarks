@@ -30,7 +30,7 @@ import { BOOKS, openBook, openPanel, readerFrame, segment } from "../support/lib
 //
 // ⚠️ **That this spec needs a minute at all is a problem of its own, not a fact to settle into**
 // (#169). Downloading 19 MB to assert a computed `font-weight` makes it the slowest thing in
-// this suite by some distance, and it is also the only reason `testWithProfile` exists.
+// this suite by some distance, and one of only two reasons `testWithProfile` exists.
 test.setTimeout(120_000);
 
 /** The bold weight the serif is pinned to, as `web-font.ts` declares it. */

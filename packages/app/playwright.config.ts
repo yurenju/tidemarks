@@ -109,6 +109,9 @@ export default defineConfig({
   // The service worker a build normally registers is turned off for it (`vite.config.ts` reads
   // `TIDEMARKS_NO_SW`), which is what the dev server used to be giving us for free.
   //
+  // ⚠️ **This leaves `packages/app/dist` holding a build with no service worker**, so a
+  // `npm run preview` straight after a test run is not the app as deployed. Build again first.
+  //
   // Started from the root rather than from this package, because the root's `build` builds the
   // renderer first and this package's does not. Inside the test image that is redundant (the
   // image builds it), but on a fresh checkout the difference is between the suite testing the

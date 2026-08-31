@@ -39,17 +39,24 @@ export const test = base.extend({
  * The same thing, in a session with a profile on disk. **Opt into it only for a spec that puts a
  * `Blob` into IndexedDB.**
  *
- * One spec does: `reader/font-weight.spec.ts`, which goes through the font store. A CJK face is
- * 19 MB and is held as a `Blob` on purpose — `src/lib/db.ts` has the argument, and it is the
- * opposite of the book's: a face is only ever handed to `URL.createObjectURL`, so keeping it out
- * of memory is the whole point, where a book is parsed and materialised anyway.
+ * Two specs do. `reader/font-weight.spec.ts` goes through the font store, which holds a 19 MB
+ * CJK face as a `Blob` on purpose (ADR-0047: a face is only ever handed to
+ * `URL.createObjectURL`, where a book is parsed into memory anyway). And
+ * `reader/stored-shape.spec.ts` writes one deliberately, to put a device back into the shape
+ * Dexie v5 converts out of.
  *
- * So the platform fact `reader/storage.spec.ts` pins still bites in exactly one place, and this
- * is the whole of what is left of a workaround the entire suite used to pay for. It costs about
- * a second per test in WebKit, on two tests rather than on four hundred.
+ * So the platform fact `reader/storage.spec.ts` pins still bites in two places, and this is the
+ * whole of what is left of a workaround the entire suite used to pay for. It costs about a
+ * second per test in WebKit, on two tests rather than on four hundred.
  *
  * ⚠️ **A profile of its own per test**, so the store starts empty the way an ephemeral session
  * would — a shared one would carry a downloaded face into the next test and hide the download.
+ *
+ * Two smaller costs ride along, both smaller than they were when the whole suite paid them: the
+ * `browser` fixture is still built even though a persistent context does not use it, so a WebKit
+ * worker running this spec keeps one idle process; and a context built by hand does not go
+ * through Playwright's `recordVideo` wiring, so if this config ever records video, this spec is
+ * the one that records none.
  */
 export const testWithProfile = base.extend({
   context: async ({ playwright, browser, browserName }, use) => {

@@ -6,13 +6,11 @@ export interface BookMeta {
 }
 
 /**
- * The cover a book carries, as this device holds it.
+ * The cover a book carries, as this device holds it (ADR-0047).
  *
- * The bytes and the media type travel together because the type is not derivable: it is
- * whatever the epub's manifest declared (`epub.ts`), and it is what turns the bytes back into
- * an image the shelf can draw. A cover pulled from the server arrives without one — the Worker
- * answers every cover as `application/octet-stream` — and that is the same string it has always
- * been given.
+ * The type travels with the bytes because it is the one part not derivable: the epub's manifest
+ * declared it, and `URL.createObjectURL` needs it to hand back an image. A cover pulled from the
+ * server arrives as `application/octet-stream`, which is the same string it has always carried.
  */
 export interface StoredCover {
   bytes: ArrayBuffer;
@@ -23,20 +21,11 @@ export interface BookRecord extends BookMeta {
   /**
    * The epub itself. Null until it is downloaded from the server (lazy download).
    *
-   * **Bytes rather than a `Blob`, and the reason is WebKit.** An ephemeral WebKit session
-   * cannot put a `Blob` into IndexedDB at all — it fails with "Error preparing Blob/File data
-   * to be stored in object store" — while the same store takes an `ArrayBuffer`
-   * (`tests/browser/reader/storage.spec.ts` measures both). A reader's Safari has a profile and
-   * would have been fine either way; the suite's browser is what could not, and every WebKit
-   * spec had to launch its own browser with a profile on disk to work around it.
+   * **Bytes rather than a `Blob`, while a font face stays a Blob** — ADR-0047 has the line
+   * between the two and why it falls there. In short: an ephemeral WebKit session cannot store
+   * a Blob, and a book is parsed into memory anyway, where a 19 MB face never is.
    *
-   * No media type beside it, unlike `cover` below: an epub is always `application/epub+zip`, so
-   * there is nothing to remember. `lib/export.ts` writes that constant into a backup.
-   *
-   * ⚠️ **This is not the argument `db.ts` makes for `FontRow` holding a `Blob`**, and the two do
-   * not conflict. A face is 19 MB and is only ever handed to `URL.createObjectURL`, so keeping
-   * it out of memory is the whole point. A book is opened by parsing it, which materialises it
-   * regardless.
+   * No media type beside it, unlike `cover` below: an epub is always `application/epub+zip`.
    */
   file: ArrayBuffer | null;
   cover: StoredCover | null;
@@ -47,7 +36,7 @@ export interface BookRecord extends BookMeta {
    * read as "still owed" rather than "there is none". It is the whole record that a download is
    * outstanding — `lib/sync.ts` has why one needs to outlive the round that learned of it.
    *
-   * Missing on a book this device imported (it holds the blob) and on rows written before the
+   * Missing on a book this device imported (it holds the bytes) and on rows written before the
    * field existed, which `db.ts`'s v4 fills in by pulling them once more.
    */
   hasCover?: boolean;

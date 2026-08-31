@@ -33,15 +33,15 @@ import {
  * ### What that costs, stated exactly
  *
  * The regression the share stood in for is the compositor layers going away, which takes a drag
- * from 4 repaints to 22. That one is still guarded — but by **one test on one engine**: the drag
+ * from 12 repaints to 44. That one is still guarded — but by **one test on one engine**: the drag
  * paint count below, Chromium only, because the trace it reads has no equivalent in the other
  * two. So on firefox and webkit this file is now down to the jump counts and the sampler floor.
  *
- * **And a command turn has no equivalent guard at all**, not even on Chromium. Taking the layers
- * away leaves an arrow-key turn at the same 2 repaints it measures with them
- * (`COMMAND_PAINTS_PER_TURN_CEILING`, docs/specs/desktop-page-turn/measurements.md §4), so its
- * paint ceiling has no measured bad end to sit below and is arithmetic rather than a bracket.
- * Nothing that used to watch a command turn's smoothness watches it now.
+ * **A command turn is guarded the same way, and on the same one engine**: taking the layers away
+ * puts an arrow-key turn at 22 repaints against the 11 it measures with them, so
+ * `COMMAND_PAINTS_PER_TURN_CEILING` brackets a measured pair like the drag's does. It used to
+ * read as unguarded, on a measurement that had the two ends equal — that count was wrong, and
+ * docs/specs/desktop-page-turn/measurements.md §5 is where it was put right.
  *
  * That is the accepted cost of issue #71, not an oversight — a benchmark that goes red because
  * the machine was busy gets muted and then deleted, and a muted one guards nothing either.
