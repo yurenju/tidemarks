@@ -106,7 +106,7 @@ msgid "Add a passkey"
 msgstr "Add a passkey"
 
 #. Button under a marked passage with no note yet: opens an empty note box.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Add note"
 msgstr "Add note"
 
@@ -219,7 +219,7 @@ msgstr "Dark"
 #. Button under a marked passage: removes the mark and any note on it.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Delete"
 msgstr "Delete"
 
@@ -234,7 +234,7 @@ msgid "dev build"
 msgstr "dev build"
 
 #. Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Done"
 msgstr "Done"
 
@@ -264,7 +264,7 @@ msgid "Downloading the book…"
 msgstr "Downloading the book…"
 
 #. Button under a marked passage that already carries a note: opens it for changing.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Edit note"
 msgstr "Edit note"
 
@@ -365,7 +365,7 @@ msgid "Indigo"
 msgstr "Indigo"
 
 #. Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Jump to this passage"
 msgstr "Jump to this passage"
 
@@ -523,7 +523,7 @@ msgid "Not signed in"
 msgstr "Not signed in"
 
 #. Placeholder in the empty note box under a marked passage. The ellipsis is one character.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Note…"
 msgstr "Note…"
 
