@@ -498,6 +498,11 @@ interface TraceEvent {
   readonly args?: { readonly data?: { readonly message?: string } };
 }
 
+/** Whether a `TimeStamp` in the trace is one of this file's, rather than anyone else's. */
+function ours(event: TraceEvent): boolean {
+  return event.args?.data?.message?.startsWith("tidemarks:") === true;
+}
+
 /** Counts the drag's repaints, split at the moment the finger lifts. */
 export async function countTurnPaints(
   page: Page,
@@ -552,7 +557,7 @@ async function tracePaints(
     .filter((event) => event.name === "Paint" || event.name === "TimeStamp")
     .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
 
-  const marks = ordered.filter((event) => event.name === "TimeStamp");
+  const marks = ordered.filter((event) => event.name === "TimeStamp" && ours(event));
   if (marks.length === 0) {
     // Loud rather than zero. If a future Chromium stops emitting these, every count below would
     // come out at 0 and read as "this turn repaints nothing" — the best possible result, from a
@@ -564,6 +569,16 @@ async function tracePaints(
   let segment: string | null = null;
   for (const event of ordered) {
     if (event.name === "TimeStamp") {
+      // **Only ours end a segment.** The prefix on `SEGMENT` above is written for this and was
+      // never read: anything may call `console.timeStamp`, and React does — in development it
+      // marks `Render`, `Commit`, `Remaining Effects` and `Waiting for Paint` on this same
+      // stream. Treating those as boundaries handed every repaint after one to React's label
+      // instead of to the turn, and a drag came out at 0 repaints while the finger was down.
+      //
+      // That is what a suite pointed at the dev server used to measure, and the ceilings in
+      // `reader/turn-pacing.spec.ts` were calibrated through it. A foreign mark is now passed
+      // over entirely, so the segment it lands inside goes on being the segment.
+      if (!ours(event)) continue;
       segment = event.args?.data?.message ?? null;
       continue;
     }
