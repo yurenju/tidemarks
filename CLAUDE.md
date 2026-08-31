@@ -100,6 +100,18 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 改完 frond 要 `npm run build:frond`（根目錄的 `dev`、`build`、`test` 都會先做這件事；一邊改一邊看
 就開 `npm run build:watch -w @yurenju/frond`）。
 
+⚠️ **`typecheck` 不在那三個裡面**，所以在一個還沒 build 過 frond 的乾淨 worktree 裡，
+`npm run typecheck` 會噴幾十個錯。它們全部是同一個根因，`Cannot find module '@yurenju/frond/epub'`，
+後面那一長串 `implicitly has an 'any' type` 只是 import 掛掉之後的下游效應。**看起來像 code 壞了，
+其實是環境還沒準備好**，所以新 worktree 的第一件事是：
+
+```bash
+npm install && npm run build:frond
+```
+
+會這樣是因為 `typecheck` 自己那一段跑的是 frond 的 `tsc --noEmit`，它只檢查原始碼、**不產出
+`dist/`**，而 app 那一半接著就找不到模組。要不要讓 `typecheck` 也跟著 build，沒有人決定過。
+
 `@yurenju/frond` 停在 0.4.15 且不再發布。要接回 npm 得從 0.4.16 起續號，理由與代價見 ADR-0017。
 
 ## 樣式：原生 CSS，八個檔案，一份清單
