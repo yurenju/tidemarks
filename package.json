@@ -11,7 +11,7 @@
     "build:frond": "npm run build -w @yurenju/frond",
     "dev": "npm run build:frond && npm run dev -w app",
     "build": "npm run build:frond && npm run build -w app",
-    "lint": "oxlint && node scripts/check-language.ts",
+    "lint": "oxlint --max-warnings=0 && node scripts/check-language.ts",
     "i18n:check": "node scripts/check-i18n.ts",
     "i18n:extract": "npm run i18n:extract -w app",
     "typecheck": "npm run typecheck -w @yurenju/frond && npm run typecheck -w app && tsc -p tsconfig.scripts.json",
@@ -28,7 +28,7 @@
     "db:migrate:local": "npm run db:migrate:local -w app"
   },
   "devDependencies": {
-    "oxlint": "^1.71.0",
+    "oxlint": "~1.73.0",
     "prettier": "3.9.6",
     "vitest": "^4.1.10"
   },

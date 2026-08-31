@@ -9,6 +9,11 @@
  * reflow after the fact.
  */
 
+// oxlint-disable react-hooks/exhaustive-deps -- the fetch below is keyed on the face the reader
+// asked for. `i18n` is read only to word the toast at the end of the job, and depending on it
+// would start the download again when somebody changes language mid-fetch. oxlint cannot silence
+// this rule for a single line (tested on 1.73.0 and 1.80.0), so the exemption is the file's.
+
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react";
 import type { I18n } from "@lingui/core";
