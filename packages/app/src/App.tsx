@@ -317,7 +317,7 @@ export default function App() {
    * | --- | --- | --- |
    * | deeper | push **one** entry, however many storeys were climbed | raising a panel (0→1), opening a note in it (1→2), pressing a mark in the book (0→2) |
    * | level | `replaceState` | [[Contents]] swapped for [[Notes]]: another face on the same storey, not a second one |
-   * | shallower | step back to the entry that holds it | ✕, ←, a swipe, Escape, and the page turns and jumps that put a panel away |
+   * | shallower | step back to the entry that holds it | ✕, a swipe, Escape, and the page turns and jumps that put a panel away |
    *
    * **Descending is a step back rather than a write, because JavaScript cannot delete a history
    * entry.** Writing over it (`replaceState`) leaves an entry identical to the one before it, so
@@ -344,7 +344,7 @@ export default function App() {
    * ⚠️ **Unless this app did not push it.** A reader who pastes `?d=notes/…` straight into a new
    * tab lands with that panel already up on the tab's *first* entry: going back there has
    * nothing to pop, so the address never changes, no `hashchange` arrives, the state machine is
-   * never told, and the panel sits on screen through every press of ←. The marker on the entry
+   * never told, and the panel sits on screen through every press of ✕. The marker on the entry
    * (`{ panel: true }`) is what tells the two apart, and writing over a first entry leaves no
    * dead history behind because there is no duplicate in front of it.
    *

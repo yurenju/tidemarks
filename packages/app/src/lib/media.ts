@@ -19,19 +19,18 @@ import type { Panel } from "./route";
  * Kept as one constant because a second name for the same number is a second number waiting to
  * be moved on its own; if the two ever want different lines, split it then and say why.
  *
- * Four things ask, and none of them is a layout:
+ * Three things ask, and none of them is a layout:
  * - pressing a quote or a chapter in a panel, which may leave the panel standing only where the
  *   place it sent the reader to is still on screen beside it;
  * - which way a finger swipes a panel away;
  * - whether the panel traps the focus and locks the page behind it, which it must when it covers
- *   everything and must not when it leaves the Scrubber and the other two entries standing;
- * - whether the way out of the panel is drawn as a ✕ or a ←. Both dismiss it, and both are the
- *   width's answer rather than the face's: beside the book the panel is a thing standing next to
- *   a screen that is still there, so it is shut; narrower, every one of the four is a place the
- *   reader walked into and walks back out of — [[Layout]]'s sheet included, since the bars they
- *   came from have stepped aside for it and there is nothing left up there to return to.
+ *   everything and must not when it leaves the Scrubber and the other two entries standing.
  *
- * **Being in the address is not on that list, and deliberately.** Every panel is in the address
+ * **How the way out is drawn was once on that list and no longer is.** It is a ✕ at every width:
+ * narrower the panel slides down out of the way, and a thing being put away is shut rather than
+ * stepped out of.
+ *
+ * **Being in the address is not on that list either, and deliberately.** Every panel is in the address
  * at every width (ADR-0046), so the back button does the same thing on a phone and on a desk —
  * a rule that changed with the window would be one the reader has to learn twice.
  */

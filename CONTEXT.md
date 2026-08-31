@@ -310,9 +310,9 @@ JavaScript 拿同一組（`needs` ＋ 寬度）決定行為，兩邊各推導各
 
 | `needs` | 桌機（≥820px） | 手機（<820px） |
 | --- | --- | --- |
-| `"page"` | 右邊一欄，sunken，不變暗，不 trap，✕，往右滑 | 底部 sheet、書留在上面，raised，不 trap，←，往下滑 |
-| `"book"` | 右邊一欄，sunken，不變暗，不 trap，✕，往右滑 | 全螢幕，raised，trap，←，往下滑 |
-| `"nothing"` | 蓋在整個視窗上，raised，**變暗**，trap，✕，往右滑 | 全螢幕，raised，trap，←，往下滑 |
+| `"page"` | 右邊一欄，sunken，不變暗，不 trap，✕，往右滑 | 底部 sheet、書留在上面，raised，不 trap，✕，往下滑 |
+| `"book"` | 右邊一欄，sunken，不變暗，不 trap，✕，往右滑 | 全螢幕，raised，trap，✕，往下滑 |
+| `"nothing"` | 蓋在整個視窗上，raised，**變暗**，trap，✕，往右滑 | 全螢幕，raised，trap，✕，往下滑 |
 
 **trap focus 與捲動鎖是同一個條件**：這張面有沒有蓋住整個畫面。
 

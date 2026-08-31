@@ -142,11 +142,6 @@ msgstr "請先要一組登入碼"
 msgid "Auto"
 msgstr "自動"
 
-#. Screen-reader name for the ← in the corner of a panel covering the screen the reader was on, which is the arrangement on a hand-held. It dismisses the panel and returns them to what was underneath — the same thing Android's own back button does here.
-#: src/components/Panel.tsx
-msgid "Back"
-msgstr "返回"
-
 #. Screen-reader name for the mark on the scrubber standing at the place the reader had read to, while they are back visiting a passage somewhere else. Pressing it takes them to that place. The value is a whole number. Longer than the words printed on it, which are only the number: what a glance gets from the mark's position on the rail has to be said out loud here.
 #. placeholder {0}: mark.pct
 #: src/components/Scrubber.tsx
@@ -189,7 +184,7 @@ msgstr "讀不到這台裝置上的字型。"
 msgid "Change email"
 msgstr "改 email"
 
-#. Screen-reader name for the ✕ in the corner of a panel standing beside the screen the reader was on, which is the arrangement on a desk. A verb: it is the action, not a label for the thing being shut.
+#. Screen-reader name for the ✕ in the corner of a panel, at every width. A verb: it is the action, not a label for the thing being shut.
 #: src/components/Panel.tsx
 msgid "Close"
 msgstr "關閉"

@@ -47,7 +47,7 @@ const fromEntries = (event: Event): boolean => {
  *
  * **Which edge it is anchored to is settled in CSS, so the layout never waits on JavaScript**
  * (`lib/media.ts`). What is decided here is behaviour with no layout to get wrong: the direction
- * a finger dismisses it, whether it holds the focus, and whether the way out is a ✕ or a ←.
+ * a finger dismisses it and whether it holds the focus.
  *
  * ⚠️ **`modal` is not the caller's to set**, which is why it is derived rather than passed.
  * `modal={true}` renders a `position: fixed; inset: 0` interception element and, on desktop,
@@ -137,27 +137,21 @@ export default function Panel({
               <BaseDrawer.Title className="panel-title">
                 {typeof title === "string" ? title : i18n._(title)}
               </BaseDrawer.Title>
-              {/* **Two entries, not one with a `context`.** ✕ and ← are different claims about
-                  what is behind the panel — one shuts a thing standing beside the screen, the
-                  other steps back out of a screen — and a translator given one string cannot
-                  tell which they are naming. */}
+              {/* **One ✕ at every width.** This used to be a ✕ beside the book and a ← over it,
+                  on the reading that a full-screen panel is a place walked into rather than a
+                  thing standing next to something. On a hand-held it is neither: the panel slides
+                  down out of the way, which is a thing being put away, and ✕ is what that looks
+                  like. One drawing, one entry, and nothing here that has to ask how wide the
+                  window is. */}
               <BaseDrawer.Close
                 className="ghost panel-close"
-                aria-label={
-                  besideTheBook
-                    ? t({
-                        message: "Close",
-                        comment:
-                          "Screen-reader name for the ✕ in the corner of a panel standing beside the screen the reader was on, which is the arrangement on a desk. A verb: it is the action, not a label for the thing being shut.",
-                      })
-                    : t({
-                        message: "Back",
-                        comment:
-                          "Screen-reader name for the ← in the corner of a panel covering the screen the reader was on, which is the arrangement on a hand-held. It dismisses the panel and returns them to what was underneath — the same thing Android's own back button does here.",
-                      })
-                }
+                aria-label={t({
+                  message: "Close",
+                  comment:
+                    "Screen-reader name for the ✕ in the corner of a panel, at every width. A verb: it is the action, not a label for the thing being shut.",
+                })}
               >
-                {besideTheBook ? "✕" : "←"}
+                ✕
               </BaseDrawer.Close>
             </header>
             <div className="panel-body">{children}</div>

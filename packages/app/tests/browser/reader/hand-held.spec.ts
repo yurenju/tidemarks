@@ -154,12 +154,9 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
   await expect(page.getByTestId("chrome-nav")).toBeHidden();
   await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 
-  // And they come back, so this is a state and not a one-way door. **The way out is a ← here**,
-  // not the desk's ✕: nothing of the screen behind is left showing, so the reader is stepping
-  // back out rather than shutting something standing beside it (ADR-0046). Reaching the button by
-  // that name is the pin: swap the two glyphs and this line goes red, along with the desk's
-  // half in `panel-address.spec.ts`.
-  await page.getByTestId("panel-layout").getByLabel("Back").click();
+  // And they come back, so this is a state and not a one-way door. The way out is the same ✕ it
+  // is on a desk, at every width (ADR-0046).
+  await page.getByTestId("panel-layout").getByLabel("Close").click();
   await expect(page.getByTestId("chrome-nav")).toBeVisible();
   await expect(page.getByTestId("chrome-bottom")).toBeVisible();
 });
@@ -316,7 +313,7 @@ test("a panel that covers the screen holds the focus, and the sheet that does no
   await openPanel(page, "Contents");
   expect(await bookIsHidden()).toBe("true");
 
-  await page.getByTestId("panel-toc").getByLabel("Back").click();
+  await page.getByTestId("panel-toc").getByLabel("Close").click();
   await openPanel(page, "Type");
   expect(await bookIsHidden()).toBe(null);
 });
