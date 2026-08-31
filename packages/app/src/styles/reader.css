@@ -27,7 +27,12 @@
 
    `right` is the column a panel takes on a desk. Not `width`, so the bars stay pinned to the
    left edge and only give up their right end — and `0` the rest of the time, so nothing about
-   [[Read]] or a bare [[Find]] depends on this rule at all. */
+   [[Read]] or a bare [[Find]] depends on this rule at all.
+
+   ⚠️ **`Panel.tsx` reads this class name**, to tell a press on the bars from a press outside
+   them: a press that dismissed a panel would set that right edge travelling under the very
+   control it landed on. Renaming the class takes `reader/visit.spec.ts` and
+   `reader/chrome-placement.spec.ts` red rather than going quiet. */
 .chrome {
   position: absolute;
   inset: 0;
