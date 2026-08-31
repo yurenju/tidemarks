@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { I18n, MessageDescriptor } from "@lingui/core";
+import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type PageOffset, type Renderer } from "@yurenju/frond/renderer";
@@ -17,22 +17,9 @@ import { usePlace } from "../lib/usePlace";
 // the shell it is drawn in — two halves of the same thing, and both are in this file.
 import { samePanel, type At, type Panel as PanelAddress, type Select } from "../lib/route";
 import type { Annotation } from "../lib/types";
-import {
-  FONT_FAMILIES,
-  frondSettings,
-  readRootFontSize,
-  type FontChoice,
-  type ReaderSettings,
-} from "../lib/settings";
+import { frondSettings, readRootFontSize, type ReaderSettings } from "../lib/settings";
 import type { Script } from "../lib/line-length";
-import { webFontsFor } from "../lib/web-font";
-import {
-  ensureWebFont,
-  webFontAppliedNote,
-  WEB_FONT_UNAVAILABLE_NOTE,
-  type LoadedWebFont,
-  type WebFontStatus,
-} from "../lib/web-font-store";
+import { useCarriedFont } from "../lib/useCarriedFont";
 import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
 import {
   chromeShowing,
@@ -53,6 +40,7 @@ import SelectionLayer from "./SelectionLayer";
 import SelectionToolbar from "./SelectionToolbar";
 import Scrubber from "./Scrubber";
 import ElsewhereBanner from "./ElsewhereBanner";
+import FontToast from "./FontToast";
 
 /**
  * What the one panel calls itself while it is showing each of the three.
@@ -92,10 +80,6 @@ const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string 
   },
 };
 
-// How long the applied/unavailable toast stays before it clears itself. Long enough to read a
-// short line, short enough not to sit over the page.
-const FONT_TOAST_MS = 2600;
-
 /**
  * Moves the highlight layer with the page a turn is sliding.
  *
@@ -108,13 +92,6 @@ function slideMarks(layer: HTMLElement | null, at: PageOffset): void {
   if (layer === null) return;
   layer.style.transform = at.x === 0 && at.y === 0 ? "" : `translate(${at.x}px, ${at.y}px)`;
 }
-
-// The reader-facing name of a font choice, from its one source. The toast names the face the
-// download applied, and the dropdown is where that name is defined.
-const fontFamilyLabel = (i18n: I18n, choice: FontChoice): string => {
-  const found = FONT_FAMILIES.find((f) => f.value === choice);
-  return found ? i18n._(found.label) : "";
-};
 
 /** The reader's own three faces as the address spells them (`lib/route.ts`). */
 type ReaderPanel = PanelAddress & { kind: PanelKind };
@@ -450,23 +427,21 @@ export default function Reader({
   // The third answer read off that one sample, and deliberately not `script` — see
   // `web-font.ts`'s `needsWebFont`.
   const [wantsWebFont, setWantsWebFont] = useState(false);
-  // The faces already on this device, which is what frond is handed. Empty until one arrives,
-  // and empty for good when the reader is offline — the book renders in the platform's face
-  // either way.
-  const [webFonts, setWebFonts] = useState<readonly LoadedWebFont[]>([]);
-  // What the settings panel says about the fetch. `null` until there is anything to say.
-  const [webFontStatus, setWebFontStatus] = useState<WebFontStatus | null>(null);
-  // Whether a face is on the network right now, which is what the Aa button traces its border
-  // for. Set only once a fetch actually reaches the wire, so a face that comes back from the
-  // device shows nothing — a cached switch is instant and silent, no trace, no toast.
-  const [fontBusy, setFontBusy] = useState(false);
-  // The one-off note that fires once at the end of the whole job — applied, or could not be
-  // had. `null` when there is nothing to announce. Distinct from `webFontStatus`, which is the
-  // running line in the panel; this is the toast that explains the reflow after the fact.
-  const [fontToast, setFontToast] = useState<string | null>(null);
-  // Read by the open path, which builds the first settings before any of this is in state.
-  const webFontsRef = useRef(webFonts);
-  webFontsRef.current = webFonts;
+  /**
+   * The face this book wants, fetched in the background and everything that says so on screen
+   * (`lib/useCarriedFont.ts`).
+   *
+   * All this component knows about it is that a book either wants a face or does not. What
+   * applies the result is the settings effect below — `webFonts` is in its dependencies, so a
+   * face arriving is a settings change like any other.
+   */
+  const {
+    webFonts,
+    webFontsRef,
+    status: webFontStatus,
+    busy: fontBusy,
+    toast: fontToast,
+  } = useCarriedFont(wantsWebFont, settings.fontFamily);
   // right-opening book: the next page is to the left. Decided once per book — see
   // `createDirection`; a section that lays out horizontally must not flip it.
   const [rtl, setRtl] = useState(false);
@@ -605,85 +580,6 @@ export default function Reader({
     // No `relayout()` alongside: a rebuild ends in a mount, and a mount asks the resolver.
     void renderer.applySettings(next);
   }, [renderer, settings, resolvedTheme, simplified, script, webFonts, wantsWebFont]);
-
-  /**
-   * Fetching the face this book needs, in the background.
-   *
-   * Deliberately its own effect rather than part of opening the book: the book is readable
-   * while this runs, and 16 MB on a phone connection is not something to hold a page turn
-   * for. What applies the result is the settings effect above — `webFonts` is in its
-   * dependencies, so a face arriving is a settings change like any other.
-   *
-   * It runs again when the reader switches serif to sans or back, because that is when the
-   * other face
-   * becomes the one they are looking at. A face already on the device comes back from Dexie
-   * without touching the network.
-   */
-  useEffect(() => {
-    if (!wantsWebFont) return;
-    let cancelled = false;
-
-    void (async () => {
-      // Whether a face both came down the wire *and* applied, and whether one could not be
-      // had. These decide the one-off toast at the end: nothing for a job that was all cache
-      // (instant, silent), an applied note once a downloaded face is on the page, a failure
-      // note only when nothing the reader picked could be had.
-      let netApplied = false;
-      let failed = false;
-      try {
-        // A loop over what is now one file per kind. It used to be two — Regular first, so the
-        // body text arrived before the headings — and the loop is kept because the shape of
-        // "fetch what this setting needs" is the setting's business rather than the count's.
-        for (const font of webFontsFor(settings.fontFamily)) {
-          let downloading = false;
-          const loaded = await ensureWebFont(font, (status) => {
-            if (cancelled) return;
-            setWebFontStatus(status);
-            // The trace comes up the moment a fetch reaches the wire, and is cleared once, in
-            // `finally`. That used to matter across two faces, so the indicator did not flicker
-            // off between Regular finishing and Bold starting; with one file it is simply where
-            // the clearing belongs.
-            if (status.state === "downloading") {
-              downloading = true;
-              setFontBusy(true);
-            }
-          });
-          if (cancelled) return;
-          if (!loaded) {
-            // offline; the platform stack stands, and there is no second try this pass
-            failed = true;
-            break;
-          }
-          // Only a face that reached the wire earns the applied toast, so a cached switch stays
-          // silent; a face that came from the device applies without setting this.
-          if (downloading) netApplied = true;
-          setWebFonts((held) => [...held.filter((f) => f.family !== loaded.family), loaded]);
-        }
-      } finally {
-        if (!cancelled) setFontBusy(false);
-      }
-      if (cancelled) return;
-      // One toast for the whole job. The applied note wins whenever a downloaded face is on
-      // the page: the reader is reading in the face they picked, so a failure note would
-      // contradict what is on screen. It is for when nothing they picked could be had at all.
-      if (netApplied)
-        setFontToast(webFontAppliedNote(i18n, fontFamilyLabel(i18n, settings.fontFamily)));
-      else if (failed) setFontToast(i18n._(WEB_FONT_UNAVAILABLE_NOTE));
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // `i18n` is left out for the same reason as above: this effect fetches 16 MB, and the only
-    // thing the locale feeds is the wording of a toast that clears itself after 2.6 seconds.
-  }, [wantsWebFont, settings.fontFamily]);
-
-  // The toast says its piece and clears itself: it explains the reflow, it is not a control.
-  useEffect(() => {
-    if (fontToast === null) return;
-    const id = setTimeout(() => setFontToast(null), FONT_TOAST_MS);
-    return () => clearTimeout(id);
-  }, [fontToast]);
 
   /**
    * Re-read this book's marks when a pull has written some.
@@ -1249,13 +1145,7 @@ export default function Reader({
       </Panel>
 
       <SelectionToolbar toolbar={selectionView.toolbar} />
-      {/* The one-off note that explains the reflow after the fact — applied, or could not be
-          had. `role="status"` so a screen reader hears it; it clears itself (FONT_TOAST_MS). */}
-      {fontToast !== null && (
-        <div className="font-toast" role="status">
-          {fontToast}
-        </div>
-      )}
+      <FontToast note={fontToast} />
     </div>
   );
 }
