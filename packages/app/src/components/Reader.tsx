@@ -19,11 +19,11 @@ import {
   subscribePulledAnnotations,
   subscribePulledProgress,
 } from "../lib/sync";
-import { type Elapsed } from "../lib/elsewhere";
 import {
   bannerOffer,
   nextPlace,
   placeFor,
+  type Elapsed,
   type Offer,
   type Place,
   type PlaceEffect,
@@ -1320,10 +1320,6 @@ export default function Reader({
       // describes whichever device and window last read this book, which is close enough for
       // the question being asked — whether the passage is somewhere the reader had got to.
       dispatchPlace({ kind: "recalled", bookId, saved, at: openAt });
-      // Nothing is on screen yet, but the offer's gate has always opened here: until the line
-      // above ran, this device did not know where it was, and there was nothing for a refusal
-      // to write in place of an offer.
-      dispatchPlace({ kind: "ready", bookId });
 
       const anns = await readAnnotations(bookId);
       if (cancelled) return;
@@ -1523,6 +1519,13 @@ export default function Reader({
       // not a contrived one. No-ops when nothing moved.
       attached.setNativeSelection(!ownSelectionRef.current);
       setRenderer(attached);
+      // **There is a book under the banner now**, which is the earliest a position from another
+      // device can be offered. `attach()` is an iframe, a stylesheet and a first layout — a sync
+      // round landing inside it used to raise the banner over a blank viewer, where [[Go there]]
+      // reached a renderer that did not exist yet, navigated nothing, and cleared the offer for
+      // good. Any offer that arrived in the meantime has been held, and standing it up is all
+      // this does (`lib/place.ts`).
+      dispatchPlace({ kind: "ready", bookId });
 
       // The two addresses the first layout could not settle on its own. `chars:` is already in
       // the right section and only moves inside it; `frac:` is a whole-book number, so it waits

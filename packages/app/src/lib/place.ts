@@ -37,6 +37,10 @@ import type { Progress } from "./types";
 import { entersVisit, leavesVisit } from "./visit";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "./elsewhere";
 
+// Re-exported so that the banner's wording can name the reading it prints without reaching past
+// this module for it: `elsewhere.ts` is behind this seam now.
+export type { Elapsed };
+
 /** A position from another device, with how long ago it was written read once on arrival. */
 export interface Offer {
   readonly position: Progress;
@@ -69,6 +73,17 @@ export interface Place {
    * need a renderer that does not exist yet.
    */
   readonly ready: boolean;
+  /**
+   * The last whole-book fraction the index reported for the page on screen, or `null` while it
+   * is still building.
+   *
+   * **Not `position.percentage`**, which stands in the last fraction it knew when the index has
+   * no answer yet — a real number to render a bar from, and not one a displacement may be
+   * measured against. `stats.ts` drops a sitting whose ends are `null` for exactly that reason,
+   * so a `groundCovered` carrying a stand-in would turn a sitting the device could not place
+   * into one it claims to have placed at zero.
+   */
+  readonly fraction: number | null;
 }
 
 export type PlaceEvent =
@@ -121,7 +136,15 @@ interface Step {
 
 /** A book nobody has placed the reader in yet. */
 export function placeFor(bookId: string): Place {
-  return { bookId, position: null, screen: null, visit: null, offer: null, ready: false };
+  return {
+    bookId,
+    position: null,
+    screen: null,
+    visit: null,
+    offer: null,
+    ready: false,
+    fraction: null,
+  };
 }
 
 const still = (state: Place): Step => ({ state, effects: [] });
@@ -156,7 +179,13 @@ export function nextPlace(state: Place, event: PlaceEvent): Step {
       if (event.bookId !== state.bookId) return still(state);
       // The screen has moved whatever else is true — everything below this line is the claim
       // that this is where the reader *is* in the book, and a visit is not that claim.
-      const moved: Place = { ...state, screen: event.position };
+      // The fraction is noted whether or not this move counts as reading: it is a fact about
+      // where the page is, and a visit holds the *ground* still, not the index's answer.
+      const moved: Place = {
+        ...state,
+        screen: event.position,
+        fraction: event.fraction ?? state.fraction,
+      };
       if (state.visit !== null) {
         if (!leavesVisit(state.visit, event.position)) return still(moved);
       }
@@ -218,9 +247,23 @@ export function nextPlace(state: Place, event: PlaceEvent): Step {
       // that progress only goes forward, which is a rule about what happens on its own; a
       // reader who presses this has said where they are, and being told "no, you are still a
       // hundred pages on" is the button doing nothing.
+      const effects: PlaceEffect[] = [];
+      // **The ground covered comes back with it.** A visit holds that measure still along with
+      // the progress, and this is the one move that ends a visit without reading forward — so
+      // left alone, a reader who answers the banner and closes the book straight after is
+      // recorded as having read to a page they have just disowned, and `stats.ts` counts it.
+      //
+      // ⚠️ **The index's own answer, never `kept.percentage`.** That field stands in the last
+      // fraction the reader had when the index has not finished building, and `0` for a book
+      // never opened — reporting one would place a sitting that nothing could place, which is
+      // the case `stats.ts` drops rather than reads as "moved nowhere".
+      if (state.visit !== null && state.fraction !== null) {
+        effects.push({ kind: "groundCovered", fraction: state.fraction });
+      }
+      effects.push({ kind: "recordPosition", position: kept });
       return {
         state: { ...state, visit: null, offer: null, position: kept, screen: kept },
-        effects: [{ kind: "recordPosition", position: kept }],
+        effects,
       };
     }
 

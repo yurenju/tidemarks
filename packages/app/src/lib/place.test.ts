@@ -364,6 +364,50 @@ describe("answering the offer", () => {
     expect(step.state.visit).toBeNull();
   });
 
+  it("Stay here during a visit brings the ground covered back with the progress", () => {
+    // Otherwise a reader who answers the banner and closes the book straight after is recorded
+    // as having read to the page they have just disowned.
+    const during = run(
+      reading(),
+      { kind: "passageAsked", bookId: BOOK, target: BEHIND, pageRange: PAGE },
+      {
+        kind: "relocated",
+        bookId: BOOK,
+        position: progress({ cfi: BEHIND, pageRange: null, percentage: 0.1 }),
+        fraction: 0.1,
+      },
+    );
+    expect(effectsOf(offered(during), { kind: "stayedHere", now: 5000 })).toEqual([
+      { kind: "groundCovered", fraction: 0.1 },
+      { kind: "recordPosition", position: expect.objectContaining({ percentage: 0.1 }) },
+    ]);
+  });
+
+  it("Stay here says nothing about the ground covered while the index is still building", () => {
+    // `percentage` stands in the last fraction the reader had until the index answers, and 0 for
+    // a book never opened. Reporting one would place a sitting nothing could place, which is
+    // exactly the row `stats.ts` drops rather than read as "moved nowhere".
+    const during = run(
+      reading(),
+      { kind: "passageAsked", bookId: BOOK, target: BEHIND, pageRange: PAGE },
+      {
+        kind: "relocated",
+        bookId: BOOK,
+        position: progress({ cfi: BEHIND, pageRange: null, percentage: 0.5 }),
+      },
+    );
+    expect(effectsOf(offered(during), { kind: "stayedHere", now: 5000 })).toEqual([
+      { kind: "recordPosition", position: expect.anything() },
+    ]);
+  });
+
+  it("Stay here outside a visit says nothing about the ground covered", () => {
+    // The last `relocate` already reported it, and the page has not moved since.
+    expect(effectsOf(offered(), { kind: "stayedHere", now: 5000 })).toEqual([
+      { kind: "recordPosition", position: expect.anything() },
+    ]);
+  });
+
   it("keeps the screen and the position together afterwards", () => {
     const state = nextPlace(offered(), { kind: "stayedHere", now: 5000 }).state;
     expect(state.screen).toBe(state.position);
