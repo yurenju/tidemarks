@@ -728,7 +728,7 @@ _Avoid_: highlighter 那一類的說法（那種筆的定義就是一塊底色�
 是「反覆咀嚼」這個動作。
 
 **一則筆記離不開一本書、也離不開一段選取**，這是範圍不是落差：Tidemarks 是一個劃重點、寫筆記的
-工具，不打算變成通用的筆記系統（[ADR-0046](docs/adr/0046-a-note-hangs-on-a-mark.md)）。要把這些
+工具，不打算變成通用的筆記系統（[ADR-0047](docs/adr/0047-a-note-hangs-on-a-mark.md)）。要把這些
 字帶進自己的資訊系統是〈退路 / Exit〉那條在管的事。實作上它是 `Annotation.note`，跟重點同一列。
 
 _Avoid_: 標註／annotation（那是**資料結構**的名字，一則筆記是它的內容之一）、highlight（那是
