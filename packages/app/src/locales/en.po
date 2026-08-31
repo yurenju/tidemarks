@@ -32,17 +32,17 @@ msgid "auth.passkey.rpIdUnset"
 msgstr "(not set)"
 
 #. On the banner naming the reader's place in the book: how long ago it was read. Whole days.
-#: src/components/Reader.tsx
+#: src/components/ElsewhereBanner.tsx
 msgid "{count, plural, one {# day ago} other {# days ago}}"
 msgstr "{count, plural, one {# day ago} other {# days ago}}"
 
 #. On the banner naming the reader's place in the book: how long ago it was read. Whole hours, under a day.
-#: src/components/Reader.tsx
+#: src/components/ElsewhereBanner.tsx
 msgid "{count, plural, one {# hour ago} other {# hours ago}}"
 msgstr "{count, plural, one {# hour ago} other {# hours ago}}"
 
 #. On the banner naming the reader's place in the book: how long ago it was read. Whole minutes, under an hour.
-#: src/components/Reader.tsx
+#: src/components/ElsewhereBanner.tsx
 msgid "{count, plural, one {# minute ago} other {# minutes ago}}"
 msgstr "{count, plural, one {# minute ago} other {# minutes ago}}"
 
@@ -311,7 +311,7 @@ msgid "From your marks"
 msgstr "From your marks"
 
 #. Button on the banner naming the reader's place in the book: moves the book to that place. Short — it sits beside 'Stay here'.
-#: src/components/Reader.tsx
+#: src/components/ElsewhereBanner.tsx
 msgid "Go there"
 msgstr "Go there"
 
@@ -371,8 +371,8 @@ msgstr "Just added"
 
 #. How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.
 #. On the banner naming the reader's place in the book: that place was read less than a minute ago. Also what a position written slightly in the future says, since two devices' clocks need not agree.
+#: src/components/ElsewhereBanner.tsx
 #: src/components/Library.tsx
-#: src/components/Reader.tsx
 msgid "Just now"
 msgstr "Just now"
 
@@ -733,7 +733,7 @@ msgid "authorize.unknownClient.body"
 msgstr "Start the connection again from your agent."
 
 #. Button on the banner naming the reader's place in the book: makes the page on screen the reader's place, whatever the banner named. Short — it sits beside 'Go there'.
-#: src/components/Reader.tsx
+#: src/components/ElsewhereBanner.tsx
 msgid "Stay here"
 msgstr "Stay here"
 
@@ -981,13 +981,13 @@ msgid "You cannot subscribe yet, and the price is not settled."
 msgstr "You cannot subscribe yet, and the price is not settled."
 
 #. Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.
-#. placeholder {0}: elsewhere.position.chapterLabel
-#: src/components/Reader.tsx
+#. placeholder {0}: offer.position.chapterLabel
+#: src/components/ElsewhereBanner.tsx
 msgid "You were reading “{0}”"
 msgstr "You were reading “{0}”"
 
 #. Banner over the book, naming the reader's place in it when that place is not what is on screen, and it cannot be named as a chapter. The value is a whole number. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.
-#. placeholder {0}: Math.round(elsewhere.position.percentage * 100)
-#: src/components/Reader.tsx
+#. placeholder {0}: Math.round(offer.position.percentage * 100)
+#: src/components/ElsewhereBanner.tsx
 msgid "You were reading at {0}%"
 msgstr "You were reading at {0}%"
