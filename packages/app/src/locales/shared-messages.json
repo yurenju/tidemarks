@@ -1,7 +1,7 @@
 {
   "‹ Shelf": ["src/components/Reader.tsx", "src/components/SettingsScreen.tsx"],
   "About this book": ["src/components/AboutBook.tsx", "src/components/Reader.tsx"],
-  "Delete": ["src/components/AboutBook.tsx", "src/components/Reader.tsx"],
+  "Delete": ["src/components/AboutBook.tsx", "src/components/AnnotationItem.tsx"],
   "Just now": ["src/components/Library.tsx", "src/components/Reader.tsx"],
   "Language": ["src/components/LanguageForm.tsx", "src/components/SettingsScreen.tsx"],
   "Settings": ["src/components/Library.tsx", "src/components/SettingsScreen.tsx"],

@@ -24,8 +24,11 @@
 // reader feels on the first try, and a missing cancellation is not something anyone can report.
 
 import type { TurnDirection, TurnEdge } from "@yurenju/frond/renderer";
-import type { Navigator } from "./navigator";
-import { handleAt, type Point, type SelectionEnds } from "./selection-handles";
+// `.js` on the relative imports here, unlike most of `lib/`: `turn.ts` reaches for `TurnFacts`,
+// and the browser tests reach for `turn.ts`, which puts this file in a graph compiled under
+// node16 resolution. Dropping the extension is a type error, not a tidy-up.
+import type { Navigator } from "./navigator.js";
+import { handleAt, type Point, type SelectionEnds } from "./selection-handles.js";
 import {
   commitsTurn,
   dampen,
@@ -33,7 +36,7 @@ import {
   startsDrag,
   TAP_SELECTION_GRACE_MS,
   TAP_SLOP_PX,
-} from "./touch";
+} from "./touch.js";
 
 // The window the release speed is measured over. Long enough to have two or three moves in it on
 // a 60Hz screen, short enough that it is the flick and not the drag before it.

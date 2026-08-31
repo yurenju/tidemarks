@@ -106,7 +106,7 @@ msgid "Add a passkey"
 msgstr "新增 passkey"
 
 #. Button under a marked passage with no note yet: opens an empty note box.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Add note"
 msgstr "加筆記"
 
@@ -219,7 +219,7 @@ msgstr "深色"
 #. Button under a marked passage: removes the mark and any note on it.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Delete"
 msgstr "刪除"
 
@@ -234,7 +234,7 @@ msgid "dev build"
 msgstr "開發版"
 
 #. Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Done"
 msgstr "完成"
 
@@ -264,7 +264,7 @@ msgid "Downloading the book…"
 msgstr "下載書籍中…"
 
 #. Button under a marked passage that already carries a note: opens it for changing.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Edit note"
 msgstr "編輯筆記"
 
@@ -365,7 +365,7 @@ msgid "Indigo"
 msgstr "蓼藍"
 
 #. Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Jump to this passage"
 msgstr "跳到書中位置"
 
@@ -523,7 +523,7 @@ msgid "Not signed in"
 msgstr "未登入"
 
 #. Placeholder in the empty note box under a marked passage. The ellipsis is one character.
-#: src/components/Reader.tsx
+#: src/components/AnnotationItem.tsx
 msgid "Note…"
 msgstr "筆記…"
 

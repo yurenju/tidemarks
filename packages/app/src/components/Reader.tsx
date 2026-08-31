@@ -8,9 +8,6 @@ import {
   type PageOffset,
   type RenderLocation,
   type RendererStart,
-  type TurnDirection,
-  type TurnEdge,
-  type TurnInProgress,
 } from "@yurenju/frond/renderer";
 import { db } from "../lib/db";
 import { recallPosition, rememberPosition } from "../lib/position-store";
@@ -53,7 +50,6 @@ import {
   type GestureEvent,
   type GestureIntent,
   type GestureMachine,
-  type TurnFacts,
 } from "../lib/gesture";
 import { LONG_PRESS_MS } from "../lib/touch";
 import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
@@ -65,14 +61,7 @@ import {
   type PanelKind,
 } from "../lib/chrome";
 import { selectionEnds, type Point, type Rect, type SelectionEnds } from "../lib/selection-handles";
-import {
-  BOUNCE_FRACTION,
-  BOUNCE_MS,
-  easeInOut,
-  easeOut,
-  TURN_COMMAND_MS,
-  TURN_SETTLE_MS,
-} from "../lib/turn";
+import { AT_REST, createTurnRunner } from "../lib/turn";
 import {
   anchorFromRects,
   handleBoxes,
@@ -97,6 +86,7 @@ import {
   MARKS,
 } from "../lib/highlights";
 import Panel from "./Panel";
+import AnnotationItem from "./AnnotationItem";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
 import SelectionLayer from "./SelectionLayer";
@@ -143,9 +133,6 @@ const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string 
 // How long the applied/unavailable toast stays before it clears itself. Long enough to read a
 // short line, short enough not to sit over the page.
 const FONT_TOAST_MS = 2600;
-
-// Where the page sits when no turn is moving it.
-const AT_REST: PageOffset = { x: 0, y: 0 };
 
 /**
  * The opening guess at whether the reader's selection is ours to draw, before any pointer has
@@ -785,113 +772,15 @@ export default function Reader({
       longPress = undefined;
     };
 
-    // The turn the finger is dragging, as frond made it. The machine names turns and is told back
-    // what they measured; the object itself never crosses that line, because faking one for a
-    // unit test would mean faking the parts hardest to be right about (`lib/gesture.ts`).
-    let dragTurn: TurnInProgress | null = null;
-
-    const turnFacts = (): TurnFacts | null =>
-      dragTurn === null ? null : { extent: dragTurn.extent, atBoundary: dragTurn.atBoundary };
-
-    /**
-     * A turn from frond, with the highlight layer tied to the page it is drawn over.
-     *
-     * **Wrapped here rather than at each call site**, because a turn is put back by several
-     * routes — released, bounced, swapped for the other page, cancelled by a press going
-     * somewhere else — and every one of them ends at `cancel()`. A route added later gets this
-     * without knowing it exists.
-     *
-     * **Committing is the one ending that does not put the layer back, and that is deliberate.**
-     * The boxes on it were measured against the page that has just left; frond swaps the frames
-     * at once, while the repaint that replaces those boxes waits for `relocate` to come back
-     * through React. Snapping the layer home in between would draw the old page's marks over
-     * the new page for a frame — the mark slides off the edge, blinks back at its old spot on
-     * the wrong page, and then goes. Left where the turn carried them, the stale boxes are off
-     * the side of the book and clipped until the repaint drops them.
-     */
-    const beginTurn = (
-      towards: TurnDirection,
-      from: TurnEdge,
-      renderer: Renderer,
-    ): TurnInProgress | undefined => {
-      const turn = renderer.beginTurn(towards, from);
-      if (turn === undefined) return undefined;
-
-      return {
-        extent: turn.extent,
-        atBoundary: turn.atBoundary,
-        hasPreview: turn.hasPreview,
-        get live() {
-          return turn.live;
-        },
-        moveTo: (distance) => {
-          const at = turn.moveTo(distance);
-          slideMarks(marksRef.current, at);
-          return at;
-        },
-        commit: turn.commit,
-        cancel: () => {
-          turn.cancel();
-          slideMarks(marksRef.current, AT_REST);
-        },
-      };
-    };
-
-    /**
-     * Slides a turn from one distance to another, then hands over to `finish`.
-     *
-     * The one animation runner both routes into a turn use. What separates them is the easing
-     * and the time, which is why both are arguments rather than constants read in here: a turn
-     * that finishes a drag carries on at the speed the finger left it at, and one the reader
-     * asked for by pressing something starts from a standstill.
-     *
-     * `prefers-reduced-motion: reduce` lands it instantly. Following a finger is not affected by
-     * that — direct manipulation is not an animation — but everything through here is.
-     */
-    const slideTurn = (
-      turn: TurnInProgress,
-      span: {
-        readonly from: number;
-        readonly to: number;
-        readonly ms: number;
-        readonly ease: (t: number) => number;
-      },
-      finish: () => void,
-    ): void => {
-      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      if (still || span.from === span.to) {
-        turn.moveTo(span.to);
-        finish();
-        return;
-      }
-
-      const startedAt = performance.now();
-      const step = (now: number) => {
-        // Something else moved the reader — a key, a jump, a resize. The turn is already over,
-        // and frond has already put the frames back, so the marks go back with them.
-        if (!turn.live) {
-          slideMarks(marksRef.current, AT_REST);
-          return;
-        }
-        const t = Math.min(1, (now - startedAt) / span.ms);
-        turn.moveTo(span.from + (span.to - span.from) * span.ease(t));
-        if (t < 1) {
-          requestAnimationFrame(step);
-          return;
-        }
-        finish();
-      };
-      requestAnimationFrame(step);
-    };
-
-    // The tail of the gesture: slide the rest of the way, then take the turn or put it back.
-    // The reader has done the moving up to this point, so it starts at the speed they left it
-    // at and eases out.
-    const settleTurn = (turn: TurnInProgress, from: number, to: number, take: boolean): void =>
-      slideTurn(turn, { from, to, ms: TURN_SETTLE_MS, ease: easeOut }, () =>
-        take ? turn.commit() : turn.cancel(),
-      );
+    // Plays turns out: the hand that carries out what the machine decided. It is asked for the
+    // renderer and the navigator each time rather than handed them, because both change under it
+    // — a renderer arrives when the book opens, and the navigator is replaced the moment the
+    // book's direction is settled by a section that lays out vertically.
+    const turns = createTurnRunner({
+      renderer: () => rendererRef.current,
+      navigator: () => navRef.current,
+      slide: (at) => slideMarks(marksRef.current, at),
+    });
 
     // Puts a selection away: the one this component is showing, and the browser's own if there
     // is one. The second half is frond's to do — a browser-drawn selection lives inside its
@@ -1026,37 +915,16 @@ export default function Reader({
         case "cancelLongPress":
           cancelLongPress();
           return;
-        case "beginTurn": {
-          const renderer = rendererRef.current;
-          // `undefined` from frond means there is no page that way. The machine hears about it on
-          // the next move, as a turn that is not there, and gets to ask for one again.
-          dragTurn =
-            renderer === null ? null : (beginTurn(intent.towards, intent.from, renderer) ?? null);
-          return;
-        }
+        // Everything that moves a page goes to the runner as it stands (`lib/turn.ts`). Handing
+        // the intent over whole rather than unpacking it here is what stops the two settle cases
+        // getting `from` and `to` the wrong way round — nothing out here takes them apart.
+        case "beginTurn":
         case "moveTurn":
-          dragTurn?.moveTo(intent.distance);
-          return;
-        case "dropTurn": {
-          const held = dragTurn;
-          dragTurn = null;
-          held?.cancel();
-          return;
-        }
-        case "commitTurn": {
-          const held = dragTurn;
-          dragTurn = null;
-          if (held !== null) settleTurn(held, intent.from, intent.to, true);
-          return;
-        }
-        case "cancelTurn": {
-          const held = dragTurn;
-          dragTurn = null;
-          if (held !== null) settleTurn(held, intent.from, intent.to, false);
-          return;
-        }
+        case "dropTurn":
+        case "commitTurn":
+        case "cancelTurn":
         case "commandTurn":
-          commandTurn(intent.towards);
+          turns.run(intent);
           return;
         case "lowerChrome":
           sendChrome({ kind: "turned" });
@@ -1098,6 +966,11 @@ export default function Reader({
         case "openNote":
           sendChrome({ kind: "openNote", id: intent.annotationId });
           return;
+        default:
+          // An intent the machine can send and nothing here routes is an action the reader asks
+          // for and never gets, and nothing reports that. This is what makes it a compile error
+          // instead — the guarantee CONTEXT.md claims for this switch, spelled out.
+          intent satisfies never;
       }
     }
 
@@ -1187,7 +1060,7 @@ export default function Reader({
     // where it announces itself — comfortably before the press that has to act on it.
     const onMove = (event: { x: number; y: number; pointerType: string }) => {
       notePointer(event.pointerType);
-      send({ kind: "move", x: event.x, y: event.y, at: performance.now(), turn: turnFacts() });
+      send({ kind: "move", x: event.x, y: event.y, at: performance.now(), turn: turns.facts() });
     };
 
     const onCancel = () => {
@@ -1213,7 +1086,7 @@ export default function Reader({
         // draws its own that answer is permanently no.
         showingSelection: selectionRef.current !== null,
         onHighlight: hit?.annotation.id ?? null,
-        turn: turnFacts(),
+        turn: turns.facts(),
       });
     };
 
@@ -1294,72 +1167,6 @@ export default function Reader({
     };
     document.addEventListener("pointerup", strayRelease);
     document.addEventListener("pointercancel", strayRelease);
-
-    // The turn a press is playing out, and whether it ends in a page or back where it started.
-    // Held so that the next press can land this one rather than fight it: a reader leaning on
-    // the arrow key repeats faster than a turn takes, and each `beginTurn` abandons the one
-    // before it — so without this they would start a turn per repeat and finish none of them,
-    // and the book would sit still under a held key.
-    let commanded: { turn: TurnInProgress; take: boolean } | null = null;
-
-    /** Puts the turn in flight where it was going, now, so a new one can begin behind it. */
-    const landCommand = (): void => {
-      const held = commanded;
-      commanded = null;
-      if (held === null || !held.turn.live) return;
-      held.turn.moveTo(held.take ? held.turn.extent : 0);
-      if (held.take) held.turn.commit();
-      else held.turn.cancel();
-    };
-
-    /**
-     * A page turn nobody dragged: the page slides off and the next one follows it in.
-     *
-     * **The same turn the finger drives**, played by the clock instead — which is the reason
-     * this is not simply `next()`. A reader on a desktop had no way to see which way the book
-     * went: the page was replaced between two frames, and two pages of the same book in the same
-     * typeface look alike enough that turning forward and turning back were the same event
-     * (docs/specs/desktop-page-turn/spec.md).
-     */
-    const commandTurn = (towards: TurnDirection): void => {
-      landCommand();
-      const renderer = rendererRef.current;
-      const edge = navRef.current?.edgeFor(towards);
-      if (!renderer || edge === undefined) return;
-
-      const turn = beginTurn(towards, edge, renderer);
-      if (turn === undefined) return;
-
-      // A page to go to but nothing laid out behind the current one: sliding it across would
-      // move the page off an empty screen and then cut to its destination. It turns the plain
-      // way instead — the reader gets the page they asked for without watching it arrive, which
-      // is the same trade `commit()` makes. This is the window right after the book opens or its
-      // settings change, before the frames either side have caught up.
-      if (!turn.hasPreview && !turn.atBoundary) {
-        turn.cancel();
-        void (towards === "next" ? renderer.next() : renderer.previous());
-        return;
-      }
-
-      const take = !turn.atBoundary;
-      commanded = { turn, take };
-      const end = () => {
-        if (commanded?.turn === turn) commanded = null;
-        if (take) turn.commit();
-        else turn.cancel();
-      };
-
-      if (take) {
-        slideTurn(turn, { from: 0, to: turn.extent, ms: TURN_COMMAND_MS, ease: easeInOut }, end);
-        return;
-      }
-
-      // The end of the book: out and back, with nothing behind it but the paper.
-      const peak = turn.extent * BOUNCE_FRACTION;
-      slideTurn(turn, { from: 0, to: peak, ms: BOUNCE_MS, ease: easeOut }, () =>
-        slideTurn(turn, { from: peak, to: 0, ms: BOUNCE_MS, ease: easeOut }, end),
-      );
-    };
 
     // An arrow key, or one of the two page buttons standing either side of the book. Both are
     // rendered outside this effect, so they reach it the way the handles do.
@@ -2767,213 +2574,6 @@ export default function Reader({
           {fontToast}
         </div>
       )}
-    </div>
-  );
-}
-
-function AnnotationItem({
-  annotation,
-  editing,
-  pointedAt,
-  onJump,
-  onEdit,
-  onPersist,
-  onSave,
-  onRemove,
-}: {
-  annotation: Annotation;
-  editing: boolean;
-  /** Whether the book is showing this passage filled in — see `aria-current` below. */
-  pointedAt: boolean;
-  onJump: () => void;
-  onEdit: () => void;
-  /** Write the words down without closing anything. Called on every way out of the box. */
-  onPersist: (note: string) => void;
-  onSave: (note: string) => void;
-  onRemove: () => void;
-}) {
-  const { t } = useLingui();
-  const [draft, setDraft] = useState(annotation.note);
-  useEffect(() => {
-    if (editing) setDraft(annotation.note);
-  }, [editing, annotation.note]);
-
-  /**
-   * **The words are written down when the box goes away, by whatever took it.** A tap on the
-   * page, a page turn, the panel closing, the reader pressing [[Done]] — all of them end up here,
-   * because all of them end `editing` and this runs on the way out.
-   *
-   * `blur` is not what listens, and could not be: removing a focused element does not fire it in
-   * every engine, so the one route that matters most on a phone — the system taking the panel
-   * away — would be the one that lost the words. Cleanup runs whatever happened.
-   *
-   * The refs are so this effect depends on `editing` alone. Watching the callback or the stored
-   * note would tear the effect down and put it back on every save, and the teardown *is* the
-   * write, so it would write again with what it had just written.
-   */
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-  const committedRef = useRef(annotation.note);
-  committedRef.current = annotation.note;
-  const persistRef = useRef(onPersist);
-  persistRef.current = onPersist;
-  /** Set by [[Delete]], so the cleanup does not write a note onto a row that has just been buried. */
-  const removedRef = useRef(false);
-  const boxRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (!editing) return;
-    // ponytail: puts `window.scrollY` back by hand rather than proving nobody moved it.
-    // WebKit scrolls the page to reveal a focused element and there is no first-party answer to
-    // whether it scrolls back when the keyboard goes — an iPhone was seen leaving ~152pt of blank
-    // below the panel afterwards, which matches the overflow to within 6pt but was never
-    // confirmed (ADR-0044, on what it costs). Read before the focus below, not after, or it records the
-    // number the focus already moved.
-    const scrollWas = window.scrollY;
-
-    const box = boxRef.current;
-    if (box !== null) {
-      // **Brings the item to the top of the list, then focuses.** "First in the item" is not
-      // "first on screen": the panel lists every mark in the book, so the 31st one being edited
-      // sits thirty items down a scroll container. Scrolling the container is what makes
-      // ADR-0044's rule true; `preventScroll` below then stops the *window* being scrolled as
-      // well, which is the half iOS does uninvited.
-      const list = box.closest<HTMLElement>(".panel-body");
-      const item = box.closest<HTMLElement>(".annotation-item");
-      if (list !== null && item !== null) {
-        list.scrollTop += item.getBoundingClientRect().top - list.getBoundingClientRect().top;
-      }
-      // `autoFocus` cannot carry `preventScroll`, which is the whole reason this is a ref and an
-      // effect rather than an attribute. WebKit reveals a focused element by moving the enclosing
-      // scroll view — `window.scrollY` on this side — and skips that entirely when the flag is
-      // set (`WKContentViewInteraction.mm`).
-      //
-      // ⚠️ Here rather than in the ref callback: an inline callback is a new function every
-      // render, so React detaches and reattaches it each time — and the box would steal the focus
-      // back on any render at all, deleting a *different* note being enough to do it. On a phone
-      // that is the keyboard coming back up over a reader who just dismissed it.
-      box.focus({ preventScroll: true });
-    }
-
-    return () => {
-      const unsaved = draftRef.current !== committedRef.current;
-      if (unsaved && !removedRef.current) persistRef.current(draftRef.current);
-      if (window.scrollY !== scrollWas) window.scrollTo({ top: scrollWas });
-    };
-  }, [editing]);
-
-  return (
-    <div className="annotation-item" style={{ borderLeftColor: markVar(annotation.color) }}>
-      {/* **The box is the first thing in the item, and that is the whole of ADR-0044.** A virtual
-          keyboard takes the bottom of the screen and tells the layout nothing about it — no
-          viewport unit moves — and then scrolls the whole page to bring a covered caret into
-          view, which is what threw the panel off the top of an iPhone. Nothing here asks how tall
-          the keyboard is. The caret starts where a keyboard cannot reach, so there is nothing for
-          the scroll to do.
-
-          Being first in the item is only half of it — the list is scrolled to this item as well,
-          in the effect above. Neither half is enough alone: first-in-the-item with the list left
-          where it was puts the box thirty rows down, and a scrolled list with the box under the
-          quote puts it back under the keyboard. */}
-      {editing && (
-        <div className="note-editor">
-          <textarea
-            ref={boxRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            // **Two ways for the words to reach the database, and they cover different exits.**
-            // This one is the ordinary case: the reader moves the focus somewhere else while the
-            // panel stays open — pressing this note's own quote on a desk does exactly that, and
-            // the editor is still standing afterwards, so the cleanup has not run and would not
-            // run before a reload. The cleanup covers what this cannot: removing a focused
-            // element does not fire `blur` in every engine, so the panel being taken away — the
-            // route that matters most on a phone — arrives only there.
-            onBlur={() => {
-              if (draft === committedRef.current) return;
-              committedRef.current = draft;
-              onPersist(draft);
-            }}
-            placeholder={t({
-              message: "Note…",
-              comment:
-                "Placeholder in the empty note box under a marked passage. The ellipsis is one character.",
-            })}
-          />
-          <button
-            onClick={() => {
-              // Claimed before the write is asked for, so the cleanup above sees the words as
-              // already down and does not send them a second time.
-              committedRef.current = draft;
-              onSave(draft);
-            }}
-          >
-            <Trans comment="Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.">
-              Done
-            </Trans>
-          </button>
-        </div>
-      )}
-      {/* **A real button, and the panel it sits in is why.** Base UI's drawer claims a press
-          that does not land on something interactive, so that a swipe anywhere on the panel
-          dismisses it — and claiming it means capturing the pointer, which retargets the
-          `click` to the panel. A quote that was only a styled `<blockquote>` therefore never
-          heard its own click on a desk. It still worked under a finger, because the swipe
-          takes no pointer capture there, and that is the shape the report had: jumping works
-          on a phone and does nothing on a desktop.
-
-          `button` is one of the elements the drawer stands aside for
-          (`button,a,input,select,textarea,label,[role="button"]`), so this is the fix and the
-          keyboard route in one — the quote was not reachable by tab either. */}
-      {/* `aria-current` because the wash is the only other answer, and it is drawn on a layer
-          that is `aria-hidden` — the boxes are decoration over text a screen reader already
-          reads from the book. Before the panel started staying open, "that press landed" was
-          the whole column closing, which every reader got. What replaced it is a colour, so
-          the same fact has to be said in the tree as well (ADR-0021). */}
-      <button
-        type="button"
-        className="annotation-quote"
-        aria-current={pointedAt || undefined}
-        onClick={onJump}
-        title={t({
-          message: "Jump to this passage",
-          comment:
-            "Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.",
-        })}
-      >
-        {/* The passage is cut to three lines, and the cut is on this span rather than on the
-            button around it — WebKit clamps nothing set on a control (`styles/book.css`). */}
-        <span className="annotation-quote-text">{annotation.text}</span>
-      </button>
-      {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}
-      <div className="annotation-actions">
-        {!editing && (
-          <button onClick={onEdit}>
-            {annotation.note ? (
-              <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
-                Edit note
-              </Trans>
-            ) : (
-              <Trans comment="Button under a marked passage with no note yet: opens an empty note box.">
-                Add note
-              </Trans>
-            )}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            // Claimed before the row goes, so the cleanup above does not write the draft back
-            // onto a mark that has just been given a tombstone. Nothing resurrects either way —
-            // `deletedAt` stays set and merging is last-write-wins on the tombstone — but it
-            // would push `updatedAt` and `dirtyAt` and send a row nobody asked to sync.
-            removedRef.current = true;
-            onRemove();
-          }}
-        >
-          <Trans comment="Button under a marked passage: removes the mark and any note on it.">
-            Delete
-          </Trans>
-        </button>
-      </div>
     </div>
   );
 }
