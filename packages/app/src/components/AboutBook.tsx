@@ -1,7 +1,7 @@
 import { Plural, Trans } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { Dialog } from "@base-ui/react/dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { db } from "../lib/db";
 import { downloadBlob } from "../lib/download";
 import { annotationsToMarkdown } from "../lib/export";
@@ -44,6 +44,12 @@ export default function AboutBook({
   onDeleted: (bookId: string) => void;
 }) {
   const [details, setDetails] = useState<Details | null>(null);
+  // Read from inside the look-up below, which is keyed on the book alone. `onClose` is a fresh
+  // closure on every render of `App`, so depending on it would mean a new trip to Dexie every
+  // time anything above this repainted; calling the one it closed over on the first render would
+  // mean a panel that has changed hands since gets the wrong one.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (bookId === null) {
@@ -60,7 +66,7 @@ export default function AboutBook({
       if (!live) return;
       // Gone, or a tombstone from another device's deletion arriving mid-look.
       if (!book || book.deletedAt) {
-        onClose();
+        onCloseRef.current();
         return;
       }
       setDetails({
