@@ -4,6 +4,8 @@
 // same page came back" all need a real book laid out. The finger's version is drag.spec.ts.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
+// The same number the app animates with; see the note at the top of `src/lib/turn.ts`.
+import { TURN_COMMAND_MS } from "../../../src/lib/turn.js";
 import {
   BOOKS,
   peeksReady,
@@ -12,6 +14,7 @@ import {
   pageOffset,
   readerFrame,
   settled,
+  storedCfi,
   traceTurn,
   visibleFrames,
   visibleText,
@@ -211,6 +214,56 @@ test.describe("a turn asked for by a button", () => {
     expect(Math.max(...trace.frames)).toBe(1);
     expect(await pageOffset(page)).toBe(0);
     expect(await visibleText(page)).toBe(before);
+  });
+
+  test("a turn cut short on its way across still lands on the page asked for", async ({ page }) => {
+    // The turn takes 220ms to cross the screen, and anything that repaginates the book in that
+    // window ends it: frond has to put both frames back at rest before it can lay out again. The
+    // reader is going nowhere while that happens, so an animation that simply stopped there took
+    // their press with it — the page did not change and no position was written, which from the
+    // outside is indistinguishable from a book that has stopped working (#135).
+    //
+    // ⚠️ **The assertion is the stored position, not the text**, because a repagination changes
+    // the text on screen by itself: relayout keeps the reader at the page they were on, so the
+    // CFI moves only if the turn was really delivered.
+    //
+    // The angle no unit test reaches is which of the two kinds of ending this was.
+    // `src/lib/turn.test.ts` owns the decision against a turn that reports it; only a real
+    // relayout, driven by frond's own ResizeObserver, says whether frond reports it correctly.
+    await openBook(page, BOOKS.vertical);
+    await expect.poll(() => storedCfi(page)).not.toBeNull();
+
+    // One turn first: at the very start of a book nothing stands on the previous side, so a turn
+    // only slides — rather than switching outright — once both peeks are up.
+    const opening = await storedCfi(page);
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect.poll(() => storedCfi(page)).not.toBe(opening);
+    await peeksReady(page, 2);
+
+    const before = await storedCfi(page);
+
+    // ⚠️ **Both the press and the resize are made from inside the page**, and that is the whole
+    // reliability of this test. Driving them from out here puts a round trip inside a 220ms
+    // window, so on a loaded machine the turn would have landed before the resize arrived — and
+    // the assertion below would then pass without the interruption ever happening, on exactly
+    // the runs where #135 shows up.
+    //
+    // The container is what frond's ResizeObserver watches, so narrowing it is the same event a
+    // window drag or a panel opening delivers, without either one's animation to wait out.
+    await page.evaluate(
+      ([selector, at]) =>
+        new Promise<void>((resolve) => {
+          document.querySelector<HTMLElement>('button[aria-label="Next page"]')?.click();
+          setTimeout(() => {
+            const mount = document.querySelector<HTMLElement>(selector);
+            if (mount !== null) mount.style.width = `${Math.round(mount.clientWidth * 0.8)}px`;
+            resolve();
+          }, at);
+        }),
+      [".viewer-mount", TURN_COMMAND_MS / 4] as const,
+    );
+
+    await expect.poll(() => storedCfi(page)).not.toBe(before);
   });
 });
 
