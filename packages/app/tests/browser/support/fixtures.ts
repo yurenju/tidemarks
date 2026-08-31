@@ -7,55 +7,55 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
- * The `test` these specs import instead of Playwright's own. It differs in one thing: **in
- * WebKit the context is a persistent one**, backed by a profile directory on disk.
+ * The `test` these specs import instead of Playwright's own. It differs in one thing: every
+ * context answers `/auth/*` locally.
  *
- * ## Why
+ * ## It used to differ in a second, much more expensive way
  *
- * Tidemarks stores the epub body and the cover as `Blob`s (`lib/types.ts`'s `BookRecord`), and an
- * ephemeral WebKit session cannot put a `Blob` in IndexedDB. A three-byte one fails with
+ * WebKit ran in a **persistent** context, backed by a profile directory on disk, because an
+ * ephemeral WebKit session cannot put a `Blob` into IndexedDB and Tidemarks stored the epub body
+ * and the cover as Blobs. A persistent context owns the browser it runs in, so WebKit launched
+ * and tore down a browser process inside every test's own budget instead of sharing one per
+ * worker — measured at about a second a test, a third of that engine's whole suite.
  *
- *     Error preparing Blob/File data to be stored in object store
+ * `BookRecord` holds `ArrayBuffer`s now (`src/lib/types.ts`), which every engine stores in an
+ * ephemeral session, so the workaround is gone and this file is back to Playwright's own
+ * behaviour. That matters beyond the second it saves: a shared, hand-built context could not
+ * honour `test.use({ hasTouch, isMobile, locale, colorScheme })`, since those are fixed when a
+ * context is created — seventeen places in this suite set one. Playwright resolves them for
+ * free, and nothing here has to keep a list of which options exist.
  *
- * while the same store takes an `ArrayBuffer`. Every context Playwright hands out is ephemeral
- * unless it came from `launchPersistentContext` — so no book could be imported in WebKit at
- * all, and the whole reader suite used to skip that engine.
- *
- * Give the session a profile on disk and the same put succeeds. Both halves are pinned by
- * `reader/storage.spec.ts`, which measures the ephemeral failure and the persistent success
- * side by side, so the day WebKit stops needing this, that spec says so.
- *
- * **This is a property of the session, not of the engine's storage code**, which is why it is
- * fixed here rather than by changing what Tidemarks stores: Safari on a device has a profile, and
- * every context in this suite now has one too.
- *
- * ## What it costs
- *
- * A persistent context owns the browser it runs in, so WebKit launches one process per test
- * instead of sharing one per worker. Measured in the test image: about 400ms to launch and
- * 100ms to close, per test. Over the whole app suite that is 41s for 148 tests with 77 skipped,
- * against 66s for 218 with 10 skipped — nearly all of the difference being the 67 tests that
- * were not running at all before. It is also why the WebKit project gets twice the default test
- * timeout (`playwright.config.ts`).
- *
- * Two smaller costs, both deliberate:
- *
- * - The `browser` fixture is still built for a WebKit worker even though nothing uses it, and
- *   that is one idle process per worker. Playwright resolves fixture dependencies from the
- *   parameter list, so the only way to avoid it would be to launch the other two engines by
- *   hand as well — which would cost every worker far more than the idle process does.
- * - A context built here does not go through Playwright's `recordVideo` wiring. This config
- *   records no video; if that changes, WebKit will be the engine that records none.
- *
- * Each test gets a profile directory of its own, so it starts with an empty IndexedDB the way
- * an ephemeral context does — a shared profile would carry one spec's imported books into the
- * next.
+ * `reader/storage.spec.ts` is where the platform fact itself is pinned, including the Blob
+ * failure that used to make the workaround necessary.
  */
 export const test = base.extend({
+  context: async ({ context }, use) => {
+    await refuseAuth(context);
+    await use(context);
+  },
+});
+
+/**
+ * The same thing, in a session with a profile on disk. **Opt into it only for a spec that puts a
+ * `Blob` into IndexedDB.**
+ *
+ * One spec does: `reader/font-weight.spec.ts`, which goes through the font store. A CJK face is
+ * 19 MB and is held as a `Blob` on purpose — `src/lib/db.ts` has the argument, and it is the
+ * opposite of the book's: a face is only ever handed to `URL.createObjectURL`, so keeping it out
+ * of memory is the whole point, where a book is parsed and materialised anyway.
+ *
+ * So the platform fact `reader/storage.spec.ts` pins still bites in exactly one place, and this
+ * is the whole of what is left of a workaround the entire suite used to pay for. It costs about
+ * a second per test in WebKit, on two tests rather than on four hundred.
+ *
+ * ⚠️ **A profile of its own per test**, so the store starts empty the way an ephemeral session
+ * would — a shared one would carry a downloaded face into the next test and hide the download.
+ */
+export const testWithProfile = base.extend({
   context: async ({ playwright, browser, browserName }, use) => {
     // Options are not passed to either call on purpose. Playwright's instrumentation fills in
-    // every resolved context option (viewport, `hasTouch`, `isMobile`, `baseURL`, and whatever
-    // a spec set with `test.use`) as a context is created, for a persistent one as well — so
+    // every resolved context option (viewport, `hasTouch`, `isMobile`, `baseURL`, and whatever a
+    // spec set with `test.use`) as a context is created, for a persistent one as well — so
     // naming them here would be a second, staler copy of that list.
     //
     // A temporary directory rather than `testInfo.outputPath()`, whose name is built from the
@@ -78,7 +78,6 @@ export const test = base.extend({
 
   page: async ({ context }, use) => {
     // A persistent context opens with a page already in it; an ephemeral one starts empty.
-    // Taking the one that is there keeps WebKit from carrying a blank second page around.
     const [opened] = context.pages();
     await use(opened ?? (await context.newPage()));
   },

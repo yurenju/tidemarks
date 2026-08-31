@@ -34,8 +34,9 @@ function prog(over: Partial<Progress> = {}): Progress {
 }
 
 describe("syncPayload", () => {
-  it("leaves the blobs behind and says only whether a cover exists", () => {
-    const wire = syncPayload({ ...EMPTY, books: [book({ cover: new Blob(["png"]) })] }).books[0]!;
+  it("leaves the bytes behind and says only whether a cover exists", () => {
+    const cover = { bytes: new Uint8Array([1, 2, 3]).buffer, type: "image/png" };
+    const wire = syncPayload({ ...EMPTY, books: [book({ cover })] }).books[0]!;
     expect(wire.hasCover).toBe(true);
     expect(wire).not.toHaveProperty("file");
     expect(wire).not.toHaveProperty("cover");

@@ -1,16 +1,20 @@
 // The backup file, in both directions: what a markdown export of a book's highlights reads
-// like, and what survives serialize/parse — the blobs, the nulls that mean "never recorded",
+// like, and what survives serialize/parse — the bytes, the nulls that mean "never recorded",
 // and a version number from the future. The format is decided here and nowhere else.
 import { describe, it, expect } from "vitest";
 import { annotationsToMarkdown, serializeExport, parseImport } from "./export";
 import type { Annotation, BookRecord, Progress, ReadingSession } from "./types";
+
+/** The stored shape a book's bytes take — an `ArrayBuffer`, never a Blob (`lib/types.ts`). */
+const bytes = (text: string): ArrayBuffer => new TextEncoder().encode(text).buffer;
+const readBytes = (buffer: ArrayBuffer): string => new TextDecoder().decode(buffer);
 
 const book = (over: Partial<BookRecord> = {}): BookRecord => ({
   id: "b1",
   title: "My Book",
   author: "Alice",
   addedAt: 1000,
-  file: new Blob(["epub-bytes"], { type: "application/epub+zip" }),
+  file: bytes("epub-bytes"),
   cover: null,
   updatedAt: 1000,
   deletedAt: null,
@@ -63,7 +67,7 @@ describe("annotationsToMarkdown", () => {
 
 describe("export/import round-trip", () => {
   it("restores books, progress, annotations and sessions", async () => {
-    const books = [book({ cover: new Blob(["png"], { type: "image/png" }) })];
+    const books = [book({ cover: { bytes: bytes("png"), type: "image/png" } })];
     const progress: Progress[] = [
       {
         bookId: "b1",
@@ -106,9 +110,10 @@ describe("export/import round-trip", () => {
     const b = restored.books[0]!;
     expect(b.id).toBe("b1");
     expect(b.title).toBe("My Book");
-    expect(await b.file!.text()).toBe("epub-bytes");
-    expect(b.file!.type).toBe("application/epub+zip");
-    expect(await b.cover!.text()).toBe("png");
+    expect(readBytes(b.file!)).toBe("epub-bytes");
+    expect(readBytes(b.cover!.bytes)).toBe("png");
+    // The one media type worth keeping: an epub only ever has the one, a cover's varies.
+    expect(b.cover!.type).toBe("image/png");
   });
 
   // A backup taken before a sitting recorded where in the book it happened. The duration is

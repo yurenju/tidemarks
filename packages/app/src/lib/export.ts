@@ -3,6 +3,9 @@ import type { Annotation, BookRecord, Progress, ReadingSession } from "./types";
 
 const EXPORT_VERSION = 1;
 
+/** What every epub is, and the only reason this file still has the word "type" in it. */
+const EPUB_MEDIA_TYPE = "application/epub+zip";
+
 // Highlights listed in the order they appear in the book, which is what a notes sidebar and
 // a markdown export both want.
 //
@@ -63,8 +66,8 @@ export function annotationsToMarkdown(
   );
 }
 
-async function blobToBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
+function bytesToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
   let binary = "";
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {
@@ -73,11 +76,11 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
-function base64ToBlob(base64: string, type: string): Blob {
+function base64ToBytes(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type });
+  return bytes.buffer;
 }
 
 export interface ExportBundle {
@@ -102,16 +105,20 @@ export async function serializeExport(bundle: ExportBundle): Promise<string> {
   // books without a downloaded epub body (lazy download) cannot be exported
   const books: SerializedBook[] = await Promise.all(
     bundle.books
-      .filter((b): b is BookRecord & { file: Blob } => b.file !== null && !b.deletedAt)
+      .filter((b): b is BookRecord & { file: ArrayBuffer } => b.file !== null && !b.deletedAt)
       .map(async (b) => ({
         id: b.id,
         title: b.title,
         author: b.author,
         addedAt: b.addedAt,
-        fileType: b.file.type,
-        fileBase64: await blobToBase64(b.file),
+        // **Still written, still the constant it always was.** The record stopped carrying a
+        // media type for the epub because an epub only has the one (`lib/types.ts`), but the
+        // backup format is unchanged — a file written by an older build has this field, and
+        // dropping it would make this version's exports unreadable to that one for no gain.
+        fileType: EPUB_MEDIA_TYPE,
+        fileBase64: bytesToBase64(b.file),
         coverType: b.cover?.type ?? null,
-        coverBase64: b.cover ? await blobToBase64(b.cover) : null,
+        coverBase64: b.cover ? bytesToBase64(b.cover.bytes) : null,
       })),
   );
   return JSON.stringify({
@@ -143,8 +150,13 @@ export async function parseImport(json: string): Promise<ExportBundle> {
     title: b.title,
     author: b.author,
     addedAt: b.addedAt,
-    file: base64ToBlob(b.fileBase64, b.fileType),
-    cover: b.coverBase64 != null ? base64ToBlob(b.coverBase64, b.coverType ?? "") : null,
+    // `fileType` is read past: every epub is `application/epub+zip`, so the field says nothing
+    // the record needs. A cover's type does vary, and is kept.
+    file: base64ToBytes(b.fileBase64),
+    cover:
+      b.coverBase64 != null
+        ? { bytes: base64ToBytes(b.coverBase64), type: b.coverType ?? "" }
+        : null,
     updatedAt: now,
     deletedAt: null,
     dirtyAt: now,

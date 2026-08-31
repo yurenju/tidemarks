@@ -14,8 +14,24 @@
 // assertion (in `readInSerif`) and the one claim no lower layer can make: that the two weights
 // are *drawn* as two, not merely asked for as two.
 import type { Page } from "@playwright/test";
-import { expect, test } from "../support/fixtures.js";
+// **The one spec in this suite that needs a session with a profile on disk.** It goes through
+// the font store, which holds a 19 MB face as a `Blob` (`src/lib/db.ts` says why a face is not
+// bytes the way a book is), and ephemeral WebKit cannot store a Blob at all
+// (`reader/storage.spec.ts`). Without this the face never lands and the wait below runs out
+// with "Serif not downloaded yet" still on screen.
+import { expect, testWithProfile as test } from "../support/fixtures.js";
 import { BOOKS, openBook, openPanel, readerFrame, segment } from "../support/library.js";
+
+// **This spec's own budget, because the reason is this spec's own.** `readInSerif` below waits
+// up to 60s for a 19 MB face to arrive and then up to 30s for frond to rebuild the document
+// under it, so the default 30s cannot hold the two together. What used to cover it was a 60s
+// timeout on the whole WebKit project, put there for a persistent context that engine no longer
+// needs; the budget belongs here instead, where the waits are.
+//
+// ⚠️ **That this spec needs a minute at all is a problem of its own, not a fact to settle into**
+// (#169). Downloading 19 MB to assert a computed `font-weight` makes it the slowest thing in
+// this suite by some distance, and it is also the only reason `testWithProfile` exists.
+test.setTimeout(120_000);
 
 /** The bold weight the serif is pinned to, as `web-font.ts` declares it. */
 const BOLD = "800";

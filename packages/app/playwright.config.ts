@@ -127,16 +127,6 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
     { name: "firefox", use: { browserName: "firefox" } },
-    {
-      name: "webkit",
-      use: { browserName: "webkit" },
-      // Twice the default 30s, and only here. WebKit runs in a persistent context
-      // (`tests/browser/support/fixtures.ts`), which puts a browser launch and a browser
-      // shutdown inside every test's own budget instead of once per worker — measured at about
-      // 400ms and 100ms. That is small, but the longest specs in this suite already sit in the
-      // twenties when all three engines are competing for the same cores, and they were failing
-      // in teardown with everything they assert already green.
-      timeout: 60_000,
-    },
+    { name: "webkit", use: { browserName: "webkit" } },
   ],
 });

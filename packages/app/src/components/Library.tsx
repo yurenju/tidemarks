@@ -13,7 +13,7 @@ import { shelfProjection, type Shelf } from "../lib/shelf";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { scheduleSync, subscribeSync } from "../lib/sync";
-import type { Annotation, BookRecord } from "../lib/types";
+import type { Annotation, BookRecord, StoredCover } from "../lib/types";
 import { Wordmark } from "./Wordmark";
 
 export default function Library({
@@ -344,14 +344,17 @@ export default function Library({
  * A hook rather than a copy in each card: the wall and the large book both need one, and a
  * leaked `blob:` URL holds the whole image in memory for as long as the tab is open.
  */
-function useCoverUrl(cover: Blob | null): string | null {
+function useCoverUrl(cover: StoredCover | null): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!cover) {
       setUrl(null);
       return;
     }
-    const made = URL.createObjectURL(cover);
+    // The Blob is made here, at the one point that needs one, rather than stored as one —
+    // IndexedDB is where a Blob could not go (`lib/types.ts`), and an object URL needs nothing
+    // else from it.
+    const made = URL.createObjectURL(new Blob([cover.bytes], { type: cover.type }));
     setUrl(made);
     return () => URL.revokeObjectURL(made);
   }, [cover]);

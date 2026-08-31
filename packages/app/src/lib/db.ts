@@ -81,6 +81,30 @@ db.version(3).stores({
 // is a merge against what is here (`lib/merge.ts`), so arriving twice changes nothing.
 db.version(4).upgrade((tx) => tx.table("meta").delete("syncCursor"));
 
+// v5: `BookRecord.file` and `.cover` stopped being Blobs (`types.ts` has why). No schema change
+// — Dexie stores whatever the record holds — so this exists only to let the rows already on a
+// device say something true.
+//
+// **The bytes are dropped rather than converted.** Turning a Blob into an ArrayBuffer means
+// awaiting `blob.arrayBuffer()`, and an IndexedDB transaction closes on the first await of a
+// promise that is not its own — so the conversion cannot happen inside an upgrade at all. What
+// it drops is re-fetchable: a book with a null `file` is exactly the state lazy download is
+// written for (`Reader.tsx` fetches it on open), and a null `cover` beside `hasCover` is the
+// state `lib/sync.ts` already asks the server about on the next round.
+//
+// The reader's own work — where they are, what they marked, what they wrote — is in other
+// tables and is not touched. A reader who never registered re-imports the epub, which is the
+// cost this takes, and it is taken because Tidemarks has not launched (ADR-0004).
+db.version(5).upgrade((tx) =>
+  tx
+    .table("books")
+    .toCollection()
+    .modify((book: { file: unknown; cover: unknown }) => {
+      if (book.file instanceof Blob) book.file = null;
+      if (book.cover instanceof Blob) book.cover = null;
+    }),
+);
+
 export async function getSyncCursor(): Promise<number> {
   const stored = (await db.meta.get("syncCursor"))?.value;
   return typeof stored === "number" ? stored : 0;

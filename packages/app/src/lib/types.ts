@@ -5,10 +5,41 @@ export interface BookMeta {
   addedAt: number;
 }
 
+/**
+ * The cover a book carries, as this device holds it.
+ *
+ * The bytes and the media type travel together because the type is not derivable: it is
+ * whatever the epub's manifest declared (`epub.ts`), and it is what turns the bytes back into
+ * an image the shelf can draw. A cover pulled from the server arrives without one — the Worker
+ * answers every cover as `application/octet-stream` — and that is the same string it has always
+ * been given.
+ */
+export interface StoredCover {
+  bytes: ArrayBuffer;
+  type: string;
+}
+
 export interface BookRecord extends BookMeta {
-  // null until the epub is downloaded from the server (lazy download)
-  file: Blob | null;
-  cover: Blob | null;
+  /**
+   * The epub itself. Null until it is downloaded from the server (lazy download).
+   *
+   * **Bytes rather than a `Blob`, and the reason is WebKit.** An ephemeral WebKit session
+   * cannot put a `Blob` into IndexedDB at all — it fails with "Error preparing Blob/File data
+   * to be stored in object store" — while the same store takes an `ArrayBuffer`
+   * (`tests/browser/reader/storage.spec.ts` measures both). A reader's Safari has a profile and
+   * would have been fine either way; the suite's browser is what could not, and every WebKit
+   * spec had to launch its own browser with a profile on disk to work around it.
+   *
+   * No media type beside it, unlike `cover` below: an epub is always `application/epub+zip`, so
+   * there is nothing to remember. `lib/export.ts` writes that constant into a backup.
+   *
+   * ⚠️ **This is not the argument `db.ts` makes for `FontRow` holding a `Blob`**, and the two do
+   * not conflict. A face is 19 MB and is only ever handed to `URL.createObjectURL`, so keeping
+   * it out of memory is the whole point. A book is opened by parsing it, which materialises it
+   * regardless.
+   */
+  file: ArrayBuffer | null;
+  cover: StoredCover | null;
   updatedAt: number;
   deletedAt: number | null;
   /**
