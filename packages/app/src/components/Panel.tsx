@@ -10,7 +10,7 @@ import {
 } from "../lib/media";
 
 /**
- * Whether the thing that dismissed this panel was one of the three entries that raise it.
+ * Whether the thing that dismissed this panel was the chrome the panel stands beside.
  *
  * Two ends of the event are asked, because pressing an entry dismisses the panel twice over and
  * the two arrive with different shapes: the press itself is an `outside-press` whose `target` is
@@ -19,20 +19,38 @@ import {
  * and fails on one switched to from another panel — because only then is the focus inside the
  * panel to begin with.
  *
- * The bar is found by its `data-testid` because that is the one name the entries already answer
- * to in both arrangements — top bar on a desk, a row above the Scrubber on a hand-held — and a
- * class would be a second name for the same box.
+ * **The whole chrome, not only the three entries.** Two reasons, and the second is a bug:
  *
- * ⚠️ **The ⋯ that opens [[About]] is in that same bar**, so the caller below asks this only of the
+ * The first is that one press does one thing. Base UI dismisses on `pointerdown`, and an entry's
+ * own `onClick` arrives after it — so a reader pressing [[Contents]] while [[Contents]] stood had the
+ * panel closed here and reopened a moment later by the toggle, which read the state as already
+ * closed. The entry looked dead.
+ *
+ * The second is that **the bars move when a panel leaves**, and a press that dismisses the panel
+ * is a press on something that is about to walk out from under it. `.chrome` gives up its right
+ * end to a standing panel and takes it back over 180ms (`styles/reader.css`), and the browser
+ * only counts a click when `mousedown` and `mouseup` land on the same element. Measured: a press
+ * on [[Stay here]] in the [[Position from elsewhere]] banner beside a standing [[Notes]] panel moved
+ * that button 47px to the right within one frame, and a press held for 90ms — a human's, or a
+ * busy machine's — had its click swallowed and the banner stayed standing (the webkit flake in
+ * #160). The Scrubber is exposed the same way, and "the Scrubber stays reachable beside the
+ * panel" is the whole point of the bars stopping short of it (`chrome-placement.spec.ts`).
+ *
+ * The box is found by its class rather than by a `data-testid` per bar: what makes a press safe
+ * here is being inside the box that moves, and that box has exactly one name. `.chrome` itself
+ * catches no pointer events — each bar grants its own — so a press on the page between the bars
+ * still reaches frond and is still an outside press.
+ *
+ * ⚠️ **The ⋯ that opens [[About]] is in that box too**, so the caller below asks this only of the
  * faces it was written for. Trapping the focus marks the rest of the screen `aria-hidden`, which
  * does not stop a press — the bar under [[About]] is still pressable — so without that guard a
  * reader pressing ⋯ while [[About]] stood would have the press swallowed here and nothing would
  * happen. There are three doors and one room; the fourth door is not one of them.
  */
-const fromEntries = (event: Event): boolean => {
+const fromChrome = (event: Event): boolean => {
   const related = "relatedTarget" in event ? (event as FocusEvent).relatedTarget : null;
   return [event.target, related].some(
-    (node) => node instanceof Element && node.closest("[data-testid='chrome-nav']") !== null,
+    (node) => node instanceof Element && node.closest(".chrome") !== null,
   );
 };
 
@@ -96,16 +114,13 @@ export default function Panel({
       open={open}
       onOpenChange={(next, details) => {
         if (next) return;
-        // **A press on the entry that opened this is not an outside press.** Base UI dismisses on
-        // `pointerdown`, and the entry's own `onClick` arrives after it — so a reader pressing
-        // [[Contents]] while [[Contents]] stands had the panel closed by this handler and reopened a moment later
-        // by the toggle, which read the state as already closed. The entry looked dead.
-        //
-        // The press is the entry's, and one press does one thing. Filtering it here rather than
-        // guarding the toggle, because the entries are what this panel *is* — three doors and one
-        // room — and a guard on the toggle would be a second place that has to know that.
+        // **A press on the chrome this panel stands beside is not an outside press** — see
+        // `fromChrome` above for the two things that go wrong when it is counted as one.
+        // Filtered here rather than guarded at each control, because the chrome is what this
+        // panel *is* — three doors and one room — and a guard per control would be several
+        // places that each have to know that.
         const dismissal = details.reason === "outside-press" || details.reason === "focus-out";
-        if (needs !== "nothing" && dismissal && fromEntries(details.event)) return;
+        if (needs !== "nothing" && dismissal && fromChrome(details.event)) return;
         onClose();
       }}
       /* Trapping keeps the keyboard inside the panel and marks the rest of the screen
