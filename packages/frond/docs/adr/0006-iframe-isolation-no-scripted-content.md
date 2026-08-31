@@ -12,7 +12,7 @@
 
 `<script>` 與 `<iframe>` / `<object>` / `<embed>` / `<frame>` **留在原位**，但屬性與子節點全部清掉，另外掛上 `display: none !important`（`<iframe>` 再加一個空的 `sandbox`）。這些元素還在樹上，只是身上什麼都沒有。
 
-不用 `element.remove()` 的理由跟安全無關，跟 CFI 有關：CFI 是**用兄弟之中的排序**指一個元素的，移掉一個，它後面每個兄弟的索引都往前兩格。而 progress 與 annotation 正是以 CFI 儲存的東西，所以位移的症狀是讀者的畫線靜靜落到別的句子上，兩個方向都會壞：frond 寫出的 CFI 對別的 reader 不成立，別人寫的 CFI 在 frond 裡解到錯的節點。
+不用 `element.remove()` 的理由跟安全無關，跟 CFI 有關：CFI 是**用兄弟之中的排序**指一個元素的，移掉一個，它後面每個兄弟的索引都往前兩格。而 progress 與 annotation 正是以 CFI 儲存的東西，所以位移的症狀是讀者的重點靜靜落到別的句子上，兩個方向都會壞：frond 寫出的 CFI 對別的 reader 不成立，別人寫的 CFI 在 frond 裡解到錯的節點。
 
 ## 任何會拿掉節點的介入都是 CFI 級的 breaking change
 

@@ -542,7 +542,7 @@ msgstr "メモ（{markCount}）"
 #. Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.
 #: src/components/Library.tsx
 msgid "Nothing marked yet. A passage you mark while reading comes back to you here."
-msgstr "まだ何も引いていません。読みながら引いた一節が、ここに戻ってきます。"
+msgstr "まだ何もマークしていません。読みながらマークした一節が、ここに戻ってきます。"
 
 #. Toast shown once a downloaded face has been applied to the book. The value is a typeface name — 'Serif' or 'Sans' as translated elsewhere in this catalog.
 #: src/lib/web-font-store.ts

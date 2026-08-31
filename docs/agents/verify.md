@@ -127,7 +127,7 @@ playwright-cli goto "http://localhost:5001/#/book/$BOOK_ID?at=frac:0.5"
 | `frac:0.5` | 整本書的進度，0 到 1 | 只是要「書中間某一頁」，不在乎是哪一段 |
 | `chars:12` | 第 12 個 section 的開頭 | 要某一章的第一頁 |
 | `chars:12/300` | 第 12 個 section，往後 300 個字 | 要某一章裡面比較後面的地方 |
-| `cfi:epubcfi(…)` | 精確到字 | 手上已經有一個 CFI（畫線、位置紀錄裡的那種） |
+| `cfi:epubcfi(…)` | 精確到字 | 手上已經有一個 CFI（重點、位置紀錄裡的那種） |
 
 **沒有「第幾頁」這種寫法**，而且不會有：頁是排版算出來的，換一個字級或換一個視窗寬度，同一段話就落在
 另一頁。真的要某一章的第二頁，就 `chars:` 到章首再按一次翻頁。
@@ -151,8 +151,8 @@ playwright-cli --raw eval "() => document.querySelector('.reader').dataset.at"
 
 ## 要截「一段字被選起來」的圖，用 `?select=`，不要真的拖一次
 
-畫線分兩步：先把一段字選起來，畫面上浮出一排顏色，點下去才真的畫。想截中間那個狀態，或是想接著
-畫一條線來看，用不著模擬拖曳：
+劃重點分兩步：先把一段字選起來，畫面上浮出一排顏色，點下去才真的劃。想截中間那個狀態，或是想接著
+劃一條重點來看，用不著模擬拖曳：
 
 ```bash
 playwright-cli goto "http://localhost:5001/#/book/$BOOK_ID?at=chars:12&select=Alice%20was%20beginning"
