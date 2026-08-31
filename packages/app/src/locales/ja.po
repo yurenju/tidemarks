@@ -165,7 +165,7 @@ msgid "Book's"
 msgstr "本のまま"
 
 #. Button on the selection bar: drop the selection without marking anything.
-#: src/components/Reader.tsx
+#: src/components/SelectionToolbar.tsx
 msgid "Cancel"
 msgstr "やめる"
 
@@ -450,12 +450,12 @@ msgid "Margin"
 msgstr "余白"
 
 #. Button on the selection bar: mark the passage and open a note on it in one action, rather than marking and then reopening it to write.
-#: src/components/Reader.tsx
+#: src/components/SelectionToolbar.tsx
 msgid "Mark and note"
 msgstr "マークしてメモ"
 
 #. Name of one of the four ink swatches on the selection bar. The value is a pigment name — Indigo, Ochre, Moss or Soot as translated elsewhere in this catalog.
-#: src/components/Reader.tsx
+#: src/components/SelectionToolbar.tsx
 msgid "Mark in {ink}"
 msgstr "{ink}でマーク"
 

@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { EpubBook, parseCfi, sectionIndexOf } from "@yurenju/frond/epub";
 import {
   Renderer,
@@ -77,20 +77,13 @@ import {
   type ChapterBoundary,
   type FlatTocItem,
 } from "../lib/toc";
-import {
-  boxesContain,
-  hitBoxes,
-  markStrips,
-  markVar,
-  textBoxes,
-  DEFAULT_MARK,
-  MARKS,
-} from "../lib/highlights";
+import { boxesContain, hitBoxes, markStrips, textBoxes } from "../lib/highlights";
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
 import SelectionLayer from "./SelectionLayer";
+import SelectionToolbar from "./SelectionToolbar";
 import Scrubber from "./Scrubber";
 
 /**
@@ -2164,55 +2157,7 @@ export default function Reader({
         )}
       </Panel>
 
-      {/* [[Marking]] waits for the finger to lift. While it is still down the reader has the wash and
-          the two handles and nothing else — a colour row raised mid-drag would sit under the
-          finger that raised it and chase the selection across the page (CONTEXT.md [[chrome]]). */}
-      {selectionView.toolbar.showing && (
-        <div
-          ref={selectionView.toolbar.ref}
-          className="highlight-toolbar"
-          style={
-            selectionView.toolbar.at
-              ? { left: selectionView.toolbar.at.left, top: selectionView.toolbar.at.top }
-              : { visibility: "hidden" }
-          }
-        >
-          {/* Two groups rather than six children, so the rule between them has a side to sit on
-              whichever way the bar is laid out. On a phone the bar is two rows and the rule is
-              the seam between them; wider, it is one row and the rule stands up (`styles/book.css`). */}
-          <div className="mark-inks">
-            {MARKS.map(({ name, label }) => {
-              const inkLabel = t({
-                message: `Mark in ${{ ink: i18n._(label) }}`,
-                comment:
-                  "Name of one of the four ink swatches on the selection bar. The value is a pigment name — Indigo, Ochre, Moss or Soot as translated elsewhere in this catalog.",
-              });
-              return (
-                <button
-                  key={name}
-                  className="swatch"
-                  style={{ "--mark": markVar(name) } as CSSProperties}
-                  title={inkLabel}
-                  aria-label={inkLabel}
-                  onClick={() => selectionView.toolbar.onMark(name, false)}
-                />
-              );
-            })}
-          </div>
-          <div className="mark-actions">
-            <button onClick={() => selectionView.toolbar.onMark(DEFAULT_MARK, true)}>
-              <Trans comment="Button on the selection bar: mark the passage and open a note on it in one action, rather than marking and then reopening it to write.">
-                Mark and note
-              </Trans>
-            </button>
-            <button onClick={selectionView.toolbar.onDismiss}>
-              <Trans comment="Button on the selection bar: drop the selection without marking anything.">
-                Cancel
-              </Trans>
-            </button>
-          </div>
-        </div>
-      )}
+      <SelectionToolbar toolbar={selectionView.toolbar} />
       {/* The one-off note that explains the reflow after the fact — applied, or could not be
           had. `role="status"` so a screen reader hears it; it clears itself (FONT_TOAST_MS). */}
       {fontToast !== null && (
