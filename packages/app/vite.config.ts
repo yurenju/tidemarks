@@ -41,6 +41,17 @@ export default defineConfig({
     // that path — so it names its messages explicitly instead (`worker/i18n.ts`).
     linguiMacros(),
     VitePWA({
+      // **Off for the server the browser suite runs against** (`playwright.config.ts` sets
+      // this), and for nothing else. That suite used to be pointed at the dev server, where a
+      // service worker never registers at all; it is pointed at a real build now, where one
+      // does — and a service worker answering the app shell from its cache is state carried
+      // between specs, which is the shape flakiness takes when it has nothing to do with the
+      // code. Every spec starts from an empty profile, so each would also pay for installing
+      // one.
+      //
+      // The screen sweep is deliberately not given this: it still runs the dev server
+      // (`playwright.sweep.config.ts`), which is what keeps `npm run dev` exercised in CI.
+      disable: process.env.TIDEMARKS_NO_SW === "1",
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache
       workbox: {

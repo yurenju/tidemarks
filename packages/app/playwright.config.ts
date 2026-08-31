@@ -84,19 +84,39 @@ export default defineConfig({
     locale: "en",
   },
 
-  // The dev server rather than a preview of the build: `npm run build` is already its own CI
-  // step, and dev mode leaves the PWA service worker unregistered — a service worker caching
-  // the app shell between specs is exactly the kind of state that makes a suite flaky for
-  // reasons that have nothing to do with the code.
+  // **A real build, served back, rather than the dev server** — and the reason is that every
+  // spec pays for this page load, in an empty profile, with nothing cached from the last one.
   //
-  // Started from the root rather than from this package, because the root's `dev` builds the
+  // Measured in the test image, one `goto("/")`:
+  //
+  //     dev server    885ms   120 requests   8.9 MB
+  //     this build    140ms     4 requests    51 KB
+  //
+  // Dev mode does not bundle, so the app arrives as a module per file; a fresh context has an
+  // empty cache, so none of it carries over. Across a suite where opening a book is the first
+  // line of nearly every spec, that is about a third of the whole run: the same seventeen specs
+  // total 115.8s against the dev server and 83.5s against this one.
+  //
+  // The build costs 6.3s in the image, once, against 2.8s for the dev server starting — so it
+  // is paid back several times over inside a single shard.
+  //
+  // **What this gives up, said out loud: React's StrictMode double-mounts only in development.**
+  // `support/library.ts`'s `settled()` waits for exactly one page frame because two used to
+  // exist for a moment, and that is a hazard this suite no longer walks into. It is a real
+  // reduction in what is covered, taken knowingly — the double mount is a development-only
+  // behaviour, and what these specs are for is the app a reader gets.
+  //
+  // The service worker a build normally registers is turned off for it (`vite.config.ts` reads
+  // `TIDEMARKS_NO_SW`), which is what the dev server used to be giving us for free.
+  //
+  // Started from the root rather than from this package, because the root's `build` builds the
   // renderer first and this package's does not. Inside the test image that is redundant (the
   // image builds it), but on a fresh checkout the difference is between the suite testing the
   // renderer in the tree and testing whatever `packages/frond/dist` happened to hold.
   webServer: {
-    command: "npm run dev",
+    command: "npm run build && npm run preview -w app -- --port 5174 --strictPort",
     cwd: "../..",
-    env: { PORT: "5174" },
+    env: { TIDEMARKS_NO_SW: "1" },
     url: "http://localhost:5174",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
