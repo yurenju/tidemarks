@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type PageOffset, type Renderer } from "@yurenju/frond/renderer";
 import { db } from "../lib/db";
@@ -40,12 +39,13 @@ import SelectionToolbar from "./SelectionToolbar";
 import Scrubber from "./Scrubber";
 import ElsewhereBanner from "./ElsewhereBanner";
 import FontToast from "./FontToast";
+import { READER_MESSAGES } from "./reader-messages";
 
 /**
  * What the one panel calls itself while it is showing each of the three.
  *
- * The state the three are is `lib/chrome.ts`'s; this is what they are *called*, which stays here
- * because moving it would move a catalog entry into `lib/`.
+ * The state the three are is `lib/chrome.ts`'s; this is what they are *called*, and the words
+ * themselves are next door in `reader-messages.ts`.
  *
  * The `data-testid` is here rather than at the call site because it is the same question the
  * title answers — which of the three is up — and answering it twice is how the two drift apart.
@@ -53,30 +53,9 @@ import FontToast from "./FontToast";
  * merge below is a change to the shell, and a shell change should not rewrite five suites.
  */
 const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string }> = {
-  toc: {
-    title: msg({
-      message: "Contents",
-      comment:
-        "Title of the panel listing the book's chapters, and the label of the bar button that raises it.",
-    }),
-    testId: "panel-toc",
-  },
-  notes: {
-    title: msg({
-      message: "Notes",
-      comment:
-        "Title of the panel listing what the reader has marked in this book, and the label of the bar button that raises it.",
-    }),
-    testId: "panel-notes",
-  },
-  layout: {
-    title: msg({
-      message: "Type",
-      comment:
-        "Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.",
-    }),
-    testId: "panel-layout",
-  },
+  toc: { title: READER_MESSAGES.panelToc, testId: "panel-toc" },
+  notes: { title: READER_MESSAGES.panelNotes, testId: "panel-notes" },
+  layout: { title: READER_MESSAGES.panelLayout, testId: "panel-layout" },
 };
 
 /**
@@ -178,7 +157,7 @@ export default function Reader({
    */
   onChromeChange: (up: boolean) => void;
 }) {
-  const { t, i18n } = useLingui();
+  const { i18n } = useLingui();
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
   /**
@@ -720,19 +699,7 @@ export default function Reader({
           <button
             className="page-btn"
             onClick={() => sessionRef.current?.turnPage("left")}
-            aria-label={
-              rtl
-                ? t({
-                    message: "Next page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-                : t({
-                    message: "Previous page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-            }
+            aria-label={i18n._(rtl ? READER_MESSAGES.nextPage : READER_MESSAGES.previousPage)}
           >
             ‹
           </button>
@@ -774,19 +741,7 @@ export default function Reader({
           <button
             className="page-btn"
             onClick={() => sessionRef.current?.turnPage("right")}
-            aria-label={
-              rtl
-                ? t({
-                    message: "Previous page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'previous' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-                : t({
-                    message: "Next page",
-                    comment:
-                      "Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.",
-                  })
-            }
+            aria-label={i18n._(rtl ? READER_MESSAGES.previousPage : READER_MESSAGES.nextPage)}
           >
             ›
           </button>
@@ -860,11 +815,7 @@ export default function Reader({
           <button
             className="ghost reader-about"
             onClick={onOpenAbout}
-            aria-label={t({
-              message: "About this book",
-              comment:
-                "Screen-reader name for the button in the reader's bar that opens the panel describing the open book.",
-            })}
+            aria-label={i18n._(READER_MESSAGES.about)}
             data-testid="reader-about"
           >
             ⋯
