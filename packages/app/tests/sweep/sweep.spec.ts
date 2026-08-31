@@ -12,7 +12,7 @@ import { BOOKS_DIR, segment, settled } from "../browser/support/library.js";
  * The screen sweep: every screen the app has, in one pass, as PNGs.
  *
  * The images are for looking at and for discussing visual design with an assistant. What rots on
- * its own is the walk: a renamed `data-testid`, a drawer that became a dialog, a panel that opens
+ * its own is the walk: a renamed `data-testid`, a panel that became a dialog, a panel that opens
  * another way. Without something exercising this file, it breaks silently and stays broken until
  * the day it is needed. See docs/adr/0027-the-screen-sweep-runs-in-the-container.md.
  *
@@ -272,7 +272,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await page.waitForTimeout(500);
   });
 
-  await step("about-drawer", async () => {
+  await step("about-panel", async () => {
     await page
       .getByTestId("book-card")
       .filter({ hasText: "Alice" })
@@ -362,7 +362,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await page.waitForTimeout(400);
   });
 
-  await step("reader-about-drawer", async () => {
+  await step("reader-about-panel", async () => {
     await page.locator(".note-editor button").click();
     await page.keyboard.press("Escape");
     await raiseChrome();
@@ -408,6 +408,11 @@ test("sweeps every screen", async ({ page }, testInfo) => {
 
   await step("settings-dark", async () => {
     await page.keyboard.press("Escape");
+    // ⚠️ **Waited out rather than assumed.** A panel is a history entry now (ADR-0046), so
+    // Escape asks the browser to step back and the address moves a frame later — navigating
+    // inside that frame races a traversal already in flight, and what the sweep photographs
+    // then is whichever of the two lands second. The panel going is the signal that it landed.
+    await expect(page.getByTestId("panel-toc")).toBeHidden();
     await page.goto("/#/settings/typography");
     await expect(page.getByTestId("settings-screen")).toBeVisible({ timeout: 15_000 });
     // A cell to click, not an option to select: Theme became a segmented control in #167, along

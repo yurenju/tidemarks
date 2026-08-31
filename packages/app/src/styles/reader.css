@@ -437,21 +437,16 @@
   }
 }
 
-/* The panel — [[Contents]], [[Notes]], [[Layout]].
-   ---------------------------------
-   **One shell wearing three faces**, and one instance of it: `Reader.tsx` swaps the contents
-   rather than raising a second drawer, so moving between the three closes nothing, remounts
-   nothing, and moves no column.
+/* The room the reader's three panels stand in.
+   --------------------------------------------
+   **The shell itself is in `styles/surfaces.css`**, with the fourth face it also wears. What is
+   left here is the reader's half of the arrangement: the box those three are drawn into, and the
+   bars getting out of their way.
 
-   It arrives from the right by default and up from the bottom bar on a hand-held (the query in
-   `device.css`, which is also where the sheet gets its two corners and its own arrival). Which
-   edge is settled in CSS; the only thing JavaScript decides is the direction a finger dismisses
-   it (`Panel.tsx`).
-
-   **It covers the book, except when the window is wide enough to give it a column of its own**
-   — that is the `min-width: 820px` block, and the reason it is a block rather than the
-   default is that pushing costs the book a repagination, which only pays when there is a book
-   left over (ADR-0005).
+   **They cover the book, except when the window is wide enough to give one a column of its own**
+   — that is the `min-width: 820px` block in `device.css`, and the reason it is a block rather
+   than the default is that pushing costs the book a repagination, which only pays when there is
+   a book left over (ADR-0005).
 
    This is not the sidebar ADR-0020 removed. That one was permanent and beside the book; this
    one is [[Find]] wearing a different shape, and a press on the page puts the whole state away. */
@@ -462,79 +457,6 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
-}
-
-/* **No wash over the book.** It used to carry `--backdrop`, and the thing it greyed out was the
-   page [[Layout]] is applied to — the reader dragging [[Size]] was watching the one surface the panel
-   exists to change, through a scrim (ADR-0005). What is left is the press target: a press
-   outside the panel still closes it, it just no longer says so by dimming the book.
-
-   On a desk it does not even do that, **and that is true of the narrow window too, where the
-   panel covers the book**. It is tempting to give the cover arrangement the hand-held's
-   press-to-dismiss, and it would be wrong for the same reason it was always wrong here: this
-   box spans the whole reader, so a full-box target sits on the bars, and the Scrubber going
-   dead under a panel is exactly what "the panel stops short of it" was for. The hand-held can
-   afford it because there the entries and the Scrubber have stepped aside; here they are still
-   standing.
-
-   Nothing is lost by that. A press on the page already puts the panel away — not through this
-   element but through frond, which reports the tap as unclaimed and drops the chrome to [[Read]]
-   (`Reader.tsx`). Making this catch the press would take that path away, not add one. */
-.panel-backdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: none;
-  transition: opacity 0.25s ease;
-}
-
-.panel-backdrop[data-starting-style],
-.panel-backdrop[data-ending-style] {
-  opacity: 0;
-}
-
-/* Covers the screen so the panel can be positioned against it, but catches nothing: the
-   backdrop underneath is what a press outside the panel lands on. */
-.panel-viewport {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* A column down the right side, the full height of the reader — beside the bars, not under
-   them. Sunken rather than page-coloured: it is a recess in the page the book is printed on,
-   not another sheet of paper laid on top.
-
-   **The right rather than the left**, and that is not symmetry. The book gives up this column
-   while a panel is open, and a reader's eye returns to the start of a line: taking the room from
-   the far end leaves the text where the eye already is.
-
-   No radius here, and no cast. A column that runs the full height of the reader and is flush to
-   its right edge has no corner the reader can see, so rounding it would round nothing; the sheet
-   the hand-held query builds out of the same element *does* have two, and takes them there. */
-.panel-popup {
-  pointer-events: auto;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--panel-width);
-  display: flex;
-  flex-direction: column;
-  background: var(--surface-sunken);
-  border-left: 1px solid var(--line-hair);
-  /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
-     drag to the left does not pull it off the edge it belongs to. */
-  transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
-  /* The chrome's own timing, not a slower one of its own. Since the room is now given up in a
-     single step (below), the slide is what fills a gap that is already empty — and the longer
-     it takes, the longer that empty recess is on screen. */
-  transition: transform var(--chrome-motion) ease-out;
-}
-
-.panel-popup[data-starting-style],
-.panel-popup[data-ending-style] {
-  transform: translateX(100%);
 }
 
 /* **The bars end where the panel begins, at every width the panel is a column at.** Not only in
@@ -556,40 +478,4 @@
   .chrome {
     transition: none;
   }
-}
-
-/* Under a finger the panel is the finger's, not the transition's. */
-.panel-popup[data-swiping] {
-  transition: none;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--line-hair);
-}
-
-.panel-title {
-  margin: 0;
-  margin-right: auto;
-  font-size: var(--type-ui);
-}
-
-.panel-close {
-  font-size: var(--type-lede);
-  line-height: 1;
-}
-
-.panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.75rem 1rem 1rem;
-}
-
-.panel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }

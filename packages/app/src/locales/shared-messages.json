@@ -1,11 +1,9 @@
 {
   "‹ Shelf": ["src/components/Reader.tsx", "src/components/SettingsScreen.tsx"],
-  "About this book": ["src/components/AboutDrawer.tsx", "src/components/Reader.tsx"],
-  "Close": ["src/components/Drawer.tsx", "src/components/Panel.tsx"],
-  "Delete": ["src/components/AboutDrawer.tsx", "src/components/Reader.tsx"],
+  "About this book": ["src/components/AboutBook.tsx", "src/components/Reader.tsx"],
+  "Delete": ["src/components/AboutBook.tsx", "src/components/Reader.tsx"],
   "Just now": ["src/components/Library.tsx", "src/components/Reader.tsx"],
   "Language": ["src/components/LanguageForm.tsx", "src/components/SettingsScreen.tsx"],
-  "Save": ["src/components/Library.tsx", "src/components/Reader.tsx"],
   "Settings": ["src/components/Library.tsx", "src/components/SettingsScreen.tsx"],
   "Type": ["src/components/Reader.tsx", "src/components/SettingsScreen.tsx"]
 }

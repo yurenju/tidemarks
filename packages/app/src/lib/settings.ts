@@ -142,7 +142,7 @@ export const LINE_HEIGHT_MAX = 2.4;
  * The line heights on offer. `0` is not a height — it is "leave whatever the book asked for".
  *
  * Here rather than in the panel because two panels offer them now: this book's, in the reader,
- * and every book's, in the settings drawer. One ladder, so a value set in one is a value the
+ * and every book's, in [[Settings]]. One ladder, so a value set in one is a value the
  * other can show.
  */
 export const LINE_HEIGHTS: { label: MessageDescriptor; value: number }[] = [

@@ -682,7 +682,7 @@ function ReadingNow({
         aria-label={t({
           message: `About ${{ title: book.title }}`,
           comment:
-            "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
+            "Screen-reader name for the ⋯ button beside a book, which opens the panel holding everything else that book can do. The value is the book's own title.",
         })}
       >
         ⋯
@@ -745,7 +745,7 @@ function BookCard({
         aria-label={t({
           message: `About ${{ title: book.title }}`,
           comment:
-            "Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.",
+            "Screen-reader name for the ⋯ button beside a book, which opens the panel holding everything else that book can do. The value is the book's own title.",
         })}
         data-testid="book-more"
       >

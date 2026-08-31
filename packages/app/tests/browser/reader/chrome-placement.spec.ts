@@ -275,3 +275,28 @@ test("leaves the Scrubber reachable beside an open panel", async ({ page }) => {
     .toBeLessThanOrEqual(panel.x + 1);
   expect(scrubber.y).toBeGreaterThan(700 - 80);
 });
+
+/**
+ * One shell, one width — including the face that used to have a width of its own.
+ *
+ * [[About]] was a second component with `min(26rem, 100%)` written into it, so under about 1280px
+ * it stood wider than the three panels beside it; both are `--panel-width` now (ADR-0046). Read
+ * back out of the cascade rather than restated as a number here: what is being asserted is that
+ * the two agree, not what they agree on.
+ */
+test("gives the book's details the same column every other panel gets", async ({ page }) => {
+  await openChrome(page);
+  await page.getByTestId("reader-about").click();
+
+  const panel = (await page.getByTestId("panel-about").boundingBox())!;
+  const column = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--panel-width)";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+
+  expect(Math.abs(panel.width - column)).toBeLessThanOrEqual(1);
+});

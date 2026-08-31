@@ -59,14 +59,14 @@ test("the card's ⋯ opens About for that book", async ({ page }) => {
 
   await page.getByTestId("book-more").first().click();
 
-  await expect(page.getByTestId("drawer-about")).toBeVisible();
+  await expect(page.getByTestId("panel-about")).toBeVisible();
   expect(new URL(page.url()).hash).toBe(`#/?d=about/${bookId}`);
   // The three numbers that used to sit under every cover on the shelf.
   await expect(page.getByTestId("about-sessions")).toContainText(/sitting/);
   await expect(page.getByTestId("about-reading-time")).toBeVisible();
 });
 
-test("the reader's ⋯ opens the same drawer over the book", async ({ page }) => {
+test("the reader's ⋯ opens the same panel over the book", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
   const bookId = await bookIdOf(page);
@@ -77,7 +77,7 @@ test("the reader's ⋯ opens the same drawer over the book", async ({ page }) =>
   await openChrome(page);
   await page.getByTestId("reader-about").click();
 
-  await expect(page.getByTestId("drawer-about")).toBeVisible();
+  await expect(page.getByTestId("panel-about")).toBeVisible();
   // The book id is carried even though the screen underneath is that same book: reading the
   // hash never means looking at what is below it.
   expect(new URL(page.url()).hash).toBe(`#/book/${bookId}?d=about/${bookId}`);
