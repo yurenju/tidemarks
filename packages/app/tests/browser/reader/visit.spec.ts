@@ -207,6 +207,22 @@ test("during a visit, staying here writes the page the reader is looking at", as
   // Chapter one: not what this device claimed (chapter three), and not what was offered.
   await expect.poll(() => storedCfi(page)).not.toBe(away.cfi);
   expect(await storedCfi(page)).not.toBe(offered.cfi);
+
+  // **And the [[Notes]] panel is still standing**, which is what keeps that press from being a race
+  // rather than an answer. The panel is open here — pressing a passage does not close it at this
+  // width — so this press is also a press outside it, and a panel leaving takes the bars' right
+  // end back with it over 180ms. Measured on webkit: held for 90ms, the button had slid 93px,
+  // `mouseup` landed on [[Go there]] beside it, and the click went to the div holding the pair —
+  // so nothing happened and the banner stayed (the webkit flake in #160). Asserted as a state
+  // rather than by holding the press, because a test that has to out-run a transition is the
+  // next flake.
+  //
+  // **Read off the address rather than off the panel**, which is the same thing said in a way
+  // that settles: the popup survives its own 180ms exit, so a dismissed panel is still on screen
+  // for the moment after this press and `toBeVisible` would pass on the way out (#148 put the
+  // panel in the address, and the address is not animated). Last, after the reads above, so a
+  // dismissal whose address write is a frame behind has long since landed.
+  await expect(page).toHaveURL(/d=notes/);
 });
 
 // Narrow enough that the panel covers the book, so pressing a passage takes the whole chrome
