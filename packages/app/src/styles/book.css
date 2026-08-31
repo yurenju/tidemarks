@@ -49,7 +49,7 @@
   width: 100%;
   height: 100%;
   /* The band of margin around the book's own frame is ours, and a finger landing there turns
-     a page like any other (Reader.tsx). Without this the browser claims that finger as a pan
+     a page like any other (lib/book-session.ts). Without this the browser claims that finger as a pan
      before this page hears about it — measured on a touch device, `pointerdown` arrives, one
      `pointermove` arrives, and then `pointercancel`. frond sets the same thing inside the
      frame; this is the other half of the same surface. */

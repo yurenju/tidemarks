@@ -234,7 +234,7 @@ msgid "Done"
 msgstr "完成"
 
 #. Shown in place of the book when its epub could not be fetched and the failure carried no reason of its own.
-#: src/components/Reader.tsx
+#: src/lib/book-session.ts
 msgid "Download failed"
 msgstr "下載失敗"
 
@@ -874,7 +874,7 @@ msgid "This device only — the language follows the machine in your hand, not y
 msgstr "只在這台裝置上。語言跟著手上這台機器走，不跟著帳號。書不受影響，每一本都照它原本的語言排版。"
 
 #. Shown in place of the book when the epub is on the device but could not be parsed.
-#: src/components/Reader.tsx
+#: src/lib/book-session.ts
 msgid "This file will not open"
 msgstr "這個檔案打不開"
 
@@ -884,7 +884,7 @@ msgid "This month"
 msgstr "這個月"
 
 #. Shown when one section of an otherwise readable book fails. The value is the renderer's own message and is not translated.
-#: src/components/Reader.tsx
+#: src/lib/book-session.ts
 msgid "This section will not render: {reason}"
 msgstr "這一節讀不出來：{reason}"
 
