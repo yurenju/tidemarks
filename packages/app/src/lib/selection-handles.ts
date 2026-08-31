@@ -3,7 +3,7 @@
 // On touch the selection is ours to draw and ours to move (ADR-0036), and moving it means two
 // handles: one at each end of the passage, each dragging that end while the other stays put.
 // Everything here is geometry — where the ends are, and whether a press landed on one. What a
-// drag then does with them is `Reader.tsx`'s.
+// drag then does with them belongs to the open book (`lib/book-session.ts`).
 //
 // **Where a handle goes depends on how the book is set**, and CSS cannot see that: a horizontal
 // passage begins at the left of its first line and ends at the right of its last, while a

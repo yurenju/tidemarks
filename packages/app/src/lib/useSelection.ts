@@ -42,13 +42,14 @@ import {
  * reader of this code sees `.current` and knows the value is being read *now* rather than at
  * render time, which is exactly where the reminder is needed.
  *
- * ## What stays in `Reader.tsx`
+ * ## What stays outside
  *
- * The gesture machine, because it decides page turns as well. So nothing here reaches it: two
- * commands hand a value back for `Reader.tsx` to send on — `apply` reports a refusal and
- * `handlePointer` returns the event it means — and the one question that runs the other way,
- * whether a tap is to blame for a selection, arrives as the `blamesTap` prop. `send` itself is
- * unreachable from out here in any case: it lives inside the effect that opens the book.
+ * The gesture machine, because it decides page turns as well — it belongs to the open book
+ * (`lib/book-session.ts`). So nothing here reaches it: two commands hand a value back for the
+ * session to send on — `apply` reports a refusal and `handlePointer` returns the event it means
+ * — and the one question that runs the other way, whether a tap is to blame for a selection,
+ * arrives as the `blamesTap` prop. `send` itself is unreachable from out here in any case: it
+ * lives inside the session, which exists only while a book is open.
  *
  * `addAnnotation` stays there too: a mark is a row in Dexie that the notes
  * panel and the highlight layer both read, which makes it the reader's data rather than the
@@ -100,8 +101,8 @@ export interface SelectionCommands {
   /**
    * A pointer on one of the two handles, in client coordinates.
    *
-   * Returns the gesture event it means, for `Reader.tsx` to hand to the machine, or `null` when
-   * there is no drawn selection to take hold of.
+   * Returns the gesture event it means, for the open book's session to hand to the machine
+   * (`lib/book-session.ts`), or `null` when there is no drawn selection to take hold of.
    */
   handlePointer(
     kind: "down" | "move" | "up" | "cancel",
@@ -376,7 +377,8 @@ export function useSelection({
       // A word the tap selected, not a passage the reader chose (#36). It arrives on either side
       // of `pointerup` depending on the browser, so it is caught here as well as in the tap
       // branch of the machine. Asked rather than answered here: only the gesture machine knows,
-      // and it stays in `Reader.tsx` because it decides page turns as well.
+      // and it belongs to the open book because it decides page turns as well
+      // (`lib/book-session.ts`).
       if (blamesTap(performance.now())) {
         clear();
         return;
