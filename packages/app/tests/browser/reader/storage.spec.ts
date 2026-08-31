@@ -1,7 +1,8 @@
 // A platform assumption kept on its own so that a failure names it rather than arriving as a
 // batch of books that will not import (testing.md principle 3): what each engine will accept into
-// IndexedDB. The last of the three is what says when support/fixtures.ts can stop launching
-// WebKit with a profile on disk.
+// IndexedDB. It is the measurement ADR-0047 rests on — a book is bytes because of what the second
+// test below reports — and the reason `support/fixtures.ts` still keeps `testWithProfile` around
+// for the one spec that stores a font face.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 
@@ -15,60 +16,43 @@ import { expect, test } from "../support/fixtures.js";
  *     Error preparing Blob/File data to be stored in object store
  *
  * while the same store accepts an `ArrayBuffer`. Chromium and Firefox accept both either way.
- * Tidemarks writes the epub body and the cover as Blobs (`lib/types.ts`'s `BookRecord`), so in an
- * ephemeral WebKit session a book cannot be imported at all — which is what the whole reader
- * suite used to skip that engine for.
  *
- * Every context Playwright hands out is ephemeral unless it came from
- * `launchPersistentContext`, and that is the whole of what those skips were measuring. The
- * suite now gives WebKit a persistent context (`support/fixtures.ts`) and skips nothing.
+ * That is why `BookRecord` holds `ArrayBuffer`s rather than Blobs (`lib/types.ts`). Every
+ * context Playwright hands out is ephemeral, so with Blobs a book could not be imported in
+ * WebKit at all — first the whole reader suite skipped that engine, then it launched a
+ * persistent context per test to get a profile, at about a second each. Storing the bytes
+ * instead is what let `support/fixtures.ts` go back to nothing but a route.
  *
  * ## The two halves below
  *
- * The first two tests use this suite's own context, so they assert what every other spec
- * depends on: a Blob goes in, in all three engines.
+ * The first test is the one the rest of the suite rests on: the shape Tidemarks stores goes in,
+ * in every engine, in the session these specs actually run in.
  *
- * The third opens an ephemeral context by hand and pins the failure that makes the fixture
- * necessary. **It is the one that says when the fixture can go**: the day WebKit stores a Blob
- * in an ephemeral session, that test goes red, and whoever sees it can drop the persistent
- * context and have a shared browser per worker back.
+ * The second pins the failure that decided the shape. **It is the record of why**, so that
+ * "why not just hold a Blob, they are nicer to draw with" has an answer that is a measurement
+ * rather than a memory. If WebKit ever starts accepting one, it goes red — and that is worth
+ * knowing, but it is no longer a reason to change anything: the bytes work everywhere.
  *
  * ## What this does not say about a device
  *
- * Safari on a phone has a profile, so the session this fails in is not one a reader is ever in.
- * That is an argument rather than a measurement — nothing here runs on iOS. Storing the body as
- * an `ArrayBuffer` instead would sidestep the whole question, and this spec no longer makes
- * the case for it.
+ * Safari on a phone has a profile, so the session it fails in is not one a reader is ever in.
+ * That is an argument rather than a measurement — nothing here runs on iOS.
  */
 
-test("an ArrayBuffer can be stored, in every engine", async ({ page }) => {
+test("what a book is stored as goes into IndexedDB, in every engine", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("header")).toBeVisible();
 
   expect(await probe(page, "arrayBuffer")).toBe("ok");
 });
 
-test("a Blob can be stored, in every engine", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("header")).toBeVisible();
-
-  expect(await probe(page, "blob")).toBe("ok");
-});
-
-test("in WebKit that takes a session with a profile on disk", async ({ browser, browserName }) => {
-  // Ephemeral, which is what `browser.newContext()` gives and what this suite's own fixture
-  // deliberately does not use for WebKit.
-  const ephemeral = await browser.newContext();
-  const page = await ephemeral.newPage();
+test("a Blob would not, in WebKit", async ({ page, browserName }) => {
   await page.goto("/");
   await expect(page.locator("header")).toBeVisible();
 
   const verdict = await probe(page, "blob");
-  await ephemeral.close();
 
   if (browserName === "webkit") {
-    // Pinning the status quo. When this stops matching, `support/fixtures.ts` can stop
-    // launching a persistent context — and this assertion failing is how anyone finds out.
     expect(verdict).toContain("Error preparing Blob/File data");
   } else {
     expect(verdict).toBe("ok");

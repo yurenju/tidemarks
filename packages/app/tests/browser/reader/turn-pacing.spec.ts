@@ -33,15 +33,15 @@ import {
  * ### What that costs, stated exactly
  *
  * The regression the share stood in for is the compositor layers going away, which takes a drag
- * from 4 repaints to 22. That one is still guarded — but by **one test on one engine**: the drag
+ * from 12 repaints to 44. That one is still guarded — but by **one test on one engine**: the drag
  * paint count below, Chromium only, because the trace it reads has no equivalent in the other
  * two. So on firefox and webkit this file is now down to the jump counts and the sampler floor.
  *
- * **And a command turn has no equivalent guard at all**, not even on Chromium. Taking the layers
- * away leaves an arrow-key turn at the same 2 repaints it measures with them
- * (`COMMAND_PAINTS_PER_TURN_CEILING`, docs/specs/desktop-page-turn/measurements.md §4), so its
- * paint ceiling has no measured bad end to sit below and is arithmetic rather than a bracket.
- * Nothing that used to watch a command turn's smoothness watches it now.
+ * **A command turn is guarded the same way, and on the same one engine**: taking the layers away
+ * puts an arrow-key turn at 22 repaints against the 11 it measures with them, so
+ * `COMMAND_PAINTS_PER_TURN_CEILING` brackets a measured pair like the drag's does. It used to
+ * read as unguarded, on a measurement that had the two ends equal — that count was wrong, and
+ * docs/specs/desktop-page-turn/measurements.md §5 is where it was put right.
  *
  * That is the accepted cost of issue #71, not an oversight — a benchmark that goes red because
  * the machine was busy gets muted and then deleted, and a muted one guards nothing either.
@@ -178,37 +178,38 @@ test("a turn nobody dragged eases rather than jumping too", async ({ page }) => 
  *
  * The frames move by `transform` and sit on compositor layers of their own
  * (`section-view.ts`'s `will-change`), so a turn should cost a handful of paints and not one per
- * `pointermove`. Measured at **4 per turn with the layers and 22 without them** — the ceiling
+ * `pointermove`. Measured at **12 per turn with the layers and 44 without them** — the ceiling
  * sits between the two and nearer the good number, because the failure it catches is not a few
- * percent worse but five times worse.
+ * percent worse but nearly four times worse.
  *
- * **Both ends were re-measured when the count started excluding the warm-up turn and the gaps
- * between turns** (docs/specs/desktop-page-turn/measurements.md §4). The pair this replaces is
- * 9.1 and 42.6 (docs/specs/swipe-to-turn/measurements.md), which counted every repaint in the
- * run and divided by all seven turns including the warm-up; a ceiling calibrated for that
- * quantity would sit in the wrong place for this one.
+ * **Both ends were re-measured when the counter stopped taking React's marks as segment
+ * boundaries** (`support/pacing.ts`, and docs/specs/desktop-page-turn/measurements.md §5). The
+ * pair this replaces is 4 and 22, and that 4 was not a measurement of anything: in development
+ * React writes its own `console.timeStamp` marks onto the same trace stream, so the repaints
+ * while the finger was down were being tallied under React's labels rather than this suite's,
+ * and a drag read as costing 0 of them. The suite ran against the dev server, so that is the
+ * only shape it ever saw.
  *
  * It stays a ceiling on the **whole** turn even though the count is now reported in halves. The
  * halves are what say *where* a regression is; this is the number with a measured bad end to sit
  * below, and splitting it would throw that away.
  */
-const PAINTS_PER_TURN_CEILING = 10;
+const PAINTS_PER_TURN_CEILING = 20;
 
 /**
  * And how many a turn nobody dragged is allowed to cost.
  *
- * **This one has no measured bad end, and that is worth knowing before trusting it.** Taking the
- * compositor layers away — the regression that takes a drag from 4 repaints to 22 — leaves a
- * command turn at the same 2 it measures with them. Whatever makes a drag repaint per frame
- * without those layers, an arrow key does not do it.
+ * **This one has a measured bad end now, where it used to have none.** Taking the compositor
+ * layers away puts a command turn at **22 against the 11 it measures with them**, almost all of
+ * the difference in the slide — 17 repaints where there are 6. The note this replaces said the
+ * two were the same, and reasoned the ceiling out of arithmetic instead; that reading came from
+ * the same broken segmentation as the drag's, which had the slide at 0.
  *
- * So the number below is not half way between a good measurement and a bad one. It comes from
- * the arithmetic of the failure instead: the slide is `TURN_COMMAND_MS`, about thirteen frames
- * at 60Hz, so a turn that had started repainting the page once per frame could not come in under
- * thirteen. Eight sits above the measured 2 with room for noise and below anything per-frame
- * could produce.
+ * So this is now the same kind of number as the one above: between a measured good end and a
+ * measured bad one, nearer the good. The two ends are only twice apart rather than four times,
+ * which is why it sits closer to the middle than the drag's does.
  */
-const COMMAND_PAINTS_PER_TURN_CEILING = 8;
+const COMMAND_PAINTS_PER_TURN_CEILING = 15;
 
 test("and it does not repaint the whole page to move it", async ({
   page,

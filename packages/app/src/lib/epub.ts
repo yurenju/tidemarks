@@ -1,5 +1,5 @@
 import { EpubBook } from "@yurenju/frond/epub";
-import type { BookRecord } from "./types";
+import type { BookRecord, StoredCover } from "./types";
 
 export async function importEpubFile(file: File): Promise<BookRecord> {
   const buffer = await file.arrayBuffer();
@@ -11,8 +11,10 @@ export async function importEpubFile(file: File): Promise<BookRecord> {
     title: book.metadata.title || file.name.replace(/\.epub$/i, ""),
     author: book.metadata.authors.join(", "),
     addedAt: now,
-    file: new Blob([buffer], { type: "application/epub+zip" }),
-    cover: coverBlob(book),
+    // The very buffer that was parsed. Putting it in IndexedDB structured-clones it, so the
+    // stored copy is independent of whatever `EpubBook` goes on holding views onto.
+    file: buffer,
+    cover: coverImage(book),
     updatedAt: now,
     deletedAt: null,
     dirtyAt: now,
@@ -22,12 +24,13 @@ export async function importEpubFile(file: File): Promise<BookRecord> {
 // A book with no cover, a cover the manifest points at but the archive lacks, and a cover
 // whose bytes will not decode all arrive here as `undefined` — frond treats none of them as
 // an error, and neither does the shelf.
-function coverBlob(book: EpubBook): Blob | null {
+function coverImage(book: EpubBook): StoredCover | null {
   const cover = book.cover;
   if (!cover) return null;
-  // `slice()` copies into a buffer of its own. frond's bytes may be a view onto the whole
-  // decoded archive, and this Blob outlives the book — it goes into IndexedDB.
-  return new Blob([cover.bytes.slice()], { type: cover.mediaType });
+  // `slice()` copies into a buffer of its own, exactly the size of the image. frond's bytes are
+  // a view onto the whole decoded archive, so handing on `cover.bytes.buffer` would store the
+  // entire book to draw a thumbnail.
+  return { bytes: cover.bytes.slice().buffer, type: cover.mediaType };
 }
 
 // Text from the front of the book, for deciding Simplified vs Traditional (see

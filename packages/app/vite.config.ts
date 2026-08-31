@@ -27,6 +27,12 @@ const build = {
   builtAt: new Date().toISOString(),
 };
 
+// Set by `playwright.config.ts` for the server the browser suite runs against, and by nothing
+// else. Announced because the only way it reaches a build a person then keeps is by being left
+// in a shell, and a Tidemarks with no service worker is not a failure anything else would report.
+const noServiceWorker = process.env.TIDEMARKS_NO_SW === "1";
+if (noServiceWorker) console.warn("TIDEMARKS_NO_SW=1 — building without the service worker");
+
 // https://vite.dev/config/
 export default defineConfig({
   define: { __BUILD__: JSON.stringify(build) },
@@ -41,6 +47,17 @@ export default defineConfig({
     // that path — so it names its messages explicitly instead (`worker/i18n.ts`).
     linguiMacros(),
     VitePWA({
+      // **Off for the server the browser suite runs against** (`playwright.config.ts` sets
+      // this), and for nothing else. That suite used to be pointed at the dev server, where a
+      // service worker never registers at all; it is pointed at a real build now, where one
+      // does — and a service worker answering the app shell from its cache is state carried
+      // between specs, which is the shape flakiness takes when it has nothing to do with the
+      // code. Every spec starts from an empty profile, so each would also pay for installing
+      // one.
+      //
+      // The screen sweep is deliberately not given this: it still runs the dev server
+      // (`playwright.sweep.config.ts`), which is what keeps `npm run dev` exercised in CI.
+      disable: noServiceWorker,
       registerType: "autoUpdate",
       // app shell only: books and data live in Dexie, not the SW cache
       workbox: {

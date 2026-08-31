@@ -129,9 +129,11 @@ fill rate，而 fill rate 正是手機最少的東西。
 | 修正後 | 9.1 |
 
 ⚠️ **這兩個數字的計數方式已經換掉了，別拿它們跟現在測試裡的門檻比。** 它們是整段 trace 的
-`Paint` 除以全部七次翻頁（含暖機那一次，也含翻頁之間的空檔）。現在算的是翻頁窗口內、排除暖機，
-同一個現象量出來是 4 與 22。新的數字、以及為什麼要換，見
-[desktop-page-turn/measurements.md §4](../desktop-page-turn/measurements.md)。
+`Paint` 除以全部七次翻頁（含暖機那一次，也含翻頁之間的空檔）。現在算的是翻頁窗口內、排除暖機。
+
+⚠️ **而那次換算之後量到的 4 與 22 也是錯的**，那個計數器把 React 開發模式自己下的標記當成了
+分段界線。同一個現象重量之後是 **12.2 與 43.7**。經過與新的兩端見
+[desktop-page-turn/measurements.md §5](../desktop-page-turn/measurements.md)。
 
 **不能一直開著。** `will-change` 掛在 iframe 上的時候 WebKit 的 hit-testing 會壞掉，frond 自己的
 五條 input 測試會紅（真實座標的 tap 送不進 frame 裡的文件）。那在手機上就是一本點不動也翻不動的

@@ -123,7 +123,13 @@ async function pushDirty(snapshotAt: number) {
       const file = await apiFetch(`/api/books/${b.id}/file`, { method: "PUT", body: b.file });
       if (!file.ok) throw new Error(`PUT /api/books/${b.id}/file: ${file.status}`);
       if (b.cover) {
-        const cover = await apiFetch(`/api/books/${b.id}/cover`, { method: "PUT", body: b.cover });
+        // The bytes, with no `Content-Type` behind them where a Blob used to put one there.
+        // Nothing read it: the Worker hands `request.body` straight to R2 without recording a
+        // type, and answers every cover as `application/octet-stream` on the way back.
+        const cover = await apiFetch(`/api/books/${b.id}/cover`, {
+          method: "PUT",
+          body: b.cover.bytes,
+        });
         if (!cover.ok) throw new Error(`PUT /api/books/${b.id}/cover: ${cover.status}`);
       }
     } catch {
@@ -321,7 +327,13 @@ async function pull() {
   for (const id of coversToFetch) {
     try {
       const res = await apiFetch(`/api/books/${id}/cover`);
-      if (res.ok) await db.books.update(id, { cover: await res.blob() });
+      if (res.ok) {
+        // `application/octet-stream`, because that is all the Worker says — the type an epub
+        // declared for its cover never leaves the device that imported it. The same string a
+        // pulled cover has always carried; `<img>` sniffs the bytes regardless.
+        const type = res.headers.get("content-type") ?? "";
+        await db.books.update(id, { cover: { bytes: await res.arrayBuffer(), type } });
+      }
     } catch {
       // cover is cosmetic; the row keeps saying it is owed one, so the next sync tries again
     }
@@ -442,7 +454,7 @@ export function beaconPositions(): boolean {
 }
 
 // download an epub body on demand (lazy download), storing it in Dexie
-export async function downloadBookFile(id: string): Promise<Blob> {
+export async function downloadBookFile(id: string): Promise<ArrayBuffer> {
   const res = await apiFetch(`/api/books/${id}/file`);
   if (!res.ok) {
     throw new Error(
@@ -455,7 +467,7 @@ export async function downloadBookFile(id: string): Promise<Blob> {
       ),
     );
   }
-  const blob = await res.blob();
-  await db.books.update(id, { file: blob });
-  return blob;
+  const bytes = await res.arrayBuffer();
+  await db.books.update(id, { file: bytes });
+  return bytes;
 }

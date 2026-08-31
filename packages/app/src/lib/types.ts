@@ -5,10 +5,30 @@ export interface BookMeta {
   addedAt: number;
 }
 
+/**
+ * The cover a book carries, as this device holds it (ADR-0047).
+ *
+ * The type travels with the bytes because it is the one part not derivable: the epub's manifest
+ * declared it, and `URL.createObjectURL` needs it to hand back an image. A cover pulled from the
+ * server arrives as `application/octet-stream`, which is the same string it has always carried.
+ */
+export interface StoredCover {
+  bytes: ArrayBuffer;
+  type: string;
+}
+
 export interface BookRecord extends BookMeta {
-  // null until the epub is downloaded from the server (lazy download)
-  file: Blob | null;
-  cover: Blob | null;
+  /**
+   * The epub itself. Null until it is downloaded from the server (lazy download).
+   *
+   * **Bytes rather than a `Blob`, while a font face stays a Blob** — ADR-0047 has the line
+   * between the two and why it falls there. In short: an ephemeral WebKit session cannot store
+   * a Blob, and a book is parsed into memory anyway, where a 19 MB face never is.
+   *
+   * No media type beside it, unlike `cover` below: an epub is always `application/epub+zip`.
+   */
+  file: ArrayBuffer | null;
+  cover: StoredCover | null;
   updatedAt: number;
   deletedAt: number | null;
   /**
@@ -16,7 +36,7 @@ export interface BookRecord extends BookMeta {
    * read as "still owed" rather than "there is none". It is the whole record that a download is
    * outstanding — `lib/sync.ts` has why one needs to outlive the round that learned of it.
    *
-   * Missing on a book this device imported (it holds the blob) and on rows written before the
+   * Missing on a book this device imported (it holds the bytes) and on rows written before the
    * field existed, which `db.ts`'s v4 fills in by pulling them once more.
    */
   hasCover?: boolean;
