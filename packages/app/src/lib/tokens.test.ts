@@ -71,7 +71,7 @@ const SET_ONLY_AT_RUNTIME = new Set([
   // `SelectionLayer` — how far past the text a bead is held off. It is the wash's lip on that
   // side, which differs by writing mode, and CSS cannot see which one is in force.
   "--handle-reach",
-  // Base UI publishes these while a finger is on a drawer or panel.
+  // Base UI publishes these while a finger is on a panel. The names are its own component's.
   "--drawer-swipe-movement-x",
   "--drawer-swipe-movement-y",
 ]);

@@ -38,8 +38,12 @@ export type Chrome = "down" | "up" | PanelKind;
  * Written off the list rather than as a third spelling of the union. The type, the toggle and
  * this question all have to name the same three panels, and two of them can already only be
  * wrong together.
+ *
+ * **It takes a bare string** so that `lib/route.ts` can ask it of a segment out of the address
+ * bar, where `about/` is a fourth answer this file knows nothing about. Passing a `Chrome`
+ * narrows exactly as it did.
  */
-export const isPanel = (chrome: Chrome): chrome is PanelKind =>
+export const isPanel = (chrome: string): chrome is PanelKind =>
   (PANEL_KINDS as readonly string[]).includes(chrome);
 
 export interface ChromeState {
@@ -123,6 +127,32 @@ export const initialChrome: ChromeState = {
   editing: null,
   selected: null,
 };
+
+/**
+ * The state a reader arriving on an address that already names a panel starts in (ADR-0046).
+ *
+ * **Computed before the first render rather than applied by an effect afterwards.** The address
+ * and this value mirror each other, and each writes to the other when they disagree — so a first
+ * frame in which the chrome is down while the address says [[Notes]] is a frame in which the mirror
+ * reads a disagreement and answers it by clearing the address the reader just typed.
+ *
+ * ⚠️ **The wash does not come back with it.** `selected` is defined as living until the reader
+ * leaves the page it is on, and a refresh is leaving; it is also the one thing here that names a
+ * passage rather than a panel, and the address already has two ways of doing that (`?at=`,
+ * `?select=`).
+ *
+ * A note id nobody can find is not caught here — whether the mark still exists is a question for
+ * the database, and `Reader.tsx` drops the editor and lets the mirror correct the address.
+ */
+export function chromeShowing(panel: PanelKind | null, noteId: string | null): ChromeState {
+  if (panel === null) return initialChrome;
+  return {
+    chrome: panel,
+    panelKind: panel,
+    editing: panel === "notes" ? noteId : null,
+    selected: null,
+  };
+}
 
 /**
  * Returns `state` itself when the event changes nothing, so React can skip the render. See the

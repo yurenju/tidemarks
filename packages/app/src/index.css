@@ -30,7 +30,7 @@
 @import "./styles/library.css";
 
 /* The reader's frame and its chrome: the box the book sits in, the three bars, the chapter
-   line and its rail, the busy indicator, and the shell a panel arrives in. */
+   line and its rail, the busy indicator, and the room a panel is drawn into. */
 @import "./styles/reader.css";
 
 /* The six typography settings, in both shells that show them — the reader's panel and the
@@ -42,9 +42,13 @@
    layer, the page-turn columns, the Scrubber, the highlight toolbar, and the notes list. */
 @import "./styles/book.css";
 
-/* The panels that come in over a screen rather than inside the reader: the drawers, and
-   [[Settings]]. */
-@import "./styles/drawers.css";
+/* The one shell all four panels wear, the primitives their contents are built from, and the
+   [[Settings]] floor that shares those primitives.
+
+   ⚠️ **This slot is the drawers' old one and must stay in it.** The shell's own reduced-motion
+   rules restate `transform` at the same specificity as the rules above them, so they win by
+   coming later; and `device.css` after it wins over the whole file the same way. */
+@import "./styles/surfaces.css";
 
 /* Last, and it has to be: the two questions about the device. What a coarse pointer makes
    bigger, then the three width breakpoints, narrow-first. Kept apart inside the file, because

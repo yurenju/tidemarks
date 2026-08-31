@@ -12,7 +12,13 @@
 // mid-switch, or that a passage was really filled in with ink: those are
 // packages/app/tests/browser/reader/chrome-placement.spec.ts and .../highlights.spec.ts.
 import { describe, expect, it } from "vitest";
-import { initialChrome, nextChrome, type ChromeEvent, type ChromeState } from "./chrome";
+import {
+  chromeShowing,
+  initialChrome,
+  nextChrome,
+  type ChromeEvent,
+  type ChromeState,
+} from "./chrome";
 
 /** A state to start a case from, spelled out only where the case is about it. */
 const at = (over: Partial<ChromeState> = {}): ChromeState => ({ ...initialChrome, ...over });
@@ -233,5 +239,51 @@ describe("an event that changes nothing returns the same object", () => {
   it("does when a panel dismisses itself with no panel showing", () => {
     const state = at({ chrome: "up" });
     expect(nextChrome(state, { kind: "panelDismissed" })).toBe(state);
+  });
+});
+
+/**
+ * Coming back to an address that already names a panel: a refresh, a pasted link, a tab reopened
+ * (ADR-0046).
+ *
+ * Computed before the first render rather than applied by an effect afterwards, because the
+ * address and this value mirror each other — a first frame in which the chrome is down while the
+ * address says [[Notes]] is a frame in which the mirror reads a disagreement and answers it by
+ * clearing the address the reader just typed.
+ */
+describe("the chrome an address already naming a panel comes back to", () => {
+  it("stands the panel the address names", () => {
+    expect(chromeShowing("layout", null)).toEqual({
+      chrome: "layout",
+      panelKind: "layout",
+      editing: null,
+      selected: null,
+    });
+  });
+
+  it("opens the note the address names, inside the panel that holds it", () => {
+    expect(chromeShowing("notes", "n1")).toEqual({
+      chrome: "notes",
+      panelKind: "notes",
+      editing: "n1",
+      selected: null,
+    });
+  });
+
+  // A note id can only mean anything to the notes panel, and the address cannot spell one
+  // anywhere else — but nothing downstream should have to know that.
+  it("ignores a note id given with any other panel", () => {
+    expect(chromeShowing("toc", "n1").editing).toBeNull();
+  });
+
+  // ⚠️ The wash does not come back. It is defined as living until the reader leaves the page it
+  // is on, and a refresh is leaving; it also names a passage rather than a panel, and the
+  // address already has two ways of naming one (`?at=`, `?select=`).
+  it("comes back with no passage washed", () => {
+    expect(chromeShowing("notes", "n1").selected).toBeNull();
+  });
+
+  it("is the plain opening state when the address names no panel", () => {
+    expect(chromeShowing(null, null)).toBe(initialChrome);
   });
 });

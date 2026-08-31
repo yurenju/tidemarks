@@ -58,9 +58,9 @@
     font-size: var(--type-ui);
   }
 
-  /* A row in a drawer is a target as much as it is a line of text. */
-  .drawer-section label,
-  .drawer-list li {
+  /* A row in a panel is a target as much as it is a line of text. */
+  .panel-section label,
+  .panel-rows li {
     min-height: 48px;
   }
 }
@@ -149,13 +149,14 @@
     transform: translateY(max(0px, var(--drawer-swipe-movement-y, 0px)));
   }
 
-  /* [[Layout]] alone keeps the sheet, and the book above it.
+  /* The one face that needs the page behind it keeps the sheet, and the book above it.
 
-     ⚠️ **`data-panel-kind`, not `data-panel`.** The open/closed attribute goes the instant the
-     chrome closes, and Base UI keeps the popup mounted for the 180ms it takes to leave — so a
-     rule hung on it would drop this sheet back to full screen for the whole of its own exit.
-     `data-panel-kind` is written whether or not a panel is standing (`Reader.tsx`). */
-  .reader[data-panel-kind="layout"] .panel-popup {
+     ⚠️ **`data-needs` is on the popup itself, not on an ancestor.** An attribute on the reader
+     that said which panel is standing would go the instant the chrome closed, and Base UI keeps
+     the popup mounted for the 180ms it takes to leave — so this sheet would snap back to full
+     screen for the whole of its own exit. The shell writes `data-needs` on the element for as
+     long as it is mounted (`Panel.tsx`). */
+  .panel-popup[data-needs="page"] {
     top: auto;
     left: 0;
     right: 0;
@@ -196,14 +197,14 @@
   /* Both arrangements come up from the bottom edge and leave the same way.
 
      ⚠️ **The selector is weighted to win, and it has to be.** `transform` is set twice above —
-     once on `.panel-popup` (0,1,0) for the full-screen pair, and once on the [[Layout]] rule, which
-     is (0,3,0). A bare `.panel-popup[data-starting-style]` is (0,2,0), so it lost to [[Layout]] and
-     took that sheet's entrance and exit away entirely: it appeared and vanished on the spot
-     while the other two still slid. Nothing measured it, because every spec polls for the panel
-     to come to rest before it reads anything. (0,4,0) here beats both outright rather than
-     tying with one of them and living off source order. */
-  .reader[data-panel-kind] .panel-popup[data-starting-style],
-  .reader[data-panel-kind] .panel-popup[data-ending-style] {
+     once on `.panel-popup` (0,1,0) for the three that cover the screen, and once on the sheet's
+     own rule, which is (0,2,0). A bare `.panel-popup[data-starting-style]` ties with the second
+     and lives off source order; naming `[data-needs]` as well makes it (0,3,0) and beats both
+     outright. Getting this wrong last time took the sheet's entrance and exit away entirely —
+     it appeared and vanished on the spot while the other three still slid, and nothing measured
+     it, because every spec polls for the panel to come to rest before it reads anything. */
+  .panel-popup[data-needs][data-starting-style],
+  .panel-popup[data-needs][data-ending-style] {
     transform: translateY(100%);
   }
 }

@@ -621,7 +621,7 @@ button.ghost.book-more::after {
   color: var(--text-muted);
 }
 
-/* The confirmation before a deletion — Tidemarks' words, not the browser's (`AboutDrawer`). */
+/* The confirmation before a deletion — Tidemarks' words, not the browser's (`AboutBook`). */
 .alert-popup {
   position: fixed;
   top: 50%;

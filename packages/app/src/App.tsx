@@ -1,21 +1,30 @@
-import { useEffect, useState } from "react";
-import AboutDrawer from "./components/AboutDrawer";
+import { useEffect, useRef, useState } from "react";
+import AboutBook from "./components/AboutBook";
 import Library from "./components/Library";
 import Reader from "./components/Reader";
 import SettingsScreen from "./components/SettingsScreen";
 import { authorizeReturnTarget } from "./lib/authorize-return";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type ReaderSettings } from "./lib/settings";
 import {
+  barPanel,
   hashFor,
   movedTo,
   openBookId,
+  panelDepth,
   parseHash,
+  samePanel,
   type At,
-  type Drawer,
+  type Panel,
   type Route,
   type Screen,
   type SettingsTab,
 } from "./lib/route";
+import {
+  BOOK_KEEPS_A_COLUMN,
+  panelCoversEverything,
+  PANEL_NEEDS,
+  useMediaQuery,
+} from "./lib/media";
 import { registerUiFonts } from "./lib/ui-font";
 import { activateLocale, i18n } from "./lib/i18n";
 import { saveLocale, type Locale } from "./lib/locale";
@@ -23,8 +32,28 @@ import { createSyncGate } from "./lib/sync-gate";
 import { beaconPositions, syncNow } from "./lib/sync";
 import { forgetStaleFonts } from "./lib/web-font-store";
 
+/**
+ * What `showPanel` writes onto a history entry it pushed.
+ *
+ * `panel` says the entry is ours to take back — a reader who pasted the address into a new tab
+ * has none, and there is nothing behind it to step to. `behind` is the panel that was standing
+ * when it was pushed, which is how far back "close this" reaches: storeys and entries are not
+ * the same count, and closing a note clears two storeys that may be one entry or two.
+ */
+interface PanelEntry {
+  panel: true;
+  behind: Panel | null;
+}
+
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
+  /**
+   * The screen to put back on the address once a step back this app asked for has landed.
+   *
+   * `null` at every other moment, including while the *reader's* own back button is travelling:
+   * that one is theirs and rewinds everything, which is what they asked for.
+   */
+  const keepScreenAcrossBack = useRef<Screen | null>(null);
   const bookId = openBookId(route);
   /**
    * The six, once, for every book on this device.
@@ -95,14 +124,22 @@ export default function App() {
     if (meta && surface) meta.setAttribute("content", surface);
   }, [resolvedTheme, chromeUp]);
 
-  // A drawer standing over the shelf locks the shelf, so a flick meant for the drawer does not
-  // scroll the covers behind it. On the root element rather than on `<body>`: the root is the
-  // scrolling box, and it is the one `scrollbar-gutter` holds a lane open on — which is what
-  // keeps the page from jumping sideways as this goes on and off. The drawer keeps its own
+  // A panel covering the whole screen locks what is under it, so a flick meant for the panel
+  // does not scroll the covers behind it. On the root element rather than on `<body>`: the root
+  // is the scrolling box, and it is the one `scrollbar-gutter` holds a lane open on — which is
+  // what keeps the page from jumping sideways as this goes on and off. The panel keeps its own
   // scrollbar; only what is underneath stops moving.
+  //
+  // **The same condition that decides whether the panel traps the focus** (`lib/media.ts`), and
+  // asked here rather than inside the panel because this attribute needs one writer: two shells
+  // change state in the same frame when [[About]] rises over a standing [[Contents]], and which of
+  // their effects ran last would decide whether the page was left locked.
+  const besideTheBook = useMediaQuery(BOOK_KEEPS_A_COLUMN);
+  const panelCovers =
+    route.panel !== null && panelCoversEverything(PANEL_NEEDS[route.panel.kind], besideTheBook);
   useEffect(() => {
-    document.documentElement.dataset.drawer = route.drawer ? "open" : "";
-  }, [route.drawer]);
+    document.documentElement.dataset.panel = panelCovers ? "covering" : "";
+  }, [panelCovers]);
 
   // Once, at startup, and deliberately not when a download finishes — `lib/ui-font.ts` has
   // why. Nothing waits on it: the chrome is already drawn in the platform's serif, and this
@@ -162,8 +199,47 @@ export default function App() {
   }, []);
 
   // Hash is the source of truth so refresh and back/forward return to the same screen.
+  //
+  // **This is the whole of what the back button does to a panel**, and it stops here: what
+  // arrives is a new address, and the reader turns it into a `panelDismissed` for the state
+  // machine that owns the chrome. Nothing in this file reaches into that machine, and nothing
+  // needed a `backPressed` event of its own — a panel going away is a panel going away, however
+  // the reader asked for it (ADR-0046).
+  //
+  // **The one thing that does not come back with it is the reader's place in the book**, when
+  // the step back was this app's own (`showPanel`). Closing a panel takes back the storey it
+  // stood on and nothing else, and the entry underneath predates whatever `replaceAt` wrote
+  // while it was open — which on a hand-held is the passage the reader is looking at right now,
+  // put there by pressing a quote in [[Notes]] (that press closes the panel at that width, so the
+  // two arrive together). Left alone, the address would forget the page it had just named.
+  //
+  // ⚠️ **Only for an address that came back to the same book**, and that guard is the whole of
+  // what keeps this from being a trap. Stepping back is asynchronous, so the next `hashchange`
+  // is not guaranteed to be the one it caused: anything that moves the address in the same
+  // frame — a link, a `goto` in a script — arrives first and would be handed the book's own
+  // address, putting the reader back in the book they had just left. Measured, in the screen
+  // sweep, which presses Escape and navigates to [[Settings]] in the same tick.
   useEffect(() => {
-    const onHashChange = () => setRoute(parseHash(window.location.hash));
+    const onHashChange = () => {
+      const arrived = parseHash(window.location.hash);
+      const keep = keepScreenAcrossBack.current;
+      keepScreenAcrossBack.current = null;
+      const sameBook =
+        keep?.kind === "book" &&
+        arrived.screen.kind === "book" &&
+        keep.bookId === arrived.screen.bookId;
+      if (keep === null || !sameBook) {
+        setRoute(arrived);
+        return;
+      }
+      const kept: Route = { screen: keep, panel: arrived.panel };
+      // Compared as addresses rather than as objects: the entry stepped back to usually already
+      // says this, and rewriting it then would be a write that changes nothing.
+      if (hashFor(kept) !== hashFor(arrived)) {
+        window.history.replaceState(window.history.state, "", hashFor(kept));
+      }
+      setRoute(kept);
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -175,7 +251,7 @@ export default function App() {
     if (!authorizeReturnTarget(window.location.search)) return;
     const here = parseHash(window.location.hash);
     if (here.screen.kind === "settings") return;
-    go({ screen: { kind: "settings", tab: "account" }, drawer: null });
+    go({ screen: { kind: "settings", tab: "account" }, panel: null });
   }, []);
 
   // **The state moves with the hash, rather than waiting for `hashchange` to come back round.**
@@ -202,24 +278,124 @@ export default function App() {
    *
    * What the new screen is — and what it stops carrying — is `movedTo`'s, in `lib/route.ts`
    * beside the parsing it has to agree with.
+   *
+   * ⚠️ **The entry's own state is carried over, not cleared.** `showPanel` below marks the
+   * entries it pushes, and that mark is how closing a panel knows to pop the entry rather than
+   * write over it. This runs while a panel may be standing — pressing a quote in [[Notes]] moves
+   * the address and, beside the book, leaves the panel up — so a `null` here would strip the
+   * mark off an entry that is very much ours, and the ✕ after it would leave a dead history
+   * entry behind: the reader's next press of back does nothing, and it takes two to leave the
+   * book.
    */
   function replaceAt(at: At) {
     if (route.screen.kind !== "book") return;
     const next: Route = { ...route, screen: movedTo(route.screen, at) };
-    window.history.replaceState(null, "", hashFor(next));
+    window.history.replaceState(window.history.state, "", hashFor(next));
     setRoute(next);
   }
 
   function goTo(screen: Screen) {
-    go({ screen, drawer: null });
+    go({ screen, panel: null });
   }
 
-  function openDrawer(drawer: Drawer) {
-    go({ ...route, drawer });
-  }
+  /**
+   * A panel opening, closing, or being swapped for another — and **the only place that decides
+   * what a panel does to the history stack** (ADR-0046).
+   *
+   * The two functions above write the address too, and neither is about a panel: `go` moves
+   * between screens and `replaceAt` re-points the one the reader is on. What must not exist
+   * anywhere else is a second answer to *how deep the reader now is*, which is the question
+   * below.
+   *
+   * The rule is one sentence: *pressing the browser's back button steps out one storey.* So the
+   * only thing asked here is which way the storey count went, never which of the eleven chrome
+   * events moved it — [[Contents]] closing because the reader turned a page and because they pressed
+   * the ✕ are the same descent, and a rule per event would be eight rules in eight files, which
+   * is the trap `lib/chrome.ts` was written to get out of once already.
+   *
+   * | storeys | address | when |
+   * | --- | --- | --- |
+   * | deeper | push **one** entry, however many storeys were climbed | raising a panel (0→1), opening a note in it (1→2), pressing a mark in the book (0→2) |
+   * | level | `replaceState` | [[Contents]] swapped for [[Notes]]: another face on the same storey, not a second one |
+   * | shallower | step back to the entry that holds it | ✕, ←, a swipe, Escape, and the page turns and jumps that put a panel away |
+   *
+   * **Descending is a step back rather than a write, because JavaScript cannot delete a history
+   * entry.** Writing over it (`replaceState`) leaves an entry identical to the one before it, so
+   * the reader's first press of back appears to do nothing and it takes two to leave the book;
+   * pushing instead means the forward button fetches the panel back. Only going back takes back
+   * the entry that was pushed.
+   *
+   * ⚠️ **How far back is not "one storey down", and that is why each entry remembers what stood
+   * behind it.** Storeys and entries are not the same count: climbing 0→1→2 pushes two entries
+   * while climbing 0→2 in one move pushes one, and a single ✕ on an open note clears both
+   * storeys at once. Popping one entry there lands on the notes list, which the address→chrome
+   * mirror then reads and puts straight back on screen — the reader presses the ✕ twice.
+   * `behind` is the panel the entry was pushed over, so the step can be aimed at the entry that
+   * actually holds what is wanted rather than counted off the storeys.
+   *
+   * Three ways it can land, and all three are reachable:
+   * - the entry behind is exactly what is wanted → back one;
+   * - it is a panel that is itself over the bare screen, and the bare screen is what is wanted →
+   *   back two ([[Notes]] → a note → ✕);
+   * - it is not what is wanted at all → write over this entry instead. That is [[Contents]] pressed
+   *   while a note is open: there is no entry anywhere holding [[Contents]], so stepping back
+   *   could only land on something else.
+   *
+   * ⚠️ **Unless this app did not push it.** A reader who pastes `?d=notes/…` straight into a new
+   * tab lands with that panel already up on the tab's *first* entry: going back there has
+   * nothing to pop, so the address never changes, no `hashchange` arrives, the state machine is
+   * never told, and the panel sits on screen through every press of ←. The marker on the entry
+   * (`{ panel: true }`) is what tells the two apart, and writing over a first entry leaves no
+   * dead history behind because there is no duplicate in front of it.
+   *
+   * ⚠️ **Going back is asynchronous.** The panel goes when the browser announces the new
+   * address, about a frame later than it used to. That is the price of "closing is stepping
+   * back", and it is paid on purpose.
+   */
+  function showPanel(panel: Panel | null) {
+    if (samePanel(panel, route.panel)) return;
+    const next: Route = { ...route, panel };
+    const here = panelDepth(route.panel);
+    const there = panelDepth(panel);
+    const entry = window.history.state as PanelEntry | null;
 
-  function closeDrawer() {
-    go({ ...route, drawer: null });
+    if (there > here) {
+      window.history.pushState(
+        { panel: true, behind: route.panel } satisfies PanelEntry,
+        "",
+        hashFor(next),
+      );
+      setRoute(next);
+      return;
+    }
+    if (there === here) {
+      // The marker is carried over rather than dropped: this is the same entry, still ours.
+      window.history.replaceState(entry, "", hashFor(next));
+      setRoute(next);
+      return;
+    }
+    if (entry?.panel === true) {
+      const behind = entry.behind ?? null;
+      // Stepping back rewinds the whole address, and the screen underneath is not this
+      // function's to rewind: `replaceAt` may have written the passage the reader is looking at
+      // onto this very entry. Held here and put back when the new address arrives.
+      keepScreenAcrossBack.current = route.screen;
+      // `hashchange` brings the new address back round and everything else follows from it.
+      if (samePanel(panel, behind)) {
+        window.history.back();
+        return;
+      }
+      // The bare screen, two entries down. A panel standing behind a panel was itself pushed
+      // over the screen — same-storey moves write over rather than push, so there is never a
+      // third one to count past.
+      if (panel === null && behind !== null) {
+        window.history.go(-2);
+        return;
+      }
+      keepScreenAcrossBack.current = null;
+    }
+    window.history.replaceState(entry, "", hashFor(next));
+    setRoute(next);
   }
 
   /** Every adjustment lands here, from either shell, and reaches every book. */
@@ -264,9 +440,14 @@ export default function App() {
           openAt={openAtFor(route.screen)}
           select={route.screen.kind === "book" ? route.screen.select : undefined}
           handles={route.screen.kind === "book" ? route.screen.handles : undefined}
+          // What `?d=` says about the reader's own three faces, and where a change to them goes.
+          // [[About]] reads as `null` here on purpose: one `?d=` holds one panel, so [[About]] standing
+          // *is* the chrome having none of the three up (`lib/route.ts`'s `barPanel`).
+          panel={barPanel(route.panel)}
+          onPanel={showPanel}
           onAt={replaceAt}
           onClose={() => goTo({ kind: "shelf" })}
-          onOpenAbout={() => openDrawer({ kind: "about", bookId })}
+          onOpenAbout={() => showPanel({ kind: "about", bookId })}
           settings={settings}
           onSettingChange={changeSetting}
           onResetSettings={resetSettings}
@@ -287,17 +468,19 @@ export default function App() {
             })
           }
           onOpenSettings={() => goTo({ kind: "settings", tab: "typography" })}
-          onOpenAbout={(id) => openDrawer({ kind: "about", bookId: id })}
+          onOpenAbout={(id) => showPanel({ kind: "about", bookId: id })}
         />
       )}
 
-      {/* The one drawer left, out here because that is what a drawer is: it stacks on whichever
-          floor is underneath (`#/book/abc?d=about/abc` and `#/?d=about/abc` are the same one). */}
-      <AboutDrawer
-        bookId={route.drawer?.kind === "about" ? route.drawer.bookId : null}
-        onClose={closeDrawer}
+      {/* Out here rather than inside either screen, because it stacks on whichever floor is
+          underneath (`#/book/abc?d=about/abc` and `#/?d=about/abc` are the same panel). The
+          reader's other three are rendered by the reader, since there is no reader's box to
+          stand in without one. */}
+      <AboutBook
+        bookId={route.panel?.kind === "about" ? route.panel.bookId : null}
+        onClose={() => showPanel(null)}
         onDeleted={(deleted) => {
-          // The drawer shuts either way, since it is about a book that is no longer there. The
+          // The panel shuts either way, since it is about a book that is no longer there. The
           // floor underneath only moves if it was that same book.
           goTo(bookId === deleted ? { kind: "shelf" } : route.screen);
           setReloadToken((n) => n + 1);

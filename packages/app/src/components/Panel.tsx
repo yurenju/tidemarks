@@ -2,7 +2,12 @@ import { useLingui } from "@lingui/react/macro";
 import type { SegmentLabel } from "./Segmented";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactNode } from "react";
-import { BOOK_KEEPS_A_COLUMN, useMediaQuery } from "../lib/media";
+import {
+  BOOK_KEEPS_A_COLUMN,
+  panelCoversEverything,
+  useMediaQuery,
+  type PanelNeeds,
+} from "../lib/media";
 
 /**
  * Whether the thing that dismissed this panel was one of the three entries that raise it.
@@ -17,6 +22,12 @@ import { BOOK_KEEPS_A_COLUMN, useMediaQuery } from "../lib/media";
  * The bar is found by its `data-testid` because that is the one name the entries already answer
  * to in both arrangements — top bar on a desk, a row above the Scrubber on a hand-held — and a
  * class would be a second name for the same box.
+ *
+ * ⚠️ **The ⋯ that opens [[About]] is in that same bar**, so the caller below asks this only of the
+ * faces it was written for. Trapping the focus marks the rest of the screen `aria-hidden`, which
+ * does not stop a press — the bar under [[About]] is still pressable — so without that guard a
+ * reader pressing ⋯ while [[About]] stood would have the press swallowed here and nothing would
+ * happen. There are three doors and one room; the fourth door is not one of them.
  */
 const fromEntries = (event: Event): boolean => {
   const related = "relatedTarget" in event ? (event as FocusEvent).relatedTarget : null;
@@ -26,31 +37,31 @@ const fromEntries = (event: Event): boolean => {
 };
 
 /**
- * [[Contents]], [[Notes]] and [[Layout]] — one shell, two anchors. Under 820px it comes up from the bottom edge;
- * wider, it is a column down the right side, because a full-width sheet rising from the bottom
- * of a 1400px window is a phone's answer given to a desk.
+ * One shell for all four faces — [[Contents]], [[Notes]], [[Layout]] and [[About]] (ADR-0046).
  *
- * **Wide, it takes its room from the book; narrow, it takes it from the bars.** Both used to
- * cover the book and stop short of the Scrubber, and both halves of that gave way for the same
- * reason: [[Layout]] applies as it is dragged, so whatever the panel covers is the thing the reader
- * opened it to look at (ADR-0005). A column beside the book repaginates it — that is the price,
- * and [[Contents]] and [[Notes]] are the ones paying it. Narrow there is no column to give, so the entries and
- * the Scrubber leave instead, and [[Contents]] and [[Notes]] go on to take the whole screen: what a
- * sheet would leave above itself there is not a book anyone can read
- * (ADR-0044).
+ * There used to be two of these, `Panel` and `Drawer`, with identical props and the same Base UI
+ * tree inside them, differing in four lines. The four lines were four consequences of one
+ * question — **what does this face need to be able to see behind it?** — so the question became
+ * `needs` and the copy went away. What that bought is not tidiness: it is that the hash and the
+ * back button, added in the same change, were written once instead of twice.
  *
- * Which anchor is which is settled in CSS, so the layout never waits on JavaScript. What is
- * decided here is behaviour with no layout to get wrong: the direction a finger dismisses it,
- * and whether it holds the focus. This replaced a component called `BottomSheet` whose comment
- * promised the desktop would keep getting the phone's sheet because "two layouts is two sets of
- * bugs" — still true, which is why this is one component with one close path and two anchors,
- * not two components.
+ * **Which edge it is anchored to is settled in CSS, so the layout never waits on JavaScript**
+ * (`lib/media.ts`). What is decided here is behaviour with no layout to get wrong: the direction
+ * a finger dismisses it, whether it holds the focus, and whether the way out is a ✕ or a ←.
+ *
+ * ⚠️ **`modal` is not the caller's to set**, which is why it is derived rather than passed.
+ * `modal={true}` renders a `position: fixed; inset: 0` interception element and, on desktop,
+ * writes `height: 100dvh; overflow: hidden` onto `<body>` — both of which fight the page-turn
+ * gesture and frond's `pointerup` in the book underneath. It would not fail to compile; it would
+ * fail on a phone, as page turns that stopped working. `'trap-focus'` is the half that is wanted
+ * and the half this asks for.
  */
 export default function Panel({
   open,
   onClose,
   title,
   testId,
+  needs,
   container,
   children,
 }: {
@@ -59,19 +70,27 @@ export default function Panel({
   title: SegmentLabel;
   /** `data-testid` for the popup, so tests stop naming the layout. */
   testId: string;
+  /** What has to stay visible behind this face. The one thing the four differ by — see
+   *  `PanelNeeds` in `lib/media.ts` for what each answer costs. */
+  needs: PanelNeeds;
   /**
-   * The reader's own box.
+   * The reader's own box, for the faces drawn inside it.
    *
-   * Rendering into it rather than into `<body>` is what keeps this panel's edges honest: they
+   * Rendering into it rather than into `<body>` is what keeps those panels' edges honest: they
    * are the box's, not constants that have to be kept in step with the height of two bars. The
    * first version of this used constants and they were wrong by nine pixels the first time
    * anyone measured them.
+   *
+   * **Absent for a face that needs nothing behind it**, which is both why it is optional and
+   * what makes [[About]] work on the shelf: there is no reader's box there to render into, and on
+   * a desk that face is meant to cover the whole window rather than stop at the reader's edges.
    */
-  container: React.RefObject<HTMLDivElement | null>;
+  container?: React.RefObject<HTMLDivElement | null>;
   children: ReactNode;
 }) {
   const { t, i18n } = useLingui();
   const besideTheBook = useMediaQuery(BOOK_KEEPS_A_COLUMN);
+  const coversEverything = panelCoversEverything(needs, besideTheBook);
   return (
     <BaseDrawer.Root
       open={open}
@@ -86,46 +105,59 @@ export default function Panel({
         // guarding the toggle, because the entries are what this panel *is* — three doors and one
         // room — and a guard on the toggle would be a second place that has to know that.
         const dismissal = details.reason === "outside-press" || details.reason === "focus-out";
-        if (dismissal && fromEntries(details.event)) return;
+        if (needs !== "nothing" && dismissal && fromEntries(details.event)) return;
         onClose();
       }}
-      /* Never `modal={true}` in the reader. That renders a `position: fixed; inset: 0`
-         interception element and, on desktop, writes `height: 100dvh; overflow: hidden` onto
-         `<body>` — and both of those fight the page-turn gesture and frond's `pointerup` in the
-         book underneath. It would not fail to compile; it would fail on a phone, as page turns
-         that stopped working.
+      /* Trapping keeps the keyboard inside the panel and marks the rest of the screen
+         `aria-hidden` — so it is exactly wrong for a panel that leaves something live behind it.
+         Beside the book, everything outside the panel includes the bar it came from: the
+         Scrubber and the other two entries would go quiet to a screen reader while still
+         standing there in plain sight, which is the opposite of what "the panel stops short of
+         the Scrubber" was for. Under [[Layout]]'s sheet it is the page itself, and the reader is
+         looking straight at it — announcing it away at the one moment it is the subject
+         (ADR-0005).
 
-         **And not `'trap-focus'` either, which the drawers on the shelf do use.** Trapping the
-         focus means marking everything outside the panel `inert`, and everything outside this
-         one includes the bar it came from — the Scrubber goes dead and the other two buttons
-         stop answering, which is the opposite of what "stops short of the Scrubber" was for.
-
-         ⚠️ **Under 820px [[Contents]] and [[Notes]] now cover the whole screen, and a thing that covers
-         the whole screen ought to trap.** It is not done here, and not by oversight: `inert`
-         stops presses as well as focus, and [[Layout]] is a sheet at that width with a live page
-         above it that a press is meant to reach (`.panel-backdrop` takes it to dismiss the
-         sheet). So trapping has to be per face, and it belongs with the rest of what makes these
-         two drawers rather than panels — the hash and the back button, in #148. */
-      modal={false}
+         Covering everything, none of that is true and the trap is what the arrangement asks for:
+         a full-screen surface with a live tab order behind it is a keyboard walking into
+         furniture nobody can see. */
+      modal={coversEverything ? "trap-focus" : false}
       swipeDirection={besideTheBook ? "right" : "down"}
     >
+      {/* No `container` means `<body>`, which is what a face needing nothing behind it wants —
+          and the only thing available on the shelf. */}
       <BaseDrawer.Portal container={container}>
-        <BaseDrawer.Backdrop className="panel-backdrop" />
-        <BaseDrawer.Viewport className="panel-viewport">
-          <BaseDrawer.Popup className="panel-popup" data-testid={testId}>
+        {/* `data-needs` rides on all three parts rather than on an ancestor, and that is
+            deliberate: the popup is portalled, so on the shelf it has no `.reader` above it to
+            hang a rule on — and an attribute on the element itself survives the 180ms exit,
+            which an open/closed flag on an ancestor does not (`styles/device.css`). */}
+        <BaseDrawer.Backdrop className="panel-backdrop" data-needs={needs} />
+        <BaseDrawer.Viewport className="panel-viewport" data-needs={needs}>
+          <BaseDrawer.Popup className="panel-popup" data-needs={needs} data-testid={testId}>
             <header className="panel-header">
               <BaseDrawer.Title className="panel-title">
                 {typeof title === "string" ? title : i18n._(title)}
               </BaseDrawer.Title>
+              {/* **Two entries, not one with a `context`.** ✕ and ← are different claims about
+                  what is behind the panel — one shuts a thing standing beside the screen, the
+                  other steps back out of a screen — and a translator given one string cannot
+                  tell which they are naming. */}
               <BaseDrawer.Close
                 className="ghost panel-close"
-                aria-label={t({
-                  message: "Close",
-                  comment:
-                    "Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.",
-                })}
+                aria-label={
+                  besideTheBook
+                    ? t({
+                        message: "Close",
+                        comment:
+                          "Screen-reader name for the ✕ in the corner of a panel standing beside the screen the reader was on, which is the arrangement on a desk. A verb: it is the action, not a label for the thing being shut.",
+                      })
+                    : t({
+                        message: "Back",
+                        comment:
+                          "Screen-reader name for the ← in the corner of a panel covering the screen the reader was on, which is the arrangement on a hand-held. It dismisses the panel and returns them to what was underneath — the same thing Android's own back button does here.",
+                      })
+                }
               >
-                ✕
+                {besideTheBook ? "✕" : "←"}
               </BaseDrawer.Close>
             </header>
             <div className="panel-body">{children}</div>

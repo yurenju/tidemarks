@@ -49,9 +49,9 @@
   box-sizing: border-box;
 }
 
-/* One scrollbar for the page and a permanent gutter for it. Without the gutter, opening a
-   drawer (which locks the page) takes the scrollbar away and the whole shelf jumps sideways by
-   its width — a layout shift the reader reads as the interface flinching.
+/* One scrollbar for the page and a permanent gutter for it. Without the gutter, opening a panel
+   that covers the whole screen (which locks the page) takes the scrollbar away and the whole
+   shelf jumps sideways by its width — a layout shift the reader reads as the interface flinching.
 
    **Only where something scrolls**, which is the shelf and the settings screen. The reader is a
    fixed box with the book paginated inside it (`styles/reader.css`) and never scrolls at all,
@@ -70,8 +70,12 @@ html:has(.reader) {
   scrollbar-gutter: auto;
 }
 
-/* Set by `App.tsx` while a drawer is up. */
-html[data-drawer="open"] {
+/* Set by `App.tsx` while a panel is covering the whole screen — which is a question about the
+   face *and* the window, so it cannot be a media query here (`lib/media.ts`'s
+   `panelCoversEverything`). It is the same condition that decides whether the panel traps the
+   focus, and deliberately so: a surface with the reader's whole attention should not have a page
+   still scrolling behind it. A panel standing beside the screen locks nothing. */
+html[data-panel="covering"] {
   overflow: hidden;
 }
 
@@ -484,7 +488,7 @@ html[data-drawer="open"] {
 body {
   margin: 0;
   /* Not cosmetic: iOS 26+ Safari resolves a `position: absolute` backdrop against the nearest
-     positioned ancestor, and without this one a drawer's backdrop stops short of the visual
+     positioned ancestor, and without this one a panel's backdrop stops short of the visual
      viewport — a strip of live shelf along the bottom edge of a panel that is meant to be over
      everything. */
   position: relative;

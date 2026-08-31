@@ -1,8 +1,8 @@
 // The address bar, as the app reads and writes it.
 //
 // Two questions, two places to answer them: the path says which screen the reader is standing
-// on, and a `?d=` query segment says which drawer is stacked on top. A drawer stacks on whatever
-// is there, so putting it in a trailing path segment would give every drawer one route per
+// on, and a `?d=` query segment says which panel is stacked on top. A panel stacks on whatever
+// is there, so putting it in a trailing path segment would give every panel one route per
 // underlying screen, and adding a screen would mean another round of them.
 //
 // A book screen answers a third: `?at=` says where in the book to open. It is a query rather
@@ -11,13 +11,17 @@
 // back: a hash the app writes is a hash the browser announces back to it, and every turn would
 // also be a history entry, so the back button would walk pages instead of leaving the book.
 //
-// [[Settings]] is in the path rather than in `d=` because it stopped being a drawer: it says nothing
+// [[Settings]] is in the path rather than in `d=` because it stopped being a panel: it says nothing
 // about the screen the reader came from, which is the whole test for a floor (CONTEXT.md,
 // [[Surfaces]]). Its tab is part of that path, so each tab has an address of its own.
 
+// The three faces the reader's bar raises are named once, in the state machine that owns them
+// (`lib/chrome.ts`). Spelling them again here would be a second list to keep in step, and the
+// address and the machine have to agree on those three names exactly.
+import { isPanel, type PanelKind } from "./chrome";
+
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";
-const ABOUT_PREFIX = "about/";
 /** What a CFI opens with, and therefore how `?select=` tells one from a phrase. */
 const CFI_PREFIX = "epubcfi(";
 
@@ -93,17 +97,58 @@ export type Screen =
   | { kind: "settings"; tab: SettingsTab };
 
 /**
- * A drawer: the sort of screen that stacks on the current one rather than replacing it.
+ * A panel: the sort of surface that stacks on the current screen rather than replacing it.
  *
- * The details drawer carries its own book id even when the screen underneath is that same book
+ * All four of them are here, and that is the point of this type. Three of them used to be a
+ * piece of `lib/chrome.ts` and nothing else, so a refresh lost them and Android's back button
+ * closed the app instead of the panel that was covering it — while the fourth, opened from the
+ * same bar, answered the back button correctly. One slot, one answer (ADR-0046).
+ *
+ * **One at a time**, because `?d=` holds one value. Raising [[About]] over a standing [[Contents]]
+ * therefore closes it, rather than the two sharing a screen the address cannot describe.
+ *
+ * `noteId` is the one second storey: the reader walks into a note in two steps — open [[Notes]],
+ * press one — so they walk out in two as well. The other three have nothing inside them to open.
+ *
+ * Every one carries its own book id even when the screen underneath is that same book
  * (`#/book/abc?d=about/abc`). Those few redundant characters buy the rule that reading the hash
  * never means looking at what is below it.
  */
-export type Drawer = { kind: "about"; bookId: string };
+export type Panel =
+  | { kind: "toc"; bookId: string }
+  | { kind: "notes"; bookId: string; noteId?: string }
+  | { kind: "layout"; bookId: string }
+  | { kind: "about"; bookId: string };
+
+/**
+ * How deep in the reader's own stack a route stands: the screen alone, a panel over it, or a
+ * note open inside that panel.
+ *
+ * **The whole of what decides how the address is written** — deeper pushes an entry, level
+ * replaces one, shallower goes back — so that eleven chrome events do not become eleven history
+ * rules. `App.tsx` is the one caller.
+ */
+export function panelDepth(panel: Panel | null): 0 | 1 | 2 {
+  if (panel === null) return 0;
+  return panel.kind === "notes" && panel.noteId !== undefined ? 2 : 1;
+}
+
+/**
+ * Whether two panels are the same panel, by value.
+ *
+ * **The guard on the mirror.** The chrome is the truth and the address is its reflection
+ * (ADR-0046), so each side writes to the other when they disagree — and a comparison by identity
+ * would call every parse of the same hash a disagreement, which is a loop rather than a mirror.
+ */
+export function samePanel(a: Panel | null, b: Panel | null): boolean {
+  if (a === null || b === null) return a === b;
+  const noteOf = (panel: Panel) => (panel.kind === "notes" ? panel.noteId : undefined);
+  return a.kind === b.kind && a.bookId === b.bookId && noteOf(a) === noteOf(b);
+}
 
 export interface Route {
   screen: Screen;
-  drawer: Drawer | null;
+  panel: Panel | null;
 }
 
 export function parseHash(hash: string): Route {
@@ -111,13 +156,13 @@ export function parseHash(hash: string): Route {
   const path = cut === -1 ? hash : hash.slice(0, cut);
   const query = cut === -1 ? "" : hash.slice(cut + 1);
   const params = new URLSearchParams(query);
-  return { screen: screenFrom(path, params), drawer: drawerFrom(params) };
+  return { screen: screenFrom(path, params), panel: panelFrom(query) };
 }
 
 export function hashFor(route: Route): string {
   const path = pathFor(route.screen);
   const query: string[] = [];
-  if (route.drawer) query.push(`d=${drawerSegment(route.drawer)}`);
+  if (route.panel) query.push(`d=${panelSegment(route.panel)}`);
   const book = route.screen.kind === "book" ? route.screen : undefined;
   if (book?.at) query.push(`at=${encodeURIComponent(atSegment(book.at))}`);
   // `handles` only where there is something to select, matching what `parseHash` reads back:
@@ -153,14 +198,14 @@ export function openBookId(route: Route): string | null {
 
 function screenFrom(path: string, params: URLSearchParams): Screen {
   if (path.startsWith(BOOK_PREFIX)) {
-    const id = path.slice(BOOK_PREFIX.length);
+    const id = decode(path.slice(BOOK_PREFIX.length));
     if (id) {
       const at = atFrom(params.get("at"));
       const select = selectFrom(params.get("select"));
       const handles = select !== undefined && params.get("handles") === "1";
       return {
         kind: "book",
-        bookId: decodeURIComponent(id),
+        bookId: id,
         ...(at ? { at } : {}),
         ...(select ? { select } : {}),
         ...(handles ? { handles } : {}),
@@ -193,25 +238,69 @@ function pathFor(screen: Screen): string {
   }
 }
 
-// Anything unrecognised means "no drawer" rather than an error: the reader still gets the screen
+// Anything unrecognised means "no panel" rather than an error: the reader still gets the screen
 // they can see. `d=settings` and `d=account` land here now that both became floors.
-function drawerFrom(params: URLSearchParams): Drawer | null {
-  // `URLSearchParams` has already percent-decoded what it hands back, so the id below is the
-  // real one. Decoding it a second time would turn a book id holding a literal `%20` into one
-  // holding a space.
-  const d = params.get("d");
-  if (d?.startsWith(ABOUT_PREFIX)) {
-    const bookId = d.slice(ABOUT_PREFIX.length);
-    if (bookId) return { kind: "about", bookId };
+//
+// ⚠️ **The raw query, not `URLSearchParams`**, and that is the price of a third segment. `d=`
+// now holds up to three fields separated by `/`, and `URLSearchParams` hands its value back
+// already percent-decoded — so a `%2F` inside an id would arrive indistinguishable from the
+// separator, and `d=notes/a%2Fb` would read as a note called `b`. Cutting the field out of the
+// query and decoding each segment on its own is what keeps the separator the app writes apart
+// from the ones inside the ids it writes between.
+function panelFrom(query: string): Panel | null {
+  const field = query.split("&").find((pair) => pair.startsWith("d="));
+  if (field === undefined) return null;
+  const parts = field.slice(2).split("/").map(decode);
+  const [kind, bookId, noteId] = parts;
+  if (bookId === undefined || bookId === "") return null;
+
+  if (kind === "notes") {
+    // A third segment naming a note the book no longer has is not caught here — whether it
+    // exists is a question for the database, and `Reader.tsx` answers it by dropping back to
+    // the list. A fourth segment is nothing this app ever wrote.
+    if (parts.length > 3 || noteId === "") return null;
+    return { kind, bookId, ...(noteId === undefined ? {} : { noteId }) };
   }
+  if (parts.length > 2) return null;
+  if (kind === "about") return { kind, bookId };
+  if (kind !== undefined && isPanel(kind)) return { kind, bookId };
   return null;
 }
 
-function drawerSegment(drawer: Drawer): string {
-  return ABOUT_PREFIX + encodeURIComponent(drawer.bookId);
+function panelSegment(panel: Panel): string {
+  const note = panel.kind === "notes" && panel.noteId ? `/${encodeURIComponent(panel.noteId)}` : "";
+  return `${panel.kind}/${encodeURIComponent(panel.bookId)}${note}`;
 }
 
-// Unreadable means "no address", on the same grounds as an unknown drawer: the reader still gets
+/**
+ * The same panel, if it is one of the three the reader's own bar raises.
+ *
+ * `null` for [[About]] as well as for no panel at all, and both callers want exactly that: the
+ * reader's chrome is the three, and [[About]] standing means the chrome has none of them up.
+ */
+export function barPanel(panel: Panel | null): (Panel & { kind: PanelKind }) | null {
+  return panel !== null && isPanel(panel.kind) ? (panel as Panel & { kind: PanelKind }) : null;
+}
+
+/**
+ * One percent-decoded field of the address, or `""` for one that cannot be decoded at all.
+ *
+ * ⚠️ **`decodeURIComponent` throws on a half-written escape** — `#/book/100%` is enough — and an
+ * address is whatever somebody typed or a link somewhere truncated. Thrown, it comes out of
+ * `parseHash`, which runs inside the opening `useState` and inside the `hashchange` listener:
+ * a blank app rather than a lost book. Empty is what every caller here already treats as "not
+ * given", so the reader lands on the shelf or on the book with no panel, which is this file's
+ * answer to every other unreadable address.
+ */
+function decode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return "";
+  }
+}
+
+// Unreadable means "no address", on the same grounds as an unknown panel: the reader still gets
 // the book, opened where they left it. A typo in a hand-written `?at=` should cost a jump, not
 // the screen.
 function atFrom(value: string | null): At | undefined {

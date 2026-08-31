@@ -61,8 +61,8 @@ msgstr "{face}はまだ未取得"
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, other {残り約 # 時間}}"
 
-#. The how-many-times number in the book-details drawer, with its unit. A sitting is one continuous stretch of reading.
-#: src/components/AboutDrawer.tsx
+#. The how-many-times number in the book-details panel, with its unit. A sitting is one continuous stretch of reading.
+#: src/components/AboutBook.tsx
 msgid "{sittings, plural, one {# sitting} other {# sittings}}"
 msgstr "{sittings, plural, other {# 回}}"
 
@@ -82,15 +82,15 @@ msgstr "さきほどコードを送ったばかりです。{seconds} 秒後に�
 msgid "A vertical book is always one column"
 msgstr "縦組みの本は常に一段組みです"
 
-#. Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.
-#. Screen-reader name for the ⋯ button beside a book, which opens the drawer holding everything else that book can do. The value is the book's own title.
+#. Screen-reader name for the ⋯ button beside a book, which opens the panel holding everything else that book can do. The value is the book's own title.
+#. Screen-reader name for the ⋯ button beside a book, which opens the panel holding everything else that book can do. The value is the book's own title.
 #: src/components/Library.tsx
 msgid "About {title}"
 msgstr "{title} の詳細"
 
-#. Screen-reader name for the button in the reader's bar that opens the drawer describing the open book.
-#. Title of the book-details drawer, used only in the moment before the book itself has loaded — after that the drawer wears the book's own title. Shares its entry with the reader's bar button that opens it.
-#: src/components/AboutDrawer.tsx
+#. Screen-reader name for the button in the reader's bar that opens the panel describing the open book.
+#. Title of the book-details panel, used only in the moment before the book itself has loaded — after that the panel wears the book's own title. Shares its entry with the reader's bar button that opens it.
+#: src/components/AboutBook.tsx
 #: src/components/Reader.tsx
 msgid "About this book"
 msgstr "この本について"
@@ -142,6 +142,11 @@ msgstr "先にサインインコードを取り寄せてください"
 msgid "Auto"
 msgstr "自動"
 
+#. Screen-reader name for the ← in the corner of a panel covering the screen the reader was on, which is the arrangement on a hand-held. It dismisses the panel and returns them to what was underneath — the same thing Android's own back button does here.
+#: src/components/Panel.tsx
+msgid "Back"
+msgstr "戻る"
+
 #. Screen-reader name for the mark on the scrubber standing at the place the reader had read to, while they are back visiting a passage somewhere else. Pressing it takes them to that place. The value is a whole number. Longer than the words printed on it, which are only the number: what a glance gets from the mark's position on the rail has to be said out loud here.
 #. placeholder {0}: mark.pct
 #: src/components/Scrubber.tsx
@@ -184,9 +189,7 @@ msgstr "この端末のフォントを読み取れません。"
 msgid "Change email"
 msgstr "メールアドレスを変える"
 
-#. Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.
-#. Screen-reader name for the ✕ that dismisses a drawer or a panel. A verb: it is the action, not a label for the thing being shut.
-#: src/components/Drawer.tsx
+#. Screen-reader name for the ✕ in the corner of a panel standing beside the screen the reader was on, which is the arrangement on a desk. A verb: it is the action, not a label for the thing being shut.
 #: src/components/Panel.tsx
 msgid "Close"
 msgstr "閉じる"
@@ -212,16 +215,16 @@ msgstr "{name} を読み込めませんでした：{reason}"
 msgid "Dark"
 msgstr "ダーク"
 
-#. Button in the book-details drawer that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
+#. Button in the book-details panel that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
 #. Button under a marked passage: removes the mark and any note on it.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
-#: src/components/AboutDrawer.tsx
+#: src/components/AboutBook.tsx
 #: src/components/Reader.tsx
 msgid "Delete"
 msgstr "削除"
 
 #. Title of the delete confirmation. The value is the book's own title; the quotation marks around it are this language's — Chinese uses 「」.
-#: src/components/AboutDrawer.tsx
+#: src/components/AboutBook.tsx
 msgid "Delete “{title}”?"
 msgstr "「{title}」を削除しますか？"
 
@@ -379,7 +382,7 @@ msgid "Just now"
 msgstr "たった今"
 
 #. The way out of the delete confirmation: change nothing. Deliberately not 'Cancel' — it says what happens to the book, which is that it stays.
-#: src/components/AboutDrawer.tsx
+#: src/components/AboutBook.tsx
 msgid "Keep it"
 msgstr "残す"
 
@@ -530,7 +533,7 @@ msgid "Notes"
 msgstr "メモ"
 
 #. Button that writes this book's marks and notes out as a Markdown file. '.md' is the file extension and stays as it is.
-#: src/components/AboutDrawer.tsx
+#: src/components/AboutBook.tsx
 msgid "Notes .md"
 msgstr "メモ .md"
 
@@ -603,8 +606,8 @@ msgstr "有料"
 msgid "Previous page"
 msgstr "前のページ"
 
-#. Label of the how-far number in the book-details drawer. The value beside it is a percentage.
-#: src/components/AboutDrawer.tsx
+#. Label of the how-far number in the book-details panel. The value beside it is a percentage.
+#: src/components/AboutBook.tsx
 msgid "Read to"
 msgstr "読んだところ"
 
@@ -697,8 +700,8 @@ msgstr "サインインコード"
 msgid "email.magicCode.code"
 msgstr "サインインコード：{code}"
 
-#. Label of the how-many-times number in the book-details drawer. A sitting is one continuous stretch of reading.
-#: src/components/AboutDrawer.tsx
+#. Label of the how-many-times number in the book-details panel. A sitting is one continuous stretch of reading.
+#: src/components/AboutBook.tsx
 msgid "Sittings"
 msgstr "回数"
 
@@ -855,7 +858,7 @@ msgid "This book is unmarked. Select a passage to leave a mark."
 msgstr "この本にはまだ何もありません。一節を選ぶと、しるしが残せます。"
 
 #. The one thing a reader cannot see from the shelf, and the reason this question is asked at all: deleting takes the marks and notes with it, everywhere.
-#: src/components/AboutDrawer.tsx
+#: src/components/AboutBook.tsx
 msgid "This book's marks and notes go with it, on your other devices too."
 msgstr "この本のマークとメモも一緒に消えます。ほかの端末からも消えます。"
 
@@ -917,8 +920,8 @@ msgstr "Tidemarks：コードでサインインがありました"
 msgid "Tight (1.4)"
 msgstr "つめる（1.4）"
 
-#. Label of the total-reading-time number in the book-details drawer.
-#: src/components/AboutDrawer.tsx
+#. Label of the total-reading-time number in the book-details panel.
+#: src/components/AboutBook.tsx
 msgid "Time spent"
 msgstr "読んだ時間"
 

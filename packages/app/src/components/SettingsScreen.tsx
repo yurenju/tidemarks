@@ -11,9 +11,9 @@ import type { ReactNode } from "react";
 /**
  * [[Settings]]: everything that is not a book.
  *
- * A floor rather than a drawer, and that is the whole reason it can hold tabs. What it says has
+ * A floor rather than a panel, and that is the whole reason it can hold tabs. What it says has
  * nothing to do with the screen the reader came from — which is exactly the test a floor has to
- * pass and a drawer has to fail (CONTEXT.md, [[Surfaces]]). It used to stack over the shelf or over
+ * pass and a panel has to fail (CONTEXT.md, [[Surfaces]]). It used to stack over the shelf or over
  * a book as `?d=settings`, which is why it never had room for anything but one list.
  *
  * **Three tabs, ordered near to far**: type is touched most days, the account a few times a

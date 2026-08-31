@@ -1,14 +1,15 @@
 // The shelf's screens are hash routes rather than pieces of React state, and this is where that
-// shows: back leaves the settings screen instead of the app, a reload comes back to the same tab, a drawer
-// leaves the shelf standing behind it. Reading and writing the hash itself is pure and lives in
-// src/lib/route.test.ts; real history and a real reload are only here.
+// shows: back leaves the settings screen instead of the app, a reload comes back to the same
+// tab, a panel leaves the shelf standing behind it. Reading and writing the hash itself is pure
+// and lives in src/lib/route.test.ts; real history and a real reload are only here. The reader's
+// own three panels are in ../reader/panel-address.spec.ts.
 import { expect, test } from "../support/fixtures.js";
 import { BOOKS, bookCards, importBook, segment } from "../support/library.js";
 
 /**
  * Two different things share the hash: settings is a floor of its own, a book's details is a
- * drawer over the shelf. CONTEXT.md draws that line, and it is why the assertions below differ
- * — a floor replaces what was under it, a drawer does not.
+ * panel over the shelf. CONTEXT.md draws that line, and it is why the assertions below differ
+ * — a floor replaces what was under it, a panel does not.
  */
 
 test("opens Settings from the shelf and comes back to the same tab after a reload", async ({
@@ -51,12 +52,12 @@ test("back leaves the settings screen and lands on the shelf, not outside the ap
   await expect(page.getByTestId("open-settings")).toBeVisible();
 });
 
-test("leaves the shelf visible behind the details drawer", async ({ page }) => {
+test("leaves the shelf visible behind the details panel", async ({ page }) => {
   await page.goto("/");
   await importBook(page, BOOKS.horizontal, /Alice/);
 
   await page.getByTestId("book-more").first().click();
-  await expect(page.getByTestId("drawer-about")).toBeVisible();
+  await expect(page.getByTestId("panel-about")).toBeVisible();
   await expect(bookCards(page).first()).toBeVisible();
 });
 

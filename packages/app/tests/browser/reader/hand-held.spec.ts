@@ -154,8 +154,12 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
   await expect(page.getByTestId("chrome-nav")).toBeHidden();
   await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 
-  // And they come back, so this is a state and not a one-way door.
-  await page.getByTestId("panel-layout").getByLabel("Close").click();
+  // And they come back, so this is a state and not a one-way door. **The way out is a ← here**,
+  // not the desk's ✕: nothing of the screen behind is left showing, so the reader is stepping
+  // back out rather than shutting something standing beside it (ADR-0046). Reaching the button by
+  // that name is the pin: swap the two glyphs and this line goes red, along with the desk's
+  // half in `panel-address.spec.ts`.
+  await page.getByTestId("panel-layout").getByLabel("Back").click();
   await expect(page.getByTestId("chrome-nav")).toBeVisible();
   await expect(page.getByTestId("chrome-bottom")).toBeVisible();
 });
@@ -282,4 +286,55 @@ test("the highlight toolbar stacks, and its rule turns with it", async ({ page }
   // And the rule divides the two rows rather than standing at the start of one of them.
   expect(seam.borderTop).toBe("1px");
   expect(seam.borderLeft).toBe("0px");
+});
+
+/**
+ * What a panel covering the whole screen owes a keyboard and a screen reader.
+ *
+ * Under 820px [[Contents]] and [[Notes]] take everything, and a surface with everything has the
+ * reader's whole attention: a tab order still walking the bars and the book behind it is a
+ * keyboard walking into furniture nobody can see, and a screen reader still reading them out is
+ * reading a screen that is not there. It was left undone until the panels reached the address,
+ * because the two are one condition — hold the focus exactly where the back button has something
+ * of its own to close (ADR-0046).
+ *
+ * ⚠️ **[[Layout]] must *not* hold it here**, and that is why this asks two faces rather than one.
+ * The sheet leaves a live page above it that the reader is looking at and can press — that press
+ * is how the sheet is dismissed — so announcing the page as hidden would be announcing it away
+ * at the one moment it is the subject (ADR-0005).
+ *
+ * Read off `aria-hidden`, which is what Base UI's `'trap-focus'` marks the rest of the screen
+ * with. Asserted on the book's own box rather than on a count, so a rearrangement that stopped
+ * covering it says so.
+ */
+test("a panel that covers the screen holds the focus, and the sheet that does not, does not", async ({
+  page,
+}) => {
+  const bookIsHidden = () =>
+    page.evaluate(() => document.querySelector(".reader-body")?.getAttribute("aria-hidden"));
+
+  await openPanel(page, "Contents");
+  expect(await bookIsHidden()).toBe("true");
+
+  await page.getByTestId("panel-toc").getByLabel("Back").click();
+  await openPanel(page, "Type");
+  expect(await bookIsHidden()).toBe(null);
+});
+
+/**
+ * Which way a finger throws a panel away, for the face that used to answer differently.
+ *
+ * [[About]] came in from the right and left the same way at every width, because it was a second
+ * component that had never met a phone. Here every panel arrives from the bottom edge, so that is
+ * the edge a finger sends it back to — an ✕-shaped gesture for a sheet-shaped panel is the second
+ * component showing through the first (ADR-0046).
+ *
+ * Read off the attribute Base UI publishes rather than by dragging: what is being asserted is
+ * which direction was asked for, and a drag would be asserting Base UI's own swipe handling.
+ */
+test("throws the book's details away downwards, like every other panel here", async ({ page }) => {
+  await openChrome(page);
+  await page.getByTestId("reader-about").click();
+
+  await expect(page.getByTestId("panel-about")).toHaveAttribute("data-swipe-direction", "down");
 });

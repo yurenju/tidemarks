@@ -24,7 +24,9 @@ import {
 } from "../lib/sync";
 import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
 import { entersVisit, leavesVisit } from "../lib/visit";
-import type { At, Select } from "../lib/route";
+// `Panel` here is the address's spelling of one, aliased because the component of that name is
+// the shell it is drawn in — two halves of the same thing, and both are in this file.
+import { samePanel, type At, type Panel as PanelAddress, type Select } from "../lib/route";
 import type { Annotation, Progress } from "../lib/types";
 import {
   FONT_FAMILIES,
@@ -54,9 +56,9 @@ import {
   type TurnFacts,
 } from "../lib/gesture";
 import { LONG_PRESS_MS } from "../lib/touch";
-import { BOOK_KEEPS_A_COLUMN, useMediaQuery } from "../lib/media";
+import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
 import {
-  initialChrome,
+  chromeShowing,
   isPanel,
   nextChrome,
   type ChromeEvent,
@@ -315,11 +317,16 @@ async function readAnnotations(bookId: string): Promise<Annotation[]> {
   return sortByBookOrder(rows.filter((a) => !a.deletedAt));
 }
 
+/** The reader's own three faces as the address spells them (`lib/route.ts`). */
+type ReaderPanel = PanelAddress & { kind: PanelKind };
+
 export default function Reader({
   bookId,
   openAt,
   select,
   handles,
+  panel,
+  onPanel,
   onAt,
   onClose,
   onOpenAbout,
@@ -363,6 +370,18 @@ export default function Reader({
    * (`?handles=1`). Nothing without `select`.
    */
   handles?: boolean;
+  /**
+   * Which of the reader's three faces the address has standing, and `null` for none of them —
+   * including while [[About]] is up, since one `?d=` holds one panel (`lib/route.ts`).
+   *
+   * **The address is the chrome's mirror, not the other way round** (ADR-0046). This prop is
+   * what the mirror currently shows: the state machine below is still the one deciding, and the
+   * two effects further down write to whichever of the two is behind.
+   */
+  panel: ReaderPanel | null;
+  /** Reports the chrome's panel layer moving, so the address can follow it. `App.tsx` decides
+   *  what that does to the history stack — it is the one place that touches it. */
+  onPanel: (next: ReaderPanel | null) => void;
   /**
    * Reports a place the reader jumped to inside the book, so the address bar can follow it and
    * the page on screen is one they can copy out and send to someone.
@@ -410,6 +429,14 @@ export default function Reader({
   const [title, setTitle] = useState("");
   const [toc, setToc] = useState<FlatTocItem[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  /**
+   * Whether the list above has been read out of Dexie yet.
+   *
+   * Only one question needs it, and it is the difference between "this book has no marks" and
+   * "nobody has looked yet": an address naming a note is checked against this list, and an empty
+   * list a moment after the book opened would condemn a note that is about to arrive.
+   */
+  const [annotationsRead, setAnnotationsRead] = useState(false);
   // Named rather than read inline in the bar button, so the catalog carries `{markCount}`
   // instead of a bare `{0}` that says nothing to whoever translates it.
   const markCount = annotations.length;
@@ -418,7 +445,9 @@ export default function Reader({
    * written. One value with one writer: `lib/chrome.ts` owns every rule about how it changes, and
    * what is left here is naming the event that just happened (CONTEXT.md [[chrome]]).
    */
-  const [chromeState, setChromeState] = useState(initialChrome);
+  const [chromeState, setChromeState] = useState(() =>
+    chromeShowing(panel?.kind ?? null, panel?.kind === "notes" ? (panel.noteId ?? null) : null),
+  );
   // Whether the book is still on screen with a panel up. Only `notePressed` asks (`lib/media.ts`).
   const bookKeepsAColumn = useMediaQuery(BOOK_KEEPS_A_COLUMN);
   const { chrome, panelKind, editing: editingId, selected: selectedNoteId } = chromeState;
@@ -432,6 +461,103 @@ export default function Reader({
 
   /** Hands one event to the chrome machine. */
   const sendChrome = (event: ChromeEvent) => setChromeState((now) => nextChrome(now, event));
+
+  /**
+   * The mirror, chrome → address.
+   *
+   * ⚠️ **Compared before written**, or this and its twin below would take turns telling each
+   * other the same news forever.
+   *
+   * ⚠️ **It stands aside on the pass where the address is what moved**, which is what
+   * `mirrored` is for. React runs this before its twin below, so on the render that follows a
+   * back press it would otherwise see a chrome still showing the panel the address has just
+   * dropped, call that a disagreement, and **push the panel straight back on** — the back button
+   * would do nothing at all, and the entry it popped would be replaced by a new one. Measured:
+   * every back-button case in `tests/browser/reader/panel-address.spec.ts` failed exactly that
+   * way. Identity is the right test here: a new object is what App hands down when, and only
+   * when, the route has moved.
+   *
+   * ⚠️ **And it says nothing more until the address has answered**, which is what `asked` is
+   * for. Going a storey shallower is a `history.back()`, and that is asynchronous: for the frame
+   * or so until the browser announces the new address, the chrome and the address still
+   * disagree. **One press of the reader's often moves the chrome twice in that window** — a
+   * press on the page button beside a standing panel is an outside press *and* a page turn, so
+   * the chrome goes `notes → up → down` in two commits — and each commit would ask for a
+   * `back()` of its own. Measured: one press walked the reader out of the panel, out of the
+   * book, and onto the shelf, and `reader/visit.spec.ts` was the only thing that saw it.
+   *
+   * `onPanel` is read through a ref for the same reason, one layer down: a new callback identity
+   * on every render of `App` must not be a reason to ask again either.
+   */
+  const onPanelRef = useRef(onPanel);
+  onPanelRef.current = onPanel;
+  const mirrored = useRef(panel);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (mirrored.current !== panel || asked.current) return;
+    // The book id rides along even though the screen underneath is that same book, because that
+    // is the rule for every panel: reading the hash never means looking at what is below it.
+    const showing: ReaderPanel | null = isPanel(chrome)
+      ? {
+          kind: chrome,
+          bookId,
+          ...(chrome === "notes" && editingId !== null ? { noteId: editingId } : {}),
+        }
+      : null;
+    if (samePanel(showing, panel)) return;
+    asked.current = true;
+    onPanelRef.current(showing);
+  }, [chrome, editingId, bookId, panel]);
+
+  /**
+   * The mirror, address → chrome. Back, forward, and a hand-typed address all arrive here.
+   *
+   * **Translated into the events the machine already has**, rather than writing the state: a
+   * panel going away is a `panelDismissed` whether the reader pressed the ✕ or Android's back
+   * button, and a machine with a second way to be closed is a machine with two rules to keep in
+   * step (`lib/chrome.ts` says what that cost the last time).
+   */
+  useEffect(() => {
+    // Noted before anything is sent, so the twin above knows the address has answered and may
+    // speak again on the renders that follow. **Every route the address can move by comes
+    // through here** — `history.back()` by way of `hashchange`, and the two writes App makes by
+    // way of the state it sets alongside them — so there is no way for it to be left waiting on
+    // an answer that never arrives.
+    mirrored.current = panel;
+    asked.current = false;
+    if (panel === null) {
+      if (isPanel(chrome)) sendChrome({ kind: "panelDismissed" });
+      return;
+    }
+    if (chrome !== panel.kind) sendChrome({ kind: "togglePanel", panel: panel.kind });
+    const noteId = panel.kind === "notes" ? (panel.noteId ?? null) : null;
+    if (noteId !== null && noteId !== editingId) sendChrome({ kind: "openNote", id: noteId });
+    // Stepping back out of a note and into the list it came from. `noteSaved` is the machine's
+    // name for "the editor is finished with", which is what this is: a note commits when its box
+    // loses the focus, so there is nothing left to save by the time the address has moved.
+    if (noteId === null && editingId !== null) sendChrome({ kind: "noteSaved" });
+    // ⚠️ **Keyed on the address alone**, though `chrome` and `editingId` are read inside. They
+    // are read to decide whether anything has to be *sent*, never to decide what: this direction
+    // of the mirror only has something to say when the address has moved, and re-running it on
+    // every move the chrome makes of its own accord would have it answering its own twin.
+  }, [panel]);
+
+  /**
+   * A `?d=notes/<book>/<note>` naming a mark this book no longer has.
+   *
+   * The address is whatever somebody pasted, and a mark can have been deleted on another device
+   * since. **Losing one note should not cost the whole list**, which is what `lib/route.ts` does
+   * with every other unreadable address — so the editor closes, the panel stays, and the mirror
+   * above writes the shorter address back.
+   *
+   * It waits for the marks to arrive rather than checking at the first render: they are read out
+   * of Dexie a moment after the book opens, and an empty list before then is not an answer.
+   */
+  useEffect(() => {
+    if (!annotationsRead) return;
+    if (editingId === null || annotations.some((a) => a.id === editingId)) return;
+    sendChrome({ kind: "noteSaved" });
+  }, [annotationsRead, annotations, editingId]);
   /**
    * Where this device has the reader, as the last `relocate` left it.
    *
@@ -643,6 +769,7 @@ export default function Reader({
     setFraction(0);
     setSectionIndex(0);
     setChapters([]);
+    setAnnotationsRead(false);
 
     // The clock that turns a still finger into a selection. A timer rather than a test inside
     // `pointermove`, because a finger that is holding perfectly still sends no moves at all —
@@ -1389,6 +1516,7 @@ export default function Reader({
       const anns = await readAnnotations(bookId);
       if (cancelled) return;
       setAnnotations(anns);
+      setAnnotationsRead(true);
 
       const initial = frondSettings(settingsRef.current, {
         theme: themeRef.current,
@@ -2164,13 +2292,12 @@ export default function Reader({
       // Absent unless the address asked for something — a place, a passage to select, or both —
       // and `arrived` once every one of them has been carried out.
       data-at={openAt || select ? (arrived ? "arrived" : "opening") : undefined}
+      /* Whether one is standing, which is all the reader's own box has to know: the bars give up
+         their right end and the book gives up a column. **Which face it is has moved onto the
+         popup itself** (`Panel.tsx`'s `data-needs`), because the rule that needed it — the one
+         keeping [[Layout]] a sheet — has to survive the 180ms Base UI holds the popup mounted for
+         after this attribute has gone. */
       data-panel={panelOpen || undefined}
-      /* Which face, kept **whether or not one is standing** — the same reason `panelKind` itself
-         is kept (`lib/chrome.ts`): Base UI holds the popup mounted for the 180ms it takes to
-         slide out. Written on the open/closed attribute instead, [[Layout]]'s sheet would lose the
-         rule that keeps it a sheet at the instant it started leaving, and snap to full screen for
-         the length of its own exit. `[data-panel]` stays the boolean every other rule reads. */
-      data-panel-kind={panelKind}
     >
       {/* The book. **The bars are laid over it, and a panel is laid beside it** — raising [[Find]]
           leaves the page exactly where it was, opening one of the three gives up a column and
@@ -2321,7 +2448,7 @@ export default function Reader({
               </Trans>
             </span>
           </button>
-          {/* The same drawer the shelf's ⋯ opens, over the book instead of over the shelf. It
+          {/* The same panel the shelf's ⋯ opens, over the book instead of over the shelf. It
               carries the book id even here (`#/book/abc?d=about/abc`), so reading the hash never
               means looking at what is underneath it.
 
@@ -2334,7 +2461,7 @@ export default function Reader({
             aria-label={t({
               message: "About this book",
               comment:
-                "Screen-reader name for the button in the reader's bar that opens the drawer describing the open book.",
+                "Screen-reader name for the button in the reader's bar that opens the panel describing the open book.",
             })}
             data-testid="reader-about"
           >
@@ -2485,7 +2612,7 @@ export default function Reader({
       <div className="panel-host" ref={panelHostRef} />
 
       {/* **One panel, three faces.** It used to be three `<Panel>`s, and the three were exclusive
-          in `chrome` but not in the DOM: pressing Notes while Type stood left two drawers changing
+          in `chrome` but not in the DOM: pressing Notes while Type stood left two shells changing
           state in the same frame, and the outgoing one's `onClose` — which did not ask whether it
           was still the one showing — wrote `"up"` over the panel that had just opened. What the
           reader saw was the whole column closing, and a second press to get where they asked to
@@ -2500,6 +2627,10 @@ export default function Reader({
         onClose={() => sendChrome({ kind: "panelDismissed" })}
         title={PANEL_FACES[panelKind].title}
         testId={PANEL_FACES[panelKind].testId}
+        // Read off the face rather than written at each of the three, so the one question the
+        // four faces differ by has one answer per face and one place to change it
+        // (`lib/media.ts`).
+        needs={PANEL_NEEDS[panelKind]}
         container={panelHostRef}
       >
         {panelKind === "toc" && (

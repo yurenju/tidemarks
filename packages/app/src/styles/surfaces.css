@@ -1,0 +1,382 @@
+/* Surfaces: the one panel shell, and the [[Settings]] floor
+   ========================================================
+   **One shell, four faces** — [[Contents]], [[Notes]], [[Layout]] and [[About]] (ADR-0046). There were two
+   of these files' worth of rules until then, `panel-*` in `reader.css` and `drawer-*` here,
+   drawing the same box twice; what told them apart was one question, and the question is now an
+   attribute the shell writes on itself.
+
+   **`data-needs` says what has to stay visible behind the panel, and nothing about which edge it
+   is anchored to.** The edge follows from the answer *and the window*, which is why it is settled
+   here and in `device.css` rather than in JavaScript (`lib/media.ts` says what a layout waiting on
+   JavaScript costs). Written for the desk in this file; the hand-held's arrangement is the narrow
+   query in `device.css`, which is also where [[Layout]]'s sheet keeps its book.
+
+   - `page` and `book` — a column down the right side of the reader, sunken, with nothing dimmed.
+   - `nothing` — the whole window, raised, over a dimmed screen. It is portalled to `<body>`
+     rather than into the reader's box, because the reader may not be on screen at all: this is
+     the face the shelf's ⋯ opens too. */
+
+/* No wash over the book, for the two faces that need it visible. It used to carry `--backdrop`,
+   and the thing it greyed out was the page [[Layout]] is applied to — the reader dragging [[Size]] was
+   watching the one surface the panel exists to change, through a scrim (ADR-0005). What is left
+   is the press target: a press outside the panel still closes it, it just no longer says so by
+   dimming the book.
+
+   On a desk it does not even do that, **and that is true of the narrow window too, where the
+   panel covers the book**. It is tempting to give the cover arrangement the hand-held's
+   press-to-dismiss, and it would be wrong for the same reason it was always wrong here: this
+   box spans the whole reader, so a full-box target sits on the bars, and the Scrubber going
+   dead under a panel is exactly what "the panel stops short of it" was for. The hand-held can
+   afford it because there the entries and the Scrubber have stepped aside; here they are still
+   standing.
+
+   Nothing is lost by that. A press on the page already puts the panel away — not through this
+   element but through frond, which reports the tap as unclaimed and drops the chrome to [[Read]]
+   (`Reader.tsx`). Making this catch the press would take that path away, not add one. */
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  transition: opacity 0.25s ease;
+}
+
+/* Nothing behind it to keep visible, so the screen behind it goes dim and the press lands. The
+   screen it dims is the window's, not the reader's, which is what `fixed` is for: this one is
+   portalled to `<body>` and has no positioned ancestor to be absolute inside. */
+.panel-backdrop[data-needs="nothing"] {
+  position: fixed;
+  pointer-events: auto;
+  background: var(--backdrop);
+}
+
+.panel-backdrop[data-starting-style],
+.panel-backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+/* Covers the screen so the panel can be positioned against it, but catches nothing: the
+   backdrop underneath is what a press outside the panel lands on. */
+.panel-viewport {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panel-viewport[data-needs="nothing"] {
+  position: fixed;
+}
+
+/* A column down the right side, the full height of whatever box it was portalled into — beside
+   the bars, not under them. Sunken rather than page-coloured: it is a recess in the page the
+   book is printed on, not another sheet of paper laid on top.
+
+   **The right rather than the left**, and that is not symmetry. The book gives up this column
+   while a panel is open, and a reader's eye returns to the start of a line: taking the room from
+   the far end leaves the text where the eye already is.
+
+   No radius here, and no cast. A column that runs the full height and is flush to the right edge
+   has no corner the reader can see, so rounding it would round nothing; the sheet the hand-held
+   query builds out of the same element *does* have two, and takes them there. */
+.panel-popup {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-sunken);
+  border-left: 1px solid var(--line-hair);
+  /* The swipe offset Base UI publishes while a finger is on the panel. Clamped at zero so a
+     drag to the left does not pull it off the edge it belongs to. */
+  transform: translateX(max(0px, var(--drawer-swipe-movement-x, 0px)));
+  /* The chrome's own timing, not a slower one of its own. Since the room is now given up in a
+     single step (`device.css`), the slide is what fills a gap that is already empty — and the
+     longer it takes, the longer that empty recess is on screen. */
+  transition: transform var(--chrome-motion) ease-out;
+}
+
+/* A sheet of paper laid over the screen rather than a recess in it, because there is no page
+   underneath for it to be a recess *in* — what is under it is dimmed and out of play.
+
+   **The same width as the other three**, which is a change: this used to be a fixed 26rem and is
+   now the shared `--panel-width`, so under about 1280px it is narrower than it was. One width for
+   one shell — two numbers for the same column is how two panels start looking like two products
+   (ADR-0046). */
+.panel-popup[data-needs="nothing"] {
+  background: var(--surface-raised);
+}
+
+.panel-popup[data-starting-style],
+.panel-popup[data-ending-style] {
+  transform: translateX(100%);
+}
+
+/* Under a finger the panel is the finger's, not the transition's. */
+.panel-popup[data-swiping] {
+  transition: none;
+}
+
+/* No slide for a reader who asked for less motion. The panel still arrives, it just arrives
+   without travelling.
+
+   **Here rather than beside either arrangement**, and that is load-bearing: these restate
+   `transform` at the same specificity as the rules above, so they only win by coming after them.
+   One of these blocks used to sit in `typography.css`, two imports earlier, and would have
+   started losing the moment the shell moved into this file. */
+@media (prefers-reduced-motion: reduce) {
+  .panel-popup,
+  .panel-backdrop {
+    transition: none;
+  }
+
+  .panel-popup[data-starting-style],
+  .panel-popup[data-ending-style] {
+    transform: none;
+  }
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.panel-title {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--type-ui);
+}
+
+.panel-close {
+  font-size: var(--type-lede);
+  line-height: 1;
+}
+
+/* A column with a gap, so a face made of sections does not need a wrapper to space them. The
+   three that hold a single child are unaffected by it. */
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* The list of chapters, or of marks: the whole of two of the four faces. */
+.panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* The content primitives below carry two names on purpose, and share one rule list rather than
+   being copied. They appear on two different surfaces — [[About]] is a panel, [[Account]] is a
+   pane of the [[Settings]] floor — and each prefix is true where it is used. One declaration block
+   is what keeps them from drifting into two products' worth of styling. */
+.panel-section,
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* The one small heading in the app, wherever a surface divides into parts — a panel or a
+   floor. A second style for the same job is how two panels that do the same thing start
+   looking like two different products. Spaced capitals over a rule: it reads as a label
+   rather than as a sentence, which is what lets it be this quiet. */
+.panel-section-title,
+.settings-section-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--type-eyebrow);
+  font-weight: 400;
+  letter-spacing: var(--type-eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* Both of these — the label here and the list row further down — take a floor of 48px under a
+   coarse pointer (`device.css`): a row in a panel is a target as much as it is a line of text.
+   Nothing here sets a height, deliberately, so that floor is the only one. */
+.panel-section label,
+.settings-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: var(--type-ui);
+  color: var(--text-muted);
+}
+
+.panel-section select,
+.panel-section input,
+.settings-section select,
+.settings-section input {
+  color: var(--text-primary);
+}
+
+.panel-section input[type="email"],
+.panel-section input[inputmode="numeric"],
+.settings-section input[type="email"],
+.settings-section input[inputmode="numeric"] {
+  background: var(--surface-page);
+  border: 1px solid var(--line-actionable);
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+}
+
+.panel-section form,
+.settings-section form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.panel-actions,
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The first thing in [[Account]], and the whole point of that tab: reading is free. */
+.panel-lede,
+.settings-lede {
+  margin: 0;
+  font-size: var(--type-lede);
+  line-height: var(--leading-text);
+}
+
+.panel-note,
+.settings-note {
+  margin: 0;
+  font-size: var(--type-note);
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+.panel-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: var(--type-ui);
+}
+
+.panel-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* [[Settings]]: a floor, not a panel
+   ----------------------------
+   It replaces the screen rather than stacking on one, which is what lets it hold tabs at all —
+   a panel that took a tab bar would be asking the reader to navigate inside something they
+   opened to glance at (CONTEXT.md [[Surfaces]]). Column layout so the footer sits on the bottom
+   edge whatever the pane above it does. */
+.settings-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--surface-page);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.settings-title {
+  font-size: var(--type-ui);
+  font-weight: 600;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+/* A tab is not a `.ghost`: design-system.md lists where a borderless button is allowed (bars,
+   the ✕, single-character buttons, a confirm dialog's cancel) and a tab is not among them,
+   because those all sit inside a container that has already said "this is pressable" and a tab
+   row has to say it for itself. What it says it with is the rule under the word, not a fill —
+   a filled tab is a second surface inside a surface, which ADR-0022 rules out. The rule sits on
+   the border the row draws, so it reads as that line thickening rather than as a box arriving. */
+.settings-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--tap-min);
+  font: inherit;
+  color: var(--text-muted);
+}
+
+.settings-tab.active {
+  color: var(--tide);
+  border-bottom-color: var(--tide);
+}
+
+.settings-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  max-width: 34rem;
+  width: 100%;
+}
+
+/* Which build is running, under both tabs. Faint because it is for the one moment someone is
+   reporting a problem, and invisible the rest of the time. */
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line-hair);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+}
+
+.price-lines {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem 0;
+  font-size: var(--type-ui);
+}
+
+.price-lines dt {
+  font-weight: 600;
+}
+
+.price-lines dd {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  line-height: var(--leading-text);
+}
+
+/* Says why the reader is looking at their shelf when they asked to connect an agent. */
+.auth-pending {
+  margin: 0;
+  color: var(--tide);
+  font-size: var(--type-ui);
+  line-height: var(--leading-text);
+}

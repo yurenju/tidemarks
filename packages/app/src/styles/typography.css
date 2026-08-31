@@ -172,18 +172,6 @@
   min-height: var(--tap-dense);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .panel-popup,
-  .panel-backdrop {
-    transition: none;
-  }
-
-  .panel-popup[data-starting-style],
-  .panel-popup[data-ending-style] {
-    transform: none;
-  }
-}
-
 /* The bar under the download line in the typography sheet.
    The percentage alone is not enough on a slow connection: 16 MB over a weak signal can sit on
    one number for a minute, and a number that does not move is indistinguishable from one that
