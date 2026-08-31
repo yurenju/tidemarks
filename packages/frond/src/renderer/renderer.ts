@@ -189,6 +189,20 @@ export interface TurnInProgress {
   /** Still the turn in progress. False once it has been committed, cancelled, or overtaken. */
   readonly live: boolean;
   /**
+   * The turn was cut short and **nothing took the reader anywhere**.
+   *
+   * A turn stops being live for two very different reasons, and only frond can tell them
+   * apart. A jump — `next()`, a TOC entry, a CFI — ends it *because* the reader is on their
+   * way somewhere, so the page they asked for is already coming. A relayout ends it because
+   * the frames have to go back to rest, and nobody is going anywhere: an animation that gives
+   * up here leaves the reader on the page they pressed to leave.
+   *
+   * So this is the fact a consumer needs to decide whether to deliver the page itself, and it
+   * is the only thing separating "the turn was superseded" from "the turn was lost" (ADR-0002:
+   * the fact is frond's, what to do about it is not).
+   */
+  readonly stranded: boolean;
+  /**
    * Moves it to `distance` px along, clamped to `0..extent`, and answers where that put the
    * page the reader is on — an offset from where it rests, in the coordinates `rectsFor`
    * reports in.
@@ -231,7 +245,8 @@ function sameNeighbour(a: NeighbourPage, b: NeighbourPage): boolean {
 
 /** A turn as the renderer holds it: everything the consumer can do, plus being ended without being asked. */
 interface ActiveTurn extends TurnInProgress {
-  abandon(): void;
+  /** `takesOver` says whether the caller is taking on where the reader ends up. */
+  abandon(takesOver: boolean): void;
 }
 
 /** Where a page sits when no turn is moving it. */
@@ -494,7 +509,7 @@ export class Renderer {
    * page. `location.atEnd` is the fact the consumer should be looking at.
    */
   async next(): Promise<void> {
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(async () => {
       const view = this.view;
       if (view === undefined) return;
@@ -513,7 +528,7 @@ export class Renderer {
 
   /** Turns back one page, continuing to **the last page of the previous section** past the start of this one. */
   async previous(): Promise<void> {
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(async () => {
       const view = this.view;
       if (view === undefined) return;
@@ -549,7 +564,7 @@ export class Renderer {
     const view = this.view;
     if (view === undefined || this.destroyed) return undefined;
 
-    this.abandonTurn();
+    this.abandonTurn(true);
 
     const wanted = this.neighbourAt(towards);
     const peek = this.peeks[towards];
@@ -576,7 +591,7 @@ export class Renderer {
 
   async goToSection(index: number, anchor: SectionAnchor = { kind: "first-page" }): Promise<void> {
     if (index < 0 || index >= this.book.readingOrder.length) return;
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(() => this.loadSection(index, anchor));
   }
 
@@ -595,7 +610,7 @@ export class Renderer {
     const index = this.book.readingOrder.findIndex((section) => section.path === target.path);
     if (index === -1) return;
 
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(() =>
       this.loadSection(
         index,
@@ -614,7 +629,7 @@ export class Renderer {
     const index = sectionIndexOf(parsed);
     if (index === undefined || index >= this.book.readingOrder.length) return;
 
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(() => this.loadSection(index, { kind: "cfi", cfi: parsed }));
   }
 
@@ -628,7 +643,7 @@ export class Renderer {
     const at = this.locate(fraction);
     if (at === undefined) return;
 
-    this.abandonTurn();
+    this.abandonTurn(true);
     return this.enqueue(() =>
       this.loadSection(at.sectionIndex, {
         kind: "characters",
@@ -701,7 +716,7 @@ export class Renderer {
     // the font size.
     this.currentSettings = withSettings(this.currentSettings, patch);
     this.applyContainerTheme();
-    this.abandonTurn();
+    this.abandonTurn(false);
     // The peeks hold documents built from the settings that have just been replaced, and the
     // interventions are written into the text itself — so there is nothing to re-apply to them.
     // They are mounted again from the far side of the rebuild.
@@ -755,7 +770,7 @@ export class Renderer {
   }
 
   async relayout(): Promise<void> {
-    this.abandonTurn();
+    this.abandonTurn(false);
     // The coalesce key is kept separate from `applySettings`: when a window drag and a font
     // size slider drag happen at once, each should keep its own last call rather than the
     // two cancelling each other.
@@ -1039,7 +1054,7 @@ export class Renderer {
 
   destroy(): void {
     this.destroyed = true;
-    this.abandonTurn();
+    this.abandonTurn(true);
     this.resizeObserver?.disconnect();
     this.view?.destroy();
     this.view = undefined;
@@ -1068,6 +1083,7 @@ export class Renderer {
     readonly incomingSection: number | undefined;
   }): ActiveTurn {
     let live = true;
+    let stranded = false;
     const { current, incoming } = spec;
 
     current.suppressSelection(true);
@@ -1102,6 +1118,9 @@ export class Renderer {
       get live() {
         return live;
       },
+      get stranded() {
+        return stranded;
+      },
       moveTo: (distance) => {
         // A turn that is already over leaves the frames alone, and says so: the frames are back
         // at rest, so that is where a consumer's own layer belongs too.
@@ -1126,15 +1145,30 @@ export class Renderer {
         if (!spec.atBoundary) void (spec.towards === "next" ? this.next() : this.previous());
       },
       cancel: settle,
-      abandon: settle,
+      abandon: (takesOver) => {
+        stranded = !takesOver;
+        settle();
+      },
     };
 
     return turn;
   }
 
-  /** Ends whatever turn is in progress. Everything that moves the reader some other way calls it. */
-  private abandonTurn(): void {
-    this.turn?.abandon();
+  /**
+   * Ends whatever turn is in progress.
+   *
+   * `takesOver` is what the caller knows and the turn does not: whether **it** is now answerable
+   * for where the reader ends up. A jump is, because it is taking them to a page; `beginTurn` is,
+   * because the turn replacing this one will land somewhere; `destroy` is, because there is no
+   * book left to land in. A relayout is not — it moves nobody — and that is the difference
+   * `TurnInProgress.stranded` reports.
+   *
+   * ⚠️ **It is not "does this call turn a page".** Two of the four `true`s above do not, and
+   * reading it that way and flipping them would have the consumer turn a page into a book that
+   * is closing, or on top of the turn that just replaced this one.
+   */
+  private abandonTurn(takesOver: boolean): void {
+    this.turn?.abandon(takesOver);
   }
 
   /**

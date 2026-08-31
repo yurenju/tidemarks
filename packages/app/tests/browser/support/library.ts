@@ -1002,6 +1002,27 @@ export function visibleText(page: Page): Promise<string> {
 }
 
 /**
+ * The position row the app last wrote for whichever book is open, out of localStorage.
+ *
+ * `storedCfi` is the reading of a page turn that **survives the turn itself**: `visibleText`
+ * cannot tell a repagination from a turn, because both change the text on screen, while this
+ * moves only when the reader really went somewhere. `reader/elsewhere.spec.ts` wants the whole
+ * row, because that is what the other device compares against; `reader/paging.spec.ts` wants
+ * only the CFI, to tell a turn interrupted by a resize apart from the resize (#135).
+ */
+export async function storedPosition(page: Page): Promise<StoredPosition | null> {
+  const raw = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith("tidemarks.position."));
+    return key === undefined ? null : localStorage.getItem(key);
+  });
+  return raw === null ? null : (JSON.parse(raw) as StoredPosition);
+}
+
+export async function storedCfi(page: Page): Promise<string | null> {
+  return (await storedPosition(page))?.cfi ?? null;
+}
+
+/**
  * Gives a book a reading position, by writing the row a page turn leaves.
  *
  * **The one thing in this file that reaches past the app into IndexedDB**, and it is here rather

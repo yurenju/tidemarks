@@ -156,8 +156,14 @@ export function createTurnRunner(deps: {
   const { renderer, navigator, slide } = deps;
   const clock = deps.clock ?? browserClock;
 
-  /** The turn a finger is dragging. */
-  let dragTurn: TurnInProgress | null = null;
+  /**
+   * The turn a finger is dragging, and which page it is reaching for.
+   *
+   * The direction is kept beside it because letting go is where it is needed and the intent
+   * that carries it is `beginTurn`, several events earlier: a turn stranded on its way home has
+   * to be delivered outright, and only frond's `next`/`previous` can do that.
+   */
+  let dragTurn: { turn: TurnInProgress; towards: TurnDirection } | null = null;
 
   /**
    * The turn a press is playing out, and whether it ends in a page or back where it started.
@@ -200,6 +206,9 @@ export function createTurnRunner(deps: {
       get live() {
         return turn.live;
       },
+      get stranded() {
+        return turn.stranded;
+      },
       moveTo: (distance) => {
         const at = turn.moveTo(distance);
         slide(at);
@@ -231,6 +240,8 @@ export function createTurnRunner(deps: {
       readonly to: number;
       readonly ms: number;
       readonly ease: (t: number) => number;
+      /** What to do about a turn that ended with the reader still where they started. */
+      readonly stranded?: () => void;
     },
     finish: () => void,
   ): void => {
@@ -242,10 +253,17 @@ export function createTurnRunner(deps: {
 
     const startedAt = clock.now();
     const step = (now: number) => {
-      // Something else moved the reader — a key, a jump, a resize. The turn is already over, and
-      // frond has already put the frames back, so what was drawn over the page goes back too.
+      // The turn is already over and frond has put the frames back, so what was drawn over the
+      // page goes back too.
+      //
+      // **Whether that is the end of it depends on why.** A jump ended the turn because the
+      // reader is on their way somewhere, and stopping here is right. A relayout ended it with
+      // nobody going anywhere — and then giving up silently loses the turn they asked for
+      // (#135): the page does not move, and no position is written, which is exactly what a
+      // book that has stopped working looks like.
       if (!turn.live) {
         slide(AT_REST);
+        if (turn.stranded) span.stranded?.();
         return;
       }
       const t = Math.min(1, (now - startedAt) / span.ms);
@@ -259,12 +277,46 @@ export function createTurnRunner(deps: {
     clock.raf(step);
   };
 
+  /**
+   * Gives the reader the page the turn was going to land on, having failed to slide it there.
+   *
+   * **The same trade `commandTurn` makes with no page laid out behind the current one**: the
+   * reader gets what they asked for without watching it arrive, which is far better than the
+   * turn quietly not happening.
+   */
+  const deliver = (towards: TurnDirection): void => {
+    const source = renderer();
+    if (source === null) return;
+    void (towards === "next" ? source.next() : source.previous());
+  };
+
   // The tail of the gesture: slide the rest of the way, then take the turn or put it back. The
   // reader has done the moving up to this point, so it starts at the speed they left it at and
   // eases out.
-  const settleTurn = (turn: TurnInProgress, from: number, to: number, take: boolean): void =>
-    slideTurn(turn, { from, to, ms: TURN_SETTLE_MS, ease: easeOut }, () =>
-      take ? turn.commit() : turn.cancel(),
+  //
+  // A turn stranded on the way is delivered outright, the same as a pressed one — the finger
+  // crossed the threshold, so the page they asked for is no less asked for than a button's.
+  const settleTurn = (
+    turn: TurnInProgress,
+    towards: TurnDirection,
+    from: number,
+    to: number,
+    take: boolean,
+  ): void =>
+    slideTurn(
+      turn,
+      {
+        from,
+        to,
+        ms: TURN_SETTLE_MS,
+        ease: easeOut,
+        stranded: take
+          ? () => {
+              deliver(towards);
+            }
+          : undefined,
+      },
+      () => (take ? turn.commit() : turn.cancel()),
     );
 
   /** Puts the turn in flight where it was going, now, so a new one can begin behind it. */
@@ -302,7 +354,7 @@ export function createTurnRunner(deps: {
     // change, before the frames either side have caught up.
     if (!turn.hasPreview && !turn.atBoundary) {
       turn.cancel();
-      void (towards === "next" ? source.next() : source.previous());
+      deliver(towards);
       return;
     }
 
@@ -315,7 +367,19 @@ export function createTurnRunner(deps: {
     };
 
     if (take) {
-      slideTurn(turn, { from: 0, to: turn.extent, ms: TURN_COMMAND_MS, ease: easeInOut }, end);
+      slideTurn(
+        turn,
+        {
+          from: 0,
+          to: turn.extent,
+          ms: TURN_COMMAND_MS,
+          ease: easeInOut,
+          stranded: () => {
+            deliver(towards);
+          },
+        },
+        end,
+      );
       return;
     }
 
@@ -333,29 +397,30 @@ export function createTurnRunner(deps: {
           const source = renderer();
           // `undefined` from frond means there is no page that way. The machine hears about it on
           // the next move, as a turn that is not there, and gets to ask for one again.
-          dragTurn =
-            source === null ? null : (openTurn(intent.towards, intent.from, source) ?? null);
+          const opened =
+            source === null ? undefined : openTurn(intent.towards, intent.from, source);
+          dragTurn = opened === undefined ? null : { turn: opened, towards: intent.towards };
           return;
         }
         case "moveTurn":
-          dragTurn?.moveTo(intent.distance);
+          dragTurn?.turn.moveTo(intent.distance);
           return;
         case "dropTurn": {
           const held = dragTurn;
           dragTurn = null;
-          held?.cancel();
+          held?.turn.cancel();
           return;
         }
         case "commitTurn": {
           const held = dragTurn;
           dragTurn = null;
-          if (held !== null) settleTurn(held, intent.from, intent.to, true);
+          if (held !== null) settleTurn(held.turn, held.towards, intent.from, intent.to, true);
           return;
         }
         case "cancelTurn": {
           const held = dragTurn;
           dragTurn = null;
-          if (held !== null) settleTurn(held, intent.from, intent.to, false);
+          if (held !== null) settleTurn(held.turn, held.towards, intent.from, intent.to, false);
           return;
         }
         case "commandTurn":
@@ -371,7 +436,7 @@ export function createTurnRunner(deps: {
     facts(): TurnFacts | null {
       return dragTurn === null
         ? null
-        : { extent: dragTurn.extent, atBoundary: dragTurn.atBoundary };
+        : { extent: dragTurn.turn.extent, atBoundary: dragTurn.turn.atBoundary };
     },
   };
 }

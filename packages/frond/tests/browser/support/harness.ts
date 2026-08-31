@@ -556,6 +556,15 @@ export interface FrondHarness {
   ): TurnSnapshot | null;
   /** Moves the turn in progress to `distance` px along. */
   moveTurn(distance: number): void;
+  /**
+   * How the turn the harness holds has ended, if it has: whether it is still live, and whether
+   * it was left **stranded** — ended with nothing taking the reader anywhere.
+   *
+   * `null` when no turn was ever begun. A turn that ended is still readable, which is the point:
+   * this is what a consumer animating a turn reads on the frame after it stopped being live, to
+   * decide whether the page it was carrying still has to be delivered.
+   */
+  turnEnding(): { readonly live: boolean; readonly stranded: boolean } | null;
   /** Takes the turn. */
   commitTurn(): Snapshot;
   /** Puts it back. */

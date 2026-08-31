@@ -262,6 +262,27 @@ test.describe("a turn is not the only thing that can move the reader", () => {
     const frames = await page.evaluate(() => frond.frames());
     expect(frames.every((frame) => frame.offset === 0)).toBe(true);
     expect(frames.filter((frame) => frame.visible)).toHaveLength(1);
+
+    // And it says which of the two endings this was. The jump is carrying the reader to a page,
+    // so the turn was superseded rather than lost, and a consumer must not turn another one on
+    // top of it.
+    expect(await page.evaluate(() => frond.turnEnding())).toEqual({ live: false, stranded: false });
+  });
+
+  test("but a relayout ends it with the reader still where they were", async ({ page }) => {
+    // The other ending, and the one no consumer can work out for itself. Laying out again means
+    // the frames have to go back to rest, so the turn stops — while nothing has taken the reader
+    // anywhere. A consumer that treats this the same as the jump above loses the page the reader
+    // asked for outright: the screen does not move and no position is emitted, which is
+    // Tidemarks #135.
+    await mountPlainBook(page);
+    await peeksReady(page);
+
+    await page.evaluate(() => frond.beginTurn("next", "right"));
+    await page.evaluate(() => frond.moveTurn(300));
+    await page.evaluate(() => frond.relayout());
+
+    expect(await page.evaluate(() => frond.turnEnding())).toEqual({ live: false, stranded: true });
   });
 });
 

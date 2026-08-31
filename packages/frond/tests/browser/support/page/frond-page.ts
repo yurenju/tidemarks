@@ -473,6 +473,10 @@ const harness: FrondHarness = {
     turn?.moveTo(distance);
   },
 
+  turnEnding(): { live: boolean; stranded: boolean } | null {
+    return turn === undefined ? null : { live: turn.live, stranded: turn.stranded };
+  },
+
   commitTurn(): Snapshot {
     turn?.commit();
     turn = undefined;

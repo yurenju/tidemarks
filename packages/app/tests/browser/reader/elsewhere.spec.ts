@@ -20,7 +20,6 @@
 // `visibleText()` reading an empty string after a turn is a known flake on two of the three
 // engines (#15, #46), and this spec is not about the text: the note is written by the same
 // `relocate` the reader's own position comes from, and it is a string this file can compare.
-import type { Page } from "@playwright/test";
 import type { SyncBook } from "../../../src/lib/types.js";
 import { expect, test } from "../support/fixtures.js";
 import {
@@ -29,22 +28,12 @@ import {
   openBook,
   openChrome,
   returnToForeground,
+  storedCfi,
+  storedPosition,
   waitForIndex,
   type StoredAnnotation,
   type StoredPosition,
 } from "../support/library.js";
-
-async function storedPosition(page: Page): Promise<StoredPosition | null> {
-  const raw = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => k.startsWith("tidemarks.position."));
-    return key === undefined ? null : localStorage.getItem(key);
-  });
-  return raw === null ? null : (JSON.parse(raw) as StoredPosition);
-}
-
-function storedCfi(page: Page): Promise<string | null> {
-  return storedPosition(page).then((position) => position?.cfi ?? null);
-}
 
 test("offers a position read elsewhere, and moves the book when it is taken", async ({ page }) => {
   let offered: StoredPosition | null = null;

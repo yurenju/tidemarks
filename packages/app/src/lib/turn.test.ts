@@ -13,6 +13,7 @@ import {
   BOUNCE_FRACTION,
   BOUNCE_MS,
   TURN_COMMAND_MS,
+  TURN_SETTLE_MS,
   createTurnRunner,
   type TurnClock,
 } from "./turn";
@@ -32,10 +33,13 @@ interface FakeTurn extends TurnInProgress {
   /** `"commit"` or `"cancel"`, in the order they arrived. */
   readonly ended: readonly string[];
   /**
-   * Ends the turn the way frond does when something else moves the reader — a key, a jump, a
-   * resize. Neither commit nor cancel: the turn is simply no longer the one in progress.
+   * Ends the turn the way frond does when something else ends it — a key, a jump, a resize.
+   * Neither commit nor cancel: the turn is simply no longer the one in progress.
+   *
+   * `takesOver` is frond's own argument, and the whole of what separates the two cases: a jump
+   * is answerable for where the reader lands, a relayout moves nobody.
    */
-  abandon(): void;
+  abandon(takesOver: boolean): void;
 }
 
 function fakeTurn(
@@ -44,12 +48,16 @@ function fakeTurn(
   const moves: number[] = [];
   const ended: string[] = [];
   let live = true;
+  let stranded = false;
   return {
     extent: shape.extent ?? 300,
     atBoundary: shape.atBoundary ?? false,
     hasPreview: shape.hasPreview ?? true,
     get live() {
       return live;
+    },
+    get stranded() {
+      return stranded;
     },
     // **A turn that is over does not move**, which is frond's own contract for this
     // (`renderer.ts`, on what `moveTo` does once the turn is no longer live) rather than an
@@ -69,8 +77,9 @@ function fakeTurn(
       live = false;
       ended.push("cancel");
     },
-    abandon() {
+    abandon(takesOver: boolean) {
       live = false;
+      stranded = !takesOver;
     },
     moves,
     ended,
@@ -169,19 +178,41 @@ describe("a turn nobody dragged", () => {
 
   test("puts what is drawn over the page back when something else moves the reader", () => {
     const turn = fakeTurn({ extent: 300 });
-    const { runner, advance, slid } = runnerOver(() => turn);
+    const { runner, advance, slid, asked } = runnerOver(() => turn);
 
     runner.run({ kind: "commandTurn", towards: "next" });
     advance(TURN_COMMAND_MS / 2);
     slid.length = 0;
 
-    // A key, a jump, a resize. frond has already put its own frames back, so the marks drawn
-    // over the page have to go back with them — left where the turn carried them they would sit
-    // off the side of the book until something else repainted.
-    turn.abandon();
+    // A key, a jump. frond has already put its own frames back, so the marks drawn over the page
+    // have to go back with them — left where the turn carried them they would sit off the side
+    // of the book until something else repainted.
+    turn.abandon(true);
     advance(TURN_COMMAND_MS / 2);
 
     expect(slid).toEqual([AT_REST]);
+    expect(turn.ended).toEqual([]);
+    // And **nothing is turned on top of it**: a contents entry or a CFI is already carrying the
+    // reader to a page, so a turn delivered here would land them one past where they asked to go.
+    // The other half of this is the test below.
+    expect(asked).toEqual([]);
+  });
+
+  test("still delivers the page when the slide is cut short by a relayout", () => {
+    const turn = fakeTurn({ extent: 300 });
+    const { runner, advance, asked } = runnerOver(() => turn);
+
+    runner.run({ kind: "commandTurn", towards: "next" });
+    advance(TURN_COMMAND_MS / 2);
+
+    // A window resized, a setting applied: frond puts its frames back at rest, so the slide has
+    // nothing left to move — and **nothing is taking the reader anywhere**. Giving up here is
+    // what left a reader pressing the button on a page that never changed, with no position
+    // written either (#135).
+    turn.abandon(false);
+    advance(TURN_COMMAND_MS / 2);
+
+    expect(asked).toEqual(["next"]);
     expect(turn.ended).toEqual([]);
   });
 
@@ -193,5 +224,23 @@ describe("a turn nobody dragged", () => {
 
     expect(turn.moves).toEqual([300]);
     expect(turn.ended).toEqual(["commit"]);
+  });
+});
+
+describe("the tail of a turn a finger let go of", () => {
+  test("delivers the page when the settle is cut short by a relayout", () => {
+    const turn = fakeTurn({ extent: 300 });
+    const { runner, advance, asked } = runnerOver(() => turn);
+
+    runner.run({ kind: "beginTurn", towards: "next", from: "right" });
+    runner.run({ kind: "commitTurn", from: 200, to: 300 });
+    advance(TURN_SETTLE_MS / 2);
+
+    // The finger already crossed the threshold, so this page is as asked-for as a button's —
+    // and the loss looks the same from the reader's side: "I swiped and nothing happened".
+    turn.abandon(false);
+    advance(TURN_SETTLE_MS);
+
+    expect(asked).toEqual(["next"]);
   });
 });
