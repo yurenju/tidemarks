@@ -68,15 +68,8 @@ import {
   type ChromeEvent,
   type PanelKind,
 } from "../lib/chrome";
-import { selectionEnds, type Point, type Rect, type SelectionEnds } from "../lib/selection-handles";
 import { AT_REST, createTurnRunner } from "../lib/turn";
-import {
-  anchorFromRects,
-  handleBoxes,
-  placeSelectionToolbar,
-  type SelectionAnchor,
-  type ToolbarPlacement,
-} from "../lib/toolbar-position";
+import { useSelection } from "../lib/useSelection";
 import {
   chapterAt,
   chapterBoundaries,
@@ -143,35 +136,6 @@ const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string 
 const FONT_TOAST_MS = 2600;
 
 /**
- * The opening guess at whether the reader's selection is ours to draw, before any pointer has
- * said anything (`notePointer` is what settles it after that).
- *
- * **A guess, because no media query can do better.** A machine with both a touchscreen and a
- * mouse reports `(pointer: coarse)`, and — measured on one — `(any-pointer: fine)` false as
- * well: as far as CSS is concerned that mouse does not exist, so no query tells such a machine
- * from a phone. Which is why the question is not settled here.
- *
- * It is still asked, and coarse still means ours, because the first gesture happens before the
- * first answer: on a phone that gesture is a long press, and a long press over a selectable
- * document is the iOS magnifier ADR-0036 exists to remove. Guessing coarse costs a desk nothing —
- * the mouse corrects it on its way to the text — while guessing fine would cost a phone the one
- * gesture that cannot be taken back.
- *
- * `matchMedia` may be absent in a non-browser environment; a missing answer means the desk,
- * which is the arrangement that has never had any of these symptoms.
- */
-const coarsePointer = (): boolean =>
-  typeof window !== "undefined" &&
-  typeof window.matchMedia === "function" &&
-  window.matchMedia("(pointer: coarse)").matches;
-
-/** The selection the app drew itself: what to wash, and the two ends to take hold of. */
-interface DrawnSelection {
-  readonly rects: readonly Rect[];
-  readonly ends: SelectionEnds;
-}
-
-/**
  * Moves the highlight layer with the page a turn is sliding.
  *
  * A mark belongs to a passage of the book, not to the screen: the moment the page starts
@@ -183,16 +147,6 @@ function slideMarks(layer: HTMLElement | null, at: PageOffset): void {
   if (layer === null) return;
   layer.style.transform = at.x === 0 && at.y === 0 ? "" : `translate(${at.x}px, ${at.y}px)`;
 }
-
-// A rectangle frond reported, kept as a plain value. `DOMRect`s from a document that has since
-// relaid out are not wrong so much as meaningless, and holding one in state invites reading it
-// later; four numbers cannot be mistaken for a live measurement.
-const toRect = (rect: DOMRect): Rect => ({
-  x: rect.x,
-  y: rect.y,
-  width: rect.width,
-  height: rect.height,
-});
 
 // The reader-facing name of a font choice, from its one source. The toast names the face the
 // download applied, and the dropdown is where that name is defined.
@@ -626,61 +580,46 @@ export default function Reader({
    * this is the only place that knows — `resolveLayout` gets the mode from frond itself.
    */
   const [verticalBook, setVerticalBook] = useState(false);
-  // Read from inside the open effect, which closed over its scope before the first section had
-  // laid out. Which axis a selection's handles hang off depends on it.
-  const verticalRef = useRef(false);
-  verticalRef.current = verticalBook;
   /**
-   * Whether the pointer in the reader's hand gets the selection we draw (ADR-0036).
+   * The whole life of a selection, from the long press that begins one to the colour row that
+   * ends it (`lib/useSelection.ts`).
    *
-   * The opening guess, from the media query, and then whatever the pointers have said since
-   * (`notePointer`). A ref rather than state because nothing renders from it — it decides what a
-   * gesture means and what the book's `user-select` is, and both of those are read at the moment
-   * the pointer moves, not at the next paint.
+   * ⚠️ **Every command is read through `.current`**, and never lifted into a local: the effect
+   * that opens the book runs once per book, so what it closes over has to be something that
+   * always points at now. That file's head comment is the long version, and this is the one
+   * arrangement here that turns nothing red when it is got wrong.
+   *
+   * The gesture machine stays out here, because it decides page turns as well. So the two
+   * commands that have something to say to it hand a value back for `send` rather than reaching
+   * it — `send` lives inside the open effect and nothing out here can call it — and the one
+   * question that runs the other way goes down as `blamesTap`.
    */
-  const ownSelectionRef = useRef(coarsePointer());
+  const { commands: selection, view: selectionView } = useSelection({
+    renderer: rendererRef,
+    mount: mountRef,
+    vertical: verticalBook,
+    blamesTap: (at) => machineRef.current?.blamesTapForSelection(at) === true,
+    onArrived: () => sendChrome({ kind: "selectionArrived" }),
+    onMark: (color, withNote) => void addAnnotation(color, withNote),
+  });
   /**
    * What a pointer on a selection handle does, filled in by the effect that owns the gestures.
    *
    * A ref because the two live on opposite sides of the component: the handles are rendered
-   * here, and everything that knows what dragging one means — the renderer, the anchor, the
-   * page — is inside the effect that opened the book. Lifting that into state would re-render
-   * the reader on every frame of a drag.
+   * here, and the machine that knows what dragging one means is inside the effect that opened
+   * the book. Lifting that into state would re-render the reader on every frame of a drag.
    */
   const handlesRef = useRef<
-    ((kind: "down" | "move" | "up" | "cancel", end: "start" | "end", point: Point) => void) | null
+    | ((
+        kind: "down" | "move" | "up" | "cancel",
+        end: "start" | "end",
+        at: { clientX: number; clientY: number },
+      ) => void)
+    | null
   >(null);
-  const [selection, setSelection] = useState<{
-    cfiRange: string;
-    text: string;
-    anchor: SelectionAnchor;
-    /**
-     * The geometry of a selection we drew, or `null` for one the browser drew.
-     *
-     * Both arrive here because everything downstream — the colour row, saving a mark — is the
-     * same either way. What differs is only who painted it, and that is one field rather than a
-     * second piece of state that half the reader would have to consult as well.
-     */
-    drawn: DrawnSelection | null;
-    /**
-     * The finger is still down on it.
-     *
-     * [[Marking]] waits for that finger to lift (CONTEXT.md [[chrome]]): a colour row raised mid-drag
-     * appears under the finger that raised it and then chases the selection across the page.
-     * Always false for a browser-drawn selection, which is only reported once it has settled.
-     */
-    live: boolean;
-  } | null>(null);
-  // Read from inside the open effect, which closed over its own scope before any selection
-  // existed. A press landing in the margin has no `hasSelection` of its own to report — frond
-  // answers that for the presses inside the book, and out here this is the same answer.
-  const selectionRef = useRef<typeof selection>(null);
-  selectionRef.current = selection;
-  const toolbarRef = useRef<HTMLDivElement>(null);
   // The reader's own box, which the panels are rendered into. Where a panel stops is then a box
   // rather than a pair of numbers kept in step with the height of two bars — see `Panel`.
   const panelHostRef = useRef<HTMLDivElement>(null);
-  const [toolbarPos, setToolbarPos] = useState<ToolbarPlacement | null>(null);
   const [fraction, setFraction] = useState(0);
   // The Scrubber stays disabled until frond has built the whole-book index: before that
   // `fraction` is undefined and a jump to one cannot be resolved.
@@ -795,123 +734,6 @@ export default function Reader({
       slide: (at) => slideMarks(marksRef.current, at),
     });
 
-    // Puts a selection away: the one this component is showing, and the browser's own if there
-    // is one. The second half is frond's to do — a browser-drawn selection lives inside its
-    // iframe — and it is harmless where the selection was ours, because there is nothing there
-    // to clear.
-    //
-    // Called for a selection the reader did not ask for (a phone browser's tap-to-select), for
-    // one they have asked to be rid of, and for one a page turn has carried off.
-    const dropSelection = () => {
-      setSelection(null);
-      rendererRef.current?.clearSelection();
-    };
-
-    /**
-     * Puts a range frond has just located on screen as the selection.
-     *
-     * The one route into [[Marking]] for a selection we drew, so everything that has to be true of one
-     * is true here once: the chrome goes down, the geometry is converted into both systems that
-     * need it — the container's, for the wash and the handles, and the top window's, for the
-     * colour row — and `live` says whether the finger has finished.
-     *
-     * A range with no rectangles is dropped rather than shown: it is a selection that is not on
-     * the page in front of the reader, and there is nothing to put a handle on.
-     */
-    const showRange = (
-      facts: { cfi: string; text: string; rects: readonly DOMRect[] },
-      live: boolean,
-    ): void => {
-      const container = mountRef.current?.getBoundingClientRect();
-      if (!container) return;
-      const anchor = anchorFromRects(facts.rects, container);
-      const ends = selectionEnds(facts.rects, verticalRef.current);
-      if (!anchor || !ends) return;
-
-      // [[Marking]] displaces [[Find]], same as the browser-drawn route below.
-      sendChrome({ kind: "selectionArrived" });
-      setSelection({
-        cfiRange: facts.cfi,
-        text: facts.text,
-        anchor,
-        drawn: { rects: facts.rects.map(toRect), ends },
-        live,
-      });
-    };
-
-    /**
-     * Puts the passage `?select=` named on screen already selected, so the colour row is up and
-     * the next press draws a mark (#128, `lib/route.ts`).
-     *
-     * This half is only about **finding the passage**; `placeSelection` below puts it on screen.
-     * A phrase has to be looked for and can fail to be there at all, which a CFI cannot — that
-     * is the whole of the difference between the two spellings, and one line later they meet.
-     *
-     * Which route draws it is `handles`, and the default is the browser's own **at every window
-     * size**. On a phone-sized window that overrides what the media query decided, which is the
-     * point: the alternative default puts nothing on screen and says nothing about why.
-     *
-     * ⚠️ **The route this forces holds only until the next press.** `notePointer` flips it back
-     * on any pointer event, so a tap after this takes the selection away on a touch window.
-     * Nothing guards against it: the caller here is an address nobody types while also using the
-     * book, and a guard would be a second answer to "which route are we on" for the reader's own
-     * finger to disagree with.
-     *
-     * Failures say so in the console and leave the book open where it is. Nothing is put on
-     * screen: the only way to ask for this is to type it, so whoever gets it wrong is looking at
-     * the console already — and a message on screen would be app text, which means three
-     * catalogues (ADR-0031) for a path no reader ever reaches.
-     */
-    function applySelect(renderer: Renderer, select: Select, handles: boolean): void {
-      if (select.kind === "text") {
-        const found = renderer.findText(select.text);
-        if (found === undefined) {
-          console.warn(`?select=: "${select.text}" is not in the section on screen`);
-          return;
-        }
-        return placeSelection(renderer, found, handles);
-      }
-      placeSelection(renderer, select.cfi, handles);
-    }
-
-    /**
-     * Puts a passage on screen as a selection, by whichever of the two routes was asked for.
-     *
-     * **The geometry is asked for first on both routes**, so a range that resolves to nothing at
-     * all is reported rather than handed on: `showRange` drops a range with no rectangles, and it
-     * does so *after* having put [[Find]] away, which would leave a bare page and no account of why.
-     *
-     * ⚠️ **It does not tell "on this page" from "further down this section".** `rectsFor` reports
-     * true geometry wherever the passage is — clipping is the consumer's policy (frond ADR-0002)
-     * — so a phrase found three pages on comes back with rectangles and gets selected, with the
-     * colour row anchored off the page. Measured, both routes behave that way. Which page the
-     * reader lands on is `?at=`'s answer, not this one's, so nothing here overrides it.
-     */
-    function placeSelection(renderer: Renderer, cfi: string, handles: boolean): void {
-      const facts = renderer.rangeFactsFor(cfi);
-      if (facts === undefined || facts.rects.length === 0) {
-        console.warn(`?select=: ${cfi} names nothing in the section on screen`);
-        return;
-      }
-
-      // **Whichever route is asked for is forced on**, rather than only the native one. The two
-      // are chosen by pointer type, and neither answer is the one this address wants: on a fine
-      // pointer the drawn route would lay our wash over a document the browser can still select
-      // natively, and the reader's next drag would paint a second selection under the first —
-      // the "book selecting two ways at once" `notePointer` exists to prevent.
-      ownSelectionRef.current = handles;
-      renderer.setNativeSelection(!handles);
-
-      if (handles) {
-        // The one entry the reader's own long press goes through, so what is on screen is what a
-        // finger produces — the collapse of [[Find]], both coordinate systems, the handles.
-        showRange(facts, false);
-        return;
-      }
-
-      renderer.selectRange(cfi);
-    }
-
     /**
      * Carries out one thing the gesture machine asked for.
      *
@@ -945,36 +767,16 @@ export default function Reader({
         case "toggleChrome":
           sendChrome({ kind: "tapped" });
           return;
-        case "beginSelection": {
-          const facts = rendererRef.current?.rangeFromPoints(intent.at, intent.at, "word");
-          // A press on a margin, a picture, the gap between paragraphs: nothing to select, and
-          // the press carries on being whatever it would otherwise have been — which is what the
-          // machine has to be told, or it would spend the rest of the press extending nothing.
-          if (facts) showRange(facts, true);
-          else send({ kind: "selectionRefused" });
-          return;
-        }
-        case "extendSelection": {
-          // `"char"` rather than `"word"`: the word granularity is spent on the first snap, and
-          // from then on the reader is choosing where the passage ends. The two platforms differ
-          // — iOS extends by character, Android snaps to words — and character is the one the
-          // reader can always reach the other from. ⚠️ Whether it is fiddly on a real phone is one
-          // for the device trip; changing it is changing this argument.
-          const facts = rendererRef.current?.rangeFromPoints(intent.from, intent.to, "char");
-          // A finger over a margin, a picture, or past the end of the column has moved off the
-          // text rather than to the end of it — the selection stays where the reader last had it.
-          if (facts) showRange(facts, true);
-          return;
-        }
+        // The five the selection carries out for itself (`lib/useSelection.ts`). Only one of them
+        // has anything to say back: a press on a margin, a picture, the gap between paragraphs
+        // has nothing to select, and the machine has to be told, or it would spend the rest of
+        // the press extending nothing.
+        case "beginSelection":
+        case "extendSelection":
         case "holdSelection":
-          setSelection((now) => (now === null ? null : { ...now, live: true }));
-          return;
         case "settleSelection":
-          // [[Marking]] may stand up now the finger has finished (CONTEXT.md [[chrome]]).
-          setSelection((now) => (now === null ? null : { ...now, live: false }));
-          return;
         case "dropSelection":
-          dropSelection();
+          if (!selection.current.apply(intent)) send({ kind: "selectionRefused" });
           return;
         case "openNote":
           sendChrome({ kind: "openNote", id: intent.annotationId });
@@ -997,44 +799,6 @@ export default function Reader({
     }
 
     /**
-     * Which of the two selections this pointer gets, from the pointer itself.
-     *
-     * ADR-0036 splits on the pointer — a finger gets the one we draw, a mouse gets the browser's,
-     * and a machine with both takes each gesture as it comes. This is the only place that can see
-     * which is in the reader's hand. The media query cannot: a touchscreen desktop reports no
-     * fine pointer at all, so it reads as a phone, and a reader with a mouse there was left with
-     * neither selection — the book unselectable, and the long press answering only to a finger.
-     *
-     * **Turning it back on is the direction that has to be earned, and only a mouse earns it.**
-     * A selectable document under a finger is the iOS magnifier this all exists to remove, and
-     * iOS raises none for a mouse. The other direction is closed at the finger's own
-     * `pointerdown`, half a second before the long press it would spoil.
-     *
-     * A pen counts as a finger, which the `!==` decides and ADR-0036 does not: it splits finger
-     * from mouse and a stylus is neither. It goes this side because a stylus on a tablet is held
-     * like a finger and reaches the same book — and because this side is the one that is safe to
-     * be wrong about, being the side that makes nothing selectable.
-     *
-     * **Turning off is not the same as undoing.** ⚠️ Whether `user-select: none` collapses a
-     * selection that is already standing is **unmeasured across the three engines** — the same
-     * caveat frond carries on the neighbouring question (`section-view.ts`'s `suppressSelection`,
-     * where the documentation turned out to be wrong once already). So the browser's own
-     * selection is cleared on the way in rather than assumed gone, or a long press would paint
-     * our wash and beads over a highlight that is still there, which is the book selecting two
-     * ways at once. The clear costs nothing where an engine had already collapsed it, and it is
-     * the whole of the fix where one had not. Nothing is cleared on the way out: the reader who
-     * chose a passage with a finger reaches for the mouse to press a colour, and that reach
-     * crosses the book — dropping it there would take the passage away on the way to marking it.
-     */
-    const notePointer = (pointerType: string) => {
-      const ours = pointerType !== "mouse";
-      if (ours === ownSelectionRef.current) return;
-      ownSelectionRef.current = ours;
-      rendererRef.current?.setNativeSelection(!ours);
-      if (ours) rendererRef.current?.clearSelection();
-    };
-
-    /**
      * What a press means, whichever surface it landed on.
      *
      * **Two surfaces, one gesture.** frond reports the presses inside the book's own frame; the
@@ -1051,7 +815,7 @@ export default function Reader({
       hasSelection: boolean;
       preventTapDefault?: () => void;
     }) => {
-      notePointer(event.pointerType);
+      selection.current.notePointer(event.pointerType);
       const prevent = send({
         kind: "press",
         x: event.x,
@@ -1072,7 +836,7 @@ export default function Reader({
     // already started over. A mouse crosses the text to reach the word it wants, so the move is
     // where it announces itself — comfortably before the press that has to act on it.
     const onMove = (event: { x: number; y: number; pointerType: string }) => {
-      notePointer(event.pointerType);
+      selection.current.notePointer(event.pointerType);
       send({ kind: "move", x: event.x, y: event.y, at: performance.now(), turn: turns.facts() });
     };
 
@@ -1097,7 +861,7 @@ export default function Reader({
         hasSelection: event.hasSelection,
         // frond's `hasSelection` is about the browser's own selection, and where this component
         // draws its own that answer is permanently no.
-        showingSelection: selectionRef.current !== null,
+        showingSelection: selection.current.hasSelection(),
         onHighlight: hit?.annotation.id ?? null,
         turn: turns.facts(),
       });
@@ -1112,22 +876,9 @@ export default function Reader({
      * press did not land in. The handle captures the pointer for the length of the drag, so
      * every move and the release come back here however far the finger travels.
      */
-    handlesRef.current = (kind, end, point) => {
-      const ends = selectionRef.current?.drawn?.ends;
-      if (ends === undefined) return;
-
-      switch (kind) {
-        case "down":
-          send({ kind: "handleDown", end, point, ends });
-          return;
-        case "move":
-          send({ kind: "handleMove", point });
-          return;
-        case "up":
-        case "cancel":
-          send({ kind: "strayRelease" });
-          return;
-      }
+    handlesRef.current = (kind, end, at) => {
+      const event = selection.current.handlePointer(kind, end, at);
+      if (event !== null) send(event);
     };
 
     // The margin band's own listeners: the part of the container the book's frame does not
@@ -1146,7 +897,7 @@ export default function Reader({
         ...inContainer(event),
         pointerType: event.pointerType,
         isLink: false,
-        hasSelection: selectionRef.current !== null,
+        hasSelection: selection.current.hasSelection(),
       });
     const marginMove = (event: PointerEvent) =>
       onMove({ ...inContainer(event), pointerType: event.pointerType });
@@ -1154,7 +905,7 @@ export default function Reader({
       onRelease({
         ...inContainer(event),
         isLink: false,
-        hasSelection: selectionRef.current !== null,
+        hasSelection: selection.current.hasSelection(),
       });
 
     mount?.addEventListener("pointerdown", marginPress);
@@ -1281,7 +1032,7 @@ export default function Reader({
         const nav = createNavigator({ rtl: direction.rtl });
         navRef.current = nav;
         machineRef.current = createGestureMachine(nav, {
-          ownSelection: () => ownSelectionRef.current,
+          ownSelection: () => selection.current.ownsSelection(),
         });
       };
       applyDirection();
@@ -1354,7 +1105,7 @@ export default function Reader({
         // frond's iframe, and `user-select` on anything out here reaches none of it — nor does
         // `-webkit-touch-callout`, which is what iOS raises its own menu from. This is only the
         // opening answer; `notePointer` moves it as the reader changes hands.
-        nativeSelection: !ownSelectionRef.current,
+        nativeSelection: !selection.current.ownsSelection(),
         // The one thing the margin needs and nobody here can know before the book is on
         // screen: which axis the line lies along (ADR-0012). frond asks; this answers.
         resolveLayout: (facts) =>
@@ -1399,7 +1150,7 @@ export default function Reader({
             // first character — the wash would stay put with rectangles measured before it, and
             // nothing recomputes them (the `geometry` effect covers painted marks only). Visible
             // rather than silent, and far rarer than the case it fixes.
-            if (at.cfi !== lastCfi) setSelection((now) => (now?.drawn ? null : now));
+            if (at.cfi !== lastCfi) selection.current.dropDrawn();
             lastCfi = at.cfi;
             const percentage = at.fraction ?? lastPercentage;
             lastPercentage = percentage;
@@ -1439,37 +1190,7 @@ export default function Reader({
             setIndexed(true);
             indexIsBuilt();
           },
-          selection: (event) => {
-            if (event.cfi === undefined || event.text.trim() === "") {
-              setSelection(null);
-              return;
-            }
-            // A word the tap selected, not a passage the reader chose (#36). It arrives on
-            // either side of `pointerup` depending on the browser, so it is caught here as
-            // well as in the tap branch below.
-            if (machineRef.current?.blamesTapForSelection(performance.now()) === true) {
-              dropSelection();
-              return;
-            }
-            // [[Marking]] displaces [[Find]], with no exception made for either. The colour row is placed
-            // against the selection's own rectangles (`toolbar-position`), and one more layer
-            // for it to dodge is one more way that placement comes out wrong.
-            sendChrome({ kind: "selectionArrived" });
-            const container = mountRef.current?.getBoundingClientRect();
-            if (!container) return;
-            // The rectangles come with the event, so there is no CFI round trip here.
-            const anchor = anchorFromRects(event.rects, container);
-            if (!anchor) return;
-            // `drawn: null` — the browser painted this one, so there is nothing of ours to put
-            // on screen over it, and no handles: adjusting it is the browser's gesture too.
-            setSelection({
-              cfiRange: event.cfi,
-              text: event.text,
-              anchor,
-              drawn: null,
-              live: false,
-            });
-          },
+          selection: (event) => selection.current.acceptNative(event),
           pointerdown: onPress,
           // The page follows the finger from here (ADR-0024). Every frame of it comes through
           // frond, because the container hears nothing from inside the iframe.
@@ -1517,7 +1238,7 @@ export default function Reader({
       // and first layout ago. A reader who clicked a book in the library has their cursor over
       // this very area while it loads, so the disagreement this closes is the ordinary case,
       // not a contrived one. No-ops when nothing moved.
-      attached.setNativeSelection(!ownSelectionRef.current);
+      attached.setNativeSelection(!selection.current.ownsSelection());
       setRenderer(attached);
       // **There is a book under the banner now**, which is the earliest a position from another
       // device can be offered. `attach()` is an iframe, a stylesheet and a first layout — a sync
@@ -1543,10 +1264,10 @@ export default function Reader({
       }
       if (cancelled) return;
 
-      // **After the jumps, not with them.** A selection is geometry, and `showRange` drops a
-      // range with no rectangles — until the two jumps above have landed, the passage is not on
+      // **After the jumps, not with them.** A selection is geometry, and `showRange`
+      // (`lib/useSelection.ts`) drops a range with no rectangles — until the two jumps above have landed, the passage is not on
       // the page in front of anyone and both routes would come back empty.
-      if (select) applySelect(attached, select, handles === true);
+      if (select) selection.current.applyAddress(select, handles === true);
 
       // The address has been spent. Read by `tests/browser/support/library.ts`, which otherwise
       // has no way to tell a book that opened where it was asked from one still on its way
@@ -1619,6 +1340,12 @@ export default function Reader({
     // to the passage — so depending on it would re-open the book onto the last note the reader
     // looked at, every time they looked at one. The other two are carried out once as the book
     // opens and never again. The linter asks for all three; the answer is no.
+    //
+    // ⚠️ **`selection.current` is not one either, and asking for it is the trap
+    // `lib/useSelection.ts` opens with.** The linter reads `selection.current.apply(...)` as a
+    // dependency on this render's commands; it is the opposite — the ref is here precisely so
+    // this once-per-book closure reads the current set instead of the one it opened with. Adding
+    // it would re-open the book on every render.
     //
     // `t` is deliberately not a dependency. What it feeds is an error message stored in state,
     // and re-running this to refresh that wording would re-open the book — a reader who changed
@@ -1940,52 +1667,15 @@ export default function Reader({
     // first paint would otherwise keep its marks on the wrong side of the line.
   }, [renderer, annotations, geometry, verticalBook]);
 
-  // Place the highlight toolbar once it has rendered: its measured size is what decides which
-  // sides of the passage it fits beside, and where the resting line falls when none of them do.
-  useLayoutEffect(() => {
-    if (!selection || !toolbarRef.current) {
-      setToolbarPos(null);
-      return;
-    }
-    const el = toolbarRef.current;
-    const container = mountRef.current?.getBoundingClientRect();
-    // Where the two beads are, so the row can be placed off them. Only a selection we drew has
-    // handles; a browser-drawn one on the desk has none to avoid.
-    const ends = selection.drawn?.ends;
-    setToolbarPos(
-      placeSelectionToolbar(
-        selection.anchor,
-        { width: el.offsetWidth, height: el.offsetHeight },
-        { width: window.innerWidth, height: window.innerHeight },
-        {
-          vertical: verticalBook,
-          handles: ends && container ? handleBoxes(ends, container) : [],
-        },
-      ),
-    );
-  }, [selection, verticalBook]);
-
-  /**
-   * Puts a selection away, in the document as well as in this component's state.
-   *
-   * Both halves, always. The passage is marked now (or the reader said no), and what stays
-   * behind otherwise is the browser's own selection sitting under the colour — invisible as a
-   * decision and very much alive as a fact: the next press reports `hasSelection`, and a press
-   * that lands on a selection is the reader adjusting it, so the page would not follow it.
-   */
-  function dismissSelection() {
-    setSelection(null);
-    rendererRef.current?.clearSelection();
-  }
-
   async function addAnnotation(color: string, withNote: boolean) {
-    if (!selection) return;
+    const passage = selectionView.passage;
+    if (!passage) return;
     const now = Date.now();
     const annotation: Annotation = {
       id: crypto.randomUUID(),
       bookId,
-      cfiRange: selection.cfiRange,
-      text: selection.text,
+      cfiRange: passage.cfiRange,
+      text: passage.text,
       note: "",
       color,
       createdAt: now,
@@ -1996,7 +1686,7 @@ export default function Reader({
     await db.annotations.put(annotation);
     scheduleSync();
     setAnnotations((prev) => sortByBookOrder([...prev, annotation]));
-    dismissSelection();
+    selection.current.clear();
     if (withNote) sendChrome({ kind: "openNote", id: annotation.id });
   }
 
@@ -2121,18 +1811,12 @@ export default function Reader({
             />
             {/* Only for a selection we drew: where the browser drew one it is already on
                 screen, and a second wash over it would be twice the colour. */}
-            {selection?.drawn && (
+            {selectionView.drawn && (
               <SelectionLayer
-                rects={selection.drawn.rects}
-                ends={selection.drawn.ends}
+                rects={selectionView.drawn.rects}
+                ends={selectionView.drawn.ends}
                 vertical={verticalBook}
-                onHandlePointer={(kind, end, event) => {
-                  const box = mountRef.current?.getBoundingClientRect();
-                  handlesRef.current?.(kind, end, {
-                    x: event.clientX - (box?.left ?? 0),
-                    y: event.clientY - (box?.top ?? 0),
-                  });
-                }}
+                onHandlePointer={(kind, end, event) => handlesRef.current?.(kind, end, event)}
               />
             )}
           </div>
@@ -2483,12 +2167,14 @@ export default function Reader({
       {/* [[Marking]] waits for the finger to lift. While it is still down the reader has the wash and
           the two handles and nothing else — a colour row raised mid-drag would sit under the
           finger that raised it and chase the selection across the page (CONTEXT.md [[chrome]]). */}
-      {selection && !selection.live && (
+      {selectionView.toolbar.showing && (
         <div
-          ref={toolbarRef}
+          ref={selectionView.toolbar.ref}
           className="highlight-toolbar"
           style={
-            toolbarPos ? { left: toolbarPos.left, top: toolbarPos.top } : { visibility: "hidden" }
+            selectionView.toolbar.at
+              ? { left: selectionView.toolbar.at.left, top: selectionView.toolbar.at.top }
+              : { visibility: "hidden" }
           }
         >
           {/* Two groups rather than six children, so the rule between them has a side to sit on
@@ -2508,18 +2194,18 @@ export default function Reader({
                   style={{ "--mark": markVar(name) } as CSSProperties}
                   title={inkLabel}
                   aria-label={inkLabel}
-                  onClick={() => addAnnotation(name, false)}
+                  onClick={() => selectionView.toolbar.onMark(name, false)}
                 />
               );
             })}
           </div>
           <div className="mark-actions">
-            <button onClick={() => addAnnotation(DEFAULT_MARK, true)}>
+            <button onClick={() => selectionView.toolbar.onMark(DEFAULT_MARK, true)}>
               <Trans comment="Button on the selection bar: mark the passage and open a note on it in one action, rather than marking and then reopening it to write.">
                 Mark and note
               </Trans>
             </button>
-            <button onClick={dismissSelection}>
+            <button onClick={selectionView.toolbar.onDismiss}>
               <Trans comment="Button on the selection bar: drop the selection without marking anything.">
                 Cancel
               </Trans>
