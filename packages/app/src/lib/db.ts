@@ -16,7 +16,7 @@ export interface MetaRow {
 /**
  * One CJK face Tidemarks carries (ADR-0014), as it sits on this device.
  *
- * **A Blob, where a book is bytes** (ADR-0047). A face is 19 MB and is only ever handed to
+ * **A Blob, where a book is bytes** (ADR-0048). A face is 19 MB and is only ever handed to
  * `URL.createObjectURL`, so a Blob read back out stays a reference to something the browser
  * keeps on disk; an ArrayBuffer read back out is 19 MB of memory.
  */
@@ -84,7 +84,7 @@ db.version(4).upgrade((tx) => tx.table("meta").delete("syncCursor"));
 /** Set by v5 below, cleared once every book on this device holds bytes. */
 const BOOKS_IN_BLOBS = "booksInBlobs";
 
-// v5: `BookRecord.file` and `.cover` stopped being Blobs (ADR-0047). No schema change — Dexie
+// v5: `BookRecord.file` and `.cover` stopped being Blobs (ADR-0048). No schema change — Dexie
 // stores whatever the record holds — so all this does is leave a note for the conversion below.
 //
 // **The note, rather than the conversion.** Turning a Blob into an ArrayBuffer means awaiting
