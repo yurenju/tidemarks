@@ -9,9 +9,9 @@
 // ⚠️ **Almost every case here presses back or reloads**, so nothing in it is safe to fold into
 // another file: a stray history entry left behind by a helper is a failure two tests later.
 //
-// Which glyph the way out wears is not asserted anywhere on its own. It does not need to be: the
-// name is how these cases and `hand-held.spec.ts` reach the button at all, so a ✕ and a ← that
-// swapped places would take both files red.
+// The way out is a ✕ named `Close` at every width, and that is not asserted anywhere on its own.
+// It does not need to be: the name is how these cases and `hand-held.spec.ts` reach the button at
+// all, so losing it would take both files red.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import {
@@ -319,7 +319,7 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
  * A panel opened inside the app sits on an entry the app pushed, and closing it is a
  * `history.back()`. Pasted into a new tab, that same address *is* the tab's first entry: there
  * is nothing behind it to pop, so `back()` changes nothing, no `hashchange` arrives, the state
- * machine is never told — and the panel stays on screen through every press of ←. Nothing in a
+ * machine is never told — and the panel stays on screen through every press of ✕. Nothing in a
  * suite that always opens the book first would ever reach it.
  */
 test.describe("an address somebody pasted", () => {
