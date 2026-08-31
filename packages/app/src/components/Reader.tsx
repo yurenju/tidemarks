@@ -19,8 +19,16 @@ import {
   subscribePulledAnnotations,
   subscribePulledProgress,
 } from "../lib/sync";
-import { elapsedSince, positionFromElsewhere, type Elapsed } from "../lib/elsewhere";
-import { entersVisit, leavesVisit } from "../lib/visit";
+import {
+  bannerOffer,
+  nextPlace,
+  placeFor,
+  type Elapsed,
+  type Offer,
+  type Place,
+  type PlaceEffect,
+  type PlaceEvent,
+} from "../lib/place";
 // `Panel` here is the address's spelling of one, aliased because the component of that name is
 // the shell it is drawn in — two halves of the same thing, and both are in this file.
 import { samePanel, type At, type Panel as PanelAddress, type Select } from "../lib/route";
@@ -546,60 +554,71 @@ export default function Reader({
     sendChrome({ kind: "noteSaved" });
   }, [annotationsRead, annotations, editingId]);
   /**
-   * Where this device has the reader, as the last `relocate` left it.
+   * Where the reader is in this book: what this device claims, what is on screen, whether a
+   * visit is holding, and whether another device has offered a position (`lib/place.ts`).
    *
-   * A ref rather than state: nothing renders from it, and it is read from inside a sync
-   * callback that closed over its scope long before the page turn it needs to know about.
+   * **The ref is the value and the state is a picture of it.** frond's `relocate` closed over
+   * this scope pages ago and has to read the place as it is *now*, which is exactly what a
+   * render cannot promise — so every rule about how the five facts move together lives in the
+   * reducer, and `dispatchPlace` below is the only writer of either copy.
    */
-  const positionRef = useRef<Progress | null>(null);
+  const placeRef = useRef<Place>(placeFor(bookId));
+  /** The two fields the screen draws from: the Scrubber's mark, and the banner. */
+  const [placeView, setPlaceView] = useState<{ visit: Progress | null; offer: Offer | null }>({
+    visit: null,
+    offer: null,
+  });
+  const { visit, offer: elsewhere } = placeView;
   /**
-   * The progress a visit is defending, or `null` while the reader is simply reading.
+   * Where this sitting began and where it got to, for the reading session written on the way
+   * out (`lib/stats.ts`).
    *
-   * Set when they go back to a marked passage, and it holds what they had reached until they
-   * read past it again (`lib/visit.ts`). While it is set, `positionRef` above is frozen on it:
-   * the screen has moved, the reader's place in the book has not, and it is the place that a
-   * position arriving from another device is measured against.
+   * Refs rather than locals in the effect below, because what moves them is a `groundCovered`
+   * effect and the reducer that emits one is dispatched from out here as well — [[Stay here]]
+   * is not a page turn. `null` until a `relocate` carries a fraction: until then the reader is
+   * in the book but not yet placed in it, and 0 would be the claim that they are at the front
+   * of it.
    */
-  const visitRef = useRef<Progress | null>(null);
+  const groundFrom = useRef<number | null>(null);
+  const groundTo = useRef<number | null>(null);
+
+  /** Carries out one thing the place asked for. */
+  function runPlaceEffect(effect: PlaceEffect): void {
+    switch (effect.kind) {
+      case "recordPosition":
+        recordPosition(effect.position);
+        return;
+      case "goToCfi":
+        void rendererRef.current?.goToCfi(effect.cfi);
+        return;
+      case "groundCovered":
+        groundFrom.current ??= effect.fraction;
+        groundTo.current = effect.fraction;
+        return;
+      default:
+        // An effect the reducer can ask for and nothing here carries out is a write the reader
+        // never gets, and nothing reports that. This is what makes it a compile error instead.
+        effect satisfies never;
+    }
+  }
+
   /**
-   * The same visit again, in the one form the screen can draw from.
+   * Hands one event to the place and carries out what comes back.
    *
-   * A ref cannot raise a mark on the Scrubber — nothing renders when it changes — so the visit
-   * is held twice, and `setVisit` below is the only writer of either. Two names for one fact is
-   * a thing to be suspicious of; the alternative is worse. `visitRef` is read inside frond's
-   * `relocate`, a callback that closed over its scope pages ago and needs the value as it is
-   * *now*, which is exactly what state cannot give it.
+   * ⚠️ **The ref moves first, then the picture, then the effects.** A `relocate` arriving
+   * during the same turn has to see the state this event produced — that is the whole reason
+   * the ref is authoritative — and the effects are run last because `recordPosition` is what
+   * the new state means, not what produces it.
    */
-  const [visit, setVisitState] = useState<Progress | null>(null);
-  /** Enter a visit, or leave one. Both copies move together or neither does. */
-  const setVisit = (kept: Progress | null) => {
-    visitRef.current = kept;
-    setVisitState(kept);
+  const dispatchPlace = (event: PlaceEvent): void => {
+    const { state, effects } = nextPlace(placeRef.current, event);
+    placeRef.current = state;
+    const shown = bannerOffer(state);
+    setPlaceView((now) =>
+      now.visit === state.visit && now.offer === shown ? now : { visit: state.visit, offer: shown },
+    );
+    for (const effect of effects) runPlaceEffect(effect);
   };
-  /**
-   * The last position the screen reported, visit or not.
-   *
-   * Two refs rather than one because a visit splits the question in two: `positionRef` is what
-   * this device claims about the book, and this is where the reader is looking. [[Stay here]]
-   * needs the second — during a visit the first is a hundred pages away, and writing it back
-   * would be the button doing nothing at all.
-   */
-  const screenRef = useRef<Progress | null>(null);
-  /**
-   * A position from another device, offered but not taken, and how long ago it was written.
-   *
-   * **Held here, not read back from Dexie when the reader answers.** The pull has already
-   * written it there, and the next page turn on this device writes over it — so by the time a
-   * banner that has been on screen for a minute is answered, the row it is about may be gone.
-   * A copy up here is what makes the offer outlive the sync that produced it.
-   *
-   * **The elapsed reading is taken once, here, rather than computed as the banner draws.** A
-   * `Date.now()` in the markup would be re-read on every unrelated render — a page turn, the
-   * chrome going up — so the wording would stand still and then jump a step at whatever moment
-   * the reader happened to do something else, which is harder to explain than either a frozen
-   * reading or a ticking one (`lib/elsewhere.ts`).
-   */
-  const [elsewhere, setElsewhere] = useState<{ position: Progress; elapsed: Elapsed } | null>(null);
   /**
    * Whether the section on screen lays out vertically, which the type panel needs in order to
    * take the column choice away: frond cannot paginate a vertically-written book in more than
@@ -739,18 +758,12 @@ export default function Reader({
     let attached: Renderer | null = null;
     const startedAt = Date.now();
 
-    // Where this sitting began and where it got to, so the shelf can say how long the book has
-    // left in it (`stats.ts`). Only knowable here: a fraction is the whole-book index's answer,
-    // and the index is built by the renderer that is about to be torn down. `null` until a
-    // `relocate` carries one — until then the reader is in the book but not yet placed in it,
-    // and 0 would be the claim that they are at the front of it.
-    let openedAtFraction: number | null = null;
-    let leftAtFraction: number | null = null;
-    // A visit belongs to the book it was made in. Left standing, the next book would open with
-    // the last one's page as the progress it was defending, and nothing in it would ever be
-    // written.
-    setVisit(null);
-    screenRef.current = null;
+    groundFrom.current = null;
+    groundTo.current = null;
+    // Everything about where the reader is belongs to the book it was learnt in. Naming the new
+    // book here — before the first `await` — is also what lets a sync round landing mid-open be
+    // ignored rather than measured against the book that has just been closed (`lib/place.ts`).
+    dispatchPlace({ kind: "opened", bookId });
     setIndexed(false);
     setArrived(false);
     setFraction(0);
@@ -1286,10 +1299,6 @@ export default function Reader({
 
       const saved = await recallPosition(bookId);
       if (cancelled) return;
-      // What a pull is compared against until the first `relocate` names a page — and, until
-      // this line runs, what its absence means is "this device does not know where it is yet",
-      // which is why the offer is held back rather than made against nothing.
-      positionRef.current = saved ?? null;
       // The last percentage we knew, so a `relocate` arriving before the index is built does
       // not overwrite a real reading position with 0.
       let lastPercentage = saved?.percentage ?? 0;
@@ -1299,26 +1308,18 @@ export default function Reader({
       // And it is where this sitting starts from: the reader carries on from where they
       // stopped, so the ground covered is measured from there rather than from the first
       // fraction the index happens to report — which may not arrive until several pages in.
-      openedAtFraction = saved?.percentage ?? null;
+      groundFrom.current = saved?.percentage ?? null;
 
-      // **A passage asked for from the shelf opens a visit** — what they had reached is still
-      // theirs (`lib/visit.ts`). Decided here, before `attach()`, because the layout it is
-      // about emits the `relocate` that would otherwise write the passage over it.
+      // What this device knows about the book, and — where the address named a passage — the
+      // visit that knowledge opens. **Both settled here, before `attach()`**, because the
+      // layout it is about emits the `relocate` that would otherwise write the passage over
+      // the reader's progress (`lib/place.ts`).
       //
       // The page compared against is the stored one, and this is the single place that has no
       // choice: the book has not laid out yet, so there is no `renderer.location` to ask. It
       // describes whichever device and window last read this book, which is close enough for
       // the question being asked — whether the passage is somewhere the reader had got to.
-      //
-      // Only a `cfi:` address: it is the one that names a passage. A chapter or a fraction is a
-      // place, and going to a place is reading, not visiting one of your own marks.
-      if (
-        openAt?.kind === "cfi" &&
-        saved !== undefined &&
-        entersVisit(saved.pageRange, openAt.cfi)
-      ) {
-        setVisit(saved);
-      }
+      dispatchPlace({ kind: "recalled", bookId, saved, at: openAt });
 
       const anns = await readAnnotations(bookId);
       if (cancelled) return;
@@ -1420,35 +1421,16 @@ export default function Reader({
               lastReadAt: now,
               dirtyAt: now,
             };
-            screenRef.current = position;
-
-            // **A visit moves the screen and nothing else.** Everything above this line is
-            // what the reader can see and has to keep up; everything below it is the claim
-            // that this is where they are in the book, and going back to a marked passage is
-            // not that claim (`lib/visit.ts`). Turning pages around the passage lands here
-            // too, and is refused for the same reason.
+            // **A visit moves the screen and nothing else**, and whether this move ends one is
+            // the reducer's to say (`lib/place.ts`). Everything above this line is what the
+            // reader can see and has to keep up; from here on it is the claim that this is
+            // where they are in the book, and going back to a marked passage is not that claim.
             //
             // **Ending one takes nothing off the book**: all a visit puts on screen is the
-            // Scrubber's mark (ADR-0040), which goes when `visit` does, one line below. A banner
-            // standing at this moment arrived from another device while the visit was on, and it
-            // is an offer nobody has answered — reading on is not an answer to it.
-            const kept = visitRef.current;
-            if (kept !== null) {
-              if (!leavesVisit(kept, position)) return;
-              setVisit(null);
-            }
-
-            // Under the same gate: a visit is not ground covered, and counting the minutes
-            // spent in it against a displacement of zero would make the shelf report the
-            // reader as slower than they are (`lib/stats.ts`). A sitting spent entirely in one
-            // leaves both ends null, which is the shape that file already drops.
-            if (at.fraction !== undefined) {
-              openedAtFraction ??= at.fraction;
-              leftAtFraction = at.fraction;
-            }
-
-            positionRef.current = position;
-            recordPosition(position);
+            // Scrubber's mark (ADR-0040), which goes when the visit does. A banner standing at
+            // this moment arrived from another device while the visit was on, and it is an
+            // offer nobody has answered — reading on is not an answer to it.
+            dispatchPlace({ kind: "relocated", bookId, position, fraction: at.fraction });
           },
           // The geometry is valid again — a resize or a settings change moves every
           // rectangle without moving the reader, so `relocate` alone would miss it.
@@ -1537,6 +1519,13 @@ export default function Reader({
       // not a contrived one. No-ops when nothing moved.
       attached.setNativeSelection(!ownSelectionRef.current);
       setRenderer(attached);
+      // **There is a book under the banner now**, which is the earliest a position from another
+      // device can be offered. `attach()` is an iframe, a stylesheet and a first layout — a sync
+      // round landing inside it used to raise the banner over a blank viewer, where [[Go there]]
+      // reached a renderer that did not exist yet, navigated nothing, and cleared the offer for
+      // good. Any offer that arrived in the meantime has been held, and standing it up is all
+      // this does (`lib/place.ts`).
+      dispatchPlace({ kind: "ready", bookId });
 
       // The two addresses the first layout could not settle on its own. `chars:` is already in
       // the right section and only moves inside it; `frac:` is a whole-book number, so it waits
@@ -1611,14 +1600,14 @@ export default function Reader({
       if (endedAt - startedAt >= 1000) {
         // Both ends or neither. One end alone is a displacement measured from a place nobody
         // recorded, and half of it would be read as ground covered.
-        const placed = openedAtFraction !== null && leftAtFraction !== null;
+        const placed = groundFrom.current !== null && groundTo.current !== null;
         db.readingSessions.add({
           id: crypto.randomUUID(),
           bookId,
           startedAt,
           endedAt,
-          startFraction: placed ? openedAtFraction : null,
-          endFraction: placed ? leftAtFraction : null,
+          startFraction: placed ? groundFrom.current : null,
+          endFraction: placed ? groundTo.current : null,
           dirtyAt: endedAt,
         });
         scheduleSync();
@@ -1762,21 +1751,15 @@ export default function Reader({
    * the other device's position with it (`lib/elsewhere.ts`).
    */
   useEffect(() => {
-    setElsewhere(null);
-    // The previous book's position is not a yardstick for this one, and the open below will not
-    // replace it for a while. Left standing, a pull landing in between would measure the new
-    // book's position against the old book's page.
-    positionRef.current = null;
     return subscribePulledProgress((rows) => {
       const arrived = rows.find((row) => row.bookId === bookId);
-      const here = positionRef.current;
-      // Nothing to measure against yet — the open is still downloading or parsing. Saying
-      // nothing is right: the position is about to be picked up by the open itself, and a
-      // refusal would have nothing of this device's to write in its place.
-      if (arrived === undefined || here === null) return;
-      const offer = positionFromElsewhere(here, arrived);
-      if (offer === null) return;
-      setElsewhere({ position: offer, elapsed: elapsedSince(offer.lastReadAt, Date.now()) });
+      // Whether there is anything worth interrupting the reader for, and whether this device
+      // even knows where it is yet, are both the reducer's questions (`lib/place.ts`). The
+      // book this round is about is named in the event, so a row arriving for the book that
+      // was just closed is a mismatch rather than a yardstick.
+      if (arrived !== undefined) {
+        dispatchPlace({ kind: "pulled", bookId, position: arrived, now: Date.now() });
+      }
     });
   }, [bookId]);
 
@@ -1840,19 +1823,15 @@ export default function Reader({
    * is still none.
    */
   const visitPassage = (target: string) => {
-    // A second passage during a visit is still the same visit. What is being kept is where the
-    // reader stopped reading, and that did not change when they tapped another mark.
-    if (visitRef.current !== null) return;
-    const here = positionRef.current;
-    const at = rendererRef.current?.location;
-    // Nothing to defend, or nothing to measure against. Both mean the jump writes the passage
-    // as the position, the way it did before any of this existed — which is wrong, but it is
-    // the answer with the fewest moving parts for a case that needs a book on screen and no
-    // position in hand. `here` is null only before the first `relocate` of a book that has
-    // never been read, and there is no progress to lose there.
-    if (here === null || at === undefined) return;
-    if (!entersVisit(at.pageRange ?? null, target)) return;
-    setVisit(here);
+    dispatchPlace({
+      kind: "passageAsked",
+      bookId,
+      target,
+      // No book on screen answers the same as no page to compare against, and both mean the
+      // jump writes the passage as the position — wrong, but the answer with the fewest moving
+      // parts for a case that needs a book on screen and no position in hand.
+      pageRange: rendererRef.current?.location?.pageRange ?? null,
+    });
   };
 
   /**
@@ -1864,12 +1843,7 @@ export default function Reader({
    * very `relocate` this navigation causes whenever the offer is behind what is being kept: the
    * reader accepts a position and this device records nothing.
    */
-  const goElsewhere = () => {
-    if (elsewhere === null) return;
-    setVisit(null);
-    void rendererRef.current?.goToCfi(elsewhere.position.cfi);
-    setElsewhere(null);
-  };
+  const goElsewhere = () => dispatchPlace({ kind: "offerTaken" });
 
   /**
    * Turn the offer down — **by writing where the reader is**, not by hiding the banner.
@@ -1887,21 +1861,7 @@ export default function Reader({
    * what happens on its own; a reader who presses this has said where they are, and being told
    * "no, you are still a hundred pages on" is the button doing nothing.
    */
-  const stayHere = () => {
-    // Where the reader is looking, which during a visit is not what this device claims. Outside
-    // one the two are the same row.
-    const here = screenRef.current ?? positionRef.current;
-    // Never null while a banner is up — the offer is only made once this device knows where it
-    // is (above), which is the same guard that keeps this from being a button that does nothing.
-    if (here === null) return;
-    const now = Date.now();
-    const kept = { ...here, lastReadAt: now, dirtyAt: now };
-    setVisit(null);
-    positionRef.current = kept;
-    screenRef.current = kept;
-    recordPosition(kept);
-    setElsewhere(null);
-  };
+  const stayHere = () => dispatchPlace({ kind: "stayedHere", now: Date.now() });
 
   // There is no relayout when the chrome comes up, and there must not be one: the bars are laid
   // over the book rather than beside it, so the viewer keeps its size and the book keeps its
@@ -2384,9 +2344,7 @@ export default function Reader({
                Nothing here ends the visit: arriving is what ends it. The `relocate` this
                causes reaches the gate above with a position at or past what is being kept, and
                `leavesVisit` says so (`lib/visit.ts`). */
-            onMarkPress={() => {
-              if (visit !== null) void renderer?.goToCfi(visit.cfi);
-            }}
+            onMarkPress={() => dispatchPlace({ kind: "markPressed" })}
           />
           {/* **The row is always here; the words are not.** Saying nothing when there is nothing
               to say still holds — a cover
@@ -2484,8 +2442,10 @@ export default function Reader({
                 editing={editingId === a.id}
                 pointedAt={selectedNoteId === a.id}
                 onJump={() => {
+                  // The jump is the place's to make: whether it opens a visit and where the
+                  // book moves to are one decision, and they used to be two calls that had to
+                  // be kept in the right order (`lib/place.ts`).
                   visitPassage(a.cfiRange);
-                  void renderer?.goToCfi(a.cfiRange);
                   // And the address bar follows, so the passage on screen is one the reader can
                   // copy out and send. The jump itself has already happened — this names it.
                   onAt?.({ kind: "cfi", cfi: a.cfiRange });
