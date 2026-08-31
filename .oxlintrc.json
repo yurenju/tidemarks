@@ -1,4 +1,31 @@
 {
+  // **Nothing here is advisory.** The root `lint` script passes `--max-warnings=0`, so a warning
+  // fails the same build an error does, locally and in CI alike. That is the whole point: before
+  // this, four `react-hooks(exhaustive-deps)` warnings had been printing on every run for months
+  // and were noticed only because GitHub happened to draw one on a pull request's diff. A check
+  // whose output nobody has to act on is a check nobody reads.
+  //
+  // **Taking an exemption.** Some effects are keyed on less than they read, on purpose, and the
+  // reason is always specific to that effect. Say it where it applies rather than turning the
+  // rule off here:
+  //
+  //   // oxlint-disable react-hooks/exhaustive-deps -- <which effect, and what re-running it would do>
+  //
+  // ⚠️ **That directive only works per file, never per line.** `oxlint-disable-next-line` does
+  // nothing for this rule (measured on 1.73.0 and 1.80.0), and on 1.80.0 a per-line directive
+  // naming a rule its plugin does not have silences every other warning in that file without
+  // reporting anything. So an exemption costs the whole file, and the file is what has to be
+  // small: three effects hold one today, and each lives in a hook file of its own
+  // (`lib/useBookSession.ts`, `lib/usePanelAddress.ts`, `lib/useCarriedFont.ts`). An effect
+  // inside a large component that wants one should move into its own file first — that is what
+  // `useBookSession.ts` is, and it was extracted for exactly this reason.
+  //
+  // **The version is pinned to `~1.73.0` in package.json, and that is deliberate.** 1.74 through
+  // 1.80 add a set of react-compiler rules — `react(refs)`, `react(purity)`,
+  // `react(set-state-in-effect)` — which have 28 opinions about this code as it stands, most of
+  // them about the latest-ref pattern the reader is built on. They are worth reading, but under
+  // `--max-warnings=0` they would arrive as a red build in whichever pull request happened to run
+  // `npm update`. Upgrading is its own ticket.
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "oxc"],
   "overrides": [

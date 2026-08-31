@@ -13,6 +13,12 @@
  * than a paragraph in the middle of a long component.
  */
 
+// oxlint-disable react-hooks/exhaustive-deps -- the second effect below is keyed on the address
+// alone, on purpose, and its own comment says what re-running it on the chrome's news would do.
+// oxlint cannot silence this rule for a single line (tested on 1.73.0 and 1.80.0), so the
+// exemption is the file's -- which also covers the first effect, whose dependencies are complete
+// and are meant to stay that way.
+
 import { useEffect, useRef } from "react";
 import { samePanel, type Panel as PanelAddress } from "./route";
 import { isPanel, type Chrome, type ChromeEvent, type PanelKind } from "./chrome";

@@ -5,12 +5,8 @@ import { type PageOffset, type Renderer } from "@yurenju/frond/renderer";
 import { db } from "../lib/db";
 import { sortByBookOrder } from "../lib/export";
 import { scheduleSync, subscribePulledAnnotations } from "../lib/sync";
-import {
-  openBookSession,
-  readAnnotations,
-  type BookSession,
-  type BookSessionReport,
-} from "../lib/book-session";
+import { readAnnotations, type BookSession, type BookSessionReport } from "../lib/book-session";
+import { useBookSession } from "../lib/useBookSession";
 import { usePlace } from "../lib/usePlace";
 import { usePanelAddress, type ReaderPanel } from "../lib/usePanelAddress";
 import type { At, Select } from "../lib/route";
@@ -399,49 +395,29 @@ export default function Reader({
     chrome: sendChrome,
   };
 
-  /**
-   * One sitting with one book (`lib/book-session.ts`).
-   *
-   * ⚠️ **`bookId` alone, and that is what "read once" means.** `openAt` changes while the book
-   * stays open — jumping to a note's source moves the address to the passage — so depending on
-   * it would re-open the book onto the last note the reader looked at, every time they looked at
-   * one. `select` and `handles` are carried out once as the book opens and never again. `i18n`
-   * is out for the same reason: what it feeds is an error message stored in state, and
-   * re-running this to refresh that wording would re-open the book, sending a reader who changed
-   * language while looking at a failure back to page one of one that worked.
-   *
-   * ⚠️ **`selection` is not one either, and asking for it is the trap `lib/useSelection.ts`
-   * opens with.** The commands are handed over as the ref they are, precisely so this
-   * once-per-book session reads the current set instead of the one it opened with.
-   */
-  useEffect(() => {
-    const session = openBookSession({
-      bookId,
-      i18n,
-      mount: mountRef,
-      renderer: rendererRef,
-      openAt,
-      select,
-      handles: handles === true,
-      settings: settingsRef,
-      theme: themeRef,
-      webFonts: webFontsRef,
-      applied: appliedRef,
-      selection,
-      place: dispatchPlace,
-      ground,
-      slide: (at) => slideMarks(marksRef.current, at),
-      markAt: (point) =>
-        paintedRef.current.find((entry) => boxesContain(point, entry.targets))?.annotation.id ??
-        null,
-      on: report,
-    });
-    sessionRef.current = session;
-    return () => {
-      sessionRef.current = null;
-      session.destroy();
-    };
-  }, [bookId]);
+  // One sitting with one book, opened once per book and torn down on the way out
+  // (`lib/useBookSession.ts`, over `lib/book-session.ts`). What is and is not a reason to open it
+  // again is that file's subject.
+  useBookSession(sessionRef, {
+    bookId,
+    i18n,
+    mount: mountRef,
+    renderer: rendererRef,
+    openAt,
+    select,
+    handles: handles === true,
+    settings: settingsRef,
+    theme: themeRef,
+    webFonts: webFontsRef,
+    applied: appliedRef,
+    selection,
+    place: dispatchPlace,
+    ground,
+    slide: (at) => slideMarks(marksRef.current, at),
+    markAt: (point) =>
+      paintedRef.current.find((entry) => boxesContain(point, entry.targets))?.annotation.id ?? null,
+    on: report,
+  });
 
   // Reader settings after the first layout. The comparison against what frond already has is
   // what keeps this from reflowing the book on mount (see `appliedRef`).
