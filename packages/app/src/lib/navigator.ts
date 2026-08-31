@@ -17,7 +17,9 @@
 
 import type { PageProgressionDirection } from "@yurenju/frond/epub";
 import type { TurnDirection, TurnEdge } from "@yurenju/frond/renderer";
-import { incomingEdge } from "./touch";
+// `.js` for the same reason as `gesture.ts`: the browser tests pull this file into a graph
+// compiled under node16 resolution, where the extension is required.
+import { incomingEdge } from "./touch.js";
 
 /**
  * Which way this book turns pages — **one answer for the whole book**.
