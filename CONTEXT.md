@@ -206,8 +206,8 @@ Scrubber）。它不是一塊面板，是一個**狀態**。閱讀器同一時�
 `togglePanel`、`panelDismissed`、`selectionArrived`、`openNote`、`editNote`、`noteSaved`），
 吐下一個狀態。Reader 只負責說「剛剛發生的是哪一件事」。
 
-- **它不管〈標〉。** 選取本身（矩形、CFI、手指還按著沒有）留在 `Reader.tsx`，理由跟手勢機不碰
-  frond 物件同一個：要在 node 假造那包資料，最難假裝對的部分正是最關鍵的部分。這裡有的是那條
+- **它不管〈標〉。** 選取本身（矩形、CFI、手指還按著沒有）在 `lib/useSelection.ts`，理由跟手勢機
+  不碰 frond 物件同一個：要在 node 假造那包資料，最難假裝對的部分正是最關鍵的部分。這裡有的是那條
   **規則**：選取送達就把 chrome 收掉，事件叫 `selectionArrived`。
 - **它是純函式，不是 `createChromeMachine()`。** 沒有 timer、沒有取樣、什麼都不用注入，狀態交給
   React 保管就好；做成物件等於造出兩份狀態，然後要有人負責讓它們不走散。
@@ -249,7 +249,7 @@ Chrome for Android 也會出現，所以**瀏覽器一律寫全名**，單獨的
 | --- | --- | --- |
 | 〈讀〉 | `Read` | `Chrome` 的 `"down"` |
 | 〈找〉 | `Find` | `Chrome` 的 `"up"` |
-| 〈標〉 | `Marking` | 不在 `Chrome` 裡，選取本身留在 `Reader.tsx` |
+| 〈標〉 | `Marking` | `Chrome` 這個型別裡沒有它，`chrome.ts` 也碰不到選取（它是純函式，而矩形與 CFI 在 node 層假造不出來）。選取自己住在 `lib/useSelection.ts` |
 | 〈目錄〉 | `Contents` | `PanelKind` 的 `"toc"`，按鈕的可及名稱就是 `Contents` |
 | 〈筆記〉面板 | `Notes` | `PanelKind` 的 `"notes"` |
 | 〈排版〉 | `Layout` | `PanelKind` 的 `"layout"` |
@@ -645,6 +645,10 @@ _Avoid_: 筆畫排序（筆畫只是繁中的答案，換個介面語言就換�
 （[ADR-0036](docs/adr/0036-touch-selection-is-ours-not-the-browsers.md)，實作見 issue #49）。長按
 吸一個詞、拖端點延伸、反白與顏色列都是 app 自己畫；frond 只補一個事實（`rangeFromPoints`：兩個容器
 座標點 → 一段範圍，issue #50）。
+
+**整條流程住在 `packages/app/src/lib/useSelection.ts`**：長按吸詞、拖端點、顏色列擺在哪、`?select=`
+進來的那一路，從頭到尾在同一個檔案裡讀得完。`Reader.tsx` 只留兩樣：手勢機器（它同時在決定翻頁，
+分不開），以及寫進 Dexie 的那一筆〈重點〉：那是讀者留下的東西，不是選取的。
 
 **只在觸控上接管，桌機留原生。** 桌機沒有那些症狀（滑鼠不翻頁、不會自動捲進下一頁、沒有搜尋 bar），
 而原生選取免費帶著可及性（[ADR-0021](docs/adr/0021-accessibility-is-borrowed-not-written.md)）與鍵盤
