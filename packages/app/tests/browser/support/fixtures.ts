@@ -40,7 +40,7 @@ export const test = base.extend({
  * `Blob` into IndexedDB.**
  *
  * Two specs do. `reader/font-weight.spec.ts` goes through the font store, which holds a 19 MB
- * CJK face as a `Blob` on purpose (ADR-0047: a face is only ever handed to
+ * CJK face as a `Blob` on purpose (ADR-0048: a face is only ever handed to
  * `URL.createObjectURL`, where a book is parsed into memory anyway). And
  * `reader/stored-shape.spec.ts` writes one deliberately, to put a device back into the shape
  * Dexie v5 converts out of.

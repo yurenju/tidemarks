@@ -6,7 +6,7 @@ export interface BookMeta {
 }
 
 /**
- * The cover a book carries, as this device holds it (ADR-0047).
+ * The cover a book carries, as this device holds it (ADR-0048).
  *
  * The type travels with the bytes because it is the one part not derivable: the epub's manifest
  * declared it, and `URL.createObjectURL` needs it to hand back an image. A cover pulled from the
@@ -21,7 +21,7 @@ export interface BookRecord extends BookMeta {
   /**
    * The epub itself. Null until it is downloaded from the server (lazy download).
    *
-   * **Bytes rather than a `Blob`, while a font face stays a Blob** — ADR-0047 has the line
+   * **Bytes rather than a `Blob`, while a font face stays a Blob** — ADR-0048 has the line
    * between the two and why it falls there. In short: an ephemeral WebKit session cannot store
    * a Blob, and a book is parsed into memory anyway, where a 19 MB face never is.
    *
