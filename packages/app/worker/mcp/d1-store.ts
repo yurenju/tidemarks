@@ -1,6 +1,9 @@
 // The one place the tools touch Cloudflare. Everything is scoped to a single user id, which
 // comes from the OAuth grant — an agent holds a token for one reader, and the `WHERE user_id`
 // on every statement here is what makes that true rather than merely intended.
+//
+// A frozen book (ADR-0016) is filtered out in the same place as a deleted one, on every
+// statement: the server keeps it, but to an agent it is not on the shelf.
 import { EpubBook } from "@yurenju/frond/epub";
 import type { Env } from "../auth";
 import type { LibraryStore, StoredAnnotation, StoredBook, StoredProgress } from "./store";
@@ -40,7 +43,7 @@ export function d1Store(env: Env, userId: string): LibraryStore {
   return {
     async books(): Promise<StoredBook[]> {
       const { results } = await env.DB.prepare(
-        "SELECT id, title, author, added_at FROM books WHERE user_id = ? AND deleted_at IS NULL",
+        "SELECT id, title, author, added_at FROM books WHERE user_id = ? AND deleted_at IS NULL AND frozen_at IS NULL",
       )
         .bind(userId)
         .all<BookRow>();
@@ -53,8 +56,13 @@ export function d1Store(env: Env, userId: string): LibraryStore {
     },
 
     async progress(): Promise<StoredProgress[]> {
+      // Only positions in books the shelf still shows. Without this, "where was I reading?"
+      // with no bookId would pick the most recent position on the whole table, and land on a
+      // frozen or deleted book the other tools refuse to open.
       const { results } = await env.DB.prepare(
-        "SELECT book_id, cfi, page_range, percentage, last_read_at FROM progress WHERE user_id = ?",
+        `SELECT book_id, cfi, page_range, percentage, last_read_at FROM progress
+         WHERE user_id = ?1 AND book_id IN
+           (SELECT id FROM books WHERE user_id = ?1 AND deleted_at IS NULL AND frozen_at IS NULL)`,
       )
         .bind(userId)
         .all<ProgressRow>();
@@ -68,13 +76,15 @@ export function d1Store(env: Env, userId: string): LibraryStore {
     },
 
     async annotations(bookId?: string): Promise<StoredAnnotation[]> {
+      const shown =
+        "book_id IN (SELECT id FROM books WHERE user_id = ?1 AND deleted_at IS NULL AND frozen_at IS NULL)";
       const statement = bookId
         ? env.DB.prepare(
-            "SELECT * FROM annotations WHERE user_id = ? AND book_id = ? AND deleted_at IS NULL",
+            `SELECT * FROM annotations WHERE user_id = ?1 AND book_id = ?2 AND deleted_at IS NULL AND ${shown}`,
           ).bind(userId, bookId)
-        : env.DB.prepare("SELECT * FROM annotations WHERE user_id = ? AND deleted_at IS NULL").bind(
-            userId,
-          );
+        : env.DB.prepare(
+            `SELECT * FROM annotations WHERE user_id = ?1 AND deleted_at IS NULL AND ${shown}`,
+          ).bind(userId);
       const { results } = await statement.all<AnnotationRow>();
       return results.map((r) => ({
         id: r.id,
@@ -100,7 +110,7 @@ export function d1Store(env: Env, userId: string): LibraryStore {
 
 async function loadBook(env: Env, userId: string, bookId: string): Promise<EpubBook | undefined> {
   const row = await env.DB.prepare(
-    "SELECT r2_key FROM books WHERE user_id = ? AND id = ? AND deleted_at IS NULL",
+    "SELECT r2_key FROM books WHERE user_id = ? AND id = ? AND deleted_at IS NULL AND frozen_at IS NULL",
   )
     .bind(userId, bookId)
     .first<{ r2_key: string | null }>();

@@ -9,6 +9,8 @@
 import { env, SELF } from "cloudflare:test";
 import { ContentDocument, EpubBook, serializeCfi } from "@yurenju/frond/epub";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { Env } from "./auth";
+import { setBookLimit } from "./quota";
 
 const USER = "u-test";
 const SESSION = "session-test";
@@ -241,5 +243,72 @@ describe("the page range a device pushes", () => {
     expect(body.progress).toHaveLength(1);
     expect(body.progress[0]!.pageRange).toBe(pageRange);
     expect(body.progress[0]!.percentage).toBe(0.5);
+  });
+});
+
+describe("an account whose limit shrinks back to three", () => {
+  it("freezes the book read longest ago, hides it from /auth/me and the agent, and thaws it again", async () => {
+    // The whole freeze in one, against the real schema: the seeded book has a real epub in R2 and
+    // is the one read longest ago, so its disappearance can only come from `frozen_at`. Four
+    // reads of the same column (`quota.ts`, `/auth/me`, two store queries) have to agree.
+    const { DB } = testEnv();
+    const others = ["book-2", "book-3", "book-4"];
+    await DB.batch([
+      DB.prepare("UPDATE users SET book_limit = NULL WHERE id = ?").bind(USER),
+      ...others.map((id) =>
+        DB.prepare(
+          `INSERT INTO books (id, user_id, title, author, added_at, r2_key, cover_key, client_updated_at, updated_at, deleted_at)
+           VALUES (?, ?, ?, '', 1, NULL, NULL, 1, 1, NULL)`,
+        ).bind(id, USER, id),
+      ),
+      ...[BOOK, ...others].map((id, i) =>
+        DB.prepare(
+          `INSERT INTO progress (book_id, user_id, cfi, page_range, percentage, last_read_at, updated_at)
+           VALUES (?, ?, 'epubcfi(/6/4!/4/2/1:0)', NULL, 0.1, ?, 1)`,
+        ).bind(id, USER, 1000 * (i + 1)),
+      ),
+    ]);
+    const synced = async () => {
+      const me = await SELF.fetch("https://tidemarks.test/auth/me", {
+        headers: { cookie: `tidemarks_session=${SESSION}` },
+      });
+      return ((await me.json()) as { synced: string[] }).synced;
+    };
+    const stampOf = async () =>
+      (await DB.prepare("SELECT updated_at FROM books WHERE id = ?")
+        .bind(BOOK)
+        .first<{ updated_at: number }>())!.updated_at;
+    const before = await stampOf();
+    const token = await connectAgent();
+
+    await setBookLimit(env as unknown as Env, USER, 3);
+
+    const row = await DB.prepare("SELECT frozen_at FROM books WHERE id = ?")
+      .bind(BOOK)
+      .first<{ frozen_at: number | null }>();
+    expect(row?.frozen_at).not.toBeNull();
+    // Freezing is told through /auth/me, never through the sync payload.
+    expect(await stampOf()).toBe(before);
+    expect(await synced()).toEqual(others);
+    const { books } = (await callTool(token, "list_books")) as { books: { bookId: string }[] };
+    expect(books.map((b) => b.bookId).sort()).toEqual(others);
+    const refused = await SELF.fetch("https://tidemarks.test/mcp", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "get_section_text", arguments: { bookId: BOOK, sectionIndex: 0 } },
+      }),
+    });
+    const body = (await refused.json()) as { result: { isError?: boolean } };
+    expect(body.result.isError).toBe(true);
+
+    await setBookLimit(env as unknown as Env, USER, null);
+
+    expect(await synced()).toEqual([...others, BOOK]);
+    const thawed = (await callTool(token, "list_books")) as { books: { bookId: string }[] };
+    expect(thawed.books).toHaveLength(4);
   });
 });
