@@ -48,7 +48,14 @@ function sess(over: Partial<ReadingSession>): ReadingSession {
   };
 }
 
-const EMPTY: PushExisting = { books: [], progress: [], annotations: [], sessions: [] };
+const EMPTY: PushExisting = {
+  books: [],
+  progress: [],
+  annotations: [],
+  sessions: [],
+  frozen: new Set(),
+  limit: null,
+};
 
 describe("resolvePush — books/annotations (LWW by updatedAt)", () => {
   it("a brand new row with no server counterpart goes to the plan, never a conflict", () => {
@@ -118,5 +125,54 @@ describe("resolvePush — reading sessions (append-only, insert-or-ignore by id)
       { readingSessions: incoming },
     );
     expect(plan.sessions.map((s) => s.id)).toEqual(["s2"]);
+  });
+});
+
+// The quota is checked once, when a book the server has never seen arrives (ADR-0016). A
+// refused book takes its position, annotations and sittings with it: a book is either whole on
+// the server or not there at all.
+describe("resolvePush — quota", () => {
+  it("fills the free slots in payload order and drops the rest, with everything that belongs to them", () => {
+    const existing = { ...EMPTY, books: [book({ id: "old" })], limit: 3 };
+    const incoming = ["n1", "n2", "n3", "n4", "n5"].map((id) => book({ id }));
+    const { plan } = resolvePush(existing, {
+      books: incoming,
+      progress: [prog({ bookId: "n1" }), prog({ bookId: "n3" })],
+      annotations: [ann({ id: "a-n2", bookId: "n2" }), ann({ id: "a-n4", bookId: "n4" })],
+      readingSessions: [sess({ id: "s-n2", bookId: "n2" }), sess({ id: "s-n5", bookId: "n5" })],
+    });
+    expect(plan.books.map((b) => b.id)).toEqual(["n1", "n2"]);
+    expect(plan.progress.map((p) => p.bookId)).toEqual(["n1"]);
+    expect(plan.annotations.map((a) => a.id)).toEqual(["a-n2"]);
+    expect(plan.sessions.map((s) => s.id)).toEqual(["s-n2"]);
+  });
+
+  it("does not count deleted or frozen books against the limit", () => {
+    const existing = {
+      ...EMPTY,
+      books: [book({ id: "gone", deletedAt: 5 }), book({ id: "ice" }), book({ id: "live" })],
+      frozen: new Set(["ice"]),
+      limit: 3,
+    };
+    const { plan } = resolvePush(existing, { books: [book({ id: "n1" }), book({ id: "n2" })] });
+    expect(plan.books.map((b) => b.id)).toEqual(["n1", "n2"]);
+  });
+
+  it("drops every change to a frozen book, even though the server has it", () => {
+    const existing = { ...EMPTY, books: [book({ id: "ice" })], frozen: new Set(["ice"]) };
+    const { plan, conflicts } = resolvePush(existing, {
+      books: [book({ id: "ice", title: "renamed", updatedAt: 9 })],
+      progress: [prog({ bookId: "ice" })],
+      annotations: [ann({ id: "a-ice", bookId: "ice" })],
+      readingSessions: [sess({ id: "s-ice", bookId: "ice" })],
+    });
+    expect(plan).toEqual({ books: [], progress: [], annotations: [], sessions: [] });
+    expect(conflicts.books).toEqual([]);
+  });
+
+  it("takes any number of new books when there is no limit", () => {
+    const incoming = ["n1", "n2", "n3", "n4"].map((id) => book({ id }));
+    const { plan } = resolvePush({ ...EMPTY, limit: null }, { books: incoming });
+    expect(plan.books).toEqual(incoming);
   });
 });

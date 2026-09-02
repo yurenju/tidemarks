@@ -311,4 +311,67 @@ describe("sync", () => {
     const after = (await second.json()) as { books: SyncBook[] };
     expect(after.books.map((b) => [b.id, b.hasCover])).toEqual([[BOOK, true]]);
   });
+
+  // The quota, against the real columns: `book_limit` on `users`, `frozen_at` and `deleted_at`
+  // on `books`, and the `WHERE` behind `synced`. Which book gets the slot is `push.test.ts`;
+  // this is whether the refusal really keeps the row and its position out of D1, and whether a
+  // delete really gives the slot back.
+  it("holds three books, takes a fourth once one is deleted, and any number with no limit", async () => {
+    const { DB } = testEnv();
+    const push = (books: SyncBook[]) =>
+      SELF.fetch("https://tidemarks.test/api/sync", {
+        method: "POST",
+        headers: { cookie: `tidemarks_session=${SESSION}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          books,
+          progress: books.map((b) => ({
+            bookId: b.id,
+            cfi: "epubcfi(/6/2)",
+            pageRange: null,
+            percentage: 0.1,
+            chapterLabel: null,
+            lastReadAt: 1,
+          })),
+        }),
+      });
+    const me = async () => {
+      const res = await SELF.fetch("https://tidemarks.test/auth/me", {
+        headers: { cookie: `tidemarks_session=${SESSION}` },
+      });
+      return (await res.json()) as { userId: string; limit: number | null; synced: string[] };
+    };
+    const book = (id: string, deletedAt: number | null = null): SyncBook => ({
+      id,
+      title: id,
+      author: "",
+      addedAt: 1,
+      updatedAt: 1,
+      deletedAt,
+    });
+
+    expect((await push([book("b1"), book("b2"), book("b3"), book("b4")])).status).toBe(200);
+    expect(await me()).toEqual({ userId: USER, limit: 3, synced: ["b1", "b2", "b3"] });
+    const rowsFor = (id: string) =>
+      DB.prepare(
+        "SELECT (SELECT count(*) FROM books WHERE id = ?1) + (SELECT count(*) FROM progress WHERE book_id = ?1) AS n",
+      )
+        .bind(id)
+        .first<{ n: number }>();
+    expect((await rowsFor("b4"))?.n).toBe(0);
+
+    expect((await push([book("b2", 2)])).status).toBe(200);
+    expect((await push([book("b4")])).status).toBe(200);
+    expect((await me()).synced).toEqual(["b1", "b3", "b4"]);
+    expect((await rowsFor("b4"))?.n).toBe(2);
+
+    // An account with no limit: `book_limit` NULL has to come back as `limit: null` and stop
+    // counting, not be read as zero.
+    await DB.prepare("UPDATE users SET book_limit = NULL WHERE id = ?").bind(USER).run();
+    expect((await push([book("b5"), book("b6")])).status).toBe(200);
+    expect(await me()).toEqual({
+      userId: USER,
+      limit: null,
+      synced: ["b1", "b3", "b4", "b5", "b6"],
+    });
+  });
 });

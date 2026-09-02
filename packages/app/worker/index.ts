@@ -12,7 +12,7 @@
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
-import { handleAuth, json, sessionUserId, type Env } from "./auth";
+import { bookLimitOf, handleAuth, json, sessionUserId, type Env } from "./auth";
 import { handleAuthorize, READ_SCOPE } from "./authorize";
 import { cursorFor } from "./cursor";
 import { d1Store } from "./mcp/d1-store";
@@ -105,6 +105,7 @@ interface BookRow {
   client_updated_at: number;
   updated_at: number;
   deleted_at: number | null;
+  frozen_at: number | null;
 }
 
 interface ProgressRow {
@@ -191,7 +192,8 @@ function sessionToWire(r: SessionRow): ReadingSession {
 }
 
 async function loadAll(env: Env, userId: string) {
-  const [books, progress, annotations, sessions] = await Promise.all([
+  const [limit, books, progress, annotations, sessions] = await Promise.all([
+    bookLimitOf(env, userId),
     env.DB.prepare("SELECT * FROM books WHERE user_id = ?").bind(userId).all<BookRow>(),
     env.DB.prepare("SELECT * FROM progress WHERE user_id = ?").bind(userId).all<ProgressRow>(),
     env.DB.prepare("SELECT * FROM annotations WHERE user_id = ?").bind(userId).all<AnnotationRow>(),
@@ -200,6 +202,7 @@ async function loadAll(env: Env, userId: string) {
       .all<SessionRow>(),
   ]);
   return {
+    limit,
     books: books.results,
     progress: progress.results,
     annotations: annotations.results,
@@ -272,6 +275,8 @@ async function pushSync(request: Request, env: Env, userId: string): Promise<Res
       progress: all.progress.map(progressToWire),
       annotations: all.annotations.map(annotationToWire),
       sessions: all.sessions.map(sessionToWire),
+      frozen: new Set(all.books.filter((b) => b.frozen_at !== null).map((b) => b.id)),
+      limit: all.limit,
     },
     body,
   );
