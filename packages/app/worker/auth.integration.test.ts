@@ -231,7 +231,10 @@ describe("spending a magic code", () => {
       headers: { cookie: cookie.split(";")[0]! },
     });
     expect(me.status).toBe(200);
-    expect(((await me.json()) as { userId: string }).userId).toBe(account?.id);
+    // No limit, because signup is closed here and the only way in is the allowlist: those
+    // accounts keep no limit for good (ADR-0016), decided at creation rather than by the
+    // column default.
+    expect(await me.json()).toEqual({ userId: account?.id, limit: null, synced: [] });
   });
 
   it("refuses the same code a second time", async () => {

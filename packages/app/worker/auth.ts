@@ -56,6 +56,9 @@ const CHALLENGE_COOKIE = "tidemarks_challenge";
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const RP_NAME = "Tidemarks";
+// How many books an account may keep on the server without paying (ADR-0011). The migration
+// that added `book_limit` carries the same number as its column default.
+const FREE_BOOKS = 3;
 
 export function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -184,6 +187,20 @@ function clearChallengeCookie(): string {
 }
 
 // --- sessions ---
+
+/**
+ * How many live books this account may keep on the server; null means no limit.
+ *
+ * A session outliving its user row is not a state the schema allows, so the row is always
+ * there. Should it ever not be, the answer falls to the free three rather than to no limit:
+ * a bug here should cost a book, not open the quota.
+ */
+export async function bookLimitOf(env: Env, userId: string): Promise<number | null> {
+  const row = await env.DB.prepare("SELECT book_limit FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ book_limit: number | null }>();
+  return row ? row.book_limit : FREE_BOOKS;
+}
 
 export async function sessionUserId(env: Env, request: Request): Promise<string | null> {
   const id = parseCookies(request)[SESSION_COOKIE];
@@ -331,7 +348,19 @@ export async function handleAuth(
 ): Promise<Response> {
   if (request.method === "GET" && path === "/auth/me") {
     const userId = await sessionUserId(env, request);
-    return userId ? json({ userId }) : json({ error: "unauthenticated" }, { status: 401 });
+    if (!userId) return json({ error: "unauthenticated" }, { status: 401 });
+    // `limit` and `synced` are the server's word on the quota, and the only one the device
+    // gets: it does not keep its own record of which books were refused, so a slot freed by
+    // a delete and a book frozen by a lapse both reach it the same way (ADR-0016).
+    const [limit, books] = await Promise.all([
+      bookLimitOf(env, userId),
+      env.DB.prepare(
+        "SELECT id FROM books WHERE user_id = ? AND deleted_at IS NULL AND frozen_at IS NULL ORDER BY id",
+      )
+        .bind(userId)
+        .all<{ id: string }>(),
+    ]);
+    return json({ userId, limit, synced: books.results.map((b) => b.id) });
   }
   if (request.method !== "POST") return json({ error: "method not allowed" }, { status: 405 });
 
@@ -704,8 +733,14 @@ async function verifyMagicCode(
   let userId = existing;
   if (!userId) {
     userId = crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO users (id, email, created_at) VALUES (?, ?, ?)")
-      .bind(userId, email, now)
+    // Before launch the only way in is the allowlist, and those accounts keep no limit for
+    // good (ADR-0016). Decided here rather than left to the column default, so that a friend
+    // added after the migration that marked the existing rows is treated the same as them.
+    const limit = openSignupFrom(env.OPEN_SIGNUP) ? FREE_BOOKS : null;
+    await env.DB.prepare(
+      "INSERT INTO users (id, email, created_at, book_limit) VALUES (?, ?, ?, ?)",
+    )
+      .bind(userId, email, now, limit)
       .run();
   }
 
