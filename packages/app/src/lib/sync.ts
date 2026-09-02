@@ -11,7 +11,14 @@ import {
   mergeBook,
   mergeProgress,
 } from "./merge";
-import { isEmptyPayload, syncPayload, toSyncBook, type SyncPayload } from "./sync-payload";
+import {
+  isEmptyPayload,
+  syncPayload,
+  toSyncBook,
+  withinQuota,
+  type Quota,
+  type SyncPayload,
+} from "./sync-payload";
 import type { Progress, ReadingSession } from "./types";
 import { apiFetch } from "./api";
 import { isSignedIn, setSignedIn } from "./session";
@@ -22,9 +29,15 @@ export interface SyncState {
   status: SyncStatus;
   lastSyncAt: number | null;
   error: string | null;
+  /**
+   * The server's word on which books it holds for this account (`sync-payload.ts`). `null`
+   * until it has spoken this session, and again after signing out: the list lives and dies with
+   * the session, so a shelf with no account never marks a book "only on this device".
+   */
+  quota: Quota | null;
 }
 
-let state: SyncState = { status: "idle", lastSyncAt: null, error: null };
+let state: SyncState = { status: "idle", lastSyncAt: null, error: null, quota: null };
 const listeners = new Set<(s: SyncState) => void>();
 
 export function getSyncState(): SyncState {
@@ -72,7 +85,9 @@ async function readDirty(snapshotAt: number) {
 }
 
 async function pushDirty(snapshotAt: number) {
-  const dirty = await readDirty(snapshotAt);
+  // Only what the server will take. A refused book keeps its `dirtyAt` by never being cleared
+  // below, and that flag is what sends it again once a delete frees a slot.
+  const dirty = withinQuota(await readDirty(snapshotAt), state.quota);
   const {
     books: dirtyBooks,
     progress: dirtyProgress,
@@ -342,6 +357,26 @@ async function pull() {
   await setSyncCursor(remote.cursor);
 }
 
+/** What `/auth/me` answers: who this browser is, and the server's word on the quota. */
+export interface Account {
+  userId: string;
+  /** How many books this account may sync; `null` for no limit (ADR-0011). */
+  limit: number | null;
+  /** The ids of the books the server currently holds for it, deleted and frozen ones left out. */
+  synced: string[];
+}
+
+/** Ask the server which books it holds, after a push, because the push's reply does not say. */
+async function readQuota(at: number) {
+  const { limit, synced } = await fetchJson<Account>("/auth/me");
+  setState({ quota: { limit, synced, at } });
+}
+
+/** Signing out, or the server saying the session is gone: the list goes with it. */
+export function forgetQuota(): void {
+  setState({ quota: null });
+}
+
 let running = false;
 let rerun = false;
 
@@ -363,8 +398,14 @@ export async function syncNow(): Promise<void> {
   setState({ status: "syncing", error: null });
   try {
     const snapshotAt = Date.now();
+    // Before the first push of a session as well as after every one: with nothing known yet,
+    // the push would send every book and epub body, and on a full account all of that is
+    // dropped on arrival. Stamped at zero rather than now, so no book on the shelf reads as
+    // refused before this session has tried to send it — the read after the push says which.
+    if (state.quota === null) await readQuota(0);
     await pushDirty(snapshotAt);
     await pull();
+    await readQuota(snapshotAt);
     setState({ status: "synced", lastSyncAt: Date.now() });
   } catch (e) {
     if ((e as { auth?: boolean }).auth) {
@@ -372,7 +413,7 @@ export async function syncNow(): Promise<void> {
       // in and the server disagrees, so the server wins — and the status stays on screen until
       // signing in sets it again, because nothing below clears it.
       setSignedIn(false);
-      setState({ status: "unauthenticated" });
+      setState({ status: "unauthenticated", quota: null });
     } else if (!navigator.onLine) {
       setState({ status: "offline" });
     } else {

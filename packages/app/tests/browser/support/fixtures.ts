@@ -97,7 +97,7 @@ export const testWithProfile = base.extend({
  * is listening — so every such request used to end as a red `ECONNREFUSED` line in the run's
  * output. The account panel asks `/auth/me` on mount and offers a passkey from the email field,
  * which was a dozen of them; sync's own share is gone now that it refuses to run signed out
- * (`src/lib/session.ts`). Green runs printing red lines is how a real failure gets missed.
+ * (`src/lib/session.ts`) — and a spec that signs in through `fakeSync` answers `/auth/me` itself. Green runs printing red lines is how a real failure gets missed.
  *
  * **Fulfilled rather than aborted.** 401 is what the server says to a browser with no session,
  * so the app takes exactly the path it takes in production; an abort would make `fetch` throw

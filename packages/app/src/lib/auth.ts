@@ -18,6 +18,7 @@ import type {
 } from "@simplewebauthn/browser";
 import { apiFetch } from "./api";
 import { setSignedIn } from "./session";
+import { forgetQuota, type Account } from "./sync";
 
 async function post<T>(url: string, body?: unknown): Promise<T> {
   const res = await apiFetch(url, {
@@ -48,10 +49,11 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
  * flag — one that was signed in before the flag existed, or that lost localStorage — gets it
  * back the first time the reader opens [[Account]].
  */
-export async function me(): Promise<{ userId: string } | null> {
+export async function me(): Promise<Account | null> {
   const res = await apiFetch("/auth/me");
   if (!res.ok) {
     setSignedIn(false);
+    forgetQuota();
     return null;
   }
   setSignedIn(true);
@@ -116,4 +118,5 @@ export async function addPasskey(): Promise<void> {
 export async function logout(): Promise<void> {
   await post("/auth/logout");
   setSignedIn(false);
+  forgetQuota();
 }

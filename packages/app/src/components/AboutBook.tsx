@@ -1,4 +1,4 @@
-import { Plural, Trans } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import { Dialog } from "@base-ui/react/dialog";
 import { useEffect, useRef, useState } from "react";
@@ -6,7 +6,9 @@ import { db } from "../lib/db";
 import { downloadBlob } from "../lib/download";
 import { annotationsToMarkdown } from "../lib/export";
 import { formatDuration, totalReadingMs } from "../lib/stats";
-import { scheduleSync } from "../lib/sync";
+import { ONLY_ON_THIS_DEVICE } from "../lib/book-status";
+import { getSyncState, scheduleSync, subscribeSync } from "../lib/sync";
+import { onlyOnThisDevice } from "../lib/sync-payload";
 import type { BookRecord } from "../lib/types";
 import Panel from "./Panel";
 
@@ -43,7 +45,10 @@ export default function AboutBook({
   onClose: () => void;
   onDeleted: (bookId: string) => void;
 }) {
+  const { i18n } = useLingui();
   const [details, setDetails] = useState<Details | null>(null);
+  const [quota, setQuota] = useState(() => getSyncState().quota);
+  useEffect(() => subscribeSync((s) => setQuota(s.quota)), []);
   // Read from inside the look-up below, which is keyed on the book alone. `onClose` is a fresh
   // closure on every render of `App`, so depending on it would mean a new trip to Dexie every
   // time anything above this repainted; calling the one it closed over on the first render would
@@ -138,6 +143,11 @@ export default function AboutBook({
               bare `{0}` that says nothing to whoever translates it. */}
           <section className="panel-section" data-testid="about-numbers">
             <p className="panel-note">{details.book.author}</p>
+            {onlyOnThisDevice(quota, details.book) && (
+              <p className="panel-note" data-testid="about-only-here">
+                {i18n._(ONLY_ON_THIS_DEVICE)}
+              </p>
+            )}
             <ul className="panel-rows">
               {/* The three numbers that used to sit under every cover on the shelf: how far,
                   how long, how many times. */}

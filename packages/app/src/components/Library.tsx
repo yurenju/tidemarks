@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { currentlyReading, statusLines } from "../lib/book-status";
+import { currentlyReading, ONLY_ON_THIS_DEVICE, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
@@ -12,7 +12,8 @@ import { loadShownToday, noteShown, saveShownToday } from "../lib/revisit-store"
 import { shelfProjection, type Shelf } from "../lib/shelf";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
 import { SHELF_ORDERS } from "../lib/shelf-order-choices";
-import { scheduleSync, subscribeSync } from "../lib/sync";
+import { getSyncState, scheduleSync, subscribeSync } from "../lib/sync";
+import { onlyOnThisDevice } from "../lib/sync-payload";
 import type { Annotation, BookRecord, StoredCover } from "../lib/types";
 import { Wordmark } from "./Wordmark";
 
@@ -40,6 +41,8 @@ export default function Library({
     marks: [],
   });
   const [order, setOrder] = useState<ShelfOrder>(loadShelfOrder);
+  // The server's list of the books it holds, for the "only on this device" line (#186).
+  const [quota, setQuota] = useState(() => getSyncState().quota);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -76,6 +79,7 @@ export default function Library({
     reload();
     // refresh the shelf whenever a sync round lands new data
     return subscribeSync((s) => {
+      setQuota(s.quota);
       if (s.status === "synced") reload();
     });
   }, [reloadToken]);
@@ -200,7 +204,13 @@ export default function Library({
   const byId = new Map(shelf.books.map((b) => [b.id, b]));
 
   function lines(book: BookRecord): string[] {
-    return statusLines(i18n, shelf.progress.get(book.id), shelf.sessions.get(book.id) ?? [], now);
+    const said = statusLines(
+      i18n,
+      shelf.progress.get(book.id),
+      shelf.sessions.get(book.id) ?? [],
+      now,
+    );
+    return onlyOnThisDevice(quota, book) ? [...said, i18n._(ONLY_ON_THIS_DEVICE)] : said;
   }
 
   /**

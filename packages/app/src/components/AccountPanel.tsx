@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import { db } from "../lib/db";
 import { downloadBlob } from "../lib/download";
 import { parseImport, serializeExport } from "../lib/export";
 import { getSyncState, scheduleSync, subscribeSync, syncNow, type SyncState } from "../lib/sync";
+import { onlyOnThisDevice } from "../lib/sync-payload";
 
 const STATUS_LABEL: Record<SyncState["status"], MessageDescriptor | null> = {
   // Nothing to report, so nothing said — the row simply has no second half.
@@ -78,11 +79,21 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
             </Trans>
           </dd>
           <dt>
-            <Trans comment="Heading of the paid half of the price list.">Paid</Trans>
+            <Trans comment="Heading of the middle tier of the price list: an account that pays nothing. It syncs three books (ADR-0011).">
+              Free account
+            </Trans>
           </dt>
           <dd>
-            <Trans comment="What the paid half covers. Both are things that need a server, which is the whole reason they cost anything.">
-              Syncing between devices, and letting an agent read your books.
+            <Trans comment="What a free account gets. 'Three' is the free quota and 'those three' the same books: an agent connected to the account can read only what is synced.">
+              Three books sync between your devices, and an agent can read those three.
+            </Trans>
+          </dd>
+          <dt>
+            <Trans comment="Heading of the paid tier of the price list.">Paid</Trans>
+          </dt>
+          <dd>
+            <Trans comment="What paying gets: no limit on the number of books. The second sentence says outright that there is no price yet.">
+              Every book. Price not settled.
             </Trans>
           </dd>
         </dl>
@@ -101,8 +112,9 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
 /**
  * The bill.
  *
- * **The number is a placeholder.** Pricing is not decided and no payment goes through in this
- * round, so this says what it costs to be told, not a button that pretends to charge.
+ * **No price and no button yet.** Pricing is not decided and no payment goes through, so this
+ * says what stopping costs; the upgrade button arrives with the payment provider (#193), because a
+ * button that cannot be pressed is worse than none.
  */
 function Billing() {
   return (
@@ -111,16 +123,6 @@ function Billing() {
         <Trans comment="Heading of the billing section in the account pane.">Billing</Trans>
       </h3>
       <dl className="price-lines">
-        <dt>
-          <Trans comment="What the monthly price is for: the two things that need a server.">
-            Sync and agents
-          </Trans>
-        </dt>
-        <dd>
-          <Trans comment="The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.">
-            US$3 a month (provisional)
-          </Trans>
-        </dd>
         <dt>
           <Trans comment="Heading of the line explaining what happens if the reader stops paying.">
             If you stop
@@ -144,6 +146,25 @@ function Billing() {
         </Trans>
       </p>
     </section>
+  );
+}
+
+/**
+ * "3 of 3 books sync. 2 are only on this device." — one entry, so each language joins the two
+ * halves with its own punctuation. Named rather than read inline so the catalog says `held` and
+ * `limit` instead of `{0}` and `{1}`.
+ */
+function QuotaLine({ held, limit, onDevice }: { held: number; limit: number; onDevice: number }) {
+  return (
+    <Trans comment="Under the sync status, for a free account. `held` is how many books the server holds, `limit` the account's quota, `onDevice` how many books this device has that the server refused — zero when the account is not full, and then the second half says nothing.">
+      {held} of {limit} books sync.{" "}
+      <Plural
+        value={onDevice}
+        _0=""
+        one="# is only on this device."
+        other="# are only on this device."
+      />
+    </Trans>
   );
 }
 
@@ -275,6 +296,22 @@ function SignIn() {
   const [pendingAuthorize] = useState(() => authorizeReturnTarget(window.location.search) !== null);
 
   useEffect(() => subscribeSync(setSync), []);
+  // How many books this device holds that the server does not, for the line under the status.
+  const [onDevice, setOnDevice] = useState(0);
+  useEffect(() => {
+    const quota = sync.quota;
+    if (quota === null) return;
+    let live = true;
+    void db.books
+      .filter((b) => onlyOnThisDevice(quota, b))
+      .count()
+      .then((n) => {
+        if (live) setOnDevice(n);
+      });
+    return () => {
+      live = false;
+    };
+  }, [sync.quota]);
   useEffect(() => {
     me().then((res) => {
       setUserId(res?.userId ?? null);
@@ -356,6 +393,21 @@ function SignIn() {
               })
             : ""}
         </p>
+        {sync.quota !== null && (
+          <p className="settings-note" data-testid="sync-quota">
+            {sync.quota.limit === null ? (
+              <Trans comment="Under the sync status, for an account with no book limit: every book on the device is synced.">
+                Every book syncs.
+              </Trans>
+            ) : (
+              <QuotaLine
+                held={sync.quota.synced.length}
+                limit={sync.quota.limit}
+                onDevice={onDevice}
+              />
+            )}
+          </p>
+        )}
         <div className="settings-actions">
           <button
             className={sync.status === "syncing" ? "busy-edge" : undefined}
