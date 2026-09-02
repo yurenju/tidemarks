@@ -65,4 +65,10 @@ test("a reader who never registered sends nothing to the server", async ({ page 
   await page.waitForTimeout(4_000);
 
   expect(sent).toEqual([]);
+
+  // And the shelf has no mark on the book: "only on this device" is a thing the server says
+  // about an account, and there is no account (#186).
+  await page.goto("/");
+  await expect(page.getByTestId("book-status").first()).toBeVisible();
+  await expect(page.getByTestId("book-status").first()).not.toContainText("Only on this device");
 });

@@ -1155,6 +1155,14 @@ export async function fakeSync(page: Page, read: () => Elsewhere): Promise<void>
   // Nothing real is behind it: every call to `/api/sync` is answered here.
   await page.addInitScript(() => localStorage.setItem("tidemarks-signed-in", "1"));
 
+  // An account with no book limit, so every book this device holds is one the server takes: a
+  // sync round asks `/auth/me` which books it may send (#191), and the 401 the fixture answers
+  // with would end the round before the push. `library/quota.spec.ts` is the one that answers
+  // this differently.
+  await page.route("**/auth/me", (route) =>
+    route.fulfill({ json: { userId: "u1", limit: null, synced: [] } }),
+  );
+
   // ⚠️ **The bodies too, or this is not a fake server — it is a hole.** A sync pushes whole epubs
   // as well as rows (`PUT /api/books/*/file`), and those used to leave here for the dev server's
   // proxy, which has nothing behind it. Failing intermittently and at the network layer, they

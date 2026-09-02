@@ -17,6 +17,16 @@ import { remainingHours } from "./stats";
 import type { Progress, ReadingSession } from "./types";
 
 /**
+ * The line under a book the server refused. One entry, worn by the shelf's card and by the book-details panel:
+ * the two say the same thing about the same book.
+ */
+export const ONLY_ON_THIS_DEVICE = msg({
+  message: "Only on this device",
+  comment:
+    "Extra status line under a book on the shelf, and in the book-details panel, once the reader is signed in and the server holds no copy of this book: the free account is full, or the subscription lapsed. It states a fact, not an error, and is not a button.",
+});
+
+/**
  * How far in counts as read.
  *
  * Not 1: the last stretch of an epub is the colophon, the ads and the translator's notes, and

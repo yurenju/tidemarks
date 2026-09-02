@@ -2,7 +2,13 @@
 // and the fields that have to be on the wire. What the server does with them is
 // worker/push.test.ts; that they survive D1 is worker/sync.integration.test.ts.
 import { describe, expect, it } from "vitest";
-import { isEmptyPayload, syncPayload, type DirtyRows } from "./sync-payload";
+import {
+  isEmptyPayload,
+  onlyOnThisDevice,
+  syncPayload,
+  withinQuota,
+  type DirtyRows,
+} from "./sync-payload";
 import type { BookRecord, Progress } from "./types";
 
 const EMPTY: DirtyRows = { books: [], progress: [], annotations: [], readingSessions: [] };
@@ -63,5 +69,56 @@ describe("isEmptyPayload", () => {
   it("is true only when every table is empty", () => {
     expect(isEmptyPayload(syncPayload(EMPTY))).toBe(true);
     expect(isEmptyPayload(syncPayload({ ...EMPTY, progress: [prog()] }))).toBe(false);
+  });
+});
+
+describe("withinQuota", () => {
+  const dirty = (ids: string[]): DirtyRows => ({
+    ...EMPTY,
+    books: ids.map((id) => book({ id })),
+    progress: ids.map((id) => prog({ bookId: id })),
+  });
+
+  it("sends everything while the server has not said anything yet", () => {
+    expect(withinQuota(dirty(["a", "b"]), null)).toEqual(dirty(["a", "b"]));
+  });
+
+  it("sends books outside the list only until the free slots are filled, rows and all", () => {
+    const kept = withinQuota(dirty(["s", "n1", "n2", "n3"]), {
+      limit: 3,
+      synced: ["s", "t"],
+      at: 0,
+    });
+    expect(kept.books.map((b) => b.id)).toEqual(["s", "n1"]);
+    expect(kept.progress.map((p) => p.bookId)).toEqual(["s", "n1"]);
+  });
+
+  it("sends every book when the limit is null", () => {
+    const kept = withinQuota(dirty(["n1", "n2"]), { limit: null, synced: [], at: 0 });
+    expect(kept.books.map((b) => b.id)).toEqual(["n1", "n2"]);
+  });
+
+  it("always sends a tombstone: a deleted book takes no slot", () => {
+    const rows = { ...EMPTY, books: [book({ id: "gone", deletedAt: 5 })] };
+    expect(withinQuota(rows, { limit: 3, synced: ["a", "b", "c"], at: 0 }).books).toHaveLength(1);
+  });
+
+  it("holds back the rows of a book the server does not list, even when the book itself is clean", () => {
+    const rows = { ...EMPTY, progress: [prog({ bookId: "frozen" })] };
+    expect(withinQuota(rows, { limit: 3, synced: ["a"], at: 0 }).progress).toEqual([]);
+  });
+});
+
+describe("onlyOnThisDevice", () => {
+  const quota = { limit: 3, synced: ["a"], at: 1000 };
+
+  it("is false until the server has spoken, and for a book it lists", () => {
+    expect(onlyOnThisDevice(null, book({ id: "b" }))).toBe(false);
+    expect(onlyOnThisDevice(quota, book({ id: "a" }))).toBe(false);
+  });
+
+  it("is true for a book the server does not list, but not for one imported after it last spoke", () => {
+    expect(onlyOnThisDevice(quota, book({ id: "b", addedAt: 999 }))).toBe(true);
+    expect(onlyOnThisDevice(quota, book({ id: "b", addedAt: 1001 }))).toBe(false);
   });
 });

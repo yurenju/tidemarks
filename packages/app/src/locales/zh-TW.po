@@ -56,6 +56,11 @@ msgstr "{face}已在這台裝置上"
 msgid "{face} not downloaded yet"
 msgstr "{face}還沒下載"
 
+#. Under the sync status, for a free account. `held` is how many books the server holds, `limit` the account's quota, `onDevice` how many books this device has that the server refused — zero when the account is not full, and then the second half says nothing.
+#: src/components/AccountPanel.tsx
+msgid "{held} of {limit} books sync. {onDevice, plural, =0 {} one {# is only on this device.} other {# are only on this device.}}"
+msgstr "{limit} 本中的 {held} 本在同步{onDevice, plural, =0 {。} other {，另外 # 本只在這台裝置上。}}"
+
 #. Second line under a book being read: how much reading is left, worked out from this reader's own pace. Half hours are common, so the number is 4.5 as often as it is 4.
 #: src/lib/book-status.ts
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
@@ -281,6 +286,16 @@ msgstr "請輸入 email"
 msgid "auth.verify.missing"
 msgstr "請輸入 email 與登入碼"
 
+#. Under the sync status, for an account with no book limit: every book on the device is synced.
+#: src/components/AccountPanel.tsx
+msgid "Every book syncs."
+msgstr "每一本書都在同步。"
+
+#. What paying gets: no limit on the number of books. The second sentence says outright that there is no price yet.
+#: src/components/AccountPanel.tsx
+msgid "Every book. Price not settled."
+msgstr "每一本書。價格未定。"
+
 #. Button that writes every book, note and position on this device out to one file.
 #: src/components/AccountPanel.tsx
 msgid "Export backup"
@@ -305,6 +320,11 @@ msgstr "字型下載進度"
 #: src/lib/web-font-store.ts
 msgid "Font is on this device"
 msgstr "字型已在這台裝置上"
+
+#. Heading of the middle tier of the price list: an account that pays nothing. It syncs three books (ADR-0011).
+#: src/components/AccountPanel.tsx
+msgid "Free account"
+msgstr "免費帳號"
 
 #. Eyebrow label at the top of the shelf's card, in front of the book's name. Says what the block is — a passage the reader marked, come back round. Lower case 'marks' is the same word the marking toolbar uses.
 #: src/components/Library.tsx
@@ -579,6 +599,11 @@ msgstr "單欄"
 msgid "Only just started"
 msgstr "才剛開始"
 
+#. Extra status line under a book on the shelf, and in the book-details panel, once the reader is signed in and the server holds no copy of this book: the free account is full, or the subscription lapsed. It states a fact, not an error, and is not a button.
+#: src/lib/book-status.ts
+msgid "Only on this device"
+msgstr "只在這台裝置上"
+
 #. Tooltip on a book's cover. The value is the book's own title and is never translated.
 #. Tooltip on a book's cover. The value is the book's own title and is never translated.
 #: src/components/Library.tsx
@@ -590,7 +615,7 @@ msgstr "開啟 {title}"
 msgid "Order"
 msgstr "排序"
 
-#. Heading of the paid half of the price list.
+#. Heading of the paid tier of the price list.
 #: src/components/AccountPanel.tsx
 msgid "Paid"
 msgstr "要付錢"
@@ -742,11 +767,6 @@ msgstr "留在這裡"
 msgid "Sync"
 msgstr "同步"
 
-#. What the monthly price is for: the two things that need a server.
-#: src/components/AccountPanel.tsx
-msgid "Sync and agents"
-msgstr "同步與 agent"
-
 #. Sync status beside the 'Sync' button: the attempt reached the server and did not work.
 #: src/components/AccountPanel.tsx
 msgid "Sync failed"
@@ -756,11 +776,6 @@ msgstr "同步失敗"
 #: src/components/AccountPanel.tsx
 msgid "Synced"
 msgstr "已同步"
-
-#. What the paid half covers. Both are things that need a server, which is the whole reason they cost anything.
-#: src/components/AccountPanel.tsx
-msgid "Syncing between devices, and letting an agent read your books."
-msgstr "兩台裝置之間同步、讓 agent 讀得到你的書。"
 
 #. Sync status beside the 'Sync' button. The ellipsis is one character.
 #: src/components/AccountPanel.tsx
@@ -897,6 +912,11 @@ msgstr "本週"
 msgid "This year"
 msgstr "今年"
 
+#. What a free account gets. 'Three' is the free quota and 'those three' the same books: an agent connected to the account can read only what is synced.
+#: src/components/AccountPanel.tsx
+msgid "Three books sync between your devices, and an agent can read those three."
+msgstr "三本書跨裝置同步，agent 也讀得到那三本。"
+
 #. Subject line of the letter carrying a one-time sign-in code. The product name stays as it is; the value is six digits.
 #. js-lingui-explicit-id
 #: worker/email.ts
@@ -948,11 +968,6 @@ msgstr "雙欄"
 #: src/components/SettingsScreen.tsx
 msgid "Type"
 msgstr "排版"
-
-#. The monthly price. The figure is a placeholder and nothing charges yet, which the note below says outright.
-#: src/components/AccountPanel.tsx
-msgid "US$3 a month (provisional)"
-msgstr "每月 US$3（暫定）"
 
 #. Refusal when a passkey could not be verified. Deliberately says nothing about why: which part failed is not something an attacker should be told.
 #. js-lingui-explicit-id
