@@ -11,7 +11,7 @@ tidemarks 是一款 epub 閱讀網頁應用程式，用於閱讀、劃重點與�
 
 註冊帳號後可以在多裝置之間同步書籍、閱讀進度、重點與筆記，同時支援 MCP (Model Context Protocol) 協定，讓 AI 一同陪伴你閱讀與解惑。
 
-官方託管的雲端同步為付費服務，同時本軟體為開放源碼軟體，亦即任何人都可以自行架設、維護同步服務。自行佈署請見[docs/deployment.md](docs/deployment.md)。
+官方託管的雲端同步免費同步三本書，更多則需付費，同時本軟體為開放源碼軟體，亦即任何人都可以自行架設、維護同步服務。自行佈署請見[docs/deployment.md](docs/deployment.md)。
 
 English: [README.md](README.md)
 
