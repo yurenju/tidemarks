@@ -218,7 +218,7 @@ gstatic 給的一年 `max-age` 不能當離線保證：HTTP cache 是分區的�
 
 - 字型放進 `public/fonts/` 供瀏覽器下載就是散布，所以 OFL 全文與 copyright notice 要跟著部署出去，
   不能只躺在 repo 裡。
-- OFL 禁止的是單獨販售字型本身。spine 賣的是 app（[ADR-0011](0011-the-paywall-follows-the-monthly-bill.md)），
+- OFL 禁止的是單獨販售字型本身。spine 賣的是 app（[ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md)），
   字型是隨附，那是 OFL 明確允許的 bundling。
 - 沒有 RFN，所以轉 woff2 之後仍可保留 `Noto Serif CJK TC` 這個 family 名，跟
   [chinese.ts](../../packages/app/src/lib/chinese.ts) 堆疊裡既有的名字對得上。

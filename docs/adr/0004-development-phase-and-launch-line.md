@@ -40,16 +40,17 @@ RP ID，而 RP ID 換了每一把 passkey 都會失效，**只有在使用者還
 上會有幾個不是維護者的人。那段期間仍然算開發階段，**資料還是可以丟**。
 
 線為什麼不掛在「第一個朋友進來」那一刻：白名單存在的唯一目的，是把上線要用的東西全部做齊
-（email 註冊、付款），做齊了才開放。那批人是為了這件事進來的，而且**明知資料會被清掉**，
+（email 註冊、三本額度的門），做齊了才開放；付款不在裡面，帳號免費，付費那一級上線之後再加
+（[ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md)）。那批人是為了這件事進來的，而且**明知資料會被清掉**，
 所以他們不翻這條線。
 
 但「可以丟」在那段期間要多兩個條件，否則它會變成一句沒有人打算執行的授權：
 
 - **丟之前寄信通知**，並且**給得出匯出**。這件事做得到，是因為到那時候 spine 手上第一次有
   email（見 [ADR-0015](0015-an-account-is-only-as-strong-as-its-inbox.md)）。
-- **付款走 Stripe test mode。** 白名單要驗的是流程跑不跑得通，不是有沒有人願意掏錢，後者要
+- **真的接上付款之後，白名單期間走 Stripe test mode。** 要驗的是流程跑不跑得通，不是有沒有人願意掏錢，後者要
   等有陌生人的時候才算數。而**收了真的錢就不能再說「資料可以丟」**：「你付錢了，然後我把你
-  的筆記清掉，但我有先寄信」正是 [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md)
+  的筆記清掉，但我有先寄信」正是 [ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md)
   〈停止付費之後不刪東西〉花一整節在避免的那類事。
 
 ## 這條線管的是資料，不是遞送
@@ -98,7 +99,7 @@ pre-sync data is not migrated (confirmed decision)`。這份 ADR 是把那次的
 | 當時寫的 | 現在 |
 | --- | --- |
 | 「passkey-only 是對的產品決定，沒有理由拿掉」 | 有理由：弄丟所有 passkey 等於筆記沒了，而那個代價要由第一個非維護者的使用者承受 |
-| 「收費走 Stripe，email 是 Stripe 收的，spine 手上一個都不會有」 | spine 自己收 email 了，因為 magic code 要用，而 [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md) 承諾的「到期前寄信通知」本來就需要它 |
+| 「收費走 Stripe，email 是 Stripe 收的，spine 手上一個都不會有」 | spine 自己收 email 了，因為 magic code 要用，而 [ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md) 承諾的「到期前寄信通知」本來就需要它 |
 
 **但換線的判斷本身沒有被推翻，所以線不改回去。** 當時的推理是：**一條永遠不會翻的線比沒有線
 更糟**，它會讓 `CLAUDE.md` 一直對每一個 agent 說「資料可以丟」，而那時候付費使用者的書和五年

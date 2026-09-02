@@ -29,7 +29,7 @@ R2 的 key 是 `${userId}/${bookId}/${kind}`（[worker/index.ts](../../packages/
 **每個使用者一份**。兩個人上傳同一本書，伺服器上就是兩份，一個 byte 都不合併。
 
 誘因是省儲存費，而那筆錢小到不存在，R2 每月免費 10GB，
-[ADR-0011](0011-the-paywall-follows-the-monthly-bill.md) 量過一個典型使用者一年不到 US$0.05。
+[ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md) 量過一個典型使用者一年不到 US$0.05。
 
 但真正的理由不是錢：**去重之後，你的書就不再是你的那一份了。** 刪掉它的時候刪掉的是什麼？
 別人動了它會不會影響到你？這些問題本來不存在，去重會把它們造出來。
