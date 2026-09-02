@@ -14,7 +14,7 @@ spine 的原始碼公開，授權 **MIT**，**含 `worker/`**。
 
 ## 為什麼要開源：使用者得先把整櫃書交出來
 
-spine 打算靠託管服務收費（見 [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md)），
+spine 打算靠託管服務收費（見 [ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md)），
 而使用者付錢之前要把自己買的書上傳到別人的伺服器。他猶豫的不是「這個 app 好不好用」，
 是「我敢不敢」。
 

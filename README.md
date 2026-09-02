@@ -11,7 +11,7 @@ The hosted site is at https://app.tidemarks.io/
 
 With an account, books, reading progress, highlights and notes sync across your devices. It also speaks MCP (Model Context Protocol), so an AI can read along with you and answer questions about the book.
 
-The hosted sync service is paid. The software is open source, so anyone can stand up and run their own sync service — see [docs/deployment.md](docs/deployment.md).
+The hosted sync service syncs three books for free; syncing more is paid. The software is open source, so anyone can stand up and run their own sync service — see [docs/deployment.md](docs/deployment.md).
 
 繁體中文版：[README.zh-TW.md](README.zh-TW.md)
 

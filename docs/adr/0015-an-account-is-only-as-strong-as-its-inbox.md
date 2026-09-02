@@ -22,7 +22,7 @@ email 是帳號的**唯一識別**：一個 email 一個帳號。
 | 換到 | 付掉 |
 | --- | --- |
 | 帳號找得回來：弄丟所有 passkey 不再等於筆記沒了 | **抗釣魚保護**。passkey 的核心價值之一是釣魚站拿不到憑證；magic code 拿得到，因為受害者會自己把碼貼過去 |
-| [ADR-0011](0011-the-paywall-follows-the-monthly-bill.md) 承諾的「到期前寄信通知才清」第一次寄得出去（舊 repo 的 #88） | 第一個外部廠商（Resend） |
+| [ADR-0011](0011-the-account-is-free-and-the-quota-is-paid.md) 承諾的「到期前寄信通知才清」第一次寄得出去（舊 repo 的 #88） | 第一個外部廠商（Resend） |
 | 開發階段「資料丟掉之前先通知」也第一次做得到，白名單那批人才有東西可以依靠 | 多一個會壞的地方：Resend 掛掉就沒有人登得進來（緩衝是 session 有 90 天） |
 
 所以這份 ADR 的標題就是那個代價：**帳號的實際強度是信箱的強度**，不是 passkey 的強度。
