@@ -20,6 +20,10 @@ import { formatFindings, scanFile, type Finding } from "./language-scan.ts";
 const EXTENSIONS = [
   "ts",
   "tsx",
+  // `.astro` is two languages in one file — TypeScript above the fence, markup below — and both
+  // halves are code. The site's prose is in `.md`, which is not scanned, so this catches a
+  // comment or a label written in Chinese without touching the pages themselves.
+  "astro",
   "mjs",
   "css",
   "html",

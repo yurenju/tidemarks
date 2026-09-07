@@ -11,6 +11,8 @@
     "build:frond": "npm run build -w @yurenju/frond",
     "dev": "npm run build:frond && npm run dev -w app",
     "build": "npm run build:frond && npm run build -w app",
+    "build:site": "npm run build -w site",
+    "deploy:site": "npm run deploy -w site",
     "lint": "oxlint --max-warnings=0 && node scripts/check-language.ts",
     "i18n:check": "node scripts/check-i18n.ts",
     "i18n:extract": "npm run i18n:extract -w app",

@@ -1,0 +1,12 @@
+---
+// `wrangler.jsonc` sets `not_found_handling: "404-page"`, which looks for this. Without it an
+// unknown address gets Cloudflare's bare 404 and the reader loses the navigation, which on this
+// site is the only way to the three legal documents.
+import Page from "../layouts/Page.astro";
+---
+
+<Page title="Not here">
+  <p>
+    There is no page at this address. The links above lead everywhere this site goes.
+  </p>
+</Page>

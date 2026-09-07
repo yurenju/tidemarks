@@ -1,0 +1,76 @@
+---
+// The page Paddle's domain review reads for three of its requirements at once: a clear
+// description of the product, the price, and what a purchase includes. It is a page of its own
+// rather than a section of the home page precisely because of that — the home page is unwritten,
+// and this one needs no design decision to be finished, only facts.
+//
+// The tiers and their wording are the app's own (`AccountPanel.tsx`), and the price is one annual
+// figure with no monthly option (#193). If either changes, both places change.
+import Page from "../layouts/Page.astro";
+---
+
+<Page title="What it does, and what it costs">
+  <p>
+    Tidemarks is an epub reader that runs in a browser. Importing, reading, highlighting,
+    note-taking, typesetting and exporting all happen on your own device — a book you open is never
+    uploaded, and neither are your notes or your place in it.
+  </p>
+  <p>
+    An account exists for one reason: to carry those things between your devices, and to let an AI
+    agent read them through Tidemarks' MCP server. That half runs on a server, so that half is what
+    is paid for.
+  </p>
+
+  <div class="plan">
+    <h2>Reading — always free</h2>
+    <p class="price">No account, no charge</p>
+    <p>
+      Import, read, highlight, take notes, change the typesetting and export what you have marked.
+      All of it in your browser, all of it on your device. Nothing here expires and nothing here
+      asks for an email address.
+    </p>
+  </div>
+
+  <div class="plan">
+    <h2>Free account</h2>
+    <p class="price">No charge</p>
+    <p>
+      Three books sync between your devices, and a connected agent can read those three. Every other
+      book stays where it is, on the device you imported it to.
+    </p>
+  </div>
+
+  <div class="plan">
+    <h2>Paid</h2>
+    <p class="price">US$20 a year</p>
+    <p>
+      Every book syncs, with no limit on how many, and a connected agent can read all of them.
+      Billed once a year; there is no monthly plan and no per-device charge. The price shown at
+      checkout is what applies, and Paddle adds any sales tax, VAT or GST due where you live.
+    </p>
+    <p>
+      The subscription renews each year until you cancel it. You can cancel at any time from
+      Paddle's customer portal, and within 14 days of paying you can have the payment back — see the
+      <a href="/legal/refunds">refund policy</a>.
+    </p>
+    <p>
+      If you stop paying, the server's copy of your books is kept for 24 months, and the books,
+      notes and positions on your own devices are untouched.
+    </p>
+  </div>
+
+  <h2>Would rather not pay?</h2>
+  <p>
+    The syncing half is open source, and you can run it yourself. <a
+      href="https://github.com/yurenju/tidemarks">The source and the deployment guide</a
+    > are public.
+  </p>
+
+  <h2>Who you are buying from</h2>
+  <p>
+    Tidemarks is supplied by Sad Coder, Inc., 5F., No. 50, Zhongyang 7th St., Xindian Dist., New
+    Taipei City 231014, Taiwan. Payments are handled by Paddle as merchant of record; see the <a
+      href="/legal/terms">terms of service</a
+    >. Questions: <a href="mailto:contact@tidemarks.io">contact@tidemarks.io</a>.
+  </p>
+</Page>

@@ -625,6 +625,11 @@ msgstr "要付錢"
 msgid "Previous page"
 msgstr "上一頁"
 
+#. Link in the billing section to the privacy policy, on the public site. A document title, so it is capitalised as one.
+#: src/components/AccountPanel.tsx
+msgid "Privacy policy"
+msgstr "隱私權政策"
+
 #. Label of the how-far number in the book-details panel. The value beside it is a percentage.
 #: src/components/AboutBook.tsx
 msgid "Read to"
@@ -649,6 +654,11 @@ msgstr "閱讀進度"
 #: src/lib/shelf-order-choices.ts
 msgid "Recently touched"
 msgstr "最近碰過"
+
+#. Link in the billing section to the refund policy, on the public site. A document title, so it is capitalised as one.
+#: src/components/AccountPanel.tsx
+msgid "Refund policy"
+msgstr "退款政策"
 
 #. Button under the typography controls. Puts all six settings back to what Tidemarks ships with. Disabled when they already are.
 #: src/components/TypographyForm.tsx
@@ -786,6 +796,11 @@ msgstr "同步中…"
 #: src/lib/settings.ts
 msgid "System"
 msgstr "跟隨系統"
+
+#. Link in the billing section to the terms of service, on the public site. A document title, so it is capitalised as one.
+#: src/components/AccountPanel.tsx
+msgid "Terms of service"
+msgstr "服務條款"
 
 #. Refusal when a passkey registration or sign-in took longer than the challenge stays valid. Nothing is wrong; the reader simply starts again.
 #. js-lingui-explicit-id

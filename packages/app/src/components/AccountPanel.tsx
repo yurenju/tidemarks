@@ -16,6 +16,7 @@ import { authorizeReturnTarget } from "../lib/authorize-return";
 import { db } from "../lib/db";
 import { downloadBlob } from "../lib/download";
 import { parseImport, serializeExport } from "../lib/export";
+import { siteUrl } from "../lib/site";
 import { getSyncState, scheduleSync, subscribeSync, syncNow, type SyncState } from "../lib/sync";
 import { onlyOnThisDevice } from "../lib/sync-payload";
 
@@ -145,7 +146,47 @@ function Billing() {
           Would rather not pay, but want two devices? The syncing half can be self-hosted.
         </Trans>
       </p>
+      <LegalDocuments />
     </section>
+  );
+}
+
+/**
+ * The three documents a reader is entitled to read before paying, on the public site.
+ *
+ * **Nothing at all when this deployment has no site** (`lib/site.ts`): these are one seller's
+ * documents, and a self-hosted Tidemarks has a different seller. The whole row goes rather than
+ * individual links, because two of the three present without the third reads as a bug.
+ *
+ * They open in a new tab: this is a different origin, and a reader who followed a link out of the
+ * account pane and came back would find the pane closed.
+ */
+function LegalDocuments() {
+  const terms = siteUrl("/legal/terms");
+  const refunds = siteUrl("/legal/refunds");
+  const privacy = siteUrl("/legal/privacy");
+  if (terms === null || refunds === null || privacy === null) return null;
+
+  return (
+    <p className="settings-note">
+      <a href={terms} target="_blank" rel="noreferrer">
+        <Trans comment="Link in the billing section to the terms of service, on the public site. A document title, so it is capitalised as one.">
+          Terms of service
+        </Trans>
+      </a>
+      {" · "}
+      <a href={refunds} target="_blank" rel="noreferrer">
+        <Trans comment="Link in the billing section to the refund policy, on the public site. A document title, so it is capitalised as one.">
+          Refund policy
+        </Trans>
+      </a>
+      {" · "}
+      <a href={privacy} target="_blank" rel="noreferrer">
+        <Trans comment="Link in the billing section to the privacy policy, on the public site. A document title, so it is capitalised as one.">
+          Privacy policy
+        </Trans>
+      </a>
+    </p>
   );
 }
 
