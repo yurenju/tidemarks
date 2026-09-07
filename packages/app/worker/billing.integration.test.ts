@@ -8,6 +8,7 @@
 // between the two.
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
+import { bookLimitOf } from "./auth";
 import { handleBilling, type BillingEnv } from "./billing";
 
 const USER = "reader-1";
@@ -201,18 +202,37 @@ it("answers 404 to a billing path that does not exist, without asking for a sess
   expect(response.status).toBe(404);
 });
 
-describe("a deployment that sells nothing", () => {
-  // Called directly rather than through SELF, because the five settings are bindings and every
-  // test in this file shares one set of them. What is being checked is the answer, not the
-  // route — the route is what every test above walks.
-  const nothingSold = { ...testEnv(), PADDLE_API_URL: undefined } as unknown as BillingEnv;
+describe("what the Paddle settings being absent means", () => {
+  // These two are the whole point of the section, and they are opposites: none of the settings is
+  // a way to run Tidemarks, some of them is somebody's unfinished job. Everything below is called
+  // directly rather than through SELF, because the settings are bindings and every test in this
+  // file shares one set of them — what is being checked is the answer, not the route, and the
+  // route is what every test above walks.
+  const sellsNothing = () => ({ DB: testEnv().DB }) as unknown as BillingEnv;
+  const halfConfigured = () =>
+    ({ ...testEnv(), PADDLE_API_URL: undefined }) as unknown as BillingEnv;
+
+  // migration 0007 puts every existing account on the free three, and SQL cannot ask whether
+  // this deployment takes payments — so without this, somebody self-hosting without Paddle pulls
+  // that migration and finds their shelf cut to three, behind an upgrade button that 404s for
+  // ever. The limit and the freezing have to come back together, or the sync push would go on
+  // refusing the thawed books.
+  it("lifts an existing account's limit and thaws its books", async () => {
+    await testEnv().DB.prepare("UPDATE users SET book_limit = 3 WHERE id = ?").bind(USER).run();
+    await send("canceled");
+    expect(await frozenCount()).toBe(2);
+
+    expect(await bookLimitOf(sellsNothing(), USER)).toBeNull();
+    expect(await frozenCount()).toBe(0);
+    // Written down, not merely answered: the next reader of the column has to agree, and the
+    // books are only thawed because the write happened.
+    expect((await account())?.book_limit).toBeNull();
+  });
 
   it.each(["/billing/checkout", "/billing/portal", "/billing/pay"])(
     "answers 404 to %s",
     async (path) => {
-      const env = {
-        DB: testEnv().DB,
-      } as unknown as BillingEnv;
+      const env = sellsNothing();
       const response = await handleBilling(
         new Request(`https://tidemarks.test${path}`, { method: "POST" }),
         env,
@@ -227,9 +247,18 @@ describe("a deployment that sells nothing", () => {
   it("shouts instead when only some of the settings are there", async () => {
     const response = await handleBilling(
       new Request("https://tidemarks.test/billing/checkout", { method: "POST" }),
-      nothingSold,
+      halfConfigured(),
       "/billing/checkout",
     );
     expect(response.status).toBe(500);
+  });
+
+  // The other half of that distinction, and the one nothing else pins: a broken deployment is not
+  // a free one. Simplifying `billingOff` to "any setting missing" passes every other test in this
+  // file and quietly hands unlimited books to every account on a deployment whose owner merely
+  // forgot a secret.
+  it("leaves the quota alone when the settings are only half there", async () => {
+    await testEnv().DB.prepare("UPDATE users SET book_limit = 3 WHERE id = ?").bind(USER).run();
+    expect(await bookLimitOf(halfConfigured(), USER)).toBe(3);
   });
 });

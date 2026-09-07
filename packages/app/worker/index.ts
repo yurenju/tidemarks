@@ -196,8 +196,15 @@ function sessionToWire(r: SessionRow): ReadingSession {
 }
 
 async function loadAll(env: Env, userId: string) {
-  const [limit, books, progress, annotations, sessions] = await Promise.all([
-    bookLimitOf(env, userId),
+  // **The limit first, on its own, and the tables afterwards.** `bookLimitOf` writes on a
+  // deployment that sells nothing: it thaws the books this account's quota no longer applies to
+  // (worker/auth.ts). Run alongside the reads below, that thaw and the `SELECT * FROM books` race
+  // — the push would get `limit: null` together with a frozen set read from before the thaw, and
+  // `resolvePush` drops every change belonging to a frozen book. One push silently ignored, once
+  // per account, on the day a self-hoster pulls migration 0007. One round trip is cheaper than
+  // explaining that.
+  const limit = await bookLimitOf(env, userId);
+  const [books, progress, annotations, sessions] = await Promise.all([
     env.DB.prepare("SELECT * FROM books WHERE user_id = ?").bind(userId).all<BookRow>(),
     env.DB.prepare("SELECT * FROM progress WHERE user_id = ?").bind(userId).all<ProgressRow>(),
     env.DB.prepare("SELECT * FROM annotations WHERE user_id = ?").bind(userId).all<AnnotationRow>(),

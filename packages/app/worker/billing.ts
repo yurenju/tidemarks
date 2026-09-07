@@ -8,11 +8,12 @@
 // checkout instead of believing the redirect.
 //
 // **Five settings, all or nothing.** With none of them set this deployment does not sell
-// anything: every path here answers 404 and new accounts are made with no limit at all
-// (worker/auth.ts). Some of them is a mistake rather than a choice, and it is caught in two
-// places because no one place can see all five — the three build variables stop the deploy
-// (`paddleSettingsError` in scripts/deploy-config.ts), and the two secrets, which a build cannot
-// read back, are caught here.
+// anything: every path here answers 404, and its accounts have no quota at all — `bookLimitOf`
+// in worker/auth.ts asks `billingOff` every time it is called, so that holds for accounts made
+// before the settings were touched as well as after. Some of them is a mistake rather than a
+// choice, and it is caught in two places because no one place can see all five — the three build
+// variables stop the deploy (`paddleSettingsError` in scripts/deploy-config.ts), and the two
+// secrets, which a build cannot read back, are caught here.
 import { FREE_BOOKS, json, sessionUserId, type Env } from "./auth";
 import { i18nFor } from "./i18n";
 import { setBookLimit } from "./quota";
@@ -450,10 +451,10 @@ function escapeHtml(text: string): string {
 /**
  * Whether this deployment sells nothing at all, for the one caller outside this file.
  *
- * **Not "billing does not work".** A half-configured deployment is broken, not free, and the
- * account it creates lives on long after somebody fills in the missing secret — so the account
- * that gets no limit has to be the one on a deployment that deliberately sells nothing
- * (worker/auth.ts, ADR-0016).
+ * **Not "billing does not work".** A half-configured deployment is broken, not free: an upgrade
+ * button that cannot work is still the right thing to show somebody whose deployment is meant to
+ * sell, because the fix is to finish configuring it. Only a deployment that deliberately sells
+ * nothing gives its accounts no quota (worker/auth.ts, ADR-0016).
  */
 export function billingOff(env: BillingEnv): boolean {
   const config = paddleConfig(env);
