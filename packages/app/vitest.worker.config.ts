@@ -47,6 +47,11 @@ export default defineConfig(async () => {
             // COOKIE_SECRET this cannot come from wrangler.jsonc: RP_ID is a build variable,
             // and that file deliberately ships without one.
             RP_ID: "tidemarks.test",
+            // The same host with a scheme, which is what a correctly configured deployment has
+            // (CF_ORIGIN is a required build variable). The passkey checks read it, and so does
+            // the checkout: the transaction the Worker creates names `${ORIGIN}/billing/pay` as
+            // the page Paddle should send the reader to.
+            ORIGIN: "https://tidemarks.test",
             // RESEND_API_KEY and OPEN_SIGNUP are deliberately empty: unset is the state the repo
             // ships in, so the tests run against the allowlist and against login codes going to
             // the log rather than to a vendor. Both are read for truthiness, so blank is unset.
