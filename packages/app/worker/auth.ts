@@ -34,6 +34,11 @@ import {
   type CodeVerdict,
   type MagicCodeRow,
 } from "./magic-code";
+// The two modules import each other, and that is safe because both uses are inside functions:
+// nothing here runs while either module is still being evaluated. Keeping the list of Paddle
+// settings in one file is worth the cycle — a second copy of those five names is exactly the
+// thing that goes out of date.
+import { billingOff } from "./billing";
 import { rpIdMismatchMessage } from "./rp-id";
 import { openSignupFrom, signupDecision } from "./signup-gate";
 
@@ -58,7 +63,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const RP_NAME = "Tidemarks";
 // How many books an account may keep on the server without paying (ADR-0011). The migration
 // that added `book_limit` carries the same number as its column default.
-const FREE_BOOKS = 3;
+export const FREE_BOOKS = 3;
 
 export function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -733,10 +738,20 @@ async function verifyMagicCode(
   let userId = existing;
   if (!userId) {
     userId = crypto.randomUUID();
-    // Before launch the only way in is the allowlist, and those accounts keep no limit for
-    // good (ADR-0016). Decided here rather than left to the column default, so that a friend
-    // added after the migration that marked the existing rows is treated the same as them.
-    const limit = openSignupFrom(env.OPEN_SIGNUP) ? FREE_BOOKS : null;
+    // **A deployment with nothing to sell hands out no limit**, and so does one that has not
+    // opened signups yet. The two are the same rule from different ends: a quota only means
+    // something where there is a way to lift it, and where there is not, three books would be a
+    // wall with no door (ADR-0016). Self-hosting is the first case; the second is the allowlist
+    // before launch, whose accounts were let in knowing their data might be wiped.
+    //
+    // Decided here rather than left to the column default, so that an account made after the
+    // migration that set the existing rows is treated the same as them.
+    //
+    // ⚠️ **"sells nothing", not "billing is broken".** A deployment with four of the five Paddle
+    // settings is a mistake somebody will fix, and the accounts made in the meantime would keep
+    // their unlimited quota for good — nothing walks those rows back afterwards. So the test is
+    // whether all five are absent, which is somebody's choice.
+    const limit = openSignupFrom(env.OPEN_SIGNUP) && !billingOff(env) ? FREE_BOOKS : null;
     await env.DB.prepare(
       "INSERT INTO users (id, email, created_at, book_limit) VALUES (?, ?, ?, ?)",
     )

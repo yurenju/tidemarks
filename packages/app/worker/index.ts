@@ -14,12 +14,13 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
 import { bookLimitOf, handleAuth, json, sessionUserId, type Env } from "./auth";
 import { handleAuthorize, READ_SCOPE } from "./authorize";
+import { handleBilling, type BillingEnv } from "./billing";
 import { cursorFor } from "./cursor";
 import { d1Store } from "./mcp/d1-store";
 import { handleMcp } from "./mcp/http";
 import { type PushBody, resolvePush } from "./push";
 
-interface McpEnv extends Env {
+interface McpEnv extends BillingEnv {
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER: OAuthHelpers;
 }
@@ -32,6 +33,9 @@ const tidemarksApp = {
     // `ctx` so the mail a login sends afterwards does not hold the response open.
     if (path.startsWith("/auth/")) return handleAuth(request, env, path, ctx);
     if (path === "/authorize") return handleAuthorize(request, env);
+    // Sessions are checked inside: the webhook and the checkout page have no cookie to offer,
+    // and the other three do (worker/billing.ts).
+    if (path.startsWith("/billing/")) return handleBilling(request, env, path);
 
     if (path.startsWith("/api/")) {
       const userId = await sessionUserId(env, request);

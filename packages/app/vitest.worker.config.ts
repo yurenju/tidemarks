@@ -47,9 +47,28 @@ export default defineConfig(async () => {
             // COOKIE_SECRET this cannot come from wrangler.jsonc: RP_ID is a build variable,
             // and that file deliberately ships without one.
             RP_ID: "tidemarks.test",
-            // RESEND_API_KEY and OPEN_SIGNUP are deliberately absent: unset is the state
-            // the repo ships in, so the tests run against the allowlist and against login
-            // codes going to the log rather than to a vendor.
+            // RESEND_API_KEY and OPEN_SIGNUP are deliberately empty: unset is the state the repo
+            // ships in, so the tests run against the allowlist and against login codes going to
+            // the log rather than to a vendor. Both are read for truthiness, so blank is unset.
+            //
+            // ⚠️ **Written out rather than left off**, because `.dev.vars` is loaded here too and
+            // would otherwise decide these. That file is exactly where somebody following
+            // docs/deployment.md puts `OPEN_SIGNUP=true` to try a checkout locally — and the
+            // signup-gate tests would then fail on their machine and pass in CI, for a file that
+            // is not in the repository.
+            OPEN_SIGNUP: "",
+            RESEND_API_KEY: "",
+            //
+            // Paddle is the other way round — all five set, so the default here is a deployment
+            // that sells something and the webhook is reachable at all. The API URL points
+            // nowhere on purpose: the only path these tests walk is the webhook, which Paddle
+            // calls rather than the other way round, so a request leaving for Paddle would be a
+            // test reaching the network and should fail.
+            PADDLE_API_URL: "https://paddle.invalid",
+            PADDLE_API_KEY: "test-api-key",
+            PADDLE_WEBHOOK_SECRET: "test-webhook-secret",
+            PADDLE_PRICE_ID: "pri_test",
+            PADDLE_CLIENT_TOKEN: "test_client_token",
           },
         },
       }),

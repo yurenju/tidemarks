@@ -199,6 +199,11 @@ msgstr "Close"
 msgid "Columns"
 msgstr "Columns"
 
+#. Shown after the reader comes back from paying, while the page waits for the payment provider to tell the server. It is deliberately not 'thank you' — nothing is confirmed yet.
+#: src/components/AccountPanel.tsx
+msgid "Confirming your payment…"
+msgstr "Confirming your payment…"
+
 #. Bar button raising the panel that lists the book's chapters. Same word as that panel's own title.
 #. Title of the panel listing the book's chapters, and the label of the bar button that raises it.
 #: src/components/reader-messages.ts
@@ -291,10 +296,10 @@ msgstr "Enter both your email address and the code"
 msgid "Every book syncs."
 msgstr "Every book syncs."
 
-#. What paying gets: no limit on the number of books. The second sentence says outright that there is no price yet.
+#. What paying gets, in the price list at the top of the account pane. One price everywhere, in US dollars; Paddle's checkout window is what converts it for the reader.
 #: src/components/AccountPanel.tsx
-msgid "Every book. Price not settled."
-msgstr "Every book. Price not settled."
+msgid "Every book, US$20 a year."
+msgstr "Every book, US$20 a year."
 
 #. Button that writes every book, note and position on this device out to one file.
 #: src/components/AccountPanel.tsx
@@ -465,6 +470,11 @@ msgstr "Looser (2.0)"
 msgid "Loosest (2.2)"
 msgstr "Loosest (2.2)"
 
+#. Link out to the payment provider's own pages, where the reader can cancel, change their card and download invoices.
+#: src/components/AccountPanel.tsx
+msgid "Manage your subscription"
+msgstr "Manage your subscription"
+
 #. Label of the margin control. It sets a floor for the whitespace along the line-length axis rather than the final width — see ADR-0012.
 #: src/components/TypographyForm.tsx
 msgid "Margin"
@@ -510,6 +520,11 @@ msgstr "No account needed to read. Your books, notes and reading positions never
 #: src/components/Library.tsx
 msgid "No books yet. Drop an epub in, and start here."
 msgstr "No books yet. Drop an epub in, and start here."
+
+#. Shown when a minute has gone by since the reader came back from paying and the payment provider still has not told the server. It says to come back rather than to try again, because paying twice is the wrong thing to do here.
+#: src/components/AccountPanel.tsx
+msgid "No word from Paddle yet. Your payment is not lost — check back in a few minutes."
+msgstr "No word from Paddle yet. Your payment is not lost — check back in a few minutes."
 
 #. The anti-phishing line in the sign-in letter. Keep it blunt — its whole job is to be remembered by a reader who is being talked to by an attacker.
 #. js-lingui-explicit-id
@@ -610,10 +625,21 @@ msgstr "Only on this device"
 msgid "Open {title}"
 msgstr "Open {title}"
 
+#. The only line on the page that hands the reader over to Paddle's checkout window. It is what they see if Paddle's script fails to load, so it says what is happening rather than merely spinning. The ellipsis is one character.
+#. js-lingui-explicit-id
+#: worker/billing.ts
+msgid "billing.pay.opening"
+msgstr "Opening the checkout…"
+
 #. Label in front of the shelf's order dropdown. A noun, not the verb 'to sort'.
 #: src/components/Library.tsx
 msgid "Order"
 msgstr "Order"
+
+#. Under the upgrade button. Paddle is the merchant of record — it takes the payment and issues the invoice — and the refund window is 14 days, unconditional.
+#: src/components/AccountPanel.tsx
+msgid "Paddle handles the payment and the invoice. Full refund within 14 days, no questions asked."
+msgstr "Paddle handles the payment and the invoice. Full refund within 14 days, no questions asked."
 
 #. Heading of the paid tier of the price list.
 #: src/components/AccountPanel.tsx
@@ -771,6 +797,11 @@ msgstr "Start the connection again from your agent."
 msgid "Stay here"
 msgstr "Stay here"
 
+#. The button that starts a subscription. The price is the same everywhere and is written into the sentence; Paddle's checkout window converts it for the reader afterwards. Keep the currency as US dollars.
+#: src/components/AccountPanel.tsx
+msgid "Subscribe for US$20 a year"
+msgstr "Subscribe for US$20 a year"
+
 #. Button that runs a sync round now, rather than waiting for the next one. Same word as the section heading above it, and the same entry.
 #. Heading of the section shown once the reader is signed in. It holds the sync status and the buttons for keys and signing out.
 #: src/components/AccountPanel.tsx
@@ -831,6 +862,11 @@ msgstr "That code is not right"
 #: worker/auth.ts
 msgid "auth.passkey.unknown"
 msgstr "That passkey is not registered here"
+
+#. Shown when pressing upgrade failed before the reader ever reached Paddle. The second sentence is the one that matters: the reader's first thought is whether they have been charged for nothing.
+#: src/components/AccountPanel.tsx
+msgid "The checkout could not be opened. Nothing has been charged."
+msgstr "The checkout could not be opened. Nothing has been charged."
 
 #. Shown when the mail provider refused or was unreachable. Nothing is wrong with the reader's address; the failure is on this side.
 #. js-lingui-explicit-id
@@ -1004,11 +1040,6 @@ msgstr "Years ago"
 #: src/components/Library.tsx
 msgid "Yesterday"
 msgstr "Yesterday"
-
-#. Note under the billing section. It says outright that the section describes an intention, not a working checkout.
-#: src/components/AccountPanel.tsx
-msgid "You cannot subscribe yet, and the price is not settled."
-msgstr "You cannot subscribe yet, and the price is not settled."
 
 #. Banner over the book, naming the reader's place in it when that place is not what is on screen. The value is the chapter's own name, taken from the book — it is in the book's language and is never translated. The place was written somewhere else while this device had the book open, and the sentence does not say where on purpose: Tidemarks cannot tell which device wrote a position, or even whether it was another browser on this one.
 #. placeholder {0}: offer.position.chapterLabel

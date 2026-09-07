@@ -27,6 +27,16 @@ interface QuotaProgress {
  * The ids to freeze once the account may keep only `limit` books: every live book past the
  * `limit` most recently read. A book nobody has opened counts as read when it was added — an
  * unopened book is the one least worth a slot. Deleted books neither take a slot nor get frozen.
+ *
+ * ⚠️ **This rule is written twice.** `migrations/0007_paddle_billing.sql` says the same thing in
+ * SQL, because a migration cannot call a function, and it is the one that puts every existing
+ * account onto the free three when payments arrive. **Change this and change that.** The order
+ * there is the order here: `COALESCE(last_read_at, added_at)` descending, ties by id ascending,
+ * keep the first three.
+ *
+ * Nothing enforces the agreement — a migration runs once and cannot be tested against a shelf
+ * that does not exist yet — so it was checked by hand instead: 500 random shelves, both
+ * implementations, identical answers.
  */
 export function booksToFreeze(
   books: QuotaBook[],
@@ -43,8 +53,19 @@ export function booksToFreeze(
     .map((b) => b.id);
 }
 
-/** Sets the account's limit and, in the same batch, freezes or thaws its books to match. */
-export async function setBookLimit(env: Env, userId: string, limit: number | null): Promise<void> {
+/**
+ * Sets the account's limit and, in the same batch, freezes or thaws its books to match.
+ *
+ * `also` is for statements that must land or not land with the quota. The billing webhook puts
+ * its own stamp there: written separately and first, a failed quota write would be dropped as
+ * old news when Paddle retried it (worker/billing.ts).
+ */
+export async function setBookLimit(
+  env: Env,
+  userId: string,
+  limit: number | null,
+  also: D1PreparedStatement[] = [],
+): Promise<void> {
   const [books, progress] = await Promise.all([
     env.DB.prepare("SELECT id, added_at, deleted_at FROM books WHERE user_id = ?")
       .bind(userId)
@@ -70,5 +91,6 @@ export async function setBookLimit(env: Env, userId: string, limit: number | nul
           ).bind(Date.now(), userId, ...frozen),
         ]
       : []),
+    ...also,
   ]);
 }

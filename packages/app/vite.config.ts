@@ -116,6 +116,10 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:5002",
       "/auth": "http://localhost:5002",
+      // The account pane calls /billing/checkout itself, so this has to be proxied like the two
+      // above. /authorize and /mcp are not here because nothing in the app asks for them — they
+      // are entered from outside.
+      "/billing": "http://localhost:5002",
     },
   },
 });

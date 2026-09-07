@@ -898,11 +898,22 @@ _Avoid_: 驗證碼（那是 CAPTCHA 的詞）、recovery code（**要拿掉的**
 （見 [ADR-0016](docs/adr/0016-the-quota-is-checked-once-when-a-book-enters-the-server.md)）。MCP 那邊不檢查，它本來就只看得到
 已經在伺服器上的書。
 
-真相在金流商那邊，D1 存一份鏡像，webhook 負責更新。鏡像會落後幾秒，那是接受的，最壞的情況是剛付
+金流商是 **Paddle**，一年 US$20，只有這一個價、只有年繳。它是 MoR（merchant of record）：買家的
+合約對象是 Paddle，發票 Paddle 開，稅 Paddle 申報，代價是手續費高、結帳視窗不完全是自己的
+（[ADR-0049](docs/adr/0049-the-payment-vendor-is-a-merchant-of-record.md)）。
+
+真相在 Paddle 那邊，D1 存一份鏡像，webhook 負責更新。鏡像會落後幾秒，那是接受的，最壞的情況是剛付
 完款的人多按一次同步。前端從 `/auth/me` 讀它，**不從同步的 payload 讀**：那條路上的東西都走
 LWW 合併，而訂閱狀態是伺服器單方面的事實，不該有任何一條路徑讓 client 寫得回去。
 
-白名單那批人不在這個機制裡。他們是明知資料會被清掉才進來的，〈上線〉那天起維持沒有上限，不設期限。
+**取消、換卡與發票都在 Paddle 自己的頁面上**（customer portal）。〈帳號〉抽屜那條「管理訂閱」連結
+走 `GET /billing/portal`，Worker 向 Paddle 開一個一次性的 session 再轉過去；那個網址是暫時的，不存。
+這是 D1 那一欄 `provider_customer_id` 唯一的用途。
+
+**沒有接金流的部署就沒有額度。** 五個 Paddle 設定值都不設的話 `/billing/*` 回 404，而且新帳號建
+起來就是沒有上限。自架的人跑自己的 Cloudflare、付自己的錢，那個部署上的三本擋不到任何人，只是
+讓讀者按了升級鈕之後發現沒有東西可以買。以前「白名單那批人沒有上限」那條規則就是收在這裡：它不再是上線前的特例，而是這條規則的一個
+結果（[ADR-0016](docs/adr/0016-the-quota-is-checked-once-when-a-book-enters-the-server.md)）。
 
 _Avoid_: 會員（暗示等級制，而付費只有一級）、付費使用者（那是人，這是帳號上的一個狀態，
 而且訂閱停掉之後那個人還在）、免費帳號（所有帳號都免費，免費的是帳號、收費的是額度）、

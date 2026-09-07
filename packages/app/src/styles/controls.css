@@ -154,7 +154,7 @@ input[type="range"] {
    so far, and it covers the four most keyboard-reachable buttons in the app. Left as the page's
    colour there, every focused entry would wear a pale loop: the same artefact the Scrubber's
    thumb ring changed surfaces to avoid, on the controls a keyboard actually visits. */
-:where(button, select, input, textarea, .toc-item):focus-visible {
+:where(a, button, select, input, textarea, .toc-item):focus-visible {
   outline: 2px solid var(--tide);
   outline-offset: 1px;
   box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
@@ -182,10 +182,11 @@ input[type="range"] {
   padding: 3rem 1rem;
 }
 
-/* A link, in the one place the app has any: the three legal documents under [[Account]]. The
-   browser default is a saturated blue with a baseline underline, which is the only colour on
-   that pane not drawn from the sheet. Tide instead, and the underline moved off the baseline so
-   it does not cut through the descenders of a CJK or Latin line. */
+/* Every link the app has, and they all live under [[Account]]: the three legal documents, and
+   the one that opens the payment provider's own pages. The browser default is a saturated blue
+   with a baseline underline, which is the only colour on that pane not drawn from the sheet.
+   Tide instead, and the underline moved off the baseline so it does not cut through the
+   descenders of a CJK or Latin line. */
 a {
   color: var(--tide);
   text-underline-offset: 0.2em;

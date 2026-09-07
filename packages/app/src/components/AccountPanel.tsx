@@ -17,7 +17,14 @@ import { db } from "../lib/db";
 import { downloadBlob } from "../lib/download";
 import { parseImport, serializeExport } from "../lib/export";
 import { siteUrl } from "../lib/site";
-import { getSyncState, scheduleSync, subscribeSync, syncNow, type SyncState } from "../lib/sync";
+import {
+  getSyncState,
+  refreshQuota,
+  scheduleSync,
+  subscribeSync,
+  syncNow,
+  type SyncState,
+} from "../lib/sync";
 import { onlyOnThisDevice } from "../lib/sync-payload";
 
 const STATUS_LABEL: Record<SyncState["status"], MessageDescriptor | null> = {
@@ -93,8 +100,8 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
             <Trans comment="Heading of the paid tier of the price list.">Paid</Trans>
           </dt>
           <dd>
-            <Trans comment="What paying gets: no limit on the number of books. The second sentence says outright that there is no price yet.">
-              Every book. Price not settled.
+            <Trans comment="What paying gets, in the price list at the top of the account pane. One price everywhere, in US dollars; Paddle's checkout window is what converts it for the reader.">
+              Every book, US$20 a year.
             </Trans>
           </dd>
         </dl>
@@ -110,16 +117,131 @@ export default function AccountPanel({ onImported }: { onImported: () => void })
   );
 }
 
+/** Where the reader is in a checkout they started, kept across the trip out to Paddle. */
+const CHECKOUT_MARK = "tidemarks_checkout_started";
+
 /**
- * The bill.
+ * When the checkout was started, or null if none was.
  *
- * **No price and no button yet.** Pricing is not decided and no payment goes through, so this
- * says what stopping costs; the upgrade button arrives with the payment provider (#193), because a
- * button that cannot be pressed is worse than none.
+ * Every access is wrapped: a browser told to block site data throws on the accessor itself, and
+ * an exception in a render would take the whole account pane down with it. Same shape as
+ * `lib/shelf-order.ts`.
+ *
+ * **The time rather than a flag**, so the minute below is counted from the checkout, not from
+ * this component mounting. A reader who opens the drawer, closes it and opens it again would
+ * otherwise start the wait over each time.
+ */
+function checkoutStartedAt(): number | null {
+  try {
+    const stored = Number(sessionStorage.getItem(CHECKOUT_MARK));
+    return stored > 0 ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function markCheckout(at: number | null): void {
+  try {
+    if (at === null) sessionStorage.removeItem(CHECKOUT_MARK);
+    else sessionStorage.setItem(CHECKOUT_MARK, String(at));
+  } catch {
+    // A browser that will not keep this simply shows the upgrade button again on return. The
+    // subscription itself is Paddle's business and is unaffected.
+  }
+}
+
+/** How long to keep asking whether Paddle's webhook has landed, and how often. */
+const CONFIRM_FOR_MS = 60_000;
+const CONFIRM_EVERY_MS = 3000;
+
+/**
+ * The bill: what paying gets, the way in, and the way out.
+ *
+ * **The quota is the whole state machine.** No limit means subscribed, three means not, and the
+ * server is the only one who says which (`/auth/me`) — a subscription is Paddle's fact, mirrored
+ * into D1 by a webhook, and nothing on the device is allowed a second opinion.
+ *
+ * That mirror runs a few seconds behind, which is the reason for the wait below. The reader comes
+ * back from Paddle before the webhook does, so a page that trusted the redirect would say
+ * "subscribed" and then be contradicted by the next sync. Instead the return is treated as a
+ * question — was it really paid? — and the server answers it (ADR-0049).
  */
 function Billing() {
+  const { t } = useLingui();
+  const [quota, setQuota] = useState(() => getSyncState().quota);
+  useEffect(() => subscribeSync((s) => setQuota(s.quota)), []);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Only ever read on the way back from Paddle, and cleared the moment it is answered.
+  const [startedAt, setStartedAt] = useState(checkoutStartedAt);
+  const confirming = startedAt !== null;
+  const [gaveUp, setGaveUp] = useState(false);
+
+  const subscribed = quota !== null && quota.limit === null;
+  const free = quota !== null && quota.limit !== null;
+
+  // **"No word from Paddle" has to go the moment there is word from Paddle.** The webhook can
+  // land after the minute is up — Paddle retries, and a slow one is exactly the case that made
+  // the message appear — and a reader who is now subscribed should not still be reading that
+  // their payment has not arrived. Seen for real: the shelf said "every book syncs" with the
+  // apology still above it.
+  useEffect(() => {
+    if (subscribed) setGaveUp(false);
+  }, [subscribed]);
+
+  // The wait for the webhook. It stops for whichever comes first: the limit lifting, or a minute
+  // going by — and a minute of nothing is a sentence on screen rather than a spinner that never
+  // ends, because the reader's real question is whether their card was charged.
+  useEffect(() => {
+    if (startedAt === null) return;
+    if (subscribed) {
+      markCheckout(null);
+      setStartedAt(null);
+      return;
+    }
+
+    const stop = () => {
+      markCheckout(null);
+      setStartedAt(null);
+      setGaveUp(true);
+    };
+    if (Date.now() - startedAt > CONFIRM_FOR_MS) {
+      stop();
+      return;
+    }
+    const timer = setInterval(() => {
+      if (Date.now() - startedAt > CONFIRM_FOR_MS) return stop();
+      void refreshQuota().catch(() => {});
+    }, CONFIRM_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [startedAt, subscribed]);
+
+  async function upgrade() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/billing/checkout", { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      const { url } = (await res.json()) as { url: string };
+      // Written before leaving, not after coming back: the return is a plain navigation with
+      // nothing on it to say where the reader has been.
+      markCheckout(Date.now());
+      window.location.assign(url);
+    } catch {
+      setBusy(false);
+      setError(
+        t({
+          message: "The checkout could not be opened. Nothing has been charged.",
+          comment:
+            "Shown when pressing upgrade failed before the reader ever reached Paddle. The second sentence is the one that matters: the reader's first thought is whether they have been charged for nothing.",
+        }),
+      );
+    }
+  }
+
   return (
-    <section className="settings-section">
+    <section className="settings-section" data-testid="billing">
       <h3 className="settings-section-title">
         <Trans comment="Heading of the billing section in the account pane.">Billing</Trans>
       </h3>
@@ -136,11 +258,64 @@ function Billing() {
           </Trans>
         </dd>
       </dl>
-      <p className="settings-note">
-        <Trans comment="Note under the billing section. It says outright that the section describes an intention, not a working checkout.">
-          You cannot subscribe yet, and the price is not settled.
-        </Trans>
-      </p>
+
+      {confirming && (
+        <p className="settings-note" data-testid="billing-confirming">
+          <Trans comment="Shown after the reader comes back from paying, while the page waits for the payment provider to tell the server. It is deliberately not 'thank you' — nothing is confirmed yet.">
+            Confirming your payment…
+          </Trans>
+        </p>
+      )}
+      {gaveUp && (
+        <p className="settings-note" data-testid="billing-slow">
+          <Trans comment="Shown when a minute has gone by since the reader came back from paying and the payment provider still has not told the server. It says to come back rather than to try again, because paying twice is the wrong thing to do here.">
+            No word from Paddle yet. Your payment is not lost — check back in a few minutes.
+          </Trans>
+        </p>
+      )}
+
+      {free && !confirming && (
+        <>
+          <div className="settings-actions">
+            <button
+              className={busy ? "primary busy-edge" : "primary"}
+              onClick={() => void upgrade()}
+              disabled={busy}
+              data-testid="upgrade"
+            >
+              {/* One price everywhere, written out rather than fetched: Paddle holds a single
+                  amount in US dollars (ADR-0011), so asking it what this reader would pay only
+                  ever gets the same twenty back. Paddle's own checkout window still shows the
+                  reader their currency. */}
+              <Trans comment="The button that starts a subscription. The price is the same everywhere and is written into the sentence; Paddle's checkout window converts it for the reader afterwards. Keep the currency as US dollars.">
+                Subscribe for US$20 a year
+              </Trans>
+            </button>
+          </div>
+          <p className="settings-note">
+            <Trans comment="Under the upgrade button. Paddle is the merchant of record — it takes the payment and issues the invoice — and the refund window is 14 days, unconditional.">
+              Paddle handles the payment and the invoice. Full refund within 14 days, no questions
+              asked.
+            </Trans>
+          </p>
+        </>
+      )}
+
+      {subscribed && (
+        <p className="settings-note">
+          {/* A plain link rather than a button: it leaves for Paddle's own pages, where the card,
+              the invoices and cancelling all live. Nothing about them is ours to show. Styled by
+              the bare `a` rule in controls.css, along with the legal links below it — one look
+              for every link on this pane. */}
+          <a href="/billing/portal" data-testid="manage-subscription">
+            <Trans comment="Link out to the payment provider's own pages, where the reader can cancel, change their card and download invoices.">
+              Manage your subscription
+            </Trans>
+          </a>
+        </p>
+      )}
+
+      {error && <p className="error">{error}</p>}
       <p className="settings-note">
         <Trans comment="Note under the billing section, pointing at the way out of paying: the syncing half is open source and can be run by the reader.">
           Would rather not pay, but want two devices? The syncing half can be self-hosted.
