@@ -65,6 +65,15 @@ async function send(
   });
 }
 
+/** A live session for USER, since /billing/checkout is one of the paths that needs one. */
+async function sessionCookie() {
+  await testEnv()
+    .DB.prepare("INSERT OR REPLACE INTO auth_sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
+    .bind("checkout-session", USER, Date.now() + 3_600_000)
+    .run();
+  return "tidemarks_session=checkout-session";
+}
+
 async function account() {
   return testEnv()
     .DB.prepare("SELECT book_limit, billing_event_at, provider_customer_id FROM users WHERE id = ?")
@@ -200,6 +209,48 @@ describe("the subscription webhook", () => {
 it("answers 404 to a billing path that does not exist, without asking for a session", async () => {
   const response = await SELF.fetch("https://tidemarks.test/billing/nonsense");
   expect(response.status).toBe(404);
+});
+
+// Paddle's default payment link is one field for a whole account, so an account selling anything
+// else has already spent it. Passing the URL per transaction is what makes this deployment's
+// checkout page its own business — and getting it wrong sends paying readers to somebody else's
+// product page, which no test below would otherwise notice.
+describe("where the checkout page is", () => {
+  it("names this deployment's own /billing/pay when it creates the transaction", async () => {
+    const sent: { url?: string; body?: string } = {};
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      sent.url = String(input);
+      sent.body = String(init?.body ?? "");
+      return new Response(
+        JSON.stringify({ data: { checkout: { url: "https://paddle.test/x" } } }),
+        {
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }) as typeof fetch;
+    try {
+      await handleBilling(
+        new Request("https://tidemarks.test/billing/checkout", {
+          method: "POST",
+          headers: { cookie: await sessionCookie() },
+        }),
+        testEnv(),
+        "/billing/checkout",
+      );
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+
+    expect(sent.url).toContain("/transactions");
+    const body = JSON.parse(sent.body!) as { checkout?: { url?: string }; custom_data?: unknown };
+    expect(body.checkout?.url).toBe(
+      `${(testEnv() as unknown as { ORIGIN: string }).ORIGIN}/billing/pay`,
+    );
+    // The other half of the same request, and the only thing that later tells the webhook whose
+    // account this is.
+    expect(body.custom_data).toEqual({ userId: USER });
+  });
 });
 
 describe("what the Paddle settings being absent means", () => {

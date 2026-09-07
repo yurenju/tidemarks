@@ -160,7 +160,7 @@ export async function handleBilling(
   const userId = await sessionUserId(env, request);
   if (!userId) return json({ error: "unauthenticated" }, { status: 401 });
 
-  if (path === "/billing/checkout") return handleCheckout(config, userId);
+  if (path === "/billing/checkout") return handleCheckout(env, config, userId);
   return handlePortal(env, config, userId);
 }
 
@@ -202,12 +202,29 @@ async function paddle(
  * The URL that comes back is this deployment's own `/billing/pay` with `?_ptxn=<id>` on it, and
  * that is not a redundant hop: Paddle only opens a checkout from a page running Paddle.js, and
  * the fully hosted alternative is not available to us (ADR-0049).
+ *
+ * **`checkout.url` is passed rather than left to the dashboard's default payment link.** Paddle
+ * composes the payment link from the URL given here, falling back to that account-wide default —
+ * and account-wide is the problem: there is one of them, so an account selling anything else has
+ * already spent it. Naming the page here also means this deployment says where its own checkout
+ * page is, instead of depending on a dashboard field nobody would think to look at when checkout
+ * starts opening somebody else's product page.
+ *
+ * ⚠️ The domain still has to be approved under `Checkout > Website approval`; Paddle refuses a URL
+ * on any other. That is the same approval the default payment link needs, so nothing is added.
  */
-async function handleCheckout(config: PaddleConfig, userId: string): Promise<Response> {
+async function handleCheckout(
+  env: BillingEnv,
+  config: PaddleConfig,
+  userId: string,
+): Promise<Response> {
   try {
     const data = await paddle(config, "/transactions", {
       items: [{ price_id: config.priceId, quantity: 1 }],
       custom_data: { userId },
+      // `ORIGIN` rather than the request's own host: it is the hostname this deployment is
+      // configured to be (docs/deployment.md), and the one whose approval Paddle checked.
+      checkout: { url: `${env.ORIGIN.replace(/\/$/, "")}/billing/pay` },
     });
     const url = (data.checkout as { url?: string } | undefined)?.url;
     if (!url) throw new Error("the transaction came back without a checkout url");

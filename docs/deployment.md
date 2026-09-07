@@ -263,12 +263,20 @@ Prices read（交易要引用價格）、Customers read 與 Customer portal sess
 | 在哪 | 做什麼 |
 | --- | --- |
 | `Checkout > Website approval` | 把你的網域加進去。⚠️ **正式的要等人工核准**，sandbox 是即時的 |
-| `Checkout > Checkout settings` | default payment link 指到 `https://<你的網域>/billing/pay` |
+| `Checkout > Checkout settings` | default payment link 隨便指到一個你自己網域上的頁面就好，⚠️ **不必指到 `/billing/pay`**，見下面 |
 | Notifications（webhook） | 目的地指到 `https://<你的網域>/billing/webhook`，訂閱所有 `subscription.*` 事件 |
 
 `/billing/pay` 是我們自己網域上的一頁，由 Worker 直接吐 HTML，用途是載 Paddle.js 把結帳視窗打開。
 **它躲不掉**：Paddle 建好交易之後給的網址就是這一頁加上 `?_ptxn=交易 id`，Paddle.js 讀到那個參數
 才開視窗（[ADR-0049](adr/0049-the-payment-vendor-is-a-merchant-of-record.md)）。
+
+⚠️ **但那一頁是 Worker 建交易時逐筆指定的，不是靠 dashboard 那個 default payment link。** Paddle 的
+default payment link 是**整個帳號只有一個**，所以同一個 Paddle 帳號賣第二樣東西的時候它已經被佔走了；
+而建交易時傳的 `checkout.url` 會蓋過它。Paddle 仍然要求那個網址在**核准過的網域**上，也就是上一格那個
+審核，所以沒有多出工作。
+
+順帶的好處是這個 repo 一直在追求的那件事：結帳頁的位址由部署自己說了算，不依賴任何一個人記得後台某一
+格填了什麼。
 
 價格建一個就好：**一年 US$20，只有這一個價、只有年繳**（ADR-0011）。
 
