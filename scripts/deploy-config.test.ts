@@ -7,6 +7,7 @@ import {
   REQUIRED_BUILD_VARIABLES,
   buildOfficialConfig,
   missingBuildVariables,
+  paddleSettingsError,
   stripJsonComments,
 } from "./deploy-config.ts";
 
@@ -31,7 +32,21 @@ const FILLED_ENV = {
   CF_RP_ID: "app.tidemarks.io",
   CF_ORIGIN: "https://app.tidemarks.io",
   CF_MAIL_FROM: "Tidemarks <login@tidemarks.io>",
+  CF_PADDLE_PRICE_ID: "pri_01",
+  CF_PADDLE_API_URL: "https://api.paddle.com",
+  CF_PADDLE_CLIENT_TOKEN: "live_token",
 };
+
+/** The three Paddle build variables removed, which is a deployment that sells nothing. */
+const NO_PADDLE_ENV = (() => {
+  const {
+    CF_PADDLE_PRICE_ID: _p,
+    CF_PADDLE_API_URL: _a,
+    CF_PADDLE_CLIENT_TOKEN: _t,
+    ...rest
+  } = FILLED_ENV;
+  return rest;
+})();
 
 describe("missingBuildVariables", () => {
   it("finds nothing when every variable is set", () => {
@@ -79,6 +94,9 @@ describe("buildOfficialConfig", () => {
       RP_ID: "app.tidemarks.io",
       ORIGIN: "https://app.tidemarks.io",
       MAIL_FROM: "Tidemarks <login@tidemarks.io>",
+      PADDLE_PRICE_ID: "pri_01",
+      PADDLE_API_URL: "https://api.paddle.com",
+      PADDLE_CLIENT_TOKEN: "live_token",
     });
   });
 
@@ -104,7 +122,7 @@ describe("buildOfficialConfig", () => {
   });
 
   it("leaves MAIL_FROM out when no sender is configured", () => {
-    const { CF_MAIL_FROM: _m, ...rest } = FILLED_ENV;
+    const { CF_MAIL_FROM: _m, ...rest } = NO_PADDLE_ENV;
     const config = buildOfficialConfig(SELF_HOST_CONFIG, rest);
 
     // worker/email.ts reads "unset" as "write the code to the log", and an empty string is
@@ -112,6 +130,17 @@ describe("buildOfficialConfig", () => {
     expect(config.vars).toEqual({
       RP_ID: "app.tidemarks.io",
       ORIGIN: "https://app.tidemarks.io",
+    });
+  });
+
+  // The `CF_` prefix marks a build variable; the Worker reads these under Paddle's own names,
+  // so a passthrough that kept the prefix would leave billing switched off with every value set.
+  it("hands the three Paddle values to the Worker with the CF_ prefix taken off", () => {
+    const config = buildOfficialConfig(SELF_HOST_CONFIG, FILLED_ENV);
+    expect(config.vars).toMatchObject({
+      PADDLE_PRICE_ID: "pri_01",
+      PADDLE_API_URL: "https://api.paddle.com",
+      PADDLE_CLIENT_TOKEN: "live_token",
     });
   });
 
@@ -144,6 +173,34 @@ describe("buildOfficialConfig", () => {
     ["kv_namespaces", { ...SELF_HOST_CONFIG, kv_namespaces: [] }],
   ])("throws when %s is empty", (_name, base) => {
     expect(() => buildOfficialConfig(base, FILLED_ENV)).toThrow(/exactly one/);
+  });
+});
+
+describe("paddleSettingsError", () => {
+  it("says nothing when all three are set", () => {
+    expect(paddleSettingsError(FILLED_ENV)).toBeNull();
+  });
+
+  // Not an incomplete deployment: it is the whole self-hosting path, and every new account on
+  // it gets no book limit at all (worker/auth.ts).
+  it("says nothing when none of them is set", () => {
+    expect(paddleSettingsError(NO_PADDLE_ENV)).toBeNull();
+  });
+
+  // The mistake this exists for. Without it the deploy is green, /billing/* answers as though it
+  // works, and the failure waits for a reader to press upgrade.
+  it.each(["CF_PADDLE_PRICE_ID", "CF_PADDLE_API_URL", "CF_PADDLE_CLIENT_TOKEN"])(
+    "complains when %s alone is missing, and names it",
+    (name) => {
+      const message = paddleSettingsError({ ...FILLED_ENV, [name]: undefined });
+      expect(message).toContain(name);
+    },
+  );
+
+  it("counts a blank value as unset, like every other variable here", () => {
+    expect(paddleSettingsError({ ...FILLED_ENV, CF_PADDLE_API_URL: "   " })).toContain(
+      "CF_PADDLE_API_URL",
+    );
   });
 });
 

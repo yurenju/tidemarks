@@ -34,6 +34,12 @@ import {
   type CodeVerdict,
   type MagicCodeRow,
 } from "./magic-code";
+// The two modules import each other, and that is safe because both uses are inside functions:
+// nothing here runs while either module is still being evaluated. Keeping the list of Paddle
+// settings in one file is worth the cycle — a second copy of those five names is exactly the
+// thing that goes out of date.
+import { billingOff } from "./billing";
+import { setBookLimit } from "./quota";
 import { rpIdMismatchMessage } from "./rp-id";
 import { openSignupFrom, signupDecision } from "./signup-gate";
 
@@ -58,7 +64,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const RP_NAME = "Tidemarks";
 // How many books an account may keep on the server without paying (ADR-0011). The migration
 // that added `book_limit` carries the same number as its column default.
-const FREE_BOOKS = 3;
+export const FREE_BOOKS = 3;
 
 export function json(data: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
@@ -193,13 +199,36 @@ function clearChallengeCookie(): string {
  *
  * A session outliving its user row is not a state the schema allows, so the row is always
  * there. Should it ever not be, the answer falls to the free three rather than to no limit:
- * a bug here should cost a book, not open the quota.
+ * a bug here should cost a book, not open the quota. (On a deployment that sells nothing the
+ * branch below then answers null anyway, which is that deployment's answer for everybody.)
+ *
+ * **A deployment that sells nothing has no quota** (ADR-0016), and this is where that becomes
+ * true — of every account, not only of the ones made after it was configured. The column cannot
+ * carry the rule on its own: `migrations/0007_paddle_billing.sql` puts every existing account on
+ * the free three, and SQL has no way to ask whether this deployment can take a payment. Left to
+ * the column, somebody self-hosting without Paddle would pull that migration and find their
+ * shelf cut to three books, with an upgrade button that answers 404 for ever.
+ *
+ * ⚠️ **It writes, on a read path.** `setBookLimit(null)` rather than a bare return, because the
+ * limit and the frozen books have to move together: returning null while books stay frozen would
+ * leave the sync push still refusing them and `/mcp` still blind to them. The condition is false
+ * once it has run, so this is one write per account on such a deployment, and none at all on one
+ * that sells something.
+ *
+ * The trigger is a request carrying a session — `/auth/me` or a sync push — because `/mcp` never
+ * asks for the limit. An account only ever driven by an agent therefore stays frozen until
+ * somebody opens the app, which every reader does.
  */
 export async function bookLimitOf(env: Env, userId: string): Promise<number | null> {
   const row = await env.DB.prepare("SELECT book_limit FROM users WHERE id = ?")
     .bind(userId)
     .first<{ book_limit: number | null }>();
-  return row ? row.book_limit : FREE_BOOKS;
+  const stored = row ? row.book_limit : FREE_BOOKS;
+  if (stored !== null && billingOff(env)) {
+    await setBookLimit(env, userId, null);
+    return null;
+  }
+  return stored;
 }
 
 export async function sessionUserId(env: Env, request: Request): Promise<string | null> {
@@ -733,14 +762,14 @@ async function verifyMagicCode(
   let userId = existing;
   if (!userId) {
     userId = crypto.randomUUID();
-    // Before launch the only way in is the allowlist, and those accounts keep no limit for
-    // good (ADR-0016). Decided here rather than left to the column default, so that a friend
-    // added after the migration that marked the existing rows is treated the same as them.
-    const limit = openSignupFrom(env.OPEN_SIGNUP) ? FREE_BOOKS : null;
+    // Every account starts on the free three, and `bookLimitOf` is the one place that decides
+    // whether this deployment's accounts have a quota at all. Deciding it again here would put
+    // the rule in two places, and this copy is the one that goes stale: it is read once, at
+    // creation, and an account outlives every change to the deployment's configuration.
     await env.DB.prepare(
       "INSERT INTO users (id, email, created_at, book_limit) VALUES (?, ?, ?, ?)",
     )
-      .bind(userId, email, now, limit)
+      .bind(userId, email, now, FREE_BOOKS)
       .run();
   }
 

@@ -54,6 +54,15 @@ frond 的 API、CFI 的輸出格式、IndexedDB 與 D1 的 schema 全部可以�
 官方與自架都一樣。preview 分支的 `versions:upload` **不跑 migration**。理由見
 [deployment.md](docs/deployment.md)。
 
+⚠️ **而叫出那一條路的是 merge：`main` 一有 push，Workers Builds 就部署，migration 就跑在真的 D1
+上。** 沒有一個「先 merge，之後再挑時間部署」的中間站，也沒有人會來問你要不要。所以**動到
+`migrations/` 的 PR，merge 的時機就是它動到真實資料的時機**，決定何時 merge 之前要先想清楚：這支
+migration 落在一個還沒設定好的 production 上會發生什麼事。
+
+實際踩過的形狀（#193）：那支 migration 把每個帳號的額度設回三本，而付款要到另一張票補完文件、
+Paddle 審核通過之後才會設定好。先 merge 的話，中間那幾天畫面上有一顆升級鈕、按下去是 404。
+**要嘛先把外部服務設定好再 merge，要嘛在 PR 說明裡寫明那段空窗期是什麼樣子。**
+
 ## 這個 repo 是公開的，而且沒有私有的另一半
 
 repo 已經是 public，**檔案、`git log`、commit message、issue 與 PR 內文，全部都在外面看得到**。

@@ -15,6 +15,7 @@
 export const WORKER_OWNED_PATHS = [
   "/api/*",
   "/auth/*",
+  "/billing/*",
   "/mcp",
   "/authorize",
   "/oauth/*",

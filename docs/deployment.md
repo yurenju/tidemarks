@@ -66,6 +66,9 @@ build 環境拿得到，這正是重點：一次部署是「某個分支上發�
 | `CF_ROUTE` | 選填 | 自訂網域。不設的話 Worker 回應在 `<CF_WORKER_NAME>.<你的子網域>.workers.dev` |
 | `CF_MAIL_FROM` | 選填 | 登入碼的寄件位址，網域要是 Resend 驗證過的。不設就走完全不靠廠商那條路，見步驟 4 |
 | `CF_SITE_ORIGIN` | 選填 | 這份部署的公開網站，例如 `https://tidemarks.io`。設了之後〈帳號〉抽屜會連到那個站上的服務條款、退款政策與隱私權政策；**不設就一個連結都不出現**。見步驟 7 |
+| `CF_PADDLE_PRICE_ID` | 選填 | Paddle 那個年費價格的 id（`pri_…`）。跟下面兩個一起，三個要嘛都設要嘛都不設，見〈不接付款〉 |
+| `CF_PADDLE_API_URL` | 選填 | `https://api.paddle.com`（正式）或 `https://sandbox-api.paddle.com`（sandbox）。**它決定另外四個值要拿哪一邊的** |
+| `CF_PADDLE_CLIENT_TOKEN` | 選填 | Paddle 的 client token。這是公開值，它會出現在結帳頁的原始碼裡 |
 
 **少一個必填的變數，build 就停**，這是刻意的。它**不會**退回去讀 `wrangler.jsonc`，而那份裡面
 沒有任何 id：wrangler 會因此去開**第二套**資源，而 build 環境沒辦法把新 id commit 回 repo，那些
@@ -138,6 +141,16 @@ openssl rand -hex 32 | npx wrangler secret put COOKIE_SECRET --name <CF_WORKER_N
   session。**它是必填的**，而且它是那個**安靜壞掉**的：沒有它的 Worker 部署會成功，然後沒有人登得
   進去。不要留到後面再說。
 - `RESEND_API_KEY`：選填，見步驟 4。
+- `PADDLE_API_KEY` 與 `PADDLE_WEBHOOK_SECRET`：選填，見〈不接付款〉。兩個都在 Paddle 後台的
+  `Developer Tools > Authentication`（webhook secret 在建好 webhook 目的地之後才拿得到）。
+
+  ```sh
+  npx wrangler secret put PADDLE_API_KEY --name <CF_WORKER_NAME>
+  npx wrangler secret put PADDLE_WEBHOOK_SECRET --name <CF_WORKER_NAME>
+  ```
+
+  ⚠️ **這兩個 secret 與上面那三個 build variable 是在兩個地方設的，而它們是同一組五個值。**
+  一次做完，不要分兩天，理由見〈不接付款〉。
 
 ## 4. 把登入碼寄出去
 
@@ -198,7 +211,9 @@ Builds → Connect）。Builds 有 API，但建一份 build 設定需要一組 *
    - Deploy command：`npm run deploy`
    - Root directory：`/`
 3. 建議的觸發條件（跟 dashboard 的預設一樣）：
-   - `main` 分支 → build 加 `npm run deploy`（production）
+   - `main` 分支 → build 加 `npm run deploy`（production）。⚠️ **這一行的意思是「merge 就是部署」**：
+     PR 一進 `main` 就會建置、套用 migration、上線，沒有一個先 merge 再挑時間部署的中間站。動到
+     `migrations/` 的 PR 尤其要記得，merge 的那一刻就是它改到真實資料的那一刻。
    - 其他所有分支 → build 加 `npm run versions:upload`（preview 版本，不吃 production 流量）。
      **不要寫 `npx wrangler versions upload`**，理由見下面那段。
 4. 把〈一次部署是怎麼設定出來的〉那張表裡的 build variables 填完，然後觸發第一次 build。它會套用
@@ -222,6 +237,62 @@ Vite 直接寫進前端 bundle 的（`packages/app/vite.config.ts` 的 `define`�
 app**，光是重新部署不夠。
 
 會這樣是因為讀它的是瀏覽器裡的 React，不是 Worker。Worker 的 `vars` 只有 Worker 讀得到。
+## 6.5 接付款（選做）
+
+不接的話跳過整節，讀者就沒有上限，見〈不接付款〉。要接的話，除了上面那三個 build variable 與步驟 3
+那兩個 secret，Paddle 後台還有三件事要做。**sandbox 與正式是兩套獨立的後台，每一件都要各做一次。**
+
+⚠️ **順序是有講究的，因為 build variable 要等下一次 build 才生效。** 五個值分散在兩個地方設，任何一個
+沒就位就按下部署，得到的是「設了一半」那個狀態。照這個順序做，中間那個狀態就不會出現：
+
+1. **Paddle 建產品與價格**（一年 US$20、年繳），記下 `pri_…`。順便把永久 100% 折扣碼也建起來，維護者
+   要用它替自己開通。
+2. **送出網域審核**（`Checkout > Website approval`）。⚠️ **正式的要人工核准**，sandbox 是即時的，所以
+   這一步先送，等待期間做底下幾步。
+3. **拿三把鑰匙**：API key 與 client-side token 在 `Developer Tools > Authentication`；webhook secret
+   要先在 `Developer Tools > Notifications` 建好 destination（網址是 `/billing/webhook`，事件選所有
+   `subscription.*`）才拿得到。
+4. **設兩個 secret**（`wrangler secret put`，見步驟 3）。
+5. **設三個 build variable**（dashboard，見〈一次部署是怎麼設定出來的〉）。
+6. **設 default payment link**。⚠️ 這一步要等第 2 步核准了才做得起來。
+7. **部署**，然後自己走一次結帳確認額度解除。
+
+API key 要勾的權限，是照程式實際打的三支 API 來的：Transactions read+write（建交易）、Products 與
+Prices read（交易要引用價格）、Customers read 與 Customer portal sessions write（開 customer portal）。
+
+| 在哪 | 做什麼 |
+| --- | --- |
+| `Checkout > Website approval` | 把你的網域加進去。⚠️ **正式的要等人工核准**，sandbox 是即時的 |
+| `Checkout > Checkout settings` | default payment link 隨便指到一個你自己網域上的頁面就好，⚠️ **不必指到 `/billing/pay`**，見下面 |
+| Notifications（webhook） | 目的地指到 `https://<你的網域>/billing/webhook`，訂閱所有 `subscription.*` 事件 |
+
+`/billing/pay` 是我們自己網域上的一頁，由 Worker 直接吐 HTML，用途是載 Paddle.js 把結帳視窗打開。
+**它躲不掉**：Paddle 建好交易之後給的網址就是這一頁加上 `?_ptxn=交易 id`，Paddle.js 讀到那個參數
+才開視窗（[ADR-0049](adr/0049-the-payment-vendor-is-a-merchant-of-record.md)）。
+
+⚠️ **但那一頁是 Worker 建交易時逐筆指定的，不是靠 dashboard 那個 default payment link。** Paddle 的
+default payment link 是**整個帳號只有一個**，所以同一個 Paddle 帳號賣第二樣東西的時候它已經被佔走了；
+而建交易時傳的 `checkout.url` 會蓋過它。Paddle 仍然要求那個網址在**核准過的網域**上，也就是上一格那個
+審核，所以沒有多出工作。
+
+順帶的好處是這個 repo 一直在追求的那件事：結帳頁的位址由部署自己說了算，不依賴任何一個人記得後台某一
+格填了什麼。
+
+價格建一個就好：**一年 US$20，只有這一個價、只有年繳**（ADR-0011）。
+
+### 不接付款
+
+**那五個值都不設，就是不接付款。** `/billing/*` 整組回 404，畫面上沒有升級鈕，而且**新帳號建起來
+就是沒有上限**。自架的人跑自己的 Cloudflare、付自己的錢，那個部署上的三本收不到任何人的錢，只會
+讓讀者按了升級鈕之後發現沒有東西可以買
+（[ADR-0016](adr/0016-the-quota-is-checked-once-when-a-book-enters-the-server.md)）。
+
+⚠️ **設了一半會被擋下來，這是刻意的。** 「我不接付款」與「我漏填了一個」的正確反應剛好相反，前者
+要安靜地關掉，後者要吵。而那五個值分散在兩個地方設，漏一個很正常，所以分成兩層在擋：
+
+- 三個 `CF_PADDLE_*` 少填 → **部署時就停下來**並且告訴你少了哪一個。
+- 兩個 secret 少填 → build 環境讀不到 secret，所以只有**跑起來的 Worker** 看得見。它讓 `/billing/*`
+  回 500 並且在 log 裡寫出少了哪一個（`npx wrangler tail`），而不是安靜地回 404。
 
 ### migration 由 deploy 指令跑，而且只在 `main` 上跑
 
@@ -355,6 +426,33 @@ npm run dev             # 終端機 2：app 在 :5001
 npx wrangler d1 execute DB --local \
   --command "INSERT INTO signup_allowlist (email, added_at) VALUES ('you@example.com', 0)"
 ```
+
+### 在本機試付款
+
+`.dev.vars` 再加五行，全部拿 Paddle **sandbox** 的值（API key 前綴 `pdl_sdbx_apikey_`、client token
+前綴 `test_`）：
+
+```sh
+cat >> .dev.vars <<'EOF'
+PADDLE_API_URL=https://sandbox-api.paddle.com
+PADDLE_API_KEY=pdl_sdbx_apikey_…
+PADDLE_WEBHOOK_SECRET=pdl_ntfset_…
+PADDLE_PRICE_ID=pri_…
+PADDLE_CLIENT_TOKEN=test_…
+EOF
+```
+
+⚠️ **webhook 要打得進本機得開一條 tunnel**，因為 Paddle 是從外面連進來的：
+
+```sh
+sudo cloudflared tunnel --url http://localhost:5002
+```
+
+要 root（一般帳號會卡在查 DNS 那一步）。它給的那個 `xxx.trycloudflare.com` 每次重開都會換，所以每
+試一輪都要回 Paddle sandbox 後台把〈6.5 接付款〉那三個地方重設一次。
+
+⚠️ **不要拿 preview 部署試 sandbox。** preview 跟 production 共用同一組 secret，所以它連的是
+live 的 Paddle。
 
 ## 營運上要知道的幾件事
 

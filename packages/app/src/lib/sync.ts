@@ -372,6 +372,17 @@ async function readQuota(at: number) {
   setState({ quota: { limit, synced, at } });
 }
 
+/**
+ * Ask again now, without syncing.
+ *
+ * For the wait after a checkout: Paddle's webhook is what actually lifts the limit, and it lands
+ * a few seconds after the reader is back on this page (CONTEXT.md, on subscriptions). A full sync
+ * would push and pull the whole shelf to find out one number.
+ */
+export async function refreshQuota(): Promise<void> {
+  await readQuota(Date.now());
+}
+
 /** Signing out, or the server saying the session is gone: the list goes with it. */
 export function forgetQuota(): void {
   setState({ quota: null });

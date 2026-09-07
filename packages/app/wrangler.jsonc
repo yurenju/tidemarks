@@ -48,7 +48,15 @@
     // Everything the Worker owns has to be listed here. `single-page-application` means an
     // unmatched path serves index.html, so a missing entry does not 404 — it answers /mcp
     // with the React app, and the failure reads as "this MCP server speaks HTML".
-    "run_worker_first": ["/api/*", "/auth/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/auth/*",
+      "/billing/*",
+      "/mcp",
+      "/authorize",
+      "/oauth/*",
+      "/.well-known/*"
+    ]
   },
 
   // No `routes`, and none to add here. A custom domain comes from the CF_ROUTE build
@@ -116,7 +124,16 @@
   // deploy on purpose, so that opening signup leaves a commit behind, while adding one friend
   // to the allowlist is a `wrangler d1 execute` and needs nothing.
 
-  // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY. Secrets, unlike the
+  //   PADDLE_PRICE_ID, PADDLE_API_URL, PADDLE_CLIENT_TOKEN — Paddle's three public settings
+  //              (CF_PADDLE_*). Together with the two Paddle secrets below they are all-or-
+  //              nothing: with none of the five set this deployment sells nothing, /billing/*
+  //              answers 404, and every new account is made with no book limit at all — a quota
+  //              means nothing where there is no way to lift it (ADR-0016). PADDLE_API_URL is
+  //              also the switch between Paddle's sandbox and the real one; the other four have
+  //              to come from the same side. See worker/billing.ts.
+  //
+  // secrets (npx wrangler secret put): COOKIE_SECRET, RESEND_API_KEY, PADDLE_API_KEY,
+  // PADDLE_WEBHOOK_SECRET. Secrets, unlike the
   // values above, are attached to the Worker and read at runtime — build variables are not
   // visible to a running Worker, which is exactly right for values whose job is to write this
   // file.

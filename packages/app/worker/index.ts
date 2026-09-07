@@ -14,12 +14,13 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import type { Annotation, Progress, ReadingSession, SyncBook } from "../src/lib/types";
 import { bookLimitOf, handleAuth, json, sessionUserId, type Env } from "./auth";
 import { handleAuthorize, READ_SCOPE } from "./authorize";
+import { handleBilling, type BillingEnv } from "./billing";
 import { cursorFor } from "./cursor";
 import { d1Store } from "./mcp/d1-store";
 import { handleMcp } from "./mcp/http";
 import { type PushBody, resolvePush } from "./push";
 
-interface McpEnv extends Env {
+interface McpEnv extends BillingEnv {
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER: OAuthHelpers;
 }
@@ -32,6 +33,9 @@ const tidemarksApp = {
     // `ctx` so the mail a login sends afterwards does not hold the response open.
     if (path.startsWith("/auth/")) return handleAuth(request, env, path, ctx);
     if (path === "/authorize") return handleAuthorize(request, env);
+    // Sessions are checked inside: the webhook and the checkout page have no cookie to offer,
+    // and the other three do (worker/billing.ts).
+    if (path.startsWith("/billing/")) return handleBilling(request, env, path);
 
     if (path.startsWith("/api/")) {
       const userId = await sessionUserId(env, request);
@@ -192,8 +196,15 @@ function sessionToWire(r: SessionRow): ReadingSession {
 }
 
 async function loadAll(env: Env, userId: string) {
-  const [limit, books, progress, annotations, sessions] = await Promise.all([
-    bookLimitOf(env, userId),
+  // **The limit first, on its own, and the tables afterwards.** `bookLimitOf` writes on a
+  // deployment that sells nothing: it thaws the books this account's quota no longer applies to
+  // (worker/auth.ts). Run alongside the reads below, that thaw and the `SELECT * FROM books` race
+  // — the push would get `limit: null` together with a frozen set read from before the thaw, and
+  // `resolvePush` drops every change belonging to a frozen book. One push silently ignored, once
+  // per account, on the day a self-hoster pulls migration 0007. One round trip is cheaper than
+  // explaining that.
+  const limit = await bookLimitOf(env, userId);
+  const [books, progress, annotations, sessions] = await Promise.all([
     env.DB.prepare("SELECT * FROM books WHERE user_id = ?").bind(userId).all<BookRow>(),
     env.DB.prepare("SELECT * FROM progress WHERE user_id = ?").bind(userId).all<ProgressRow>(),
     env.DB.prepare("SELECT * FROM annotations WHERE user_id = ?").bind(userId).all<AnnotationRow>(),

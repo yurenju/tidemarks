@@ -231,10 +231,11 @@ describe("spending a magic code", () => {
       headers: { cookie: cookie.split(";")[0]! },
     });
     expect(me.status).toBe(200);
-    // No limit, because signup is closed here and the only way in is the allowlist: those
-    // accounts keep no limit for good (ADR-0016), decided at creation rather than by the
-    // column default.
-    expect(await me.json()).toEqual({ userId: account?.id, limit: null, synced: [] });
+    // The free three, and no longer an exception for coming in through the allowlist. That
+    // grandfathering was a stand-in for a checkout that did not exist; now that one does, the
+    // only thing that lifts a limit is paying — or a deployment that sells nothing at all, which
+    // this one is not (ADR-0016, and `bookLimitOf`).
+    expect(await me.json()).toEqual({ userId: account?.id, limit: 3, synced: [] });
   });
 
   it("refuses the same code a second time", async () => {

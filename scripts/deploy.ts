@@ -30,6 +30,7 @@ import {
   REQUIRED_BUILD_VARIABLES,
   buildOfficialConfig,
   missingBuildVariables,
+  paddleSettingsError,
   stripJsonComments,
   type BuildEnv,
   type OfficialConfig,
@@ -60,6 +61,9 @@ function readMode(argument: string | undefined): Mode {
 }
 
 function readBuildVariables(): BuildEnv {
+  const halfConfigured = paddleSettingsError(process.env);
+  if (halfConfigured) fail(halfConfigured);
+
   const missing = missingBuildVariables(process.env);
   if (missing.length > 0) {
     fail(
