@@ -41,9 +41,13 @@ that export is the file you imported, unchanged.
 
 ## Who to ask for what
 
-**Refunds, invoices, receipts, tax questions and chargebacks** are Paddle's, because Paddle is the
-merchant of record for every purchase — see the [terms of service](/legal/terms). Paddle's support
-is at [paddle.net](https://paddle.net/), and Paddle's own refund policy applies to the transaction.
+Paddle is the merchant of record for every purchase — see the [terms of
+service](/legal/terms) — so **invoices, receipts, tax questions and chargebacks** are Paddle's, and
+its support is at [paddle.net](https://paddle.net/).
+
+**Refunds are ours to agree and Paddle's to pay out**, which is why the 14 days above are asked for
+by writing to us rather than through Paddle. Those 14 days are something we offer on top of Paddle's
+own policy; they do not replace it, and neither replaces a right the law gives you.
 
 **Anything about Tidemarks itself** is ours:
 [contact@tidemarks.io](mailto:contact@tidemarks.io). If you are not sure which it is, write to us

@@ -14,15 +14,19 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { formatFindings, scanFile, type Finding } from "./language-scan.ts";
 
-// Every kind of file CLAUDE.md's table calls English. `.po` is here for the comments lingui
-// extracts into it: those are written for translators, and they carry whatever the source said —
-// so a Chinese citation in a comment reaches a second reader before anyone notices.
+// Every kind of file CLAUDE.md's table calls English, unconditionally. The site's pages are the
+// one thing that table treats differently, and they are `.md`, which is not in here — a page
+// translated into Chinese is written in Chinese, and this check never sees it. `.po` is here for
+// the comments lingui extracts into it: those are written for translators, and they carry whatever
+// the source said — so a Chinese citation in a comment reaches a second reader before anyone
+// notices.
 const EXTENSIONS = [
   "ts",
   "tsx",
   // `.astro` is two languages in one file — TypeScript above the fence, markup below — and both
-  // halves are code. The site's prose is in `.md`, which is not scanned, so this catches a
-  // comment or a label written in Chinese without touching the pages themselves.
+  // halves are code, in English always. Rule 2 below weighs a whole file and cannot tell the
+  // frontmatter from the markup, which is why CLAUDE.md sends a translated page to `.md` instead:
+  // a Chinese `.astro` would have to be exempted whole, taking its comments with it.
   "astro",
   "mjs",
   "css",

@@ -3,13 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "astro build && node scripts/check-links.ts",
+    "build": "astro build",
     "dev": "astro dev",
     "preview": "astro preview",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "astro": "^7.3.1",
+    "astro": "~7.3.1",
     "wrangler": "~4.125.0"
   }
 }

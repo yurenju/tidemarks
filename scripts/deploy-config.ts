@@ -27,6 +27,13 @@ export const REQUIRED_BUILD_VARIABLES = [
 //                 Worker's log, which is a supported way to run this — see worker/email.ts.
 export const OPTIONAL_BUILD_VARIABLES = ["CF_ROUTE", "CF_MAIL_FROM"] as const;
 
+// **CF_SITE_ORIGIN is a build variable and is deliberately not in either list**, which is worth
+// saying because looking for it here is the obvious thing to do. Nothing in this file or in
+// `deploy.ts` reads it: it names the deployment's public site, and its only reader is the React
+// app, so vite bakes it into the bundle at build time (`packages/app/vite.config.ts`). The lists
+// above are the values that end up in the generated wrangler configuration, and that is a
+// different question from "which build variables exist". See docs/deployment.md, step 7.
+
 export const BUILD_VARIABLES = [...REQUIRED_BUILD_VARIABLES, ...OPTIONAL_BUILD_VARIABLES];
 
 export type RequiredBuildVariable = (typeof REQUIRED_BUILD_VARIABLES)[number];

@@ -32,8 +32,9 @@ there, and we never learn it exists.
 ## What we hold when you have an account
 
 **Your account.** Your email address, and the passkeys registered to the account. We use these to
-let you in and to reach you about the Service. Sign-in codes sent by email are short-lived and are
-deleted after use or expiry.
+let you in and to reach you about the Service. A sign-in code is short-lived and can be used once;
+we keep a record that it was sent, with the address it went to, because that record is how we limit
+how often codes can be requested. Those records are cleared once they are older than that limit.
 
 **The books that are syncing.** For each one: the epub file exactly as you imported it, its cover,
 its title and author, your reading position, your highlights and notes, and your reading sessions —
@@ -88,12 +89,15 @@ not by this policy. You can revoke access by removing the authorization.
 
 **Your account and its syncing books** are kept while the account exists.
 
-**A frozen book** — one above your sync limit after a subscription ends — is kept for **24 months**.
-We email you before that period runs out. The copy on your own devices is untouched by this, and
-always has been.
+**A frozen book** — one above your sync limit after a subscription ends — is kept for **at least 24
+months**. The copy on your own devices is untouched by this, and always has been.
 
-**Deleted content** is removed from the server when the deletion syncs, and purged from backups on
-their own cycle.
+**A book you delete** stops syncing as soon as the deletion reaches us, and an agent can no longer
+read it. Its file is removed from our storage when we next sweep for orphaned files; we do not
+promise that this happens the same day. If you want a book gone from the server now, write to us.
+
+**Sign-in records and the sign-up list** hold email addresses, as described above, and ordinary
+server logs are kept briefly for security and debugging.
 
 ## Your rights
 
@@ -105,7 +109,9 @@ account's email address.
 
 Two of these you can do without asking us. **Export** is built into the reader: the account pane
 writes your books, notes and reading positions to a file you keep, and the epub in it is the file you
-imported, unchanged. **Deleting a book** in the reader deletes the server's copy too.
+imported, unchanged. It writes the books this device has the file for — a book that is syncing but
+has not been opened on this device yet needs opening once first. **Deleting a book** in the reader
+removes it from the server as well, on the terms in the retention section above.
 
 To close an account entirely, write to us and we will delete it and everything the server holds for
 it. There is no self-service button for this yet.

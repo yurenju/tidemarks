@@ -11,7 +11,7 @@
     "build:frond": "npm run build -w @yurenju/frond",
     "dev": "npm run build:frond && npm run dev -w app",
     "build": "npm run build:frond && npm run build -w app",
-    "build:site": "npm run build -w site",
+    "build:site": "npm run build -w site && node scripts/check-site-links.ts",
     "deploy:site": "npm run deploy -w site",
     "lint": "oxlint --max-warnings=0 && node scripts/check-language.ts",
     "i18n:check": "node scripts/check-i18n.ts",
@@ -32,6 +32,7 @@
   "devDependencies": {
     "oxlint": "~1.73.0",
     "prettier": "3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
     "vitest": "^4.1.10"
   },
   "allowScripts": {

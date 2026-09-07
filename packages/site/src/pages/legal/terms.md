@@ -93,10 +93,10 @@ your books, an investigation works from account activity rather than from what y
 ## 6. Sad Coder intellectual property
 
 The Service, software, documentation, design, and the Sad Coder and Tidemarks names and marks are
-owned by Sad Coder or its licensors. Parts of the Service are published under an open-source
-license, and where that license applies, its terms govern your use of that code rather than this
-section. Except for rights expressly granted under these Terms or such a license, we reserve all
-rights. If you provide feedback, you permit us to use it without restriction or payment.
+owned by Sad Coder or its licensors. The source code of the Service is published under the MIT
+licence, and that licence — not this section — governs what you may do with the code. This section
+covers what is not in it: the names and the marks. Except for rights expressly granted under these
+Terms or that licence, we reserve all rights. If you provide feedback, you permit us to use it without restriction or payment.
 
 ## 7. Paid plans and Paddle
 

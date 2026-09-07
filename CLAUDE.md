@@ -143,15 +143,19 @@ custom property。**新增樣式檔就要加進清單**，不然它既不進 bun
 | --- | --- |
 | 程式碼檔（`.ts` `.tsx` `.astro` `.css` `.html` `.mjs`、`.json` / `.jsonc` / `.yml`、`Dockerfile`、`.gitignore`、`.dockerignore`） | **英文** |
 | `README.md`（含 `packages/*/README.md`）、`LICENSE`、`THIRD-PARTY-NOTICES.md` | **英文** |
-| `packages/site/` 的頁面內容（`.md` 與 `.astro` 裡的文案） | **跟著那一頁的語言**，預設英文 |
+| `packages/site/` 的頁面內容（**只有 `.md`**） | **跟著那一頁的語言**，預設英文 |
 | 文件（`docs/`、`packages/*/docs/`、`CONTEXT.md`、`CLAUDE.md`、`README.zh-TW.md`、`.scratch/`、GitHub issue／PR 內文） | 中文 |
 
 （`docs/specs/` 是 `docs/` 的一部分，也是中文。`.scratch/` 不進版控，語言一樣照這條。）
 
 `packages/site/` 是 `tidemarks.io`，它的讀者是外界，所以那裡的 `.md` 是英文，跟 `README.md` 同一個
-理由——**不是 `docs/` 的一部分**。之後有 `/zh-TW/…` 的頁面時，那些頁面的內容檔就是中文，因為那一頁
-本來就是中文的。⚠️ 這條只管**頁面上的字**；同一個 package 裡的註解、識別字與 `.astro` 的 script 區塊
-照第一列走，一律英文。
+理由（**不是 `docs/` 的一部分**）。之後有 `/zh-TW/…` 的頁面時，那些頁面的 `.md` 就是中文，因為那一頁
+本來就是中文的。
+
+⚠️ **`.astro` 永遠是英文，沒有例外**，它在上面第一列裡。這不只是慣例，是因為 `check-language.ts`
+掃 `.astro`，而它的規則二看的是整個檔案的中文與拉丁字母比例，分不出 frontmatter 與版面。一個中文的
+`.astro` 頁面會讓它紅，而唯一的出路是整檔豁免，那會連那個檔案的註解一起放掉。**所以翻譯過的頁面一律
+寫成 `.md`**，版面共用同一個 layout。
 
 **`docs/` 底下沒有英文文件**，一份都沒有。`LICENSE` 與 `THIRD-PARTY-NOTICES.md` 是英文，但理由跟
 README 不同：授權條款的中文譯本沒有法律效力，出處要照原文抄。**這兩份不要翻**。決定與理由見
