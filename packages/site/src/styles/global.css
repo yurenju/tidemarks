@@ -34,7 +34,11 @@ body {
   padding: 0 1.25rem 4rem;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Source Serif 4", Georgia, "Noto Serif CJK TC", serif;
+  /* ⚠️ **No CJK face in here**, though every page will need one the day /zh-TW/ exists. A CJK
+     serif covers Latin punctuation too, and it draws the curly apostrophe full-width — on a
+     machine without Georgia, "Paddle's" comes out with a hole in the middle of the word. The
+     face belongs in a rule scoped to the pages that are actually Chinese, not in the default. */
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
   font-size: 1.0625rem;
   line-height: 1.65;
 }
@@ -100,8 +104,12 @@ h3 {
   margin-top: 1.75rem;
 }
 
+/* Below the plan's own heading, not above it: the price is the answer to the heading's
+   question, and setting it larger inverted the two. */
 .plan .price {
-  font-size: 1.375rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0.75rem;
 }
 
 .site-footer {
