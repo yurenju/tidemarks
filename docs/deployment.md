@@ -211,7 +211,9 @@ Builds → Connect）。Builds 有 API，但建一份 build 設定需要一組 *
    - Deploy command：`npm run deploy`
    - Root directory：`/`
 3. 建議的觸發條件（跟 dashboard 的預設一樣）：
-   - `main` 分支 → build 加 `npm run deploy`（production）
+   - `main` 分支 → build 加 `npm run deploy`（production）。⚠️ **這一行的意思是「merge 就是部署」**：
+     PR 一進 `main` 就會建置、套用 migration、上線，沒有一個先 merge 再挑時間部署的中間站。動到
+     `migrations/` 的 PR 尤其要記得，merge 的那一刻就是它改到真實資料的那一刻。
    - 其他所有分支 → build 加 `npm run versions:upload`（preview 版本，不吃 production 流量）。
      **不要寫 `npx wrangler versions upload`**，理由見下面那段。
 4. 把〈一次部署是怎麼設定出來的〉那張表裡的 build variables 填完，然後觸發第一次 build。它會套用
