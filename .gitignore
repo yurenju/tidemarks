@@ -26,6 +26,9 @@ dist-ssr
 # git worktrees opened by Claude Code: per-machine working dirs, never committed
 .claude/worktrees/
 
+# Astro's generated types, written into the site package on every build
+packages/site/.astro/
+
 # wrangler
 .wrangler
 .dev.vars

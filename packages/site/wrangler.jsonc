@@ -1,0 +1,23 @@
+{
+  // Unlike `packages/app/wrangler.jsonc`, this file is used as it stands. It holds no database
+  // id, no bucket, no hostname and no secret — the site is a folder of static files — so there
+  // is nothing here that differs between the official deployment and anybody else's, and
+  // nothing for `scripts/deploy.ts` to merge in. See docs/deployment.md.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tidemarks-site",
+  "compatibility_date": "2026-07-01",
+
+  // No `main`: there is no Worker script, only assets. Cloudflare serves them directly.
+  "assets": {
+    "directory": "./dist",
+    // A wrong address gets a 404 page rather than the home page. The app's Worker sets
+    // `single-page-application` because it has a client-side router; this site has none, and
+    // answering /legal/refund with the home page and a 200 is exactly the failure that a domain
+    // review would read as "the document is there".
+    "not_found_handling": "404-page"
+  },
+
+  // The custom domain (tidemarks.io) is attached in the Cloudflare dashboard rather than here,
+  // the same position the app's configuration takes: a hostname is a property of one deployment.
+  "observability": { "enabled": true }
+}

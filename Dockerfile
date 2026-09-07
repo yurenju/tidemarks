@@ -70,6 +70,10 @@ WORKDIR /work
 # **Every workspace's manifest has to come along.** `npm ci` reads them to build the tree, and
 # with one missing it does not fall back to something workable — it refuses, or installs a tree
 # that does not match the lockfile.
+#
+# `packages/site` is the one exception, and it is deliberate: nothing in this image builds the
+# public site, so its dependency tree would be install time spent on a package the tests never
+# touch. Checked rather than assumed — `npm ci` is content with the three manifests below.
 COPY package.json package-lock.json ./
 COPY packages/app/package.json ./packages/app/
 COPY packages/frond/package.json ./packages/frond/

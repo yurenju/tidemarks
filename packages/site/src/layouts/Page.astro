@@ -1,0 +1,50 @@
+---
+// The only layout. Every page — the markdown ones included, through their `layout` frontmatter —
+// comes through here, which is what puts all five pages in one navigation. Paddle's domain review
+// asks for the three legal documents to be reachable from the site's navigation, so that list is
+// part of what is being reviewed rather than decoration.
+import { t } from "../i18n/ui";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  updated?: string;
+  // Set by a markdown page: Astro passes its frontmatter under `frontmatter` rather than as
+  // props, so a `.md` page and an `.astro` page arrive here differently.
+  frontmatter?: { title: string; updated?: string };
+}
+
+const { frontmatter } = Astro.props;
+const title = frontmatter?.title ?? Astro.props.title;
+const updated = frontmatter?.updated ?? Astro.props.updated;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Tidemarks</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <nav class="site-nav wrap">
+      <a class="home" href="/">{t("nav.home")}</a>
+      <a href="/pricing">{t("nav.pricing")}</a>
+      <a href="/legal/terms">{t("nav.terms")}</a>
+      <a href="/legal/refunds">{t("nav.refunds")}</a>
+      <a href="/legal/privacy">{t("nav.privacy")}</a>
+    </nav>
+
+    <main class="wrap">
+      <h1>{title}</h1>
+      {updated && <p class="updated">Last updated {updated}</p>}
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <a href="https://app.tidemarks.io">{t("footer.app")}</a>
+      <a href="https://github.com/yurenju/tidemarks">{t("footer.source")}</a>
+    </footer>
+  </body>
+</html>

@@ -42,7 +42,7 @@ frond 搬進來（ADR-0017）是第二個理由，而它先到。
 ## 根 script 轉給 package 是為了 deploy 那三格
 
 Cloudflare Workers Builds 的 build configuration 在 **dashboard 裡**，不在這個 repo 裡
-（[deployment.md](../deployment.md) 第 7 節）。它記著 root directory `/`、build command
+（[deployment.md](../deployment.md) 第 6 節）。它記著 root directory `/`、build command
 `npm run build`，以及**兩個** deploy command：`main` 走 `npm run deploy:ci`，其他分支走 preview。
 
 如果根目錄不留這些轉發的 script，佈局一改那幾格就對不上，而**改它的人跟改 repo 的人不在同一個

@@ -35,7 +35,13 @@ if (noServiceWorker) console.warn("TIDEMARKS_NO_SW=1 — building without the se
 
 // https://vite.dev/config/
 export default defineConfig({
-  define: { __BUILD__: JSON.stringify(build) },
+  define: {
+    __BUILD__: JSON.stringify(build),
+    // The public site this deployment belongs to, if any — see `src/lib/site.ts` for why the
+    // official one is not written into the code. Empty unless CF_SITE_ORIGIN is set, which in
+    // the official deployment happens in Workers Builds (docs/deployment.md).
+    __SITE_ORIGIN__: JSON.stringify((process.env.CF_SITE_ORIGIN ?? "").trim().replace(/\/$/, "")),
+  },
   plugins: [
     react(),
     // Lingui's macros, which are the whole point of writing `t` and `<Trans>` rather than

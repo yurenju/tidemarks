@@ -65,6 +65,7 @@ build 環境拿得到，這正是重點：一次部署是「某個分支上發�
 | `CF_ORIGIN` | 必填 | `https://` 加上那個主機名 |
 | `CF_ROUTE` | 選填 | 自訂網域。不設的話 Worker 回應在 `<CF_WORKER_NAME>.<你的子網域>.workers.dev` |
 | `CF_MAIL_FROM` | 選填 | 登入碼的寄件位址，網域要是 Resend 驗證過的。不設就走完全不靠廠商那條路，見步驟 4 |
+| `CF_SITE_ORIGIN` | 選填 | 這份部署的公開網站，例如 `https://tidemarks.io`。設了之後〈帳號〉抽屜會連到那個站上的服務條款、退款政策與隱私權政策；**不設就一個連結都不出現**。見步驟 7 |
 
 **少一個必填的變數，build 就停**，這是刻意的。它**不會**退回去讀 `wrangler.jsonc`，而那份裡面
 沒有任何 id：wrangler 會因此去開**第二套**資源，而 build 環境沒辦法把新 id commit 回 repo，那些
@@ -214,6 +215,14 @@ Cloudflare 為此簽出來的 build token 已經蓋得住這裡每一次部署�
 
 步驟 3 設的 secret 住在 Worker 上、部署換不掉它們，build 環境不需要拿到。
 
+### `CF_SITE_ORIGIN` 跟其他變數走的路不一樣
+
+⚠️ 它**不進 `wrangler.generated.json`**，`scripts/deploy.ts` 從頭到尾不認得它。它是 build 的時候被
+Vite 直接寫進前端 bundle 的（`packages/app/vite.config.ts` 的 `define`），所以要它生效得**重建一次
+app**，光是重新部署不夠。
+
+會這樣是因為讀它的是瀏覽器裡的 React，不是 Worker。Worker 的 `vars` 只有 Worker 讀得到。
+
 ### migration 由 deploy 指令跑，而且只在 `main` 上跑
 
 `wrangler deploy` 不套用 migration，所以總得有別的東西去做。`deploy` 是
@@ -273,7 +282,34 @@ migration 可能落在它要服務的那個 Worker **後面**，而那正是這�
 一個字都沒提部署順序；而 GitHub Actions 的範例部署的是一個不碰資料庫的 Worker。所以這一節是一個
 **決定**，不是照抄來的做法。
 
-## 7. 誰可以建帳號
+## 7. 公開網站（選做）
+
+`packages/site` 是 Astro 做的靜態網站，官方那份就是 `tidemarks.io`：產品說明、價格，以及服務條款、
+退款政策、隱私權政策三份文件。**它是第二個部署，跟 app 那個 Worker 完全分開**，沒有資料庫、沒有
+secret、也沒有 migration。
+
+⚠️ **自架的話這一步預設不要做。** 那三份文件寫的是 Sad Coder 跟讀者之間的約定，不是你跟你的讀者
+之間的。要做自己的網站就把那些頁面換成你自己的內容。
+
+它的 `wrangler.jsonc` 跟 app 那份相反，**是原樣拿去用的**：裡面只有 Worker 名字與 `assets`，一個
+帳號專屬的值都沒有，所以不需要 `scripts/deploy.ts` 那一套產生設定的流程。
+
+Workers Builds 上開**第二個專案**，指向同一個 repo：
+
+- Build command：`npm run build:site`
+- Deploy command：`npm run deploy:site`
+- Root directory：`/`
+- build variables：一個都不用
+
+跟步驟 6 同一條規則：**這兩格只能是根目錄的 npm script**。
+
+網域在那個 Worker 的 Settings → Domains & Routes 掛上去（`tidemarks.io`），`CF_ROUTE` 是 app 那份
+的東西，跟這裡無關。
+
+站掛好之後，回步驟 6 那張表把 app 的 `CF_SITE_ORIGIN` 設成這個網址並**重建 app**，〈帳號〉抽屜裡
+的三個連結才會出現。
+
+## 8. 誰可以建帳號
 
 `OPEN_SIGNUP` 不存在的期間，一個位址只有在 `signup_allowlist` 這張表裡才建得了帳號。已經存在的帳號
 不受影響：閘門站在**建帳號**那一刻，所以把一列刪掉，不會把任何人鎖在他自己的資料外面。
