@@ -181,3 +181,12 @@ input[type="range"] {
   text-align: center;
   padding: 3rem 1rem;
 }
+
+/* A link, in the one place the app has any: the three legal documents under [[Account]]. The
+   browser default is a saturated blue with a baseline underline, which is the only colour on
+   that pane not drawn from the sheet. Tide instead, and the underline moved off the baseline so
+   it does not cut through the descenders of a CJK or Latin line. */
+a {
+  color: var(--tide);
+  text-underline-offset: 0.2em;
+}
