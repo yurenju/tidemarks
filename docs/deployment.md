@@ -240,6 +240,24 @@ app**，光是重新部署不夠。
 不接的話跳過整節，讀者就沒有上限，見〈不接付款〉。要接的話，除了上面那三個 build variable 與步驟 3
 那兩個 secret，Paddle 後台還有三件事要做。**sandbox 與正式是兩套獨立的後台，每一件都要各做一次。**
 
+⚠️ **順序是有講究的，因為 build variable 要等下一次 build 才生效。** 五個值分散在兩個地方設，任何一個
+沒就位就按下部署，得到的是「設了一半」那個狀態。照這個順序做，中間那個狀態就不會出現：
+
+1. **Paddle 建產品與價格**（一年 US$20、年繳），記下 `pri_…`。順便把永久 100% 折扣碼也建起來，維護者
+   要用它替自己開通。
+2. **送出網域審核**（`Checkout > Website approval`）。⚠️ **正式的要人工核准**，sandbox 是即時的，所以
+   這一步先送，等待期間做底下幾步。
+3. **拿三把鑰匙**：API key 與 client-side token 在 `Developer Tools > Authentication`；webhook secret
+   要先在 `Developer Tools > Notifications` 建好 destination（網址是 `/billing/webhook`，事件選所有
+   `subscription.*`）才拿得到。
+4. **設兩個 secret**（`wrangler secret put`，見步驟 3）。
+5. **設三個 build variable**（dashboard，見〈一次部署是怎麼設定出來的〉）。
+6. **設 default payment link**。⚠️ 這一步要等第 2 步核准了才做得起來。
+7. **部署**，然後自己走一次結帳確認額度解除。
+
+API key 要勾的權限，是照程式實際打的三支 API 來的：Transactions read+write（建交易）、Products 與
+Prices read（交易要引用價格）、Customers read 與 Customer portal sessions write（開 customer portal）。
+
 | 在哪 | 做什麼 |
 | --- | --- |
 | `Checkout > Website approval` | 把你的網域加進去。⚠️ **正式的要等人工核准**，sandbox 是即時的 |
