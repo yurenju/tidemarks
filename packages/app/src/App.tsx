@@ -86,7 +86,7 @@ export default function App() {
 
   /**
    * Whether the reader's chrome is standing up, reported by `Reader` so this file can colour
-   * the system bar to match whatever is under it. `false` on every other screen.
+   * the platform's frame to match whatever is under it. `false` on every other screen.
    *
    * Held here rather than read where it lives because the effect below has to be **one**
    * writer: React runs a child's effects before its parent's, so a `Reader` that wrote the tag
@@ -96,7 +96,18 @@ export default function App() {
   const [chromeUp, setChromeUp] = useState(false);
 
   // The theme, and the one piece of it that lives outside the stylesheet: the colour the
-  // platform paints its own system bar in.
+  // platform paints its own frame in — a tab's address bar, a desktop PWA window's title bar,
+  // and iOS's status bar.
+  //
+  // ⚠️ **On Android, an installed PWA splits that frame in two.** The system status bar takes
+  // its fill from the system's own light/dark setting — `vite.config.ts` has why the manifest
+  // names no colour for it — while this tag paints the thin strip directly beneath it and,
+  // through its brightness, decides whether that bar's clock and battery are drawn dark or
+  // light. Both are invisible when they agree with the surface below, which is the whole point
+  // of reading the surface back out of the cascade rather than restating it.
+  //
+  // That second job is why this value must stay a real surface and not drift towards a colour
+  // picked to look good: it is what keeps the platform's icons legible.
   //
   // **It takes the colour of whatever is directly under it**, which is what ADR-0028 asked for
   // and what makes the seam disappear. Under [[Find]] that is the reader's top bar, one step off
@@ -106,9 +117,9 @@ export default function App() {
   //
   // ⚠️ **This is a state changing a colour, which `styles/reader.css` deliberately does not do
   // for anything inside the window** — a page that changes tone every time the chrome is tapped
-  // is a page that flickers. The system bar is the exception on two counts: it is outside the
-  // window, and the platform swaps it instantly, so there is no half-beat where one surface has
-  // arrived and its neighbour has not.
+  // is a page that flickers. The platform's frame is the exception on two counts: it is outside
+  // the window, and the platform swaps it instantly, so there is no half-beat where one surface
+  // has arrived and its neighbour has not.
   //
   // Read back out of the cascade rather than restated here. `dataset.theme` is set first and
   // `getComputedStyle` forces the recalc, so the value returned is the one about to be drawn.

@@ -147,9 +147,9 @@ export default function Reader({
   onResetSettings: () => void;
   resolvedTheme: "light" | "dark";
   /**
-   * Says whether the chrome is standing, so the platform's system bar can take the colour of
-   * whatever is under it (`App.tsx`). Reported rather than read from here because that colour
-   * has to have one writer, and on every other screen the answer is `false`.
+   * Says whether the chrome is standing, so the frame the platform draws around the page can
+   * take the colour of whatever is under it (`App.tsx`). Reported rather than read from here
+   * because that colour has to have one writer, and on every other screen the answer is `false`.
    */
   onChromeChange: (up: boolean) => void;
 }) {
@@ -194,7 +194,7 @@ export default function Reader({
   const bookKeepsAColumn = useMediaQuery(BOOK_KEEPS_A_COLUMN);
   const { chrome, panelKind, editing: editingId, selected: selectedNoteId } = chromeState;
   const chromeUp = chrome !== "down";
-  // Told upward so the system bar can match what is under it, and told on the way out too: a
+  // Told upward so the platform's frame can match what is under it, and told on the way out too: a
   // reader who leaves a book with the chrome up is going back to a shelf that has no chrome.
   useEffect(() => {
     onChromeChange(chromeUp);
