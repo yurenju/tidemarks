@@ -1,38 +1,37 @@
-/* [[Layout]]'s six, in both shells: the reader's panel and [[Settings]]'s Type tab.
+/* [[Layout]]'s six, in both shells: the reader's panel and the [[Theme]] row [[Settings]] borrows.
    ------------------------------------------------------------------------
-   **Label left, control right.** The two-line arrangement this replaced was fine for four rows
-   in a panel that had nothing above it worth seeing; six rows in it push the book off a
-   hand-held entirely, and the book is the preview (ADR-0005). */
+   **Label above, control below, every row left-aligned on one line.** The arrangement this
+   replaced put the label beside the control, which meant the control took whatever width the
+   label left it — so two settings in one panel ended up 20px different in width and stopped at
+   two different places, and a tile with a picture in it had nowhere to be. What holds a form of
+   mixed shapes together is that one edge, not that every control is the same shape (ADR-0050).
+
+   It costs height, and the height is real: the reader's sheet scrolls now. That was decided
+   rather than discovered — see the sheet's own cap in `device.css`. */
 .form-rows {
   display: flex;
   flex-direction: column;
 }
 
 /* The vertical padding is what keeps the rule off the control. `min-height` alone did not: a
-   select is taller than `--tap-min` once it carries its own padding, so the row was exactly as
+   control is taller than `--tap-min` once it carries its own padding, so the row was exactly as
    tall as the control inside it and every hairline ran along the edge of a box. Six of them
    stacked read as one grid rather than as six settings.
 
-   **This costs the hand-held panel its no-scroll guarantee**, and that is a debt rather than a
-   trade taken: six rows at a finger's 44px are already 264px of a 410px box (ADR-0023), so the
-   room this asks for is room that was never there. The panel now scrolls 89px on a hand-held
-   and `hand-held.spec.ts` says so. The answer is not to take the padding back off — a form
-   whose rules run along the edges of its controls is the thing being fixed here, on every
-   pointer — but to give the panel the height it needs. Tracked in #160. */
+   **This costs the hand-held panel its no-scroll guarantee**, and so does the column below: six
+   rows at a finger's 44px are already 264px of a 410px box (ADR-0023), and a label on its own
+   line adds about 20px to each. The panel scrolls, and that is the trade ADR-0050 takes — the
+   book above it still gets its third of the screen, which is the part that was worth
+   protecting. #160 is where the old guarantee was won and #27 is where it was already lost in
+   English. */
 .form-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* The control drops below its label when it will not fit beside it, and only then. A segmented
-     setting cannot shrink — its cells are words — so in the reader's column (236px at the time,
-     300px at its narrowest now) [[Theme]]'s three options ran off the edge and [[Dark]] was cut in half.
-     The extra width does not make this rule redundant: the floor still has to hold on the
-     narrowest window that gets a column at all. Wrapping is what makes one arrangement
-     serve both shells: label-beside in [[Settings]] and on a phone's sheet, label-above in the narrow
-     column, without either being a second layout to keep in step. */
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  min-height: var(--tap-min);
+  /* One column, so the control starts at the same left edge whatever its label says and
+     whatever shape it is. `stretch` rather than `flex-start`: a segmented group and a stepper
+     both fill the row, and a row of tiles shares it out. */
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
   padding: var(--space-2) 0;
   font-size: var(--type-ui);
   color: var(--text-muted);
@@ -50,8 +49,10 @@
   border-bottom: none;
 }
 
+/* Quieter than the control it names, because on its own line it would otherwise read as a
+   heading over a section rather than as a label on a setting. */
 .form-label {
-  flex: none;
+  font-size: var(--type-note);
 }
 
 .form-row select,
@@ -68,11 +69,10 @@
    the fill would sit inside a box drawn by somebody else. */
 .segmented {
   display: flex;
-  /* Takes the room the label leaves, and a line of its own when there is not enough of it. The
-     cells share what it gets equally, so a wrapped group reads as one full-width control rather
-     than as three words huddled at one end. */
-  flex: 1 1 auto;
-  min-width: 0;
+  /* The whole row, always. It used to take whatever the label left it, which made every group a
+     different width and left their right edges stopping at different places down the form
+     (ADR-0050). With the label on its own line above, there is nothing to share the row with. */
+  width: 100%;
 }
 
 .segment {
@@ -127,11 +127,138 @@
   color: var(--text-muted);
 }
 
-/* The slider is the one control that wants the room the labels do not use. */
+/* The slider takes the row like every other control, rather than the 11rem it was allowed when
+   a label sat beside it. */
 .form-row input[type="range"] {
-  flex: 1;
+  width: 100%;
+}
+
+/* Tiles: a set of alternatives, each one drawing what it does
+   ----------------------------------------------------------
+   Which settings get this is ADR-0050's question — a set of alternatives that can be drawn, and
+   only those. The row is one control shared out equally, so the tiles are the same size
+   whatever their labels say; a picture only reads as a comparison when the frames around the
+   pictures match.
+
+   **The chosen tile is washed, not filled.** A cell is a word high and a solid tide behind it
+   still reads as a word; a tile is three times that, and the same solid across it is a block of
+   colour with a picture faintly inside. `--fill-selected` with a tide edge and a tide label says
+   the same thing at the weight the larger shape can carry, and it says it in both themes. The
+   tide budget (ADR-0022) counts a group as one, exactly as it does for segmented. */
+.tiles {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.tile {
+  flex: 1 1 0;
   min-width: 0;
-  max-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  background: none;
+  border: 1px solid var(--line-actionable);
+  border-radius: var(--radius-control);
+  font-size: var(--type-note);
+  color: var(--text-muted);
+}
+
+.tile:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+.tile[aria-checked="true"],
+.tile[aria-checked="true"]:hover {
+  background: var(--fill-selected);
+  border-color: var(--tide);
+  color: var(--tide);
+}
+
+/* Same rule as a segmented group nobody can press: tide is the colour of what can be acted on,
+   so a chosen-but-disabled tile says which value is standing in paper instead. */
+.tile:disabled[aria-checked="true"] {
+  background: var(--surface-sunken);
+  border-color: var(--line-firm);
+  color: var(--text-muted);
+}
+
+/* The picture takes the ink of the text, not the label's muted grey: it is the thing being
+   chosen, and the word under it is the caption. */
+.tile-art {
+  display: flex;
+  color: var(--text-primary);
+}
+
+.tile[aria-checked="true"] .tile-art {
+  color: var(--tide);
+}
+
+/* [[Font]]'s tiles show their own letters rather than a drawing, so this is the picture. */
+.tile-face {
+  font-size: var(--type-lede);
+  line-height: 1;
+}
+
+/* Stepper: a scale, as where you are and the two ways out
+   ------------------------------------------------------
+   One control with three cells, so they share their borders the way a segmented group does and
+   stand at one height — the value stretches to the buttons rather than sitting at its own text
+   height, which left it 15px short. */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.step {
+  flex: none;
+  width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 1px solid var(--line-actionable);
+  border-radius: 0;
+  background: none;
+  font-size: var(--type-ui);
+}
+
+.step:first-child {
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
+}
+
+.step:last-child {
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  margin-left: -1px;
+}
+
+/* The value between them, and the control's own tab stop. Centred because it is being compared
+   with itself a moment ago rather than read down a column. */
+/* ⚠️ **Its own focus ring, because `controls.css` cannot reach it.** That file's ring is on
+   `:where(a, button, select, input, textarea, .toc-item)`, and this is a `<span>` carrying
+   `role="spinbutton"` — the same case `.scrubber-track` handles in `book.css`. Without this the
+   one tab stop in a stepper is the one control in the panel that shows nothing when the
+   keyboard reaches it. Same three declarations as the shared rule, deliberately: a second
+   focus style is how one app starts looking like two. */
+.step-value:focus-visible {
+  outline: 2px solid var(--tide);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
+}
+
+.step-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-actionable);
+  margin-left: -1px;
+  color: var(--text-primary);
+  font-size: var(--type-ui);
 }
 
 /* The line under [[Font]]: what this device is holding, or what a fetch is doing. Full width and
@@ -190,6 +317,11 @@
    reads as part of that sentence rather than as a second thing happening. */
 .font-progress {
   height: 3px;
+  /* ⚠️ **It has no content, so a flex column will shrink it to nothing.** The panel scrolls now
+     (ADR-0050), and an overflowing flex column shrinks its items — everything else in this form
+     has text or padding holding it up, and this bar has neither. It measured 0px, which is a bar
+     that is there in the DOM and invisible on the screen. */
+  flex: none;
   margin: var(--space-1) 0 0.15rem;
   border-radius: var(--radius-track);
   background: var(--surface-sunken);

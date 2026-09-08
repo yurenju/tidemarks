@@ -949,17 +949,56 @@ export async function openPanel(page: Page, label: string | RegExp): Promise<voi
 }
 
 /**
- * One cell of a segmented setting — [[Theme]], [[Columns]], [[Font]] or [[Margin]].
+ * One option of a setting that shows all of them at once — [[Theme]], [[Columns]] or [[Font]].
  *
- * Four of [[Layout]]'s six put every option on the page instead of hiding them behind a native
- * `<select>`, so choosing one is a click on the cell rather than a `selectOption`, and reading
+ * Three of [[Layout]]'s six put every option on the page instead of hiding them behind a native
+ * `<select>`, so choosing one is a click on the option rather than a `selectOption`, and reading
  * back which is chosen is `aria-checked` rather than `toHaveValue`. This helper exists so the
- * specs spell that once: `segment(page, "setting-margin", 48)`.
+ * specs spell that once: `segment(page, "setting-columns", 2)`.
  *
- * [[Line height]] and [[Size]] are not segmented — six long labels and a slider — so they stay as they were.
+ * They are drawn as tiles now rather than as cells of one bar (ADR-0050), which changed the
+ * picture and not the contract: same testid per option, same `aria-checked`, same radiogroup.
+ *
+ * [[Line height]] and [[Margin]] are scales and answer to `stepTo` below; [[Size]] is a slider.
  */
 export function segment(page: Page, setting: string, value: string | number) {
   return page.getByTestId(`${setting}-${value}`);
+}
+
+/**
+ * Move a stepper — [[Line height]] or [[Margin]] — to the nth value on its scale.
+ *
+ * By index rather than by the value it sets, because that is what the control publishes: a
+ * spinbutton says where it is on the scale (`aria-valuenow`) and what that place is called
+ * (`aria-valuetext`), and the px or the multiplier behind it is not on the page at all. The
+ * index is the option's place in `MARGINS` / `LINE_HEIGHTS`.
+ *
+ * Presses the buttons rather than setting anything, so what the spec exercises is the control
+ * a reader's finger uses.
+ */
+export async function stepTo(page: Page, setting: string, index: number): Promise<void> {
+  const value = page.getByTestId(setting).getByRole("spinbutton");
+  for (let guard = 0; guard < 12; guard += 1) {
+    const now = await value.getAttribute("aria-valuenow");
+    const at = Number(now);
+    // Said plainly rather than left to `Number(null)`, which is `NaN` — every comparison below
+    // is then false, and the failure arrives twelve clicks later as "never reached step 2"
+    // pointing at the scale instead of at the control that stopped publishing where it is.
+    if (now === null || Number.isNaN(at)) {
+      throw new Error(`${setting} is not saying where it is (no aria-valuenow)`);
+    }
+    if (at === index) return;
+    await page.getByTestId(`${setting}-${at < index ? "more" : "less"}`).click();
+    // The book relays out under some of these, and the panel is what has to still be standing
+    // for the next press to land.
+    await expect(value).not.toHaveAttribute("aria-valuenow", String(at));
+  }
+  throw new Error(`${setting} never reached step ${index}`);
+}
+
+/** Where a stepper is standing, as its own scale counts it. */
+export function stepValue(page: Page, setting: string) {
+  return page.getByTestId(setting).getByRole("spinbutton");
 }
 
 /**

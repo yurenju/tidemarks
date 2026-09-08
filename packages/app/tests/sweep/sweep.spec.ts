@@ -290,9 +290,11 @@ test("sweeps every screen", async ({ page }, testInfo) => {
 
   // ---- settings -----------------------------------------------------------
 
-  await step("settings-typography", async () => {
+  // The typography half of this floor is gone (ADR-0050): what is photographed here is the
+  // theme and the language, and the six settings are photographed in the reader's own panel.
+  await step("settings-interface", async () => {
     await page.keyboard.press("Escape");
-    await page.goto("/#/settings/typography");
+    await page.goto("/#/settings/interface");
     await expect(page.getByTestId("settings-screen")).toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(500);
   });
@@ -413,10 +415,10 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     // inside that frame races a traversal already in flight, and what the sweep photographs
     // then is whichever of the two lands second. The panel going is the signal that it landed.
     await expect(page.getByTestId("panel-toc")).toBeHidden();
-    await page.goto("/#/settings/typography");
+    await page.goto("/#/settings/interface");
     await expect(page.getByTestId("settings-screen")).toBeVisible({ timeout: 15_000 });
-    // A cell to click, not an option to select: Theme became a segmented control in #167, along
-    // with three of Type's other five.
+    // A tile to click, not an option to select: Theme became a segmented control in #167 and a
+    // tile in ADR-0050, and it is the one typography setting still on this floor.
     await segment(page, "setting-theme", "dark").click();
     await page.waitForTimeout(700);
   });

@@ -5,7 +5,15 @@
 // takes away over a vertical book is reader/settings.spec.ts, alongside the other five.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, openBook, openPanel, readerFrame, segment, settled } from "../support/library.js";
+import {
+  BOOKS,
+  openBook,
+  openPanel,
+  readerFrame,
+  segment,
+  settled,
+  stepTo,
+} from "../support/library.js";
 
 /**
  * The line-length ceiling, measured where it actually lands (ADR-0012).
@@ -95,9 +103,11 @@ test.describe("the typography sheet", () => {
       }));
   }
 
-  async function chooseMargin(page: Page, value: string): Promise<void> {
+  // By index on the scale rather than by px: [[Margin]] is a stepper now (ADR-0050) and the px it
+  // sets is not on the page. `MARGINS` is the ladder — 0, 16, 32, 48 — so index 3 is 48px.
+  async function chooseMargin(page: Page, index: number): Promise<void> {
     await openPanel(page, "Type");
-    await segment(page, "setting-margin", value).click();
+    await stepTo(page, "setting-margin", index);
     await page.keyboard.press("Escape");
     await settled(page);
   }
@@ -118,10 +128,10 @@ test.describe("the typography sheet", () => {
     expect(under.count).toBe(2);
     expect(under.emsPerColumn).toBeLessThan(30);
 
-    await chooseMargin(page, "16");
+    await chooseMargin(page, 1);
     expect(await inset(page)).toMatchObject({ x: 16 });
 
-    await chooseMargin(page, "48");
+    await chooseMargin(page, 3);
     expect(await inset(page)).toMatchObject({ x: 48 });
   });
 
@@ -132,7 +142,7 @@ test.describe("the typography sheet", () => {
     await page.setViewportSize({ width: 1000, height: 700 });
     await settled(page);
 
-    await chooseMargin(page, "48");
+    await chooseMargin(page, 3);
 
     // Vertical: the reader's margin is the top and bottom inset; the left and right keep the
     // fixed block inset instead.

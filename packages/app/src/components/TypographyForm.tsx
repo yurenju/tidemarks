@@ -3,6 +3,9 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import Segmented from "./Segmented";
+import Stepper from "./Stepper";
+import ThemeField from "./ThemeField";
+import { columnsAuto, columnsOne, columnsTwo, faceArt } from "./setting-art";
 import { db } from "../lib/db";
 import {
   COLUMN_CHOICES,
@@ -13,7 +16,6 @@ import {
   FONT_SIZE_STEP,
   LINE_HEIGHTS,
   MARGINS,
-  THEME_CHOICES,
   type FontChoice,
   type ReaderSettings,
 } from "../lib/settings";
@@ -21,22 +23,24 @@ import { carriedFontKinds, type WebFontKind } from "../lib/web-font";
 import { webFontFraction, webFontNote, type WebFontStatus } from "../lib/web-font-store";
 
 /**
- * The six, once. Two shells wear this: the reader's own typography panel and [[Settings]]'s
- * typography tab.
+ * The six, in the one place they mean anything: the reader's panel, with the book above it.
  *
- * **One component, not two that look alike.** The bug this whole change came out of was two
- * sets of controls that rendered identically and wrote to different places; keeping one copy is
- * what stops that growing back. There is only one place to write to now, so the only thing the
- * two shells differ in is what surrounds them (ADR-0005).
+ * **[[Settings]] used to show these too**, through this same component, on a floor with no book
+ * on it — where five of the six changed nothing a reader could see. They left. Only [[Theme]]
+ * stayed behind, because a floor can show a theme, and it is the same `ThemeField` here as
+ * there: one setting in two places rather than two that look alike (ADR-0050, ADR-0005).
  *
- * Every row is **label left, control right**, and that is why the segmented controls below are
- * sized to their options rather than stretched across the row the way the design showed them.
- * Label-above would buy each of them a fuller line and cost every row about 22px of height —
- * six of those is most of what the hand-held panel has to give (#160), and it would leave the
- * two rows that are still a slider and a select reading as a different form.
+ * **Four shapes, chosen by what each setting's values are.** [[Theme]], [[Columns]] and [[Font]]
+ * are alternatives that can be drawn, so they are tiles that draw them; [[Line height]] and
+ * [[Margin]] are scales, so they are steppers; [[Size]] is a continuous quantity and stays a
+ * slider. Every row puts its label on its own line above the control, and that is what lets four
+ * shapes share one left edge — the arrangement this replaced sized each control by whatever its
+ * label left over, so no two of them ended at the same place.
  *
- * On a hand-held the panel is capped at `min(70vh, 36rem)`, and the book showing above it is
- * the preview — six rows in the two-line arrangement this replaced would have eaten it entirely.
+ * On a hand-held the panel is capped at `min(70vh, 36rem)` and this form is taller than that, so
+ * it scrolls. That was decided rather than discovered: the book above it still keeps its third
+ * of the screen, which is what #160 was protecting, and the no-scroll guarantee given up for it
+ * only ever held in Chinese (#27, and `hand-held.spec.ts` holds the half that remains).
  */
 export default function TypographyForm({
   settings,
@@ -60,22 +64,13 @@ export default function TypographyForm({
    */
   webFontStatus?: WebFontStatus | null;
 }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   // Named rather than read inline, so the catalog carries `{size}` instead of a bare `{0}`.
   const size = settings.fontSize;
 
   return (
     <div className="form-rows">
-      <Segmented
-        label={msg({
-          message: "Theme",
-          comment: "Label of the light/dark control in the typography panel.",
-        })}
-        testId="setting-theme"
-        options={THEME_CHOICES}
-        value={settings.theme}
-        onChange={(theme) => onChange({ theme })}
-      />
+      <ThemeField theme={settings.theme} onChange={(theme) => onChange({ theme })} />
 
       {/* Disabled over a vertical book because frond cannot honour two columns there at all —
           "cannot do it" is the only grounds for taking a choice away. Two columns on a phone is
@@ -86,7 +81,8 @@ export default function TypographyForm({
           comment: "Label of the control choosing how many columns a page is set in.",
         })}
         testId="setting-columns"
-        options={COLUMN_CHOICES}
+        shape="tiles"
+        options={COLUMN_ART}
         value={settings.columns}
         disabled={verticalBook}
         disabledReason={t({
@@ -104,7 +100,8 @@ export default function TypographyForm({
             "Label of the control choosing which face the book is set in. Kept short: the row is label-left, control-right, and the control beside it holds three options.",
         })}
         testId="setting-font-family"
-        options={FONT_FAMILIES}
+        shape="tiles"
+        options={FACE_ART}
         value={settings.fontFamily}
         onChange={(fontFamily) => onChange({ fontFamily })}
       />
@@ -127,26 +124,21 @@ export default function TypographyForm({
         />
       </label>
 
-      <label className="form-row">
-        <span className="form-label">
-          <Trans comment="Label of the line-height dropdown in the typography panel.">
-            Line height
-          </Trans>
-        </span>
-        <select
-          data-testid="setting-line-height"
-          value={String(settings.lineHeight)}
-          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
-        >
-          {LINE_HEIGHTS.map((h) => (
-            <option key={h.value} value={String(h.value)}>
-              {i18n._(h.label)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* The two scales. Both used to show every option at once — [[Line height]] as a `<select>`,
+          [[Margin]] as four cells — and both are one row now, because what a reader asks a scale is
+          "more or less than this" rather than "which of these six" (ADR-0050). */}
+      <Stepper
+        label={msg({
+          message: "Line height",
+          comment: "Label of the line-height control in the typography panel.",
+        })}
+        testId="setting-line-height"
+        options={LINE_HEIGHTS}
+        value={settings.lineHeight}
+        onChange={(lineHeight) => onChange({ lineHeight })}
+      />
 
-      <Segmented
+      <Stepper
         label={msg({
           message: "Margin",
           comment:
@@ -170,6 +162,19 @@ export default function TypographyForm({
     </div>
   );
 }
+
+/**
+ * The two tiled settings, each option paired with the picture it shows.
+ *
+ * Built here rather than in `lib/settings.ts` so the pictures stay out of the record's own
+ * module: what a setting *is* travels to frond and to storage, and a drawing does neither.
+ */
+const COLUMN_ART = COLUMN_CHOICES.map((choice) => ({
+  ...choice,
+  art: choice.value === "auto" ? columnsAuto : choice.value === 1 ? columnsOne : columnsTwo,
+}));
+
+const FACE_ART = FONT_FAMILIES.map((family) => ({ ...family, art: faceArt(family.value) }));
 
 function isDefault(settings: ReaderSettings): boolean {
   return (Object.keys(DEFAULT_SETTINGS) as (keyof ReaderSettings)[]).every(

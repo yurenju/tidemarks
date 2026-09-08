@@ -440,7 +440,6 @@ export default function App() {
           onBack={() => goTo({ kind: "shelf" })}
           settings={settings}
           onChange={changeSetting}
-          onReset={resetSettings}
           onImported={() => setReloadToken((n) => n + 1)}
           locale={locale}
           onLocaleChange={changeLocale}
@@ -478,7 +477,7 @@ export default function App() {
               ...(cfiRange ? { at: { kind: "cfi", cfi: cfiRange } as const } : {}),
             })
           }
-          onOpenSettings={() => goTo({ kind: "settings", tab: "typography" })}
+          onOpenSettings={() => goTo({ kind: "settings", tab: "account" })}
           onOpenAbout={(id) => showPanel({ kind: "about", bookId: id })}
         />
       )}

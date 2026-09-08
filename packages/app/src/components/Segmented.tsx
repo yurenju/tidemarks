@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useLingui } from "@lingui/react";
 import type { MessageDescriptor } from "@lingui/core";
 
@@ -18,28 +18,42 @@ export type SegmentLabel = string | MessageDescriptor;
  * `<select>` — that on a phone it opens the operating system's own menu, and that Base UI's
  * `Select` has an open issue where opening one freezes the main thread — are both about
  * components that *hide* the options until asked. This hides nothing: it is a radio group
- * wearing one border. What decides which settings get it is the options, not the library:
- * three or four of them, each a word or two. [[Line height]] has six, and in Chinese they read 「更寬鬆（2.0）」,
- * so it stays a `<select>`; that is the line, and it is about what fits.
+ * wearing one border. What decides which settings get it is the values, not the library, and
+ * that question is ADR-0050's: a set of alternatives shows all of them at once, while a scale —
+ * [[Line height]], [[Margin]] — becomes a `Stepper` instead. Counting the options and measuring
+ * their labels was the older rule, and it answered "does this fit" rather than "does this say
+ * what the setting is".
  *
  * The chosen cell is filled with tide rather than underlined with it. Fill survives being
  * glanced at, and it survives the dark theme, where `--tide` flips to a light blue on a
  * near-black panel and a 2px rule under a Song face would be a rule nobody can see. ADR-0022's
  * tide budget counts this as one with its control, not one per cell.
+ *
+ * **Two shapes, one control.** A cell says its option in words; a tile draws it — the typeface's
+ * own `Aa`, two columns as two columns. Which one a setting takes is ADR-0050's question, not
+ * this component's, and the keyboard contract is the same either way, which is why they are one
+ * file rather than two that would drift.
  */
 export default function Segmented<T extends string | number>({
   label,
   testId,
   options,
   value,
+  shape = "cells",
   disabled = false,
   disabledReason,
   onChange,
 }: {
   label: SegmentLabel;
   testId: string;
-  options: readonly { label: SegmentLabel; value: T }[];
+  /**
+   * `art` is the tile's picture, and only tiles read it. It is decoration beside a name the
+   * cell already carries, so it is hidden from the accessibility tree at the point of use.
+   */
+  options: readonly { label: SegmentLabel; value: T; art?: ReactNode }[];
   value: T;
+  /** How each option shows itself: `cells` is a row of words, `tiles` a row of pictures. */
+  shape?: "cells" | "tiles";
   disabled?: boolean;
   /** Why the whole group is off, as the tooltip on every cell of it. */
   disabledReason?: string;
@@ -75,12 +89,12 @@ export default function Segmented<T extends string | number>({
       <span className="form-label" id={`${testId}-label`}>
         {say(label)}
       </span>
-      {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen beside it, and
+      {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen above it, and
           a fieldset brings a legend and a border of its own that would both have to be undone.
           The group is labelled by the span, so a screen reader reads 「主題，淺色」 rather than
           announcing three unrelated buttons. */}
       <div
-        className="segmented"
+        className={shape === "tiles" ? "tiles" : "segmented"}
         role="radiogroup"
         data-testid={testId}
         aria-labelledby={`${testId}-label`}
@@ -106,12 +120,19 @@ export default function Segmented<T extends string | number>({
                one control, and tabbing through four cells to leave [[Theme]] would make it four. */
             tabIndex={option.value === value ? 0 : -1}
             data-testid={`${testId}-${option.value}`}
-            className="segment"
+            className={shape === "tiles" ? "tile" : "segment"}
             disabled={disabled}
             title={disabled ? disabledReason : undefined}
             onClick={() => onChange(option.value)}
           >
-            {say(option.label)}
+            {/* The picture is not a second name for the same thing — a screen reader reading
+                "two columns, two columns" is worse than one that reads it once. */}
+            {shape === "tiles" && option.art !== undefined && (
+              <span className="tile-art" aria-hidden="true">
+                {option.art}
+              </span>
+            )}
+            <span>{say(option.label)}</span>
           </button>
         ))}
       </div>
