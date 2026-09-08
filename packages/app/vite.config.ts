@@ -94,7 +94,30 @@ export default defineConfig({
         // not the dark one because both icons below are painted on that same paper — a splash
         // screen in night colours would frame them in a rectangle of the wrong century.
         background_color: "#f4eee2",
-        theme_color: "#f4eee2",
+        // **There is deliberately no `theme_color` here**, and the absence is the feature.
+        //
+        // On Android an installed PWA paints the system status bar — the strip carrying the
+        // clock and the battery — from this member, and from nothing else: the document's
+        // `<meta name="theme-color">` cannot reach it. A manifest is one static file, so any
+        // value here is one colour for both themes. Naming the light surface is what put a
+        // paper bar over the dark theme, and naming the dark one would only move the same
+        // fault onto the light theme. The manifest member that would have ended the choice
+        // (`user_preferences.color_scheme_dark`) was reviewed in 2021 and never shipped.
+        //
+        // Leaving it out hands the bar to the system's own light/dark setting instead, which
+        // is what the reader's theme follows by default — so the bar sits a shade off the page
+        // rather than opposite it. Measured on probes that gave the manifest, the tag, and a
+        // runtime write three different colours.
+        //
+        // ⚠️ **The cost, and it is real.** Without this member the bar's fill comes from the
+        // system while its icons come from the brightness of `<meta name="theme-color">`, which
+        // tracks the reader's theme. A reader who picks the theme opposite their system gets
+        // white icons on a white bar — no clock, no battery — until they change one of the two.
+        // Accepted knowingly: the seam is what a reader sees constantly, and this is a state
+        // they choose, can see, and can undo.
+        //
+        // ⚠️ **Android only.** Desktop Chromium's title bar and iOS's status bar both follow
+        // the document, so they track the theme either way; nothing here reaches them.
         icons: [
           { src: "favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
           // Android crops a maskable icon to whatever shape the launcher uses, so this one is

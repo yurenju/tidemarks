@@ -7,7 +7,10 @@ import { BOOKS, openBook, openChrome, PAGE_FRAME } from "../support/library.js";
 
 /**
  * chrome as a layer: one step off the book, in both themes, and the same step reported to the
- * platform so its own bar joins on (ADR-0028, docs/specs/reader-chrome-layers/spec.md).
+ * platform so the frame it draws joins on (ADR-0028, docs/specs/reader-chrome-layers/spec.md).
+ * What that frame is depends on where the app is running — a tab's address bar, a desktop PWA's
+ * title bar, and on Android the thin band under the status bar; `vite.config.ts` has the whole
+ * division. This file asserts the value handed over, which is the same in all of them.
  *
  * Asserted here rather than screenshotted because the claim is about two colours being
  * *different* by a specific amount, and a screenshot can only show that they look different to

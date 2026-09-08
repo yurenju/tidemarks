@@ -12,25 +12,30 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      The colour Android paints its own system bar in. It takes whatever surface reaches the top
-      edge underneath it, so that the seam between the two disappears: the reader's top bar while
-      the chrome is up, and the page itself everywhere else — the shelf, and a book being read
+      The colour the browser paints its own frame in — a tab's address bar, and a desktop PWA
+      window's title bar. It takes whatever surface reaches the top edge underneath it, so that
+      the seam between the two disappears: the reader's top bar while the chrome is up, and the
+      page itself everywhere else — the shelf, and a book being read
       (docs/specs/reader-chrome-layers/spec.md).
+
+      ⚠️ **An installed PWA on Android splits that frame in two.** The system status bar follows
+      the system's own light/dark setting, and this tag paints the thin band beneath it — plus,
+      through its brightness, whether that bar's clock and battery are drawn dark or light. See
+      the note in `vite.config.ts`, next to the `theme_color` that is deliberately absent.
 
       This literal is the light theme's `--surface-page`, and it is only the value before any
       script runs. Nothing is on screen yet at that moment and nothing has chrome, so the page is
       the right answer for it; `App.tsx` re-reads the token from the resolved theme and the
-      chrome's state and writes it here. The manifest's own `theme_color` is a third copy for a
-      third moment — install and splash, before this document exists at all.
+      chrome's state and writes it here.
     -->
     <meta name="theme-color" content="#f4eee2" />
     <!--
       The resolved theme, before the first paint. `App.tsx` owns both of these and re-states them
       from the tokens themselves, but its effect runs a frame too late: until it does, the page
-      is drawn in the light theme and — because a PWA window's frame is painted from whatever
-      theme-color the document is announcing while it loads — Chromium strokes the window border
-      in paper. Reloading the shelf at night left that border white until something else wrote
-      the tag again.
+      is drawn in the light theme and — because a desktop PWA window's frame is painted from
+      whatever theme-color the document is announcing while it loads — Chromium strokes the
+      window border in paper. Reloading the shelf at night left that border white until something
+      else wrote the tag again.
 
       The two literals are the dark theme's `--surface-page` and the light theme's, the same
       value the tag above already carries. They are a bridge and not a second source of truth:

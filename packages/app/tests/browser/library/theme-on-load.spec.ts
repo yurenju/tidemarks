@@ -1,8 +1,9 @@
-// The theme has to be settled before the first paint, not one effect later. A PWA window's
-// frame is painted from whatever theme-color the document announces while it loads, so a page
-// that starts light and corrects itself afterwards leaves an installed app wearing a white
-// border until something else writes the tag — which on the shelf is nothing, until the reader
-// opens a book. `index.html` resolves the theme inline for exactly this; these two tests are
+// The theme has to be settled before the first paint, not one effect later. A desktop PWA
+// window's frame is painted from whatever theme-color the document announces while it loads, so
+// a page that starts light and corrects itself afterwards leaves an installed app wearing a
+// white border until something else writes the tag — which on the shelf is nothing, until the
+// reader opens a book. (Android's status bar is a separate question with a separate answer; see
+// the note in `vite.config.ts` next to the `theme_color` that is deliberately absent.) `index.html` resolves the theme inline for exactly this; these two tests are
 // what fails if that script is ever removed.
 //
 // Only a browser can answer this: the failure is a matter of *when* the attribute is set, and
