@@ -802,6 +802,16 @@ button.selection-handle:active:not(:disabled) {
   text-decoration: underline;
 }
 
+/* Pressed stays paper, for the reason the shelf's own passage gives (`.mark-reading`,
+   `library.css`): this button has no interior of its own — it is the reading — so the fill
+   `controls.css` gives a pressed button would paint the passage dark blue. The selector matches
+   that rule's specificity so that it wins on order. */
+button.annotation-quote:active:not(:disabled) {
+  background: none;
+  border: none;
+  color: inherit;
+}
+
 /* **Three lines, then the passage fades out** — and only the passage. The note under it is
    whole however long it runs.
    -------------------------------------------------------------------------------------
