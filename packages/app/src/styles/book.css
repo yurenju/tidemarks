@@ -715,25 +715,20 @@ button.selection-handle:active:not(:disabled) {
    the one thing on this panel that the book wrote.
 
    The rule under it is the panel's own hairline, which is what separates two runs when a chapter
-   has only one mark and the gap alone is not enough to read as a division. */
+   has only one mark and the gap alone is not enough to read as a division.
+
+   ⚠️ **Not sticky, though a heading that followed the reader down a long chapter would be worth
+   having.** Sticky offsets are measured from `.panel-body`'s scrollport, and that is the same
+   edge ADR-0044 scrolls the mark being edited to: a pinned heading would come to rest over the
+   note box, which is the one thing on this panel that must never be covered. Getting both would
+   mean the heading knowing about the editor, and it is not worth that. */
 .annotation-chapter-name {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   margin: 0;
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--line-hair);
-  background: var(--surface-sunken);
   font-size: var(--type-ui);
   font-weight: 600;
   color: var(--text-primary);
-}
-
-/* The panel that holds those runs, drawn over whatever is behind it. The sticky heading above
-   needs the surface it sticks to be named, and this is where it is named — a heading over a
-   transparent strip shows the passages sliding under it. */
-.panel-list-notes {
-  gap: var(--space-5);
 }
 
 /* One marked passage in the panel, as a card.
@@ -789,7 +784,11 @@ button.selection-handle:active:not(:disabled) {
   border: none;
   background: none;
   padding: 0 0 0 var(--space-3);
-  border-left: 3px solid var(--mark, var(--mark-indigo));
+  /* **The mark's own ink, as a shadow rather than a border.** `controls.css` restates
+     `border-color` on every button it does not exempt while it is pressed, so a border here
+     flashed tide under the reader's finger — and out-specifying that rule costs a selector
+     nobody can read. A shadow is not in that rule's vocabulary. */
+  box-shadow: inset 3px 0 0 var(--mark, var(--mark-indigo));
   text-align: left;
   white-space: normal;
   font-family: inherit;
@@ -800,7 +799,6 @@ button.selection-handle:active:not(:disabled) {
 .annotation-quote:hover {
   background: none;
   border: none;
-  border-left: 3px solid var(--mark, var(--mark-indigo));
   text-decoration: underline;
 }
 

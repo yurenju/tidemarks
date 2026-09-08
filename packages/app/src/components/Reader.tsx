@@ -507,6 +507,9 @@ export default function Reader({
   // leaves its parent chapter alone. Marking the ancestors too would put three marks on a
   // three-level book, and the reader is in one place.
   const currentTocIndex = chapterAt(sectionIndex, chapters)?.tocIndex ?? null;
+  // Every mark's CFI is parsed to file it under a chapter, and the reader re-renders on every
+  // page turn — so this is held rather than redone at 60Hz while the panel stands open.
+  const noteGroups = useMemo(() => groupByChapter(annotations, chapters), [annotations, chapters]);
   const currentItemRef = useRef<HTMLButtonElement>(null);
 
   // A mark nobody scrolls to is no mark at all: a long list opens at the top. Runs on open and
@@ -947,9 +950,13 @@ export default function Reader({
                 </Trans>
               </p>
             )}
-            {groupByChapter(annotations, chapters).map((group, i) => (
+            {noteGroups.map((group, i) => (
               <section
-                key={group.tocIndex ?? `unplaced-${i}`}
+                // **The row and the position, not the row alone.** A chapter the list returns
+                // to opens a second run with the same `tocIndex`
+                // (`lib/annotation-groups.ts`), and two siblings sharing a key is undefined
+                // reconciliation — the second run's editor state would be the first's.
+                key={`${group.tocIndex ?? "unplaced"}-${i}`}
                 className="annotation-chapter"
                 data-testid="annotation-chapter"
               >

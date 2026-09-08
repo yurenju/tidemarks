@@ -231,18 +231,35 @@ export default function AnnotationItem({
         </span>
       </button>
       {/* **The way back to the whole passage, under the passage.** Only where the cut is really
-          hiding something, and only until it is opened: a press that undid itself would be a
-          second state to explain, and nothing here is worth that. Closing it again is the panel
-          being reopened — the reader who wanted it whole wanted it whole.
+          hiding something — a passage that happens to end on the third line has nothing to open.
+
+          **It stays after it has been pressed, and says so with `aria-expanded`.** The first
+          version took itself away, on the argument that a reader who wanted the passage whole
+          wanted it whole. What that cost is the reader who is not using a mouse: pressing it
+          destroyed the focused element, so the focus fell to the document and the next Tab
+          started again from the top of the panel — and nothing announced that anything had
+          happened, because the thing that changed was a number of lines (ADR-0021). A disclosure
+          that stands is what every assistive technology already knows how to read.
 
           Nothing like this stands under the note, and that asymmetry is the point: the passage
           can be cut because pressing it goes to where it stands in the book, whole. A note has no
           such route, so it is never cut (`styles/book.css`). */}
-      {cut && !whole && (
-        <button type="button" className="annotation-expand" onClick={() => setWhole(true)}>
-          <Trans comment="Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.">
-            Show the whole passage
-          </Trans>
+      {cut && (
+        <button
+          type="button"
+          className="annotation-expand"
+          aria-expanded={whole}
+          onClick={() => setWhole(!whole)}
+        >
+          {whole ? (
+            <Trans comment="Button under a marked passage in the notes panel that has been opened to its full length. Pressing it cuts the passage back to three lines. The counterpart of 'Show the whole passage'.">
+              Show less
+            </Trans>
+          ) : (
+            <Trans comment="Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.">
+              Show the whole passage
+            </Trans>
+          )}
         </button>
       )}
       {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}

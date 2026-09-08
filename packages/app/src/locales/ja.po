@@ -728,6 +728,11 @@ msgstr "明朝体"
 msgid "Settings"
 msgstr "設定"
 
+#. Button under a marked passage in the notes panel that has been opened to its full length. Pressing it cuts the passage back to three lines. The counterpart of 'Show the whole passage'.
+#: src/components/AnnotationItem.tsx
+msgid "Show less"
+msgstr "折りたたむ"
+
 #. Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.
 #: src/components/AnnotationItem.tsx
 msgid "Show the whole passage"

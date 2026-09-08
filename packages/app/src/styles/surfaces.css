@@ -175,6 +175,17 @@
   gap: 0.5rem;
 }
 
+/* **Marks stand further apart than chapters do**, because what this list holds is runs rather
+   than rows: the gap inside a run is `--space-3` (`book.css`), and a heading only reads as
+   belonging to the cards under it if the gap above it is the wider of the two.
+
+   Here rather than beside those cards, and that is the cascade rather than a preference: this
+   file is imported after `book.css`, so `.panel-list`'s own gap beats anything written there at
+   the same specificity (`index.css`). */
+.panel-list-notes {
+  gap: var(--space-5);
+}
+
 /* The content primitives below carry two names on purpose, and share one rule list rather than
    being copied. They appear on two different surfaces — [[About]] is a panel, [[Account]] is a
    pane of the [[Settings]] floor — and each prefix is true where it is used. One declaration block
