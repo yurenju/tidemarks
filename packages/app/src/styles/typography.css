@@ -236,6 +236,18 @@
 
 /* The value between them, and the control's own tab stop. Centred because it is being compared
    with itself a moment ago rather than read down a column. */
+/* ⚠️ **Its own focus ring, because `controls.css` cannot reach it.** That file's ring is on
+   `:where(a, button, select, input, textarea, .toc-item)`, and this is a `<span>` carrying
+   `role="spinbutton"` — the same case `.scrubber-track` handles in `book.css`. Without this the
+   one tab stop in a stepper is the one control in the panel that shows nothing when the
+   keyboard reaches it. Same three declarations as the shared rule, deliberately: a second
+   focus style is how one app starts looking like two. */
+.step-value:focus-visible {
+  outline: 2px solid var(--tide);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--halo, var(--surface-page));
+}
+
 .step-value {
   flex: 1 1 auto;
   min-width: 0;

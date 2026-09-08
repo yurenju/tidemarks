@@ -169,18 +169,31 @@ test.describe("typography, one layer", () => {
     // it is one tab stop holding one value, so there is no cell to land on first. The `−` and
     // `+` are how a finger presses what these keys press (ADR-0050).
     //
-    // [[Margin]] rather than [[Line height]], because changing it relays the book out: this is the
-    // scale where a key that escaped the control would reach the reader's own handler, turn a
-    // page, and take the panel with it.
-    //
-    // **One press, and then this test stops.** Relaying the book out moves the focus onto the
-    // page frond just painted, which is frond's rule rather than this control's — so a second
-    // press here would be measuring where the focus went rather than where the arrow went.
+    // ⚠️ **One press, and no assertion about the panel afterwards.** Changing [[Margin]] relays the
+    // book out, and frond then moves the focus onto the page it painted so that arrow keys keep
+    // turning pages — which can take the panel with it. That is frond's rule rather than this
+    // control's, it predates this shape, and asserting against it here made this test flaky.
+    // What is asserted is the arrow's own effect: the scale moved one rung. The claim that an
+    // arrow does not escape to the page-turn handler is held by the slider test below, where no
+    // relayout is racing it.
     await stepValue(page, "setting-margin").focus();
     await expect(stepValue(page, "setting-margin")).toBeFocused();
     await page.keyboard.press("ArrowLeft");
 
     await expect(stepValue(page, "setting-margin")).toHaveAttribute("aria-valuenow", "1");
+  });
+
+  test("and so does the slider, which is neither a group nor a scale", async ({ page }) => {
+    await importBoth(page);
+    await open(page, TITLES.horizontal);
+
+    // The third shape in the form, and the one this change did not touch. Left and right are
+    // spent here too rather than reaching the reader's page-turn handler — so the panel is still
+    // standing afterwards, which is the whole claim.
+    await fontSize(page).focus();
+    await expect(fontSize(page)).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(fontSize(page)).toHaveValue("120");
     await expect(page.getByTestId("panel-layout")).toBeVisible();
   });
 
@@ -195,6 +208,13 @@ test.describe("typography, one layer", () => {
     await stepTo(page, "setting-margin", 0);
     await expect(page.getByTestId("setting-margin-less")).toBeDisabled();
     await expect(page.getByTestId("setting-margin-more")).toBeEnabled();
+
+    // ⚠️ **And the press that disabled it did not drop the focus.** A disabled element cannot
+    // hold the focus, so without the control handing it to the value first it lands on `<body>`
+    // — where the reader's arrow handler turns a page and takes this panel with it. The bug is
+    // silent to a mouse and immediate to a keyboard, which is why it is asserted rather than
+    // left to the eye.
+    await expect(stepValue(page, "setting-margin")).toBeFocused();
   });
 
   test("the theme is in the panel, so night falls without leaving the book", async ({ page }) => {

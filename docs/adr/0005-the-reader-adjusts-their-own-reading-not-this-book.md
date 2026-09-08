@@ -96,7 +96,8 @@ Folis 對那個坑有一半的免疫力，而且是設計出來的：字型預�
 直接清掉（[ADR-0004](0004-development-phase-and-launch-line.md)）。撈的話得先回答「挑哪一本」，
 而任何答案都是猜的。
 
-**〈設定〉從抽屜變成一層樓。** 六項的家搬進 `#/settings/typography` 之後，〈帳號〉也跟著變成同一頁
+**〈設定〉從抽屜變成一層樓。** 六項的家搬進 `#/settings/typography`（那個位址後來沒有了，
+見 [ADR-0050](0050-a-setting-lives-where-you-can-see-it-work.md)）之後，〈帳號〉也跟著變成同一頁
 的 tab，原本的〈設定〉抽屜就不存在了。這動到介面的分類方式，怎麼分寫在 CONTEXT.md 的〈畫面〉
 〈抽屜〉〈面板〉三條。返回鍵怎麼疊在
 舊 repo 的 #157 決定。

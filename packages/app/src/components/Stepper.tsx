@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 
@@ -37,10 +38,27 @@ export default function Stepper<T extends string | number>({
   const index = at === -1 ? 0 : at;
   const first = index === 0;
   const last = index === options.length - 1;
+  const readout = useRef<HTMLSpanElement>(null);
 
+  /**
+   * Move one rung, and take the focus with it when the button that moved it is about to go.
+   *
+   * ⚠️ **A button that disables itself under the finger drops the focus on the floor.** Pressing
+   * `+` onto the last rung disables `+`, and a disabled element cannot hold the focus — the
+   * browser hands it to `<body>`, where the reader's own arrow handler is waiting. The next
+   * arrow key turns a page and takes the panel this control is standing in with it, which is
+   * the exact failure `role="spinbutton"` and the `preventDefault` below exist to prevent.
+   *
+   * The value is where the focus goes, because the value is the control: it is the tab stop and
+   * it answers the same arrows, so a reader who came in by pressing `+` can carry on by
+   * pressing the key.
+   */
   function step(delta: number) {
-    const landing = options[index + delta];
-    if (landing !== undefined) onChange(landing.value);
+    const next = index + delta;
+    const landing = options[next];
+    if (landing === undefined) return;
+    onChange(landing.value);
+    if (next === 0 || next === options.length - 1) readout.current?.focus();
   }
 
   return (
@@ -66,6 +84,7 @@ export default function Stepper<T extends string | number>({
         {/* The value carries the tab stop, and the arrow keys, because the value is the control:
             the two buttons are a finger's way of pressing the same arrows. */}
         <span
+          ref={readout}
           className="step-value"
           role="spinbutton"
           tabIndex={0}

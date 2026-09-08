@@ -23,22 +23,24 @@ import { carriedFontKinds, type WebFontKind } from "../lib/web-font";
 import { webFontFraction, webFontNote, type WebFontStatus } from "../lib/web-font-store";
 
 /**
- * The six, once. Two shells wear this: the reader's own typography panel and [[Settings]]'s
- * typography tab.
+ * The six, in the one place they mean anything: the reader's panel, with the book above it.
  *
- * **One component, not two that look alike.** The bug this whole change came out of was two
- * sets of controls that rendered identically and wrote to different places; keeping one copy is
- * what stops that growing back. There is only one place to write to now, so the only thing the
- * two shells differ in is what surrounds them (ADR-0005).
+ * **[[Settings]] used to show these too**, through this same component, on a floor with no book
+ * on it — where five of the six changed nothing a reader could see. They left. Only [[Theme]]
+ * stayed behind, because a floor can show a theme, and it is the same `ThemeField` here as
+ * there: one setting in two places rather than two that look alike (ADR-0050, ADR-0005).
  *
- * Every row is **label left, control right**, and that is why the segmented controls below are
- * sized to their options rather than stretched across the row the way the design showed them.
- * Label-above would buy each of them a fuller line and cost every row about 22px of height —
- * six of those is most of what the hand-held panel has to give (#160), and it would leave the
- * two rows that are still a slider and a select reading as a different form.
+ * **Four shapes, chosen by what each setting's values are.** [[Theme]], [[Columns]] and [[Font]]
+ * are alternatives that can be drawn, so they are tiles that draw them; [[Line height]] and
+ * [[Margin]] are scales, so they are steppers; [[Size]] is a continuous quantity and stays a
+ * slider. Every row puts its label on its own line above the control, and that is what lets four
+ * shapes share one left edge — the arrangement this replaced sized each control by whatever its
+ * label left over, so no two of them ended at the same place.
  *
- * On a hand-held the panel is capped at `min(70vh, 36rem)`, and the book showing above it is
- * the preview — six rows in the two-line arrangement this replaced would have eaten it entirely.
+ * On a hand-held the panel is capped at `min(70vh, 36rem)` and this form is taller than that, so
+ * it scrolls. That was decided rather than discovered: the book above it still keeps its third
+ * of the screen, which is what #160 was protecting, and the no-scroll guarantee given up for it
+ * only ever held in Chinese (#27, and `hand-held.spec.ts` holds the half that remains).
  */
 export default function TypographyForm({
   settings,

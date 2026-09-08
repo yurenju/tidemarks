@@ -979,7 +979,14 @@ export function segment(page: Page, setting: string, value: string | number) {
 export async function stepTo(page: Page, setting: string, index: number): Promise<void> {
   const value = page.getByTestId(setting).getByRole("spinbutton");
   for (let guard = 0; guard < 12; guard += 1) {
-    const at = Number(await value.getAttribute("aria-valuenow"));
+    const now = await value.getAttribute("aria-valuenow");
+    const at = Number(now);
+    // Said plainly rather than left to `Number(null)`, which is `NaN` — every comparison below
+    // is then false, and the failure arrives twelve clicks later as "never reached step 2"
+    // pointing at the scale instead of at the control that stopped publishing where it is.
+    if (now === null || Number.isNaN(at)) {
+      throw new Error(`${setting} is not saying where it is (no aria-valuenow)`);
+    }
     if (at === index) return;
     await page.getByTestId(`${setting}-${at < index ? "more" : "less"}`).click();
     // The book relays out under some of these, and the panel is what has to still be standing

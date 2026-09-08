@@ -18,9 +18,11 @@ export type SegmentLabel = string | MessageDescriptor;
  * `<select>` — that on a phone it opens the operating system's own menu, and that Base UI's
  * `Select` has an open issue where opening one freezes the main thread — are both about
  * components that *hide* the options until asked. This hides nothing: it is a radio group
- * wearing one border. What decides which settings get it is the options, not the library:
- * three or four of them, each a word or two. [[Line height]] has six, and in Chinese they read 「更寬鬆（2.0）」,
- * so it stays a `<select>`; that is the line, and it is about what fits.
+ * wearing one border. What decides which settings get it is the values, not the library, and
+ * that question is ADR-0050's: a set of alternatives shows all of them at once, while a scale —
+ * [[Line height]], [[Margin]] — becomes a `Stepper` instead. Counting the options and measuring
+ * their labels was the older rule, and it answered "does this fit" rather than "does this say
+ * what the setting is".
  *
  * The chosen cell is filled with tide rather than underlined with it. Fill survives being
  * glanced at, and it survives the dark theme, where `--tide` flips to a light blue on a
@@ -87,7 +89,7 @@ export default function Segmented<T extends string | number>({
       <span className="form-label" id={`${testId}-label`}>
         {say(label)}
       </span>
-      {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen beside it, and
+      {/* `radiogroup` rather than a `<fieldset>`: the label is already on screen above it, and
           a fieldset brings a legend and a border of its own that would both have to be undone.
           The group is labelled by the span, so a screen reader reads 「主題，淺色」 rather than
           announcing three unrelated buttons. */}
