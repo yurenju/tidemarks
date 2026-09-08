@@ -1,13 +1,11 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { currentlyReading, ONLY_ON_THIS_DEVICE, statusLines } from "../lib/book-status";
 import { db } from "../lib/db";
 import { importEpubFile } from "../lib/epub";
 import { detectScript, LINE_LENGTH } from "../lib/line-length";
 import { tidy } from "../lib/passage";
-import { pickOne, relativeAge, restoreShown, localDay, type RelativeAge } from "../lib/revisit";
+import { pickOne, relativeAge, restoreShown, localDay } from "../lib/revisit";
 import { loadShownToday, noteShown, saveShownToday } from "../lib/revisit-store";
 import { shelfProjection, type Shelf } from "../lib/shelf";
 import { loadShelfOrder, saveShelfOrder, sortShelf, type ShelfOrder } from "../lib/shelf-order";
@@ -15,6 +13,7 @@ import { SHELF_ORDERS } from "../lib/shelf-order-choices";
 import { getSyncState, scheduleSync, subscribeSync } from "../lib/sync";
 import { onlyOnThisDevice } from "../lib/sync-payload";
 import type { Annotation, BookRecord, StoredCover } from "../lib/types";
+import { AGE_LABELS } from "./age-labels";
 import { Wordmark } from "./Wordmark";
 
 export default function Library({
@@ -575,67 +574,6 @@ function useFitRow(row: React.RefObject<HTMLElement | null>, redo: unknown) {
     return () => observer.disconnect();
   }, [row, redo]);
 }
-
-/**
- * The words for each rung of `relativeAge`.
- *
- * Descriptors declared out here rather than `t({...})` calls inside the component, and that is
- * forced rather than chosen: lingui's macro only rewrites its own `t`, so a helper handed one
- * as an argument extracts nothing and the strings never reach a catalog. `Record<RelativeAge,
- * ...>` keeps the exhaustiveness a `switch` would have given — a new rung fails to compile.
- */
-const AGE_LABELS: Record<RelativeAge, MessageDescriptor> = {
-  justNow: msg({
-    message: "Just now",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.",
-  }),
-  today: msg({
-    message: "Today",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: earlier today.",
-  }),
-  yesterday: msg({
-    message: "Yesterday",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: the day before.",
-  }),
-  thisWeek: msg({
-    message: "This week",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: two to seven days back.",
-  }),
-  lastWeek: msg({
-    message: "Last week",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: one to two weeks back.",
-  }),
-  thisMonth: msg({
-    message: "This month",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: two to four weeks back.",
-  }),
-  lastMonth: msg({
-    message: "Last month",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: one to two months back.",
-  }),
-  thisYear: msg({
-    message: "This year",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: two months to a year back.",
-  }),
-  lastYear: msg({
-    message: "Last year",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: one to two years back.",
-  }),
-  longAgo: msg({
-    message: "Years ago",
-    comment:
-      "How long ago the reader marked the passage showing on the shelf's card: more than two years, the far end of the scale. Vague on purpose \u2014 past a certain distance the exact count stops meaning anything.",
-  }),
-};
 
 /**
  * The book the reader is in the middle of, as one row.

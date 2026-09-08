@@ -395,10 +395,10 @@ msgstr "本文のこの位置へ"
 msgid "Just added"
 msgstr "追加したばかり"
 
-#. How long ago the reader marked the passage showing on the shelf's card: within the hour. The card carries a distance rather than a date, because reaching back for what they were thinking then is what it is for.
+#. How long ago the reader marked the passage the reader is being shown: within the hour. Both places carry a distance rather than a date, because reaching back for what they were thinking then is what it is for.
 #. On the banner naming the reader's place in the book: that place was read less than a minute ago. Also what a position written slightly in the future says, since two devices' clocks need not agree.
+#: src/components/age-labels.ts
 #: src/components/ElsewhereBanner.tsx
-#: src/components/Library.tsx
 msgid "Just now"
 msgstr "たった今"
 
@@ -424,18 +424,18 @@ msgstr "言語"
 msgid "Large"
 msgstr "広い"
 
-#. How long ago the reader marked the passage showing on the shelf's card: one to two months back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: one to two months back.
+#: src/components/age-labels.ts
 msgid "Last month"
 msgstr "先月"
 
-#. How long ago the reader marked the passage showing on the shelf's card: one to two weeks back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: one to two weeks back.
+#: src/components/age-labels.ts
 msgid "Last week"
 msgstr "先週"
 
-#. How long ago the reader marked the passage showing on the shelf's card: one to two years back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: one to two years back.
+#: src/components/age-labels.ts
 msgid "Last year"
 msgstr "去年"
 
@@ -728,6 +728,11 @@ msgstr "明朝体"
 msgid "Settings"
 msgstr "設定"
 
+#. Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.
+#: src/components/AnnotationItem.tsx
+msgid "Show the whole passage"
+msgstr "引用全体を表示"
+
 #. Button that submits the code from the email and finishes signing in.
 #. Heading of the sign-in section, shown when there is no account on this device yet.
 #: src/components/AccountPanel.tsx
@@ -943,8 +948,8 @@ msgstr "この端末だけの設定です。言語はアカウントではなく
 msgid "This file will not open"
 msgstr "このファイルは開けません"
 
-#. How long ago the reader marked the passage showing on the shelf's card: two to four weeks back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: two to four weeks back.
+#: src/components/age-labels.ts
 msgid "This month"
 msgstr "今月"
 
@@ -953,13 +958,13 @@ msgstr "今月"
 msgid "This section will not render: {reason}"
 msgstr "この節は表示できません：{reason}"
 
-#. How long ago the reader marked the passage showing on the shelf's card: two to seven days back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: two to seven days back.
+#: src/components/age-labels.ts
 msgid "This week"
 msgstr "今週"
 
-#. How long ago the reader marked the passage showing on the shelf's card: two months to a year back.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: two months to a year back.
+#: src/components/age-labels.ts
 msgid "This year"
 msgstr "今年"
 
@@ -995,8 +1000,8 @@ msgstr "読んだ時間"
 msgid "Title"
 msgstr "書名順"
 
-#. How long ago the reader marked the passage showing on the shelf's card: earlier today.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: earlier today.
+#: src/components/age-labels.ts
 msgid "Today"
 msgstr "今日"
 
@@ -1031,13 +1036,13 @@ msgstr "検証に失敗しました"
 msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 msgstr "お金は払いたくないけれど端末を二台使いたい場合は、同期の側を自分で立てられます。"
 
-#. How long ago the reader marked the passage showing on the shelf's card: more than two years, the far end of the scale. Vague on purpose — past a certain distance the exact count stops meaning anything.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: more than two years, the far end of the scale. Vague on purpose — past a certain distance the exact count stops meaning anything.
+#: src/components/age-labels.ts
 msgid "Years ago"
 msgstr "数年前"
 
-#. How long ago the reader marked the passage showing on the shelf's card: the day before.
-#: src/components/Library.tsx
+#. How long ago the reader marked the passage the reader is being shown: the day before.
+#: src/components/age-labels.ts
 msgid "Yesterday"
 msgstr "昨日"
 

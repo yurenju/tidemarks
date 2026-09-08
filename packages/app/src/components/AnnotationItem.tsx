@@ -2,6 +2,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
 import type { Annotation } from "../lib/types";
 import { markVar } from "../lib/highlights";
+import { relativeAge } from "../lib/revisit";
+import { AGE_LABELS } from "./age-labels";
 
 export default function AnnotationItem({
   annotation,
@@ -24,8 +26,36 @@ export default function AnnotationItem({
   onSave: (note: string) => void;
   onRemove: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [draft, setDraft] = useState(annotation.note);
+  /** Set by the reader, and only ever in one direction: a passage they opened stays open. */
+  const [whole, setWhole] = useState(false);
+  /**
+   * Whether the three-line cut is actually hiding anything.
+   *
+   * **Measured rather than guessed from the length of the text.** A passage that happens to end
+   * on the third line is not cut, and drawing the fade and the press under it would announce a
+   * rest that does not exist; how many lines a passage takes is a question about the reader's
+   * type size (ADR-0006), the panel's width and the script it is set in, so counting characters
+   * answers a different question in every one of those.
+   *
+   * The observer is what keeps the answer true afterwards: the panel is a column that changes
+   * width when the window does, and the type size changes under the reader's hand in [[Layout]].
+   */
+  const [cut, setCut] = useState(false);
+  const quoteRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    const quote = quoteRef.current;
+    if (quote === null) return;
+    // Once open there is no clamp left to overflow, so the answer would come back `false` and
+    // take the press away from under a reader who may want to close it again.
+    if (whole) return;
+    const measure = () => setCut(quote.scrollHeight > quote.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(quote);
+    return () => observer.disconnect();
+  }, [whole, annotation.text]);
   useEffect(() => {
     if (editing) setDraft(annotation.note);
   }, [editing, annotation.note]);
@@ -95,7 +125,12 @@ export default function AnnotationItem({
   }, [editing]);
 
   return (
-    <div className="annotation-item" style={{ borderLeftColor: markVar(annotation.color) }}>
+    <div
+      className={`annotation-item${cut ? " cut" : ""}${whole ? " whole" : ""}`}
+      // The colour is set once here and read by the swatch and the rule beside the passage
+      // (`styles/book.css`), so the two cannot come out in different inks.
+      style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
+    >
       {/* **The box is the first thing in the item, and that is the whole of ADR-0044.** A virtual
           keyboard takes the bottom of the screen and tells the layout nothing about it — no
           viewport unit moves — and then scrolls the whole page to bring a covered caret into
@@ -161,6 +196,23 @@ export default function AnnotationItem({
           reads from the book. Before the panel started staying open, "that press landed" was
           the whole column closing, which every reader got. What replaced it is a colour, so
           the same fact has to be said in the tree as well (ADR-0021). */}
+      {/* **What this is about the mark rather than part of it**: the ink it was made in, and how
+          long ago. The same row the shelf's card carries, minus the book and the label — every
+          passage in this panel came out of the book the reader is holding, so naming it on each
+          one would be a word that repeats and says nothing.
+
+          The distance is the same ladder the card climbs (`lib/revisit.ts`) and the same words
+          (`age-labels.ts`): a reader who meets "Last month" on the shelf meets it here too.
+
+          Under the editor rather than over it, which is ADR-0044 again — the box has to be the
+          first thing in the item, so that the caret starts where a virtual keyboard cannot reach.
+          Nothing is above it when it is standing. */}
+      <p className="annotation-head">
+        {/* The colour is on the rule beside the passage as well, so this dot is a second saying
+            of it and carries no name of its own. */}
+        <span className="annotation-swatch" aria-hidden="true" />
+        {i18n._(AGE_LABELS[relativeAge(Date.now(), annotation.createdAt)])}
+      </p>
       <button
         type="button"
         className="annotation-quote"
@@ -174,8 +226,25 @@ export default function AnnotationItem({
       >
         {/* The passage is cut to three lines, and the cut is on this span rather than on the
             button around it — WebKit clamps nothing set on a control (`styles/book.css`). */}
-        <span className="annotation-quote-text">{annotation.text}</span>
+        <span ref={quoteRef} className="annotation-quote-text">
+          {annotation.text}
+        </span>
       </button>
+      {/* **The way back to the whole passage, under the passage.** Only where the cut is really
+          hiding something, and only until it is opened: a press that undid itself would be a
+          second state to explain, and nothing here is worth that. Closing it again is the panel
+          being reopened — the reader who wanted it whole wanted it whole.
+
+          Nothing like this stands under the note, and that asymmetry is the point: the passage
+          can be cut because pressing it goes to where it stands in the book, whole. A note has no
+          such route, so it is never cut (`styles/book.css`). */}
+      {cut && !whole && (
+        <button type="button" className="annotation-expand" onClick={() => setWhole(true)}>
+          <Trans comment="Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.">
+            Show the whole passage
+          </Trans>
+        </button>
+      )}
       {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}
       <div className="annotation-actions">
         {!editing && (
