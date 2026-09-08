@@ -270,6 +270,16 @@
   background: none;
 }
 
+/* Pressed stays paper. This button has no interior of its own — it is the passage itself — so
+   the fill `controls.css` gives a pressed button would paint the reading dark blue. Same case
+   as `.ghost` there, but it cannot say so by class, and the selector has to match that rule's
+   specificity to win on order. */
+button.mark-reading:active:not(:disabled) {
+  background: none;
+  border: none;
+  color: inherit;
+}
+
 .mark-reading:hover .mark-quote {
   text-decoration: underline;
   text-decoration-color: var(--line-actionable);
