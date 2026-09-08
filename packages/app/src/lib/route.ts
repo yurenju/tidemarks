@@ -25,12 +25,31 @@ const SETTINGS_PREFIX = "#/settings";
 /** What a CFI opens with, and therefore how `?select=` tells one from a phrase. */
 const CFI_PREFIX = "epubcfi(";
 
-/** Which pane of [[Settings]] is showing. */
-export type SettingsTab = "typography" | "account" | "language";
+/**
+ * Which pane of [[Settings]] is showing.
+ *
+ * **Two, and neither of them is typography.** How a book is set moved out of here entirely: the
+ * five settings that only mean something over a page — columns, typeface, size, line height,
+ * margin — are reachable from the reader's own panel, where the book above them is the preview
+ * (ADR-0050). What is left on this floor is what Tidemarks is rather than what a book looks
+ * like: [[Theme]] and [[Language]] under `interface`, and everything about the account under
+ * `account`.
+ *
+ * [[Theme]] is the one that stayed, because it is the one this floor can show: pressing Dark
+ * repaints the screen it was pressed on.
+ */
+export type SettingsTab = "interface" | "account";
 
-const SETTINGS_TABS: SettingsTab[] = ["typography", "account", "language"];
-/** The one a reader almost always came for, and what an unreadable tab falls back to. */
-const DEFAULT_SETTINGS_TAB: SettingsTab = "typography";
+const SETTINGS_TABS: SettingsTab[] = ["interface", "account"];
+/**
+ * Where an unreadable tab lands, and where the login return lands.
+ *
+ * `account` rather than `interface`: a reader who came to this floor at all almost always came
+ * for sign-in or their books, since the two rows under `interface` are set once and never
+ * visited again. Old `#/settings/typography` addresses fall here too, which is the whole
+ * handling they get — nobody outside can be holding one yet (ADR-0004).
+ */
+const DEFAULT_SETTINGS_TAB: SettingsTab = "account";
 
 /**
  * Where in a book to open, when the address names somewhere in particular rather than "wherever

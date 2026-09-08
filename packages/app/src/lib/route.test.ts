@@ -35,8 +35,8 @@ describe("parseHash", () => {
   });
 
   it("reads each settings tab", () => {
-    expect(parseHash("#/settings/typography")).toEqual({
-      screen: { kind: "settings", tab: "typography" },
+    expect(parseHash("#/settings/interface")).toEqual({
+      screen: { kind: "settings", tab: "interface" },
       panel: null,
     });
     expect(parseHash("#/settings/account")).toEqual({
@@ -47,17 +47,25 @@ describe("parseHash", () => {
 
   // Settings is a floor rather than a panel now, so a bare `#/settings` names a real screen.
   // It opens on the tab a reader almost always came for, instead of being dropped for the shelf.
-  it("lands a tabless settings hash on Type", () => {
+  //
+  // `typography` is in here as a hash that no longer names anything: the tab it named left this
+  // floor (ADR-0050), and an address that used to work now falls back like any other unreadable
+  // one rather than getting a redirect of its own.
+  it("lands a tabless or unreadable settings hash on Account", () => {
     expect(parseHash("#/settings")).toEqual({
-      screen: { kind: "settings", tab: "typography" },
+      screen: { kind: "settings", tab: "account" },
       panel: null,
     });
     expect(parseHash("#/settings/")).toEqual({
-      screen: { kind: "settings", tab: "typography" },
+      screen: { kind: "settings", tab: "account" },
       panel: null,
     });
     expect(parseHash("#/settings/nope")).toEqual({
-      screen: { kind: "settings", tab: "typography" },
+      screen: { kind: "settings", tab: "account" },
+      panel: null,
+    });
+    expect(parseHash("#/settings/typography")).toEqual({
+      screen: { kind: "settings", tab: "account" },
       panel: null,
     });
   });
@@ -309,7 +317,7 @@ describe("hashFor", () => {
     const routes: Route[] = [
       { screen: shelf, panel: null },
       { screen: { kind: "book", bookId: "abc" }, panel: null },
-      { screen: { kind: "settings", tab: "typography" }, panel: null },
+      { screen: { kind: "settings", tab: "interface" }, panel: null },
       { screen: { kind: "settings", tab: "account" }, panel: null },
       { screen: { kind: "book", bookId: "a/b c" }, panel: null },
       { screen: shelf, panel: { kind: "about", bookId: "a/b c" } },

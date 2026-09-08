@@ -385,6 +385,11 @@ msgstr "読み込み、閲覧、マーク、メモ、組版、書き出しは、
 msgid "Indigo"
 msgstr "藍"
 
+#. [[Settings]] tab holding the two settings that are about Tidemarks rather than about a book: the light/dark theme and the interface language.
+#: src/components/SettingsScreen.tsx
+msgid "Interface"
+msgstr "インターフェース"
+
 #. Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.
 #: src/components/AnnotationItem.tsx
 msgid "Jump to this passage"
@@ -412,10 +417,8 @@ msgstr "残す"
 msgid "Keep reading"
 msgstr "続きを読む"
 
-#. Label of the only control in [[Settings]]'s language tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
-#. [[Settings]] tab holding the interface language. One word, sits beside Type and Account.
+#. Label of the language control in [[Settings]]'s interface tab. The row beside it lists English / 繁體中文 / 日本語, each written in itself.
 #: src/components/LanguageForm.tsx
-#: src/components/SettingsScreen.tsx
 msgid "Language"
 msgstr "言語"
 
@@ -439,6 +442,11 @@ msgstr "先週"
 msgid "Last year"
 msgstr "去年"
 
+#. Screen-reader name for the − button of a stepper — the control for settings that are a scale, like [[Line height]] and [[Margin]]. Shared by every stepper, so it names the direction rather than the setting.
+#: src/components/Stepper.tsx
+msgid "Less"
+msgstr "減らす"
+
 #. The question on the consent page. The value is the name the agent registered under, and is escaped before it reaches the page. The quotation marks are this language's — Chinese uses 「」.
 #. js-lingui-explicit-id
 #: worker/authorize.ts
@@ -450,7 +458,7 @@ msgstr "「{clientName}」を本棚に接続しますか？"
 msgid "Light"
 msgstr "ライト"
 
-#. Label of the line-height dropdown in the typography panel.
+#. Label of the line-height control in the typography panel.
 #: src/components/TypographyForm.tsx
 msgid "Line height"
 msgstr "行送り"
@@ -494,6 +502,11 @@ msgstr "{ink}でマーク"
 #: src/lib/settings.ts
 msgid "Medium"
 msgstr "ふつう"
+
+#. Screen-reader name for the + button of a stepper — the control for settings that are a scale, like [[Line height]] and [[Margin]]. Shared by every stepper, so it names the direction rather than the setting.
+#: src/components/Stepper.tsx
+msgid "More"
+msgstr "増やす"
 
 #. One of four ink colours for marking a passage. A pigment name: the green of moss (苔綠).
 #: src/lib/highlights.ts
@@ -899,8 +912,8 @@ msgstr "オンラインになったらフォントを取得します"
 msgid "The server's copy is kept for 24 months. The books, notes and positions on this device are untouched."
 msgstr "サーバー上の控えは 24 か月保管します。この端末の本・メモ・読書位置はそのままです。"
 
-#. Label of the light/dark control in the typography panel.
-#: src/components/TypographyForm.tsx
+#. Label of the light/dark control. It is shown in two places — the reader's typography panel and [[Settings]]'s interface tab — and is one setting in both.
+#: src/components/ThemeField.tsx
 msgid "Theme"
 msgstr "テーマ"
 
@@ -1023,10 +1036,8 @@ msgstr "二段"
 
 #. Bar button raising the panel holding the six typography settings. Same word as that panel's own title.
 #. Title of the panel holding the six typography settings, and the label of the bar button that raises it. It is about how the book is set, not about the book's contents.
-#. [[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.
 #: src/components/reader-messages.ts
 #: src/components/Reader.tsx
-#: src/components/SettingsScreen.tsx
 msgid "Type"
 msgstr "組版"
 

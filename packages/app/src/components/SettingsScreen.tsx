@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import AccountPanel from "./AccountPanel";
 import LanguageForm from "./LanguageForm";
-import TypographyForm from "./TypographyForm";
+import ThemeField from "./ThemeField";
 import type { ReaderSettings } from "../lib/settings";
 import type { Locale } from "../lib/locale";
 import type { SettingsTab } from "../lib/route";
@@ -16,13 +16,16 @@ import type { ReactNode } from "react";
  * pass and a panel has to fail (CONTEXT.md, [[Surfaces]]). It used to stack over the shelf or over
  * a book as `?d=settings`, which is why it never had room for anything but one list.
  *
- * **Three tabs, ordered near to far**: type is touched most days, the account a few times a
- * year, the language about once. The order is itself a sentence about which one the reader
- * probably came for.
+ * **Two tabs now, and neither of them is typography.** How a book is set left this floor
+ * entirely: there is no book here, so a reader could work through all five of columns, typeface,
+ * size, line height and margin and watch nothing happen. They are in the reader's own panel,
+ * where the page above them is the preview (ADR-0050).
  *
- * The reader's own type panel shows the same `TypographyForm` this does. That is not the
- * duplication this change set out to kill: there is one stored record now, so the two are one
- * setting shown in two places rather than two scopes wearing identical controls (ADR-0005).
+ * What is left divides cleanly. `interface` holds the two settings that are about Tidemarks
+ * rather than about a book — [[Theme]] and [[Language]] — and `account` holds sign-in, billing
+ * and backup. [[Theme]] is on this floor because it is the one setting this floor can show:
+ * pressing Dark repaints the screen it was pressed on. The reader's panel shows the same row,
+ * one setting in two places rather than two settings that look alike (ADR-0005).
  */
 export default function SettingsScreen({
   tab,
@@ -30,7 +33,6 @@ export default function SettingsScreen({
   onBack,
   settings,
   onChange,
-  onReset,
   onImported,
   locale,
   onLocaleChange,
@@ -40,7 +42,6 @@ export default function SettingsScreen({
   onBack: () => void;
   settings: ReaderSettings;
   onChange: (patch: Partial<ReaderSettings>) => void;
-  onReset: () => void;
   /** The shelf has to reload after a backup lands: it is holding rows that just changed. */
   onImported: () => void;
   locale: Locale;
@@ -68,12 +69,15 @@ export default function SettingsScreen({
       </header>
 
       <nav className="settings-tabs" data-testid="settings-tabs">
+        {/* First, and not because it is the one they came for — Account is. It is first because
+            it is the smaller idea: two rows about Tidemarks itself, ahead of everything about
+            the account behind it. */}
         <Tab
           open={tab}
-          tab="typography"
+          tab="interface"
           label={
-            <Trans comment="[[Settings]] tab holding the six typography settings. Shares its entry with the reader's own bar button for the same panel.">
-              Type
+            <Trans comment="[[Settings]] tab holding the two settings that are about Tidemarks rather than about a book: the light/dark theme and the interface language.">
+              Interface
             </Trans>
           }
           onTab={onTab}
@@ -86,34 +90,16 @@ export default function SettingsScreen({
           }
           onTab={onTab}
         />
-        {/* Last, because it is the rarest: a reader sets this once and never returns. */}
-        <Tab
-          open={tab}
-          tab="language"
-          label={
-            <Trans comment="[[Settings]] tab holding the interface language. One word, sits beside Type and Account.">
-              Language
-            </Trans>
-          }
-          onTab={onTab}
-        />
       </nav>
 
       <div className="settings-pane">
-        {tab === "typography" ? (
-          <TypographyForm
-            settings={settings}
-            onChange={onChange}
-            onReset={onReset}
-            /* No book on this floor, so the column choice has nothing to be taken away for. A
-               vertically-written book disables it in the reader's own panel, where the book
-               is. */
-            verticalBook={false}
-          />
-        ) : tab === "account" ? (
-          <AccountPanel onImported={onImported} />
+        {tab === "interface" ? (
+          <div className="form-rows">
+            <ThemeField theme={settings.theme} onChange={(theme) => onChange({ theme })} />
+            <LanguageForm locale={locale} onChange={onLocaleChange} />
+          </div>
         ) : (
-          <LanguageForm locale={locale} onChange={onLocaleChange} />
+          <AccountPanel onImported={onImported} />
         )}
       </div>
 

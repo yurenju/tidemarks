@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useLingui } from "@lingui/react";
 import type { MessageDescriptor } from "@lingui/core";
 
@@ -26,20 +26,32 @@ export type SegmentLabel = string | MessageDescriptor;
  * glanced at, and it survives the dark theme, where `--tide` flips to a light blue on a
  * near-black panel and a 2px rule under a Song face would be a rule nobody can see. ADR-0022's
  * tide budget counts this as one with its control, not one per cell.
+ *
+ * **Two shapes, one control.** A cell says its option in words; a tile draws it — the typeface's
+ * own `Aa`, two columns as two columns. Which one a setting takes is ADR-0050's question, not
+ * this component's, and the keyboard contract is the same either way, which is why they are one
+ * file rather than two that would drift.
  */
 export default function Segmented<T extends string | number>({
   label,
   testId,
   options,
   value,
+  shape = "cells",
   disabled = false,
   disabledReason,
   onChange,
 }: {
   label: SegmentLabel;
   testId: string;
-  options: readonly { label: SegmentLabel; value: T }[];
+  /**
+   * `art` is the tile's picture, and only tiles read it. It is decoration beside a name the
+   * cell already carries, so it is hidden from the accessibility tree at the point of use.
+   */
+  options: readonly { label: SegmentLabel; value: T; art?: ReactNode }[];
   value: T;
+  /** How each option shows itself: `cells` is a row of words, `tiles` a row of pictures. */
+  shape?: "cells" | "tiles";
   disabled?: boolean;
   /** Why the whole group is off, as the tooltip on every cell of it. */
   disabledReason?: string;
@@ -80,7 +92,7 @@ export default function Segmented<T extends string | number>({
           The group is labelled by the span, so a screen reader reads 「主題，淺色」 rather than
           announcing three unrelated buttons. */}
       <div
-        className="segmented"
+        className={shape === "tiles" ? "tiles" : "segmented"}
         role="radiogroup"
         data-testid={testId}
         aria-labelledby={`${testId}-label`}
@@ -106,12 +118,19 @@ export default function Segmented<T extends string | number>({
                one control, and tabbing through four cells to leave [[Theme]] would make it four. */
             tabIndex={option.value === value ? 0 : -1}
             data-testid={`${testId}-${option.value}`}
-            className="segment"
+            className={shape === "tiles" ? "tile" : "segment"}
             disabled={disabled}
             title={disabled ? disabledReason : undefined}
             onClick={() => onChange(option.value)}
           >
-            {say(option.label)}
+            {/* The picture is not a second name for the same thing — a screen reader reading
+                "two columns, two columns" is worse than one that reads it once. */}
+            {shape === "tiles" && option.art !== undefined && (
+              <span className="tile-art" aria-hidden="true">
+                {option.art}
+              </span>
+            )}
+            <span>{say(option.label)}</span>
           </button>
         ))}
       </div>

@@ -3,6 +3,9 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import Segmented from "./Segmented";
+import Stepper from "./Stepper";
+import ThemeField from "./ThemeField";
+import { columnsAuto, columnsOne, columnsTwo, faceArt } from "./setting-art";
 import { db } from "../lib/db";
 import {
   COLUMN_CHOICES,
@@ -13,7 +16,6 @@ import {
   FONT_SIZE_STEP,
   LINE_HEIGHTS,
   MARGINS,
-  THEME_CHOICES,
   type FontChoice,
   type ReaderSettings,
 } from "../lib/settings";
@@ -60,22 +62,13 @@ export default function TypographyForm({
    */
   webFontStatus?: WebFontStatus | null;
 }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   // Named rather than read inline, so the catalog carries `{size}` instead of a bare `{0}`.
   const size = settings.fontSize;
 
   return (
     <div className="form-rows">
-      <Segmented
-        label={msg({
-          message: "Theme",
-          comment: "Label of the light/dark control in the typography panel.",
-        })}
-        testId="setting-theme"
-        options={THEME_CHOICES}
-        value={settings.theme}
-        onChange={(theme) => onChange({ theme })}
-      />
+      <ThemeField theme={settings.theme} onChange={(theme) => onChange({ theme })} />
 
       {/* Disabled over a vertical book because frond cannot honour two columns there at all —
           "cannot do it" is the only grounds for taking a choice away. Two columns on a phone is
@@ -86,7 +79,8 @@ export default function TypographyForm({
           comment: "Label of the control choosing how many columns a page is set in.",
         })}
         testId="setting-columns"
-        options={COLUMN_CHOICES}
+        shape="tiles"
+        options={COLUMN_ART}
         value={settings.columns}
         disabled={verticalBook}
         disabledReason={t({
@@ -104,7 +98,8 @@ export default function TypographyForm({
             "Label of the control choosing which face the book is set in. Kept short: the row is label-left, control-right, and the control beside it holds three options.",
         })}
         testId="setting-font-family"
-        options={FONT_FAMILIES}
+        shape="tiles"
+        options={FACE_ART}
         value={settings.fontFamily}
         onChange={(fontFamily) => onChange({ fontFamily })}
       />
@@ -127,26 +122,21 @@ export default function TypographyForm({
         />
       </label>
 
-      <label className="form-row">
-        <span className="form-label">
-          <Trans comment="Label of the line-height dropdown in the typography panel.">
-            Line height
-          </Trans>
-        </span>
-        <select
-          data-testid="setting-line-height"
-          value={String(settings.lineHeight)}
-          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
-        >
-          {LINE_HEIGHTS.map((h) => (
-            <option key={h.value} value={String(h.value)}>
-              {i18n._(h.label)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* The two scales. Both used to show every option at once — [[Line height]] as a `<select>`,
+          [[Margin]] as four cells — and both are one row now, because what a reader asks a scale is
+          "more or less than this" rather than "which of these six" (ADR-0050). */}
+      <Stepper
+        label={msg({
+          message: "Line height",
+          comment: "Label of the line-height control in the typography panel.",
+        })}
+        testId="setting-line-height"
+        options={LINE_HEIGHTS}
+        value={settings.lineHeight}
+        onChange={(lineHeight) => onChange({ lineHeight })}
+      />
 
-      <Segmented
+      <Stepper
         label={msg({
           message: "Margin",
           comment:
@@ -170,6 +160,19 @@ export default function TypographyForm({
     </div>
   );
 }
+
+/**
+ * The two tiled settings, each option paired with the picture it shows.
+ *
+ * Built here rather than in `lib/settings.ts` so the pictures stay out of the record's own
+ * module: what a setting *is* travels to frond and to storage, and a drawing does neither.
+ */
+const COLUMN_ART = COLUMN_CHOICES.map((choice) => ({
+  ...choice,
+  art: choice.value === "auto" ? columnsAuto : choice.value === 1 ? columnsOne : columnsTwo,
+}));
+
+const FACE_ART = FONT_FAMILIES.map((family) => ({ ...family, art: faceArt(family.value) }));
 
 function isDefault(settings: ReaderSettings): boolean {
   return (Object.keys(DEFAULT_SETTINGS) as (keyof ReaderSettings)[]).every(

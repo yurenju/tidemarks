@@ -19,22 +19,24 @@ test("opens Settings from the shelf and comes back to the same tab after a reloa
   await page.getByTestId("open-settings").click();
 
   await expect(page.getByTestId("settings-screen")).toBeVisible();
-  expect(new URL(page.url()).hash).toBe("#/settings/typography");
+  // Account, because that is what a reader who left the shelf for this floor came for — the two
+  // rows under Interface are set once and never visited again (ADR-0050).
+  expect(new URL(page.url()).hash).toBe("#/settings/account");
 
   await page.reload();
   await expect(page.getByTestId("settings-screen")).toBeVisible();
-  await expect(page.getByTestId("setting-theme")).toBeVisible();
+  await expect(page.getByTestId("sign-in")).toBeVisible();
 });
 
 test("each tab has an address of its own", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("open-settings").click();
-  await page.getByTestId("settings-tab-account").click();
+  await page.getByTestId("settings-tab-interface").click();
 
-  expect(new URL(page.url()).hash).toBe("#/settings/account");
+  expect(new URL(page.url()).hash).toBe("#/settings/interface");
   await page.reload();
-  // [[Account]]'s own first line, so this is the pane and not merely the screen.
-  await expect(page.getByText("No account needed to read", { exact: false })).toBeVisible();
+  // The theme row itself, so this is the pane and not merely the screen.
+  await expect(page.getByTestId("setting-theme")).toBeVisible();
 });
 
 test("back leaves the settings screen and lands on the shelf, not outside the app", async ({
@@ -64,6 +66,8 @@ test("leaves the shelf visible behind the details panel", async ({ page }) => {
 test("a theme set in Settings is still set after a reload", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("open-settings").click();
+  // The floor opens on Account now, and the theme lives one tab over (ADR-0050).
+  await page.getByTestId("settings-tab-interface").click();
 
   await segment(page, "setting-theme", "dark").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

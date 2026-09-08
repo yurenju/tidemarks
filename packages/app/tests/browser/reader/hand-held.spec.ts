@@ -8,7 +8,8 @@ import {
   openBook,
   openChrome,
   openPanel,
-  segment,
+  stepTo,
+  stepValue,
   longPressSelect,
 } from "../support/library.js";
 
@@ -164,9 +165,12 @@ test("a panel sends the entries and the Scrubber away rather than stacking on th
 /**
  * How much of the book [[Layout]] leaves, measured rather than claimed.
  *
- * Six rows have to fit without scrolling, because the page above the panel is the preview: the
- * panel covers the book rather than pushing it here, so what shows up there is the real type
- * resetting as the reader drags (ADR-0005).
+ * **A third of the reader, and the form may scroll for it.** The page above the panel is the
+ * preview — the panel covers the book rather than pushing it, so what shows up there is the real
+ * type resetting as the reader drags (ADR-0005) — and that is the half worth protecting. The
+ * other half, six rows with nothing below the fold, was given up when every row took a line for
+ * its label and three of them became tiles (ADR-0050). What the log below prints is how much
+ * went under; what fails the test is the book losing its third.
  *
  * **Measured against the reader, not against `.chrome-gap`.** The gap is the room between the
  * bars, and while a panel is open on a hand-held there are no bars — the sheet runs to the
@@ -192,53 +196,10 @@ test("Layout leaves the book showing above it", async ({ page }) => {
   // a two-line sliver has met the letter of the rule and lost what the rule was for.
   expect(reader.height - popup.height).toBeGreaterThan(reader.height * 0.3);
 
-  // And the last row, the one a short panel would hide, really does work.
-  await segment(page, "setting-margin", 48).click();
-  await expect(segment(page, "setting-margin", 48)).toHaveAttribute("aria-checked", "true");
-});
-
-/**
- * #160, paid off — and by the bars rather than by the book.
- *
- * The rows were given the vertical padding that keeps a hairline off the control it belongs to,
- * and on a hand-held there was no room for it: six hit areas at a finger's 44px are already
- * 264px, and the panel could only have 29rem because the entries and the Scrubber were standing
- * under it. With those two out of the way the same third of the screen buys the panel 36rem,
- * which fits the form.
- *
- * **It is 390×844 this holds at**, which is what the viewport above says. On a shorter phone the
- * `70vh` half of the cap bites first and the form goes back to scrolling; that is the right way
- * round, because a form that scrolls has lost a scroll and a panel with no book above it has
- * lost the thing it covers the page for.
- */
-/**
- * **In Chinese, and so far only in Chinese.**
- *
- * The suite runs in English — the source language, so a failure reads as a difference in
- * behaviour rather than one in translation (`playwright.config.ts`). English is wider:
- * 「無 小 中 大」 is four characters where "None Small Medium Large" is nineteen, so [[Margin]]'s
- * four cells no longer fit beside their label and that row takes a second line. Measured in the
- * test image at 390×844: the form is 543px against a 506px box, and the whole of that 37px is
- * that one row.
- *
- * The property below was designed and measured for Chinese, so Chinese is where it is still
- * asserted. Making it true in English is #27 — a question about wording and about the panel's
- * cap, not about this file.
- */
-test.describe("in Chinese, where the form was measured", () => {
-  test.use({ locale: "zh-TW" });
-
-  test("Layout fits without scrolling", async ({ page }) => {
-    await openPanel(page, "排版");
-
-    const body = page.locator("[data-testid='panel-layout'] .panel-body");
-    const { scrollHeight, clientHeight } = await body.evaluate((el) => ({
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-    }));
-
-    expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
-  });
+  // And the last row, the one a short panel would hide, really does work — scrolled to rather
+  // than merely present, which is the whole difference between "below the fold" and "gone".
+  await stepTo(page, "setting-margin", 3);
+  await expect(stepValue(page, "setting-margin")).toHaveAttribute("aria-valuenow", "3");
 });
 
 /**

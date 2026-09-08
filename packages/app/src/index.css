@@ -33,9 +33,10 @@
    line and its rail, the busy indicator, and the room a panel is drawn into. */
 @import "./styles/reader.css";
 
-/* The six typography settings, in both shells that show them — the reader's panel and the
-   Type tab of [[Settings]] — along with the font download line, its progress bar, and the note
-   that follows a font job. */
+/* The six typography settings in the reader's panel, the one of them [[Settings]] also shows
+   ([[Theme]], on its interface tab), and the shapes they take — cells, tiles, steppers and the
+   slider (ADR-0050) — along with the font download line, its progress bar, and the note that
+   follows a font job. */
 @import "./styles/typography.css";
 
 /* The book and what the reader leaves on it: the contents list, frond's mount, the highlight
