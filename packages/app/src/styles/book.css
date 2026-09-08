@@ -694,13 +694,85 @@ button.selection-handle:active:not(:disabled) {
   transform: scale(1.1);
 }
 
-/* The reader's own mark, carried into the list: the rule down the side is the ink they made
-   it in, so a note found here is recognisably the passage they marked in the book. */
+/* **The marks of one chapter, under its name.**
+   ===========================================
+   A book's marks arrive in book order (`sortByBookOrder`), and the chapter each one falls in is
+   read off its CFI (`lib/annotation-groups.ts`). What the heading buys is a way to scan: a list
+   of forty passages has nothing to hold on to, and the reader looking for the one from the
+   argument in chapter three has the book's own structure to find it by.
+
+   The run is a column with its own gap, and the panel's gap between runs is wider — that
+   difference is what makes a heading read as belonging to what is under it rather than floating
+   between two blocks. */
+.annotation-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* **The book's word, so it is set as the book's**: the interface's serif at the small size, not
+   the tracked-out mono label the system uses when it is talking about itself. A chapter name is
+   the one thing on this panel that the book wrote.
+
+   The rule under it is the panel's own hairline, which is what separates two runs when a chapter
+   has only one mark and the gap alone is not enough to read as a division.
+
+   ⚠️ **Not sticky, though a heading that followed the reader down a long chapter would be worth
+   having.** Sticky offsets are measured from `.panel-body`'s scrollport, and that is the same
+   edge ADR-0044 scrolls the mark being edited to: a pinned heading would come to rest over the
+   note box, which is the one thing on this panel that must never be covered. Getting both would
+   mean the heading knowing about the editor, and it is not worth that. */
+.annotation-chapter-name {
+  margin: 0;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line-hair);
+  font-size: var(--type-ui);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* One marked passage in the panel, as a card.
+   =========================================
+   **The same block the shelf's card is** (`.mark-card`, `library.css`), for the same reason: a
+   passage the reader marked is the one thing in this app that is theirs, and a list of equal
+   rows said the opposite — that these were entries in a register. What the two share is the
+   housekeeping row above the reading and a surface that stands off the panel; what they do not
+   share is the cover and the book's name, which have nothing to say here. Every passage in this
+   panel came out of the book the reader is holding.
+
+   The mark's own colour is the rule beside the passage rather than the edge of the card: the
+   card is paper and the colour is ink (`docs/design-system.md`), and ink belongs against the
+   reading, not around the frame. */
 .annotation-item {
-  border-left: 3px solid var(--mark-indigo);
-  border-radius: 0 var(--radius-surface) var(--radius-surface) 0;
-  padding: 0.5rem 0.7rem;
-  background: var(--surface-sunken);
+  padding: var(--space-4);
+  border: 1px solid var(--line-firm);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+}
+
+/* **The housekeeping row**: the colour it was marked in, and how long ago. Both are about the
+   mark rather than part of it, so both are set in the label face at the smallest size — the
+   same division the shelf's `.mark-head` draws.
+
+   No word in front of the dot. The shelf's card says "From your marks" because it appears
+   among other kinds of block; nothing else is in this panel, so a label here would repeat on
+   every row and say nothing. */
+.annotation-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-control);
+  font-size: var(--type-eyebrow);
+  color: var(--text-muted);
+}
+
+.annotation-swatch {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-dot);
+  background: var(--mark, var(--mark-indigo));
 }
 
 /* Prose in a control, so the button rules that suit a label are undone here: it wraps, it fills
@@ -708,10 +780,15 @@ button.selection-handle:active:not(:disabled) {
 .annotation-quote {
   display: block;
   width: 100%;
-  margin: 0 0 0.3rem;
+  margin: 0;
   border: none;
   background: none;
-  padding: 0;
+  padding: 0 0 0 var(--space-3);
+  /* **The mark's own ink, as a shadow rather than a border.** `controls.css` restates
+     `border-color` on every button it does not exempt while it is pressed, so a border here
+     flashed tide under the reader's finger — and out-specifying that rule costs a selector
+     nobody can read. A shadow is not in that rule's vocabulary. */
+  box-shadow: inset 3px 0 0 var(--mark, var(--mark-indigo));
   text-align: left;
   white-space: normal;
   font-family: inherit;
@@ -725,12 +802,25 @@ button.selection-handle:active:not(:disabled) {
   text-decoration: underline;
 }
 
-/* **Three lines each, then an ellipsis**, for the passage and for the note under it.
-   ---------------------------------------------------------------------------------
-   A mark is however much text the reader dragged over, so a paragraph-long one filled the
-   panel on its own and a book with six marks read as one wall of prose — nothing was findable
-   by scanning it. Both halves are one press from being whole again: the quote leads back to
-   the passage in the book, and [[Edit note]] opens the note in a box that holds all of it.
+/* Pressed stays paper, for the reason the shelf's own passage gives (`.mark-reading`,
+   `library.css`): this button has no interior of its own — it is the reading — so the fill
+   `controls.css` gives a pressed button would paint the passage dark blue. The selector matches
+   that rule's specificity so that it wins on order. */
+button.annotation-quote:active:not(:disabled) {
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+/* **Three lines, then the passage fades out** — and only the passage. The note under it is
+   whole however long it runs.
+   -------------------------------------------------------------------------------------
+   A mark is however much text the reader dragged over, so a paragraph-long one filled the panel
+   on its own and a book with six marks read as one wall of prose — nothing was findable by
+   scanning it. The passage can be cut because there is a way back that costs nothing: pressing
+   it goes to where it stands in the book, whole. **The note cannot**, which is why the cut used
+   to be wrong on it: the only route to the rest of a cut note was [[Edit note]], and asking a
+   reader to open an editor in order to *read* is asking them to risk changing what they wrote.
 
    **The clamp is on a span inside the button, not on the button.** WebKit wraps a button's
    content in an anonymous box, so a clamp set on the control itself has one line item to count
@@ -745,14 +835,69 @@ button.selection-handle:active:not(:disabled) {
   overflow: hidden;
 }
 
-.note-text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
-  margin: 0.2rem 0;
-  font-size: var(--type-ui);
+.annotation-item.whole .annotation-quote-text {
+  display: block;
+  overflow: visible;
+}
+
+/* **The last line sinks into the card**, which is what a passage running out of room looks like
+   on paper. It is drawn only where something is actually hidden — the component measures rather
+   than guesses (`AnnotationItem.tsx`), because a fade under a passage that happens to end on the
+   third line would announce a rest that is not there.
+
+   Painted on the span, so it follows the passage's own box and no width has to be kept in step
+   with the card's padding. `--surface-raised` is the card underneath it; a gradient to
+   `transparent` fades to black in some engines' colour interpolation, so the two ends are the
+   same colour with different alpha. */
+.annotation-item.cut .annotation-quote-text {
+  position: relative;
+}
+
+.annotation-item.cut .annotation-quote-text::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(var(--type-body) * var(--leading-text));
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0), var(--surface-raised));
+  pointer-events: none;
+}
+
+/* **Under the passage it opens, not in the row of actions.** Beside [[Edit note]] and [[Delete]] it
+   read as a third thing done to the mark; under the passage, what it opens is its position.
+
+   Borderless, which `controls.css` allows only where a container has already said this can be
+   pressed — the card has. The padding is what `button:hover`'s wash needs in order not to sit on
+   the words, and the left margin gives it back so the words still line up under the passage. */
+.annotation-expand {
+  display: inline-block;
+  margin: var(--space-2) 0 0 calc(var(--space-3) - var(--space-2));
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  min-height: var(--tap-dense);
+  font-family: var(--font-control);
+  font-size: var(--type-eyebrow);
   color: var(--text-muted);
+}
+
+.annotation-expand:hover {
+  color: var(--text-primary);
+  /* `button:hover` strokes the rule in tide as well, and there is no rule here to stroke. */
+  border-color: transparent;
+}
+
+/* The reader's own words, behind the same indent as the passage and never cut. Blank lines in a
+   note are the reader's paragraphs, so the whitespace is kept rather than collapsed — a note
+   written over three sittings is three paragraphs, and one run-on block is not what they wrote. */
+.note-text {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line-hair);
+  white-space: pre-wrap;
+  font-size: var(--type-ui);
+  color: var(--text-body);
 }
 
 .note-editor {
@@ -772,8 +917,9 @@ button.selection-handle:active:not(:disabled) {
 
 .annotation-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 0.4rem;
-  margin-top: 0.3rem;
+  margin-top: var(--space-3);
 }
 
 .annotation-actions button {

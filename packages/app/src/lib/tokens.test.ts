@@ -58,7 +58,9 @@ const CSS = IMPORTED.map((path) => read(new URL(path, ENTRY))).join("\n");
  * file that catches it.
  */
 const SET_ONLY_AT_RUNTIME = new Set([
-  // `HighlightLayer` — which of the four inks this mark was made in.
+  // `HighlightLayer` and `AnnotationItem` — which of the four inks this mark was made in. One
+  // name for one fact: the box drawn over the passage in the book and the rule beside it in the
+  // panel are the same mark, and a second name would let the two drift into different colours.
   "--mark",
   // `Scrubber` — where along the rail the visit mark stands. It is a position, so it belongs to
   // the visit rather than to the sheet; the sheet's job is to clamp it away from the two ends,

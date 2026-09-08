@@ -25,6 +25,7 @@ import {
 import { AT_REST } from "../lib/turn";
 import { useSelection } from "../lib/useSelection";
 import { chapterAt, type ChapterBoundary, type FlatTocItem } from "../lib/toc";
+import { groupByChapter } from "../lib/annotation-groups";
 import { boxesContain, hitBoxes, markStrips, textBoxes } from "../lib/highlights";
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
@@ -506,6 +507,9 @@ export default function Reader({
   // leaves its parent chapter alone. Marking the ancestors too would put three marks on a
   // three-level book, and the reader is in one place.
   const currentTocIndex = chapterAt(sectionIndex, chapters)?.tocIndex ?? null;
+  // Every mark's CFI is parsed to file it under a chapter, and the reader re-renders on every
+  // page turn — so this is held rather than redone at 60Hz while the panel stands open.
+  const noteGroups = useMemo(() => groupByChapter(annotations, chapters), [annotations, chapters]);
   const currentItemRef = useRef<HTMLButtonElement>(null);
 
   // A mark nobody scrolls to is no mark at all: a long list opens at the top. Runs on open and
@@ -938,7 +942,7 @@ export default function Reader({
         )}
 
         {panelKind === "notes" && (
-          <div className="panel-list">
+          <div className="panel-list panel-list-notes">
             {annotations.length === 0 && (
               <p className="empty">
                 <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
@@ -946,33 +950,50 @@ export default function Reader({
                 </Trans>
               </p>
             )}
-            {annotations.map((a) => (
-              <AnnotationItem
-                key={a.id}
-                annotation={a}
-                editing={editingId === a.id}
-                pointedAt={selectedNoteId === a.id}
-                onJump={() => {
-                  // The jump is the place's to make: whether it opens a visit and where the
-                  // book moves to are one decision, and they used to be two calls that had to
-                  // be kept in the right order (`lib/place.ts`).
-                  visitPassage(a.cfiRange);
-                  // And the address bar follows, so the passage on screen is one the reader can
-                  // copy out and send. The jump itself has already happened — this names it.
-                  onAt?.({ kind: "cfi", cfi: a.cfiRange });
-                  // **Not `jumped`, unlike the table of contents.** A chapter is a place to be
-                  // left at; a note is one of a list the reader is working through, and closing
-                  // the panel under them costs a press per passage to get back to it. So the
-                  // panel stays and the passage is washed instead — but only where the book
-                  // still has a column of its own to be seen in, which is what `keepPanel`
-                  // carries and `lib/media.ts` explains.
-                  sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
-                }}
-                onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
-                onPersist={(note) => void persistNote(a.id, note)}
-                onSave={(note) => void saveNote(a.id, note)}
-                onRemove={() => removeAnnotation(a)}
-              />
+            {noteGroups.map((group, i) => (
+              <section
+                // **The row and the position, not the row alone.** A chapter the list returns
+                // to opens a second run with the same `tocIndex`
+                // (`lib/annotation-groups.ts`), and two siblings sharing a key is undefined
+                // reconciliation — the second run's editor state would be the first's.
+                key={`${group.tocIndex ?? "unplaced"}-${i}`}
+                className="annotation-chapter"
+                data-testid="annotation-chapter"
+              >
+                {/* **Absent when there is no chapter to name**, rather than standing empty or
+                    inventing a word for it. A mark before the first chapter — in a dedication, on
+                    a cover — is still the reader's, and a heading reading "Front matter" over it
+                    would be Tidemarks talking where the book says nothing. */}
+                {group.label !== null && <h3 className="annotation-chapter-name">{group.label}</h3>}
+                {group.marks.map((a) => (
+                  <AnnotationItem
+                    key={a.id}
+                    annotation={a}
+                    editing={editingId === a.id}
+                    pointedAt={selectedNoteId === a.id}
+                    onJump={() => {
+                      // The jump is the place's to make: whether it opens a visit and where the
+                      // book moves to are one decision, and they used to be two calls that had to
+                      // be kept in the right order (`lib/place.ts`).
+                      visitPassage(a.cfiRange);
+                      // And the address bar follows, so the passage on screen is one the reader can
+                      // copy out and send. The jump itself has already happened — this names it.
+                      onAt?.({ kind: "cfi", cfi: a.cfiRange });
+                      // **Not `jumped`, unlike the table of contents.** A chapter is a place to be
+                      // left at; a note is one of a list the reader is working through, and closing
+                      // the panel under them costs a press per passage to get back to it. So the
+                      // panel stays and the passage is washed instead — but only where the book
+                      // still has a column of its own to be seen in, which is what `keepPanel`
+                      // carries and `lib/media.ts` explains.
+                      sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
+                    }}
+                    onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
+                    onPersist={(note) => void persistNote(a.id, note)}
+                    onSave={(note) => void saveNote(a.id, note)}
+                    onRemove={() => removeAnnotation(a)}
+                  />
+                ))}
+              </section>
             ))}
           </div>
         )}
