@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Annotation } from "../lib/types";
 import { markVar } from "../lib/highlights";
 import { relativeAge } from "../lib/revisit";
@@ -59,6 +59,47 @@ export default function AnnotationItem({
   useEffect(() => {
     if (editing) setDraft(annotation.note);
   }, [editing, annotation.note]);
+
+  /**
+   * **[[Delete]] asks first, in the item itself.** Readers deleted notes they meant to keep, and a
+   * note is their own words with nowhere to get them back from. The question takes the place of
+   * the row of actions rather than opening a dialog: the reader is looking at this item, and a
+   * dialog in the middle of the screen would take them away from the passage being asked about.
+   *
+   * It ends on its own when the item starts being edited — the reader has moved on to something
+   * else. Closing the panel needs nothing here: the drawer unmounts what it held, and the
+   * question with it.
+   *
+   * Only the move *into* editing ends it, so that [[Delete]] pressed while the box is open still
+   * asks rather than doing nothing.
+   */
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (editing) setConfirming(false);
+  }, [editing]);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteRef = useRef<HTMLButtonElement | null>(null);
+  /** Set by the reader stepping back from the question — and only then is the focus handed back. */
+  const declinedRef = useRef(false);
+  const decline = () => {
+    declinedRef.current = true;
+    setConfirming(false);
+  };
+  useEffect(() => {
+    // Cancel holds the focus while the question stands, so the press that is one Enter away is
+    // the one that changes nothing. When the reader steps back from it, the focus goes back to
+    // the [[Delete]] that asked — the focused button is removed, which would otherwise drop the
+    // focus to the top of the document (ADR-0021). Not when editing ended it: the box has just
+    // taken the focus, and taking it back would leave the reader typing into nothing. A confirmed
+    // deletion takes the whole item away, and the focus with it, as a single press always did.
+    if (confirming) {
+      cancelRef.current?.focus();
+    } else if (declinedRef.current) {
+      declinedRef.current = false;
+      deleteRef.current?.focus();
+    }
+  }, [confirming]);
+  const questionId = useId();
 
   /**
    * **The words are written down when the box goes away, by whatever took it.** A tap on the
@@ -263,35 +304,81 @@ export default function AnnotationItem({
         </button>
       )}
       {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}
-      <div className="annotation-actions">
-        {!editing && (
-          <button onClick={onEdit}>
-            {annotation.note ? (
-              <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
-                Edit note
-              </Trans>
-            ) : (
-              <Trans comment="Button under a marked passage with no note yet: opens an empty note box.">
-                Add note
-              </Trans>
-            )}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            // Claimed before the row goes, so the cleanup above does not write the draft back
-            // onto a mark that has just been given a tombstone. Nothing resurrects either way —
-            // `deletedAt` stays set and merging is last-write-wins on the tombstone — but it
-            // would push `updatedAt` and `dirtyAt` and send a row nobody asked to sync.
-            removedRef.current = true;
-            onRemove();
+      {confirming ? (
+        <div
+          className="annotation-actions annotation-confirm"
+          role="group"
+          aria-labelledby={questionId}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            // Kept from the panel, which would otherwise take Escape as its own and close: the
+            // reader asked to step back from a deletion, not to leave the notes.
+            e.stopPropagation();
+            decline();
           }}
         >
-          <Trans comment="Button under a marked passage: removes the mark and any note on it.">
-            Delete
-          </Trans>
-        </button>
-      </div>
+          <p id={questionId} className="annotation-confirm-question">
+            {annotation.note ? (
+              <Trans comment="Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.">
+                Delete this mark and its note?
+              </Trans>
+            ) : (
+              <Trans comment="Asked in place of the buttons under a marked passage with no note, after Delete was pressed.">
+                Delete this mark?
+              </Trans>
+            )}
+          </p>
+          {/* Together, so a narrow panel wraps the question over both rather than one answer
+              under the other. */}
+          <span className="annotation-confirm-answers">
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                // Claimed before the row goes, so the cleanup above does not write the draft back
+                // onto a mark that has just been given a tombstone. Nothing resurrects either way —
+                // `deletedAt` stays set and merging is last-write-wins on the tombstone — but it
+                // would push `updatedAt` and `dirtyAt` and send a row nobody asked to sync.
+                removedRef.current = true;
+                onRemove();
+              }}
+            >
+              <Trans comment="The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.">
+                Delete
+              </Trans>
+            </button>
+            {/* Last, at the end of the row where [[Delete]] stood a moment ago, so a second press
+                on the same spot — a double tap, an impatient click — finds the answer that keeps
+                the note rather than the one that removes it. */}
+            <button type="button" ref={cancelRef} onClick={decline}>
+              <Trans comment="Button that answers 'no' to a question asked in place, and puts things back as they were. In the notes panel it keeps the mark and its note.">
+                Cancel
+              </Trans>
+            </button>
+          </span>
+        </div>
+      ) : (
+        <div className="annotation-actions">
+          {!editing && (
+            <button onClick={onEdit}>
+              {annotation.note ? (
+                <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
+                  Edit note
+                </Trans>
+              ) : (
+                <Trans comment="Button under a marked passage with no note yet: opens an empty note box.">
+                  Add note
+                </Trans>
+              )}
+            </button>
+          )}
+          <button ref={deleteRef} onClick={() => setConfirming(true)}>
+            <Trans comment="Button under a marked passage: removes the mark and any note on it.">
+              Delete
+            </Trans>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

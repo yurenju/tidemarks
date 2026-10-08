@@ -170,6 +170,8 @@ msgid "Book's"
 msgstr "書籍預設"
 
 #. Button on the selection bar: drop the selection without marking anything.
+#. Button that answers 'no' to a question asked in place, and puts things back as they were. In the notes panel it keeps the mark and its note.
+#: src/components/AnnotationItem.tsx
 #: src/components/SelectionToolbar.tsx
 msgid "Cancel"
 msgstr "取消"
@@ -223,6 +225,7 @@ msgstr "深色"
 
 #. Button in the book-details panel that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
 #. Button under a marked passage: removes the mark and any note on it.
+#. The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
 #: src/components/AnnotationItem.tsx
@@ -233,6 +236,16 @@ msgstr "刪除"
 #: src/components/AboutBook.tsx
 msgid "Delete “{title}”?"
 msgstr "刪除「{title}」？"
+
+#. Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
+#: src/components/AnnotationItem.tsx
+msgid "Delete this mark and its note?"
+msgstr "刪除這段重點與筆記？"
+
+#. Asked in place of the buttons under a marked passage with no note, after Delete was pressed.
+#: src/components/AnnotationItem.tsx
+msgid "Delete this mark?"
+msgstr "刪除這段重點？"
 
 #. Stands in for the commit hash in [[Settings]]'s footer when the app was built somewhere with no git checkout — a tarball, or the test image. Lower case: it sits in a line of machine detail, not a heading.
 #: src/lib/version.ts
