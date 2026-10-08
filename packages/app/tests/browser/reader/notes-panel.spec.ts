@@ -21,7 +21,7 @@
 // a whole-book index and a dozen turns per engine to reach a state two `put`s describe exactly.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
-import { BOOKS, bookCards, openPanel, settled } from "../support/library.js";
+import { BOOKS, bookCards, openPanel, settled, visibleText } from "../support/library.js";
 
 // Alice's sixth spine item is chapter one and her eighth is chapter three — the same two paths
 // `visit.spec.ts` reads off the book, and inside them her prose begins at `/4/2/2/2/1`.
@@ -219,4 +219,39 @@ test("delete asks in the item first, and only the confirming press removes the m
   await question.getByRole("button", { name: "Delete" }).click();
   await expect(passage).toHaveCount(0);
   await expect(panel.getByRole("button", { name: LATE_PASSAGE })).toBeVisible();
+});
+
+// [[Reflect]] as a state rather than a panel of [[Find]]'s: what a turn does to it, and the key that
+// opens it. Which event leads where is `chrome.test.ts`'s, row by row; what is asked here is only
+// that the page buttons and the keyboard really send those events, and that a press beside the
+// panel is not taken by the panel as a reason to close.
+test("a page turned in Reflect leaves the list standing", async ({ page }) => {
+  await openNotes(page);
+  const panel = page.getByTestId("panel-notes");
+
+  // The bars are not part of [[Reflect]]: it is the book and the reader's notes, nothing else.
+  await expect(page.getByTestId("chrome-bottom")).toBeHidden();
+
+  const before = await visibleText(page);
+  await page.getByRole("button", { name: "Next page" }).click();
+  await expect.poll(async () => await visibleText(page)).not.toBe(before);
+
+  await expect(panel).toBeVisible();
+  await expect(page).toHaveURL(/d=notes/);
+});
+
+test("N opens Reflect from the book, and closes it again", async ({ page }) => {
+  await openNotes(page);
+  const panel = page.getByTestId("panel-notes");
+  await panel.getByRole("button", { name: "Close" }).click();
+  await expect(panel).toBeHidden();
+
+  await page.keyboard.press("n");
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId("chrome-top")).toBeHidden();
+
+  // The same key on the way out is Escape: back to [[Read]], not to the bars.
+  await page.keyboard.press("n");
+  await expect(panel).toBeHidden();
+  await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 });

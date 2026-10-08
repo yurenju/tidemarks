@@ -29,7 +29,7 @@
 
 ### 為什麼要量
 
-點擊分區改成「下方三成翻頁，其餘叫出 chrome」（[ADR-0020](../../adr/0020-the-interface-steps-behind-the-book.md)）。
+點擊分區改成「下方三成翻頁，其餘叫出 chrome」（[ADR-0020](../../adr/0020-four-states-follow-the-reader-s-loop.md)）。
 三成是猜的，不是量出來的：手指構得到的就是下方那一帶，而讀者要叫介面的時候本來就會往上點。
 猜錯的代價是讀者想翻頁卻叫出 chrome，一次多一下 tap。
 

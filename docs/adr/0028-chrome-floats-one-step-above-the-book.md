@@ -18,7 +18,7 @@ chrome 的三條 bar（`.chrome-top`、`.chrome-nav`、`.chrome-bottom`）的底
 原本三條 bar 吃的是 `--surface-page`，跟書頁**同一個 token**，不是相近，是同一個值。兩層之間
 只剩 1px 的 `--line-hair`。
 
-那個選擇本身有道理，而且道理就是 [ADR-0020](0020-the-interface-steps-behind-the-book.md)：介面
+那個選擇本身有道理，而且道理就是 [ADR-0020](0020-four-states-follow-the-reader-s-loop.md)：介面
 要退到書後面去，所以它盡量不宣告自己存在。同色是那句話最徹底的做法。
 
 不夠的地方在於，ADR-0020 同時規定 chrome 是**蓋在**書上的，不是把書擠小，「蓋上去的東西會

@@ -356,8 +356,8 @@ export function openBookSession(options: BookSessionOptions): BookSession {
       case "dropSelection":
         if (!selection.current.apply(intent)) send({ kind: "selectionRefused" });
         return;
-      case "openNote":
-        on.chrome({ kind: "openNote", id: intent.annotationId });
+      case "viewMark":
+        on.chrome({ kind: "markPicked", id: intent.annotationId });
         return;
       default:
         // An intent the machine can send and nothing here routes is an action the reader asks
@@ -492,6 +492,17 @@ export function openBookSession(options: BookSessionOptions): BookSession {
   listen(closers, document, "pointerup", strayRelease);
   listen(closers, document, "pointercancel", strayRelease);
 
+  /**
+   * [[Notes]] as a key: `N`, with no modifier, in and out of [[Reflect]] (`lib/chrome.ts`'s
+   * `notesToggled`). Heard on both sides of the iframe, like the arrows, and asked of the release
+   * for the same reason they are. A modifier means the reader is asking the browser for something.
+   */
+  const raiseNotes = (e: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey">) => {
+    if (e.key !== "n" && e.key !== "N") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    on.chrome({ kind: "notesToggled" });
+  };
+
   // Arrow keys with focus outside the iframe. frond forwards the ones inside it (where the
   // outer document receives nothing), and this covers the other half.
   const onKeyUp = (e: KeyboardEvent) => {
@@ -507,6 +518,8 @@ export function openBookSession(options: BookSessionOptions): BookSession {
     // group says the arrows are spoken for. This is asked on the way *up*: `keydown` is where
     // those controls act, and by the time the key is released the value has already moved.
     const target = e.target as Element | null;
+    // `N` only has to keep out of the way of typing: a segmented control has no use for a letter.
+    if (!target?.closest?.("input, select, textarea, [contenteditable]")) raiseNotes(e);
     if (target?.closest?.("input, select, textarea, [role='radiogroup']")) return;
 
     if (e.key === "ArrowLeft") send({ kind: "side", side: "left" });
@@ -774,6 +787,8 @@ export function openBookSession(options: BookSessionOptions): BookSession {
         pointerup: onRelease,
         keyup: (event) => {
           if (event.isComposing) return;
+          // Nothing in a book is typed into, so there is no focus to keep out of the way of here.
+          raiseNotes(event);
           if (event.key === "ArrowLeft") send({ kind: "side", side: "left" });
           if (event.key === "ArrowRight") send({ kind: "side", side: "right" });
         },

@@ -273,7 +273,7 @@ test.describe("drawing a highlight", () => {
     await releaseDrag(page);
   });
 
-  test("tapping the marked text opens its note instead of turning the page", async ({ page }) => {
+  test("tapping the marked text shows its note instead of turning the page", async ({ page }) => {
     // The overlay takes no pointer events (it would swallow the taps that turn the page), so
     // this goes through frond's `pointerup` and spine's own hit test.
     //
@@ -289,8 +289,19 @@ test.describe("drawing a highlight", () => {
     const before = await visibleText(page);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-    await expect(page.getByTestId("panel-notes")).toBeVisible();
-    await expect(page.locator(".note-editor textarea")).toBeVisible();
+    // [[Reflect]], pointed at the passage tapped: the list with that one answered for, and the bars
+    // gone so that what is on screen is the book and the reader's own notes beside it.
+    const panel = page.getByTestId("panel-notes");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: text.slice(0, 12) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(page.getByTestId("chrome-top")).toBeHidden();
+    await expect(page.getByTestId("chrome-bottom")).toBeHidden();
+    // **Shown, not opened for writing.** A passage tapped is far more often being reread than
+    // added to, and a box taking the focus would put a keyboard over it on a phone.
+    await expect(page.locator(".note-editor textarea")).toHaveCount(0);
     expect(await visibleText(page)).toBe(before);
   });
 });
@@ -343,12 +354,14 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     // cannot show. The wash belongs to the passage the reader pressed, not to the panel they
     // pressed it in — on a narrow window closing the panel is the only way to look at the
     // passage at all, and one rule serves both widths (ADR-0044).
-    await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
+    await page.getByTestId("panel-notes").getByRole("button", { name: "Close" }).click();
     await expect(page.getByTestId("panel-notes")).toBeHidden();
     await expect(page.locator(".highlight-wash").first()).toBeVisible();
 
-    // Turning the page is what ends it: the reader has left the page the passage is on, so the
-    // question it was answering has gone with them.
+    // Turning to a page the passage is not on is what ends it: the question it was answering has
+    // gone with the page. This is the one wire up to `turnLanded`, whose two answers are
+    // `chrome.test.ts`'s — what only a browser can say is that the marks on the page the turn
+    // landed on are what it was asked with.
     await page.getByRole("button", { name: "Next page" }).click();
     await expect(page.locator(".highlight-wash")).toHaveCount(0);
   });

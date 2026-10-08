@@ -15,10 +15,10 @@
 // about the screen the reader came from, which is the whole test for a floor (CONTEXT.md,
 // [[Surfaces]]). Its tab is part of that path, so each tab has an address of its own.
 
-// The three faces the reader's bar raises are named once, in the state machine that owns them
+// The two panels the reader's bar raises are named once, in the state machine that owns them
 // (`lib/chrome.ts`). Spelling them again here would be a second list to keep in step, and the
-// address and the machine have to agree on those three names exactly.
-import { isPanel, type PanelKind } from "./chrome";
+// address and the machine have to agree on those names exactly.
+import { isFace, isPanel, type Face } from "./chrome";
 
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";
@@ -126,8 +126,10 @@ export type Screen =
  * **One at a time**, because `?d=` holds one value. Raising [[About]] over a standing [[Contents]]
  * therefore closes it, rather than the two sharing a screen the address cannot describe.
  *
- * `noteId` is the one second storey: the reader walks into a note in two steps — open [[Notes]],
- * press one — so they walk out in two as well. The other three have nothing inside them to open.
+ * `noteId` is the one second storey: the note [[Reflect]] is pointing at, which the reader reaches
+ * either in two steps — raise [[Notes]], press one — or in one, by tapping its passage on the page.
+ * It names a note being looked at, not one being written in. The other three have nothing inside
+ * them to point at.
  *
  * Every one carries its own book id even when the screen underneath is that same book
  * (`#/book/abc?d=about/abc`). Those few redundant characters buy the rule that reading the hash
@@ -292,13 +294,13 @@ function panelSegment(panel: Panel): string {
 }
 
 /**
- * The same panel, if it is one of the three the reader's own bar raises.
+ * The same panel, if it is one of the reader's own three faces — [[Find]]'s two, or [[Reflect]]'s list.
  *
  * `null` for [[About]] as well as for no panel at all, and both callers want exactly that: the
- * reader's chrome is the three, and [[About]] standing means the chrome has none of them up.
+ * reader's chrome has the three, and [[About]] standing means the chrome has none of them up.
  */
-export function barPanel(panel: Panel | null): (Panel & { kind: PanelKind }) | null {
-  return panel !== null && isPanel(panel.kind) ? (panel as Panel & { kind: PanelKind }) : null;
+export function barPanel(panel: Panel | null): (Panel & { kind: Face }) | null {
+  return panel !== null && isFace(panel.kind) ? (panel as Panel & { kind: Face }) : null;
 }
 
 /**

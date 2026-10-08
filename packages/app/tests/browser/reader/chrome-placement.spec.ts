@@ -215,15 +215,16 @@ test.describe("in a window wide enough to give up a column", () => {
       });
     });
 
+    // [[Find]]'s two, and not [[Notes]]: that is [[Reflect]], which the bars are not standing in, so
+    // the way from it to another panel goes through [[Read]] and is not a switch.
     await openPanel(page, "Contents");
-    await openPanel(page, /Notes/);
     await openPanel(page, "Type");
     await settled(page);
 
     await page.evaluate(() => (window as unknown as { __done: () => void }).__done());
 
     // The observe() call delivers the starting width, then the open delivers the narrowed one.
-    // Three panels, one narrowing: the two switches cost nothing.
+    // Two panels, one narrowing: the switch costs nothing.
     expect(await widths).toHaveLength(2);
   });
 });
@@ -243,18 +244,23 @@ test("switches straight from one panel to another", async ({ page }) => {
   await openPanel(page, "Type");
   await expect(page.getByTestId("panel-layout")).toBeVisible();
 
-  await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
-  await expect(page.getByTestId("panel-notes")).toBeVisible();
-  await expect(page.getByTestId("panel-layout")).toBeHidden();
-
   await page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" }).click();
   await expect(page.getByTestId("panel-toc")).toBeVisible();
+  await expect(page.getByTestId("panel-layout")).toBeHidden();
 
   // And pressing the entry that is already showing still puts it away — the toggle is the same
   // toggle, it just no longer fires for a panel nobody asked to close.
   await page.getByTestId("chrome-nav").getByRole("button", { name: "Contents" }).click();
   await expect(page.getByTestId("panel-toc")).toBeHidden();
   await expect(page.getByTestId("chrome-nav")).toBeVisible();
+
+  // [[Notes]] from a standing panel, which is a switch into [[Reflect]] rather than between two of
+  // [[Find]]'s — the same stale handler would have been in its way all the same.
+  await page.getByTestId("chrome-nav").getByRole("button", { name: "Type" }).click();
+  await expect(page.getByTestId("panel-layout")).toBeVisible();
+  await page.getByTestId("chrome-nav").getByRole("button", { name: /Notes/ }).click();
+  await expect(page.getByTestId("panel-notes")).toBeVisible();
+  await expect(page.getByTestId("panel-layout")).toBeHidden();
 });
 
 test("leaves the Scrubber reachable beside an open panel", async ({ page }) => {

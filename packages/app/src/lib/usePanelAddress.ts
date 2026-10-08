@@ -21,16 +21,16 @@
 
 import { useEffect, useRef } from "react";
 import { samePanel, type Panel as PanelAddress } from "./route";
-import { isPanel, type Chrome, type ChromeEvent, type PanelKind } from "./chrome";
+import { faceOf, type Chrome, type ChromeEvent, type Face } from "./chrome";
 
 /** The reader's own three faces as the address spells them (`lib/route.ts`). */
-export type ReaderPanel = PanelAddress & { kind: PanelKind };
+export type ReaderPanel = PanelAddress & { kind: Face };
 
 export function usePanelAddress({
   panel,
   onPanel,
   chrome,
-  editingId,
+  selectedId,
   bookId,
   sendChrome,
 }: {
@@ -40,7 +40,8 @@ export function usePanelAddress({
    *  does to the history stack — it is the one place that touches it. */
   onPanel: (next: ReaderPanel | null) => void;
   chrome: Chrome;
-  editingId: string | null;
+  /** The passage [[Reflect]] is pointing at, which is what the second storey of `notes/` names. */
+  selectedId: string | null;
   bookId: string;
   /** Hands one event to the chrome machine (`lib/chrome.ts`). */
   sendChrome: (event: ChromeEvent) => void;
@@ -65,7 +66,7 @@ export function usePanelAddress({
    * or so until the browser announces the new address, the chrome and the address still
    * disagree. **One press of the reader's often moves the chrome twice in that window** — a
    * press on the page button beside a standing panel is an outside press *and* a page turn, so
-   * the chrome goes `notes → up → down` in two commits — and each commit would ask for a
+   * the chrome goes `toc → up → down` in two commits — and each commit would ask for a
    * `back()` of its own. Measured: one press walked the reader out of the panel, out of the
    * book, and onto the shelf, and `reader/visit.spec.ts` was the only thing that saw it.
    *
@@ -80,17 +81,19 @@ export function usePanelAddress({
     if (mirrored.current !== panel || asked.current) return;
     // The book id rides along even though the screen underneath is that same book, because that
     // is the rule for every panel: reading the hash never means looking at what is below it.
-    const showing: ReaderPanel | null = isPanel(chrome)
-      ? {
-          kind: chrome,
-          bookId,
-          ...(chrome === "notes" && editingId !== null ? { noteId: editingId } : {}),
-        }
-      : null;
+    const face = faceOf(chrome);
+    const showing: ReaderPanel | null =
+      face === null
+        ? null
+        : {
+            kind: face,
+            bookId,
+            ...(face === "notes" && selectedId !== null ? { noteId: selectedId } : {}),
+          };
     if (samePanel(showing, panel)) return;
     asked.current = true;
     onPanelRef.current(showing);
-  }, [chrome, editingId, bookId, panel]);
+  }, [chrome, selectedId, bookId, panel]);
 
   /**
    * The mirror, address → chrome. Back, forward, and a hand-typed address all arrive here.
@@ -109,17 +112,24 @@ export function usePanelAddress({
     mirrored.current = panel;
     asked.current = false;
     if (panel === null) {
-      if (isPanel(chrome)) sendChrome({ kind: "panelDismissed" });
+      if (faceOf(chrome) !== null) sendChrome({ kind: "panelDismissed" });
+      return;
+    }
+    if (panel.kind === "notes") {
+      // Raising [[Reflect]] points at nothing, so a note the address names is picked after it.
+      if (chrome !== "reflect") sendChrome({ kind: "notesToggled" });
+      const noteId = panel.noteId ?? null;
+      if (noteId !== null && noteId !== selectedId) sendChrome({ kind: "markPicked", id: noteId });
+      // Stepping back out of a note and into the list it came from. A note being written goes
+      // with it: it commits when its box loses the focus, so there is nothing left to save by the
+      // time the address has moved.
+      if (noteId === null && chrome === "reflect" && selectedId !== null) {
+        sendChrome({ kind: "pickDropped" });
+      }
       return;
     }
     if (chrome !== panel.kind) sendChrome({ kind: "togglePanel", panel: panel.kind });
-    const noteId = panel.kind === "notes" ? (panel.noteId ?? null) : null;
-    if (noteId !== null && noteId !== editingId) sendChrome({ kind: "openNote", id: noteId });
-    // Stepping back out of a note and into the list it came from. `noteSaved` is the machine's
-    // name for "the editor is finished with", which is what this is: a note commits when its box
-    // loses the focus, so there is nothing left to save by the time the address has moved.
-    if (noteId === null && editingId !== null) sendChrome({ kind: "noteSaved" });
-    // ⚠️ **Keyed on the address alone**, though `chrome` and `editingId` are read inside. They
+    // ⚠️ **Keyed on the address alone**, though `chrome` and `selectedId` are read inside. They
     // are read to decide whether anything has to be *sent*, never to decide what: this direction
     // of the mirror only has something to say when the address has moved, and re-running it on
     // every move the chrome makes of its own accord would have it answering its own twin.
