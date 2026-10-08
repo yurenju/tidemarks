@@ -10,10 +10,12 @@
 // timer, no sampling and nothing to inject, so there is no state to hide — React keeps it, and
 // two copies of a state is two copies that can drift apart.
 //
-// **It owns [[Find]] and [[Reflect]], not [[Marking]].** A selection's rectangles, CFI and `live`
-// stay in `Reader.tsx`, for the same reason the gesture machine refuses to hold frond's objects: the part of them
-// hardest to fake in node is the part that matters. What lives here is the *rule* — a selection
-// arriving puts the chrome away, unless [[Reflect]] is standing — under the name `selectionArrived`.
+// **It owns [[Find]] and [[Reflect]], and only the second half of [[Marking]].** A selection's
+// rectangles, CFI and `live` stay in `Reader.tsx`, for the same reason the gesture machine refuses
+// to hold frond's objects: the part of them hardest to fake in node is the part that matters. What
+// lives here is the *rule* — a selection arriving puts the chrome away, unless [[Reflect]] is
+// standing — under the name `selectionArrived`. The half that is here is the note written on the
+// spot, which begins once the selection has become a mark and there is nothing of frond's left.
 //
 // ⚠️ **Every transition returns the same `state` object when nothing changed.** Almost every page
 // turn hits that path (the chrome is usually already down), and a fresh object each time is a
@@ -24,18 +26,25 @@ export const PANEL_KINDS = ["toc", "layout"] as const;
 export type PanelKind = (typeof PANEL_KINDS)[number];
 
 /**
- * The one value: the book alone, the bare bars, one of [[Find]]'s two panels standing open, or
- * [[Reflect]].
+ * The one value: the book alone, the bare bars, one of [[Find]]'s two panels standing open,
+ * [[Reflect]], or [[Marking]] with a note being written.
  *
  * **[[Reflect]] is a state of its own and not a third panel of [[Find]]'s.** It used to be:
  * [[Notes]] was raised from the bar, so the bars and the Scrubber stood around it and the book
  * was squeezed between three layers. Looking back over what one has marked is the third step of
  * the reader's loop — read, mark, look back — and it gets the screen to itself (ADR-0020).
  *
- * [[Marking]] is not in here. It is not this value's to enter: a selection arrives from frond, and
- * what it does here is put this back to `"down"` — except from [[Reflect]], which it leaves standing.
+ * **`"marking"` is the note half of [[Marking]] only.** The colour row is not in here: it is not
+ * this value's to enter — a selection arrives from frond, and what it does here is put this back
+ * to `"down"`, except from [[Reflect]], which it leaves standing. Pressing [[Mark and note]] on
+ * that row is what puts this value at `"marking"`, and the note closing is what ends it.
+ *
+ * It borrows [[Reflect]]'s face — the notes panel, beside the book on a desk and over it on a
+ * phone — so that a note has one place to be written at either width, but it is not [[Reflect]]:
+ * the reader is still in the middle of reading, and when the note is written they go back to the
+ * book rather than being left in a list they did not ask for (ADR-0020).
  */
-export type Chrome = "down" | "up" | PanelKind | "reflect";
+export type Chrome = "down" | "up" | PanelKind | "reflect" | "marking";
 
 /**
  * What the one panel is showing: [[Find]]'s two, or the list that is [[Reflect]]'s face.
@@ -66,10 +75,10 @@ export const isFace = (kind: string): kind is Face => kind === "notes" || isPane
 /**
  * Which face the panel is showing, or `null` when none is — the one fact the *layout* turns on:
  * on a desk the book gives up a column to it, on a hand-held the entries and the Scrubber step
- * aside for it.
+ * aside for it. [[Marking]]'s note is written on [[Reflect]]'s face, so both answer `"notes"`.
  */
 export const faceOf = (chrome: Chrome): Face | null =>
-  chrome === "reflect" ? "notes" : isPanel(chrome) ? chrome : null;
+  chrome === "reflect" || chrome === "marking" ? "notes" : isPanel(chrome) ? chrome : null;
 
 export interface ChromeState {
   readonly chrome: Chrome;
@@ -80,9 +89,10 @@ export interface ChromeState {
    */
   readonly face: Face;
   /**
-   * Which note [[Reflect]] has open for editing, `null` for none.
+   * Which note is open for writing, `null` for none: one being changed in [[Reflect]], or the one
+   * [[Marking]] has just made.
    *
-   * **It lives only while [[Reflect]] stands**, and `settle` is what ends it, so no transition
+   * **It lives only while [[Reflect]] or [[Marking]] stands**, and `settle` is what ends it, so no transition
    * below has to remember to. Nothing is lost by closing early: a note commits when its box loses
    * the focus. Held any longer, the box would remount the next time [[Notes]] was raised and take
    * the focus with it — which on a phone is a reader pressing [[Notes]] to read a list and getting
@@ -175,11 +185,12 @@ export type ChromeEvent =
   | { kind: "panelDismissed" }
   /**
    * A passage has just been marked, with a colour from the row that [[Marking]] stands up.
-   * `withNote` is the reader having asked to write a note on it as well.
+   * `withNote` is the reader having asked to write a note on it as well — [[Mark and note]].
    */
   | { kind: "marked"; id: string; withNote: boolean }
   /** Edit pressed on a note already listed in [[Reflect]]. */
   | { kind: "editNote"; id: string }
+  /** [[Done]] pressed under the note being written. */
   | { kind: "noteSaved" };
 
 export const initialChrome: ChromeState = {
@@ -220,20 +231,24 @@ function settle(
   editing: string | null,
   selected: string | null,
 ): ChromeState {
-  // **The one place a note stops being edited.** Anything that is not [[Reflect]] standing —
-  // the chrome going down, a face of [[Find]]'s coming up, the panel being dismissed — closes the
-  // editor, without the transition below having said so. A wash outlives [[Reflect]] and an
-  // editor does not, for the reasons on each field above.
-  const stillEditing = chrome === "reflect" ? editing : null;
+  // **The one place a note stops being edited.** Anything that is not [[Reflect]] or [[Marking]]
+  // standing — the chrome going down, a face of [[Find]]'s coming up, the panel being dismissed —
+  // closes the editor, without the transition below having said so. A wash outlives [[Reflect]]
+  // and an editor does not, for the reasons on each field above.
+  const stillEditing = chrome === "reflect" || chrome === "marking" ? editing : null;
+  // **And [[Marking]]'s half of this value is the note**, so the note closing — [[Done]], or the
+  // mark under it deleted — is [[Marking]] over, and what is left is the book. Said once here
+  // rather than at each event that can close a note, for the same reason as the line above.
+  const landed = chrome === "marking" && stillEditing === null ? "down" : chrome;
   // `face` is not asked about: it only ever changes when `chrome` gets a face, so a `chrome` that
   // did not move cannot have moved it either.
-  if (chrome === state.chrome && stillEditing === state.editing && selected === state.selected) {
+  if (landed === state.chrome && stillEditing === state.editing && selected === state.selected) {
     return state;
   }
   return {
-    chrome,
+    chrome: landed,
     // Only entering a face updates this; leaving one leaves it remembering what it was.
-    face: faceOf(chrome) ?? state.face,
+    face: faceOf(landed) ?? state.face,
     editing: stillEditing,
     selected,
   };
@@ -244,6 +259,12 @@ function settle(
  * which a turn and a selection both leave where it is (see each below for why).
  */
 const reflectOrDown = (chrome: Chrome): Chrome => (chrome === "reflect" ? "reflect" : "down");
+
+/**
+ * Where a press on something old in the list leaves the chrome. [[Marking]]'s note is written on
+ * [[Reflect]]'s face, so the list is there beside it, and reaching into it is looking back.
+ */
+const lookingBack = (chrome: Chrome): Chrome => (chrome === "marking" ? "reflect" : chrome);
 
 export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState {
   switch (event.kind) {
@@ -302,11 +323,12 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
     case "panelDismissed":
       // The reader is still on the page they were on, so a passage they pressed goes on being
       // washed. Closing the panel is how they get to look at it. [[Find]]'s two drop back to the
-      // bare bar they were raised from; [[Reflect]] was not raised from it, and goes back to [[Read]].
+      // bare bar they were raised from; [[Reflect]] and [[Marking]]'s note were not raised from
+      // it, and go back to [[Read]].
       if (isPanel(state.chrome)) return settle(state, "up", state.editing, state.selected);
       return settle(
         state,
-        reflectOrDown(state.chrome) === "reflect" ? "down" : state.chrome,
+        faceOf(state.chrome) === "notes" ? "down" : state.chrome,
         state.editing,
         state.selected,
       );
@@ -314,8 +336,14 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // Wide enough and the panel stays with the passage pointed at; narrower, the panel is over
       // the book and has to go. **The wash survives that either way** — it names the passage the
       // press was asking to be shown, and on the narrow window there is nothing else left saying
-      // which one.
-      return settle(state, event.keepPanel ? state.chrome : "down", state.editing, event.id);
+      // which one. A quote pressed beside [[Marking]]'s note is the reader looking back over the
+      // list, which is [[Reflect]].
+      return settle(
+        state,
+        event.keepPanel ? lookingBack(state.chrome) : "down",
+        state.editing,
+        event.id,
+      );
     case "markPicked":
       // From [[Read]] into [[Reflect]], or from one note to another inside it. Either way a box being
       // written in has just lost the focus to the page, and is done.
@@ -323,15 +351,24 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
     case "pickDropped":
       return settle(state, state.chrome, null, null);
     case "marked":
-      // **With a note, it opens for writing** in [[Reflect]], pointed at. Without one, [[Reflect]]
-      // points at the new mark if it is standing — the reader is looking at the list it just
-      // joined — and everywhere else nothing moves: marking a passage in [[Read]] is the whole act.
-      if (event.withNote) return settle(state, "reflect", event.id, event.id);
-      if (state.chrome === "reflect") return settle(state, "reflect", state.editing, event.id);
+      if (state.chrome === "reflect") {
+        // **In [[Reflect]] the new mark joins the list the reader is looking at**, pointed at, and
+        // a note on it is written there — the reader came to look back, and stays to.
+        return settle(state, "reflect", event.withNote ? event.id : state.editing, event.id);
+      }
+      // **Anywhere else, a note is written where it was thought of** (ADR-0020): [[Marking]]
+      // keeps standing with the box open and no chrome around it, and [[Done]] goes back to the
+      // book. Nothing is pointed at — the reader is writing, not looking back, so the list is not
+      // dimmed around the card and the address names no note. Without a note, nothing moves:
+      // marking a passage in [[Read]] is the whole act.
+      if (event.withNote) return settle(state, "marking", event.id, null);
       return state;
     case "editNote":
-      return settle(state, state.chrome, event.id, event.id);
+      // Changing an old note is looking back, so from beside [[Marking]]'s note it is [[Reflect]].
+      return settle(state, lookingBack(state.chrome), event.id, event.id);
     case "noteSaved":
+      // In [[Reflect]] the panel stays with the passage pointed at; in [[Marking]] the note was
+      // the whole of it, and `settle` takes the reader back to the book.
       return settle(state, state.chrome, null, state.selected);
   }
 }

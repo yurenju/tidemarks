@@ -117,7 +117,9 @@ export function usePanelAddress({
     }
     if (panel.kind === "notes") {
       // Raising [[Reflect]] points at nothing, so a note the address names is picked after it.
-      if (chrome !== "reflect") sendChrome({ kind: "notesToggled" });
+      // **Not from [[Marking]]'s note**, which wears the same face and so the same address: this
+      // is the address catching up with it, and answering would turn the note into [[Reflect]].
+      if (faceOf(chrome) !== "notes") sendChrome({ kind: "notesToggled" });
       const noteId = panel.noteId ?? null;
       if (noteId !== null && noteId !== selectedId) sendChrome({ kind: "markPicked", id: noteId });
       // Stepping back out of a note and into the list it came from. A note being written goes

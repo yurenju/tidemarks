@@ -18,6 +18,7 @@ import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
 import {
   chromeShowing,
   faceOf,
+  isPanel,
   nextChrome,
   type ChromeEvent,
   type Face,
@@ -197,8 +198,9 @@ export default function Reader({
   const bookKeepsAColumn = useMediaQuery(BOOK_KEEPS_A_COLUMN);
   const { chrome, face, editing: editingId, selected: selectedNoteId } = chromeState;
   // Whether the bars are on screen. Not whenever the chrome is anything but down: [[Reflect]]
-  // sends them away, so that what is left is the book and the reader's own notes beside it.
-  const barsUp = chrome !== "down" && chrome !== "reflect";
+  // sends them away, so that what is left is the book and the reader's own notes beside it, and
+  // [[Marking]]'s note never calls them up, so that writing it does not interrupt the reading.
+  const barsUp = chrome === "up" || isPanel(chrome);
   // Whether anything of the reader's is laid over the book, which is what the platform's frame
   // matches — a panel as much as the bars.
   const chromeUp = chrome !== "down";
