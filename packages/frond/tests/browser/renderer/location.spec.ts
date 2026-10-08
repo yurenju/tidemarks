@@ -411,10 +411,7 @@ test.describe("returning to the position after a layout change", () => {
   });
 
   test("changing the column count also gets back", async ({ page }) => {
-    await mountFixture(page, "huge-single-section", {
-      settings: { columns: 1 },
-      viewport: { width: 800, height: 600 },
-    });
+    await mountFixture(page, "huge-single-section", { settings: { columns: 1 } });
     for (let step = 0; step < 3; step += 1) {
       await page.evaluate(() => window.frond.next());
     }
@@ -502,6 +499,11 @@ test.describe("a passage kept in view", () => {
 
   test("stays on screen when the settings change", async ({ page }) => {
     const kept = await atTheFoot(page);
+
+    await page.evaluate(() => window.frond.applySettings({ fontSize: 120 }));
+    expect(await isOnScreen(page, kept)).toBe(false);
+
+    expect(await atTheFoot(page)).toBe(kept);
     await page.evaluate((cfi) => window.frond.keepInView(cfi), kept);
     await page.evaluate(() => window.frond.applySettings({ fontSize: 120 }));
 

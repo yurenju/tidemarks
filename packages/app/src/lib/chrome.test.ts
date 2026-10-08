@@ -14,14 +14,25 @@
 import { describe, expect, it } from "vitest";
 import {
   chromeShowing,
+  faceOf,
   initialChrome,
   nextChrome,
   type ChromeEvent,
   type ChromeState,
 } from "./chrome";
 
-/** A state to start a case from, spelled out only where the case is about it. */
-const at = (over: Partial<ChromeState> = {}): ChromeState => ({ ...initialChrome, ...over });
+/**
+ * A state to start a case from, spelled out only where the case is about it.
+ *
+ * `kept` follows `selected` in [[Reflect]] and [[Marking]] unless a case says otherwise, and is
+ * empty everywhere else: a state that differs is one the reducer never produces.
+ */
+const at = (over: Partial<ChromeState> = {}): ChromeState => ({
+  ...initialChrome,
+  kept:
+    over.chrome !== undefined && faceOf(over.chrome) === "notes" ? (over.selected ?? null) : null,
+  ...over,
+});
 
 /** Replays a run of events, which is how an interleaving is stated. */
 const run = (state: ChromeState, ...events: ChromeEvent[]): ChromeState =>
@@ -317,8 +328,18 @@ describe("the passage kept through a reflow", () => {
     expect(nextChrome(done, { kind: "tapped" }).kept).toBeNull();
   });
 
+  // A wash outlives the panel on purpose (`selected`), and [[Layout]] can be raised under it. Its
+  // preview reflows from the top of the page, the price ADR-0005 accepts, not from the wash.
+  it("is not held for Contents or Layout, even under a wash left standing", () => {
+    const closed = nextChrome(at({ chrome: "reflect", face: "notes", selected: "a" }), {
+      kind: "panelDismissed",
+    });
+    const raised = run(closed, { kind: "tapped" }, { kind: "togglePanel", panel: "layout" });
+    expect(raised).toMatchObject({ chrome: "layout", selected: "a", kept: null });
+  });
+
   it("follows the pointer out of Reflect, rather than outliving it", () => {
-    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
+    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
     expect(nextChrome(state, { kind: "turnLanded", showing: [] }).kept).toBeNull();
     expect(nextChrome(state, { kind: "panelDismissed" }).kept).toBe("a");
   });
@@ -444,12 +465,12 @@ describe("an event that changes nothing returns the same object", () => {
   // [[Reflect]] stays through a turn, so a reader working through their notes sends both of these
   // on every page, and neither may cost a render when it changes nothing.
   it("does when a page is turned in Reflect", () => {
-    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
+    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
     expect(nextChrome(state, { kind: "turned" })).toBe(state);
   });
 
   it("does when a turn lands in Reflect with the passage still on the page", () => {
-    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
+    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
     expect(nextChrome(state, { kind: "turnLanded", showing: ["a"] })).toBe(state);
   });
 
