@@ -1,41 +1,43 @@
 # Issue tracker
 
-**工作項目分兩半放**（2026-07-30 起）：
+**工作項目全部放在 GitHub issue**：bug、task、spec，還有 wayfinding 的地圖與 ticket。用
+`gh issue create`／`gh issue list`，在這個 repo 底下跑就會落在對的地方。PR 用 closing keyword 關它們
+（見 [pull-requests.md](pull-requests.md)）。
 
-- **bug 與 task 用 GitHub issue**。用 `gh issue create`／`gh issue list`，在這個 repo 底下跑就會落在
-  對的地方。PR 用 closing keyword 關它們（見 [pull-requests.md](pull-requests.md)）。
-- **spec（有些人稱 PRD）留在 repo 裡**，以 markdown 檔案存放於 `docs/specs/`。它們是隨程式碼一起
-  演進的設計文件，跟著 branch 走比放在 issue 裡好。
-
-之所以搬一半而不是全搬：一張 bug 票的價值在於「被看到、被指派、被 PR 關掉」，那是 issue tracker 的
-主場；一份 spec 的價值在於「跟這個 branch 的程式碼對得起來」，那是版本控制的主場。
+**repo 裡只留量測。** 支撐某個 feature 的量測、判讀、實驗紀錄放在 `docs/specs/<feature-slug>/`，
+進版控。它們跟 ADR 的分工是：**ADR 寫決定與為什麼，這裡寫數字與怎麼重驗**。spec 的 issue 連過去。
 
 **tracker 只有一個，就是這個 repo 的。** 更早的那些 private repo 已經不再使用，那邊的 issue 也不必
 去查，理由見 `CLAUDE.md` 的〈這個 repo 是公開的，而且沒有私有的另一半〉。
 
-同一件事**不要兩邊都放**。這條規則落地時，`.scratch/` 底下原有的 issue 檔全部搬進了 GitHub 並刪除，
-就是為了這個。內容放兩份必然漂移，而漂移之後沒有人知道哪一份是真的。
+同一件事**不要兩邊都放**。內容放兩份必然漂移，而漂移之後沒有人知道哪一份是真的。
+
+## spec 以前放在 repo 裡
+
+2026-07-30 到 2026-10-08 之間，spec 是 `docs/specs/<feature-slug>/spec.md`，理由是它跟著 branch 走，
+才對得起那個 branch 的程式碼。2026-10-08 改成 issue，理由是：
+
+- **Matt 的 `/to-spec` 與 `/to-tickets` 本來就是這樣用的**：spec 發在 tracker 上，拆出來的 ticket
+  指回它。放在 repo 裡，等於每次都要跟 skill 說「這裡不一樣」。
+- **spec 不寫檔案路徑**（見下面〈spec 怎麼寫〉），所以「跟 branch 的程式碼對得上」這件事本來就不靠它。
+  真的要跟程式碼對得上的是量測，而量測留在 repo 裡。
+
+**舊的 spec 留在原地，不搬。** 程式碼、CSS、ADR 裡大約有 50 處引用指向 `docs/specs/*/spec.md`，
+搬走就全部斷掉。它們是那段時間的紀錄，新的 spec 不再寫進去。
 
 ## 兩個目錄，界線是「會不會 commit」
 
 | | 進版控？ | 放什麼 |
 | --- | --- | --- |
-| `docs/specs/<feature-slug>/` | **會** | spec，以及支撐它的量測與判讀 |
+| `docs/specs/<feature-slug>/` | **會** | 量測、判讀、實驗紀錄；2026-10-08 以前的 spec |
 | `.scratch/` | **不會**（`.gitignore` 擋著） | 暫存：issue 與 PR 內文的草稿、畫面巡檢的圖 |
 
 spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個名字在說謊：一份 `.scratch/` 底下卻
-被 commit 的檔案，讀的人第一個念頭是「這是不是誰不小心加進來的」。現在名字跟事實對得上，
-`.scratch/` 裡的東西真的不會進版控。
+被 commit 的檔案，讀的人第一個念頭是「這是不是誰不小心加進來的」。
 
-## 慣例（`docs/specs/` 這一半）
+## 引用工作項目：寫號碼加標題
 
-**實作 ticket 不放這裡**，那是 GitHub issue 的事。
-
-- 一個 feature 一個目錄：`docs/specs/<feature-slug>/`
-- spec 放在 `docs/specs/<feature-slug>/spec.md`
-- 支撐這個 feature 的量測、判讀、實驗紀錄放同一個目錄，各自取名（`measurements.md` 這類）。它們跟
-  ADR 的分工是：**ADR 寫決定與為什麼，這裡寫數字與怎麼重驗**
-- spec 引用工作項目時**寫 issue 號加標題**（`#61 死區`），不要寫檔案路徑
+不管在 issue、量測檔還是程式碼註解裡，引用一張 issue **寫號碼加標題**（`#61 死區`），不要只寫號碼。
 
 ⚠️ **號碼會爛。** 這條規則以前寫的是「路徑會爛，號碼不會」，後面那半句已經被推翻了：搬 repo 不會
 把號碼一起搬過來，這個 repo 是從 #1 重新編的。
@@ -46,6 +48,30 @@ spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個
 
 所以兩種寫法其實都會爛，差別在壞掉的時候看不看得出來。加上標題的成本幾乎是零，換到的是把一個
 安靜的錯誤變成讀得懂的線索。
+
+## spec 怎麼寫
+
+`/to-spec` 的模板，標題換成中文：
+
+| Matt 的標題 | 這裡寫成 |
+| --- | --- |
+| Problem Statement | `## 問題` |
+| Solution | `## 解法` |
+| User Stories | `## 使用情境`（編號，每條寫成「身為……，我想要……，這樣……」） |
+| Implementation Decisions | `## 實作上的決定` |
+| Testing Decisions | `## 測試上的決定` |
+| Out of Scope | `## 不在範圍內` |
+| Further Notes | `## 其他` |
+
+**spec 不寫檔案路徑與程式碼片段**，那是 Matt 的規則，這裡照用：路徑很快就會過期，而 spec 講的是
+「要什麼」。例外也照 Matt：prototype 做出來的狀態機、型別這類比文字更精確的片段，可以節錄進對應的
+決定裡，註明來自 prototype。
+
+這跟下面〈issue 內文怎麼寫〉要求「具體到檔案與行號」不衝突，兩者是不同的東西：**spec 講要什麼，
+從它拆出來的 ticket 才講改哪裡**。所以 `/to-tickets` 拆出來的 ticket 照下面那一節寫。
+
+spec 貼 `ready-for-agent` label（見 [triage-labels.md](triage-labels.md)），有量測就連到
+`docs/specs/<feature-slug>/`。內文一樣先寫成檔案、跑過 `zh-lint` 再送。
 
 ## issue 內文怎麼寫
 
@@ -114,11 +140,13 @@ GitHub 的 issue 吃 ```mermaid 圍籬。**只在兩種情況畫**：
 
 ## 當 skill 說「publish to the issue tracker」
 
-`gh issue create`。只有 spec 才在 `docs/specs/<feature-slug>/` 底下建檔（目錄不存在就一併建立）。
+`gh issue create`，spec 也是。量測與判讀才在 `docs/specs/<feature-slug>/` 底下建檔（目錄不存在就
+一併建立）。
 
 ## 當 skill 說「fetch the relevant ticket」
 
-`gh issue view <n>`。若拿到的是檔案路徑，那是 spec（`docs/specs/`），直接讀檔。
+`gh issue view <n>`。若拿到的是 `docs/specs/` 底下的檔案路徑，那是量測或 2026-10-08 以前的 spec，
+直接讀檔。
 
 ## Issue 之間的相依性
 
@@ -192,12 +220,23 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 
 ### prototype 與 research 的成果放哪
 
-**prototype** 做成 artifact，連結貼在 ticket 的留言裡。⚠️ artifact 預設是私人的，在公開的 issue 裡
-只有維護者打得開，所以留言要**用文字寫出試了什麼、回饋是什麼、結論是什麼**，連結只是附帶的。
+**prototype** 照 Matt 的 `/prototype`，看問題決定做成什麼：
+
+- **要跟真的 app 放在一起才判斷得了**（要用到真的書、chrome、frond 的排版）：在 app 既有的路由上
+  加 `?variant=` 切換，這是 `/prototype` 的 UI 做法裡優先的那一種。⚠️ 它的切換列要擋在正式版外，
+  Matt 寫的是 `process.env.NODE_ENV`，這裡是 Vite，要用 `import.meta.env.PROD`。
+- **一頁假的畫面就回答得了，或問的是邏輯**：做成一個 HTML 檔，可以發成 artifact 方便看。
+
+**程式碼都 commit 到 `prototype/<name>` 分支並推上去，不 merge 進 main。** 驗證過的決定寫進 spec，
+實作的時候照 spec 重寫，不把 prototype 的程式碼直接搬過去。ticket 的留言連到那條分支，⚠️ 並且**用
+文字寫出試了什麼、回饋是什麼、結論是什麼**：artifact 預設是私人的，在公開的 issue 裡只有維護者打得開。
+
+根目錄的 `prototype/` 是搬 repo 之前留下來的拋棄式頁面，不是放新 prototype 的地方。
 
 **research** 的結論直接貼成 ticket 的留言。wayfinder 原本的做法是把結果 commit 到一條拋棄式的
-`research/<name>` 分支、再從 ticket 指過去；這裡不開那條分支，因為推上去的分支一樣公開，而結論
-放在留言裡就跟它回答的問題放在一起，不必再跳一次。
+`research/<name>` 分支、再從 ticket 指過去；這裡不開那條分支，因為結論放在留言裡就跟它回答的問題
+放在一起，不必再點到別處。不經 wayfinder、直接叫 `/research` 的時候也一樣：貼成相關 issue 的留言，
+沒有相關的 issue 就先開一張。
 
 ### 掛 sub-issue
 

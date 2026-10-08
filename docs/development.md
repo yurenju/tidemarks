@@ -147,7 +147,7 @@ frond 是為了 Tidemarks 寫的渲染層，就住在這個 repo 裡。它吐事
 規則在 [agents/pull-requests.md](agents/pull-requests.md)。動到 reader 畫面的變更要三家瀏覽器
 跑過，並把截圖與量到的數字寫進 PR 說明。
 
-Bug 與 task 走 GitHub issue，spec 與量測放在 `docs/specs/<feature>/`，見
+Bug、task 與 spec 走 GitHub issue，量測放在 `docs/specs/<feature>/`，見
 [agents/issue-tracker.md](agents/issue-tracker.md)。
 
 ## 為什麼會有這個東西
