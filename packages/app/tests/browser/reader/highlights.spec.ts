@@ -304,6 +304,50 @@ test.describe("drawing a highlight", () => {
     await expect(page.locator(".note-editor textarea")).toHaveCount(0);
     expect(await visibleText(page)).toBe(before);
   });
+
+  test("a mark with a note gets a dot in the margin, and the dot leads to it", async ({ page }) => {
+    // Where the dot goes, how two on one line share a place, and which page a long passage is
+    // marked on are `noteDots`'s, in src/lib/highlights.test.ts. What is left for a browser is
+    // that the dot is drawn for a note and not for a bare mark, and that both ways in reach
+    // [[Reflect]]: a press, which travels frond's `pointerup` like a press on the text, and the
+    // keyboard, which only the button answers. The dot is an icon button, so it is found by testid.
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+    const dot = page.getByTestId("note-dot");
+    await expect(dot).toHaveCount(0);
+
+    // Writing the note: in through the passage, the card's own place to start one, and out again.
+    const box = (await selectedElement(page, text).boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByRole("button", { name: "Write a note…" }).click();
+    await panel.locator(".note-editor textarea").fill("Worth coming back to.");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+
+    await expect(dot).toHaveCount(1);
+    // Named for the passage it belongs to, by its opening words.
+    await expect(dot).toHaveAccessibleName(new RegExp(`^Note: ${text.trim().slice(0, 8)}`));
+    const at = (await dot.boundingBox())!;
+    await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: text.slice(0, 12) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await dot.focus();
+    await page.keyboard.press("Enter");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: text.slice(0, 12) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
 });
 
 // Wide enough that the panel stands beside the book instead of over it — the one arrangement

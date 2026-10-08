@@ -420,6 +420,31 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await openBook("草枕", /^一$/);
   });
 
+  // Two notes starting on one column, so their [[Note dot]]s share one place in the top margin.
+  // Both are made with "Mark and note", which writes in the default ink, so the pair is one colour
+  // here; what the picture is for is where the pair sits and that it reads as one mark.
+  await step("reader-vertical-note-dots", async () => {
+    for (const [from, to, note] of [
+      [0, 3, "ここから読み直す。"],
+      [5, 8, "前の段落と比べる。"],
+    ] as const) {
+      expect(await selectProse(page, { from, to })).not.toBeNull();
+      const toolbar = page.locator(".highlight-toolbar");
+      await expect(toolbar).toBeVisible({ timeout: 10_000 });
+      await toolbar.getByRole("button", { name: "Mark and note" }).click();
+      await page.locator(".note-editor textarea").fill(note);
+      await page.locator(".note-editor button").click();
+      await closePanel();
+    }
+    // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
+    // on the page and the other dot is faded. A reload puts both at rest, which is the picture.
+    await page.reload();
+    await settled(page);
+    await expect(page.getByTestId("note-dot")).toHaveCount(1);
+    await expect(page.getByTestId("note-dot").locator(".note-dot-ink")).toHaveCount(2);
+    await page.waitForTimeout(400);
+  });
+
   await step("reader-vertical-chrome-up", async () => {
     await raiseChrome();
   });
@@ -505,14 +530,20 @@ async function chromeState(page: Page): Promise<string> {
  * is what a test about selection wants. A picture wants the highlight to land on **prose** —
  * the first sweep painted one over Standard Ebooks' imprint, and then over a chapter subtitle,
  * before this grew the two conditions below.
+ *
+ * `part` narrows it to characters `from` to `to` of that run, counted from its first one that is
+ * not white space — for a picture that wants two passages on one line rather than one whole run.
  */
-async function selectProse(page: Page): Promise<string | null> {
+async function selectProse(
+  page: Page,
+  part?: { from: number; to: number },
+): Promise<string | null> {
   return await page
     .locator(".viewer-mount iframe[data-frond-page]")
     .last()
     .contentFrame()
     .locator("body")
-    .evaluate((body) => {
+    .evaluate((body, part) => {
       const document = body.ownerDocument;
       const view = document.defaultView;
       if (view === null) return null;
@@ -521,7 +552,7 @@ async function selectProse(page: Page): Promise<string | null> {
       while (walker.nextNode() !== null) {
         const node = walker.currentNode;
         const value = (node.nodeValue ?? "").trim();
-        if (value.length < 8) continue;
+        if (value.length < Math.max(8, part?.to ?? 0)) continue;
 
         const parent = node.parentElement;
         // Inside a paragraph, and outside any heading. Both conditions are needed: the chapter
@@ -544,11 +575,16 @@ async function selectProse(page: Page): Promise<string | null> {
 
         const selection = document.getSelection();
         if (selection === null) return null;
+        if (part !== undefined) {
+          const lead = (node.nodeValue ?? "").search(/\S/);
+          range.setStart(node, lead + part.from);
+          range.setEnd(node, lead + part.to);
+        }
         selection.removeAllRanges();
         selection.addRange(range);
-        return value;
+        return part === undefined ? value : range.toString();
       }
 
       return null;
-    });
+    }, part);
 }

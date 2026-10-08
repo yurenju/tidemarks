@@ -154,6 +154,12 @@ export interface BookSessionOptions {
    * reflow is what dropped the reader back to the start of the section (#29).
    */
   applied: RefObject<string>;
+  /**
+   * How many columns the last layout was answered with — written here, since `resolveLayout` is
+   * where the answer is given and frond does not report it back. The [[Note dot]]s need it: in two
+   * columns a passage in the second one is marked in the gap before it, not in the page's margin.
+   */
+  columns: RefObject<number>;
   selection: RefObject<SelectionCommands>;
   /** Where the reader is in this book (`lib/usePlace.ts`, over `lib/place.ts`'s reducer). */
   place: RefObject<(event: PlaceEvent) => void>;
@@ -696,12 +702,16 @@ export function openBookSession(options: BookSessionOptions): BookSession {
       nativeSelection: !selection.current.ownsSelection(),
       // The one thing the margin needs and nobody here can know before the book is on
       // screen: which axis the line lies along (ADR-0012). frond asks; this answers.
-      resolveLayout: (facts) =>
-        frondLayout(
+      resolveLayout: (facts) => {
+        const answer = frondLayout(
           settings.current,
           { script: bookScript, rootFontSize: readRootFontSize() },
           facts,
-        ),
+        );
+        // Always settled here, never `"auto"` (`frondLayout` says why); the type allows both.
+        options.columns.current = typeof answer.columns === "number" ? answer.columns : 1;
+        return answer;
+      },
       // An address beats the saved position, and only for this layout: the place above
       // still holds where the reader actually was, so the sitting and the next pull are
       // measured against that and not against where they looked.

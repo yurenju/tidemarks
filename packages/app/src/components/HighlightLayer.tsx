@@ -1,5 +1,6 @@
+import { useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
-import { markVar, type HighlightBox } from "../lib/highlights";
+import { markVar, NOTE_DOT_SIZE, type HighlightBox, type NoteDotGroup } from "../lib/highlights";
 import type { Annotation } from "../lib/types";
 
 export interface PaintedHighlight {
@@ -49,63 +50,132 @@ export interface PaintedHighlight {
 // one. What is being answered is "this passage", not "a mark runs beside these lines", so the
 // filling follows the words themselves — its own set of boxes, `textBoxes`, which is neither
 // the strips nor the tap targets.
+//
+// **The [[Note dot]]s are on this layer too, and are the one part of it that is not hidden.** They
+// are drawn here so a turn slides them with the marks (`slideMarks` moves this element and nothing
+// else). Each group is a button, so it is reached by Tab in book order and named for the screen
+// reader; the marks around them are decoration and stay `aria-hidden`. A press with the pointer
+// still goes through frond's `pointerup` like a press on a mark (`Reader.tsx`'s `markAt`), since
+// the buttons take no pointer events either: what they add is the keyboard's way in.
 export default function HighlightLayer({
   ref,
   painted,
+  dots = [],
+  onDot,
   vertical = false,
   selectedId = null,
 }: {
   ref?: React.Ref<HTMLDivElement>;
   painted: readonly PaintedHighlight[];
+  dots?: readonly NoteDotGroup[];
+  onDot?: (id: string) => void;
   vertical?: boolean;
   selectedId?: string | null;
 }) {
+  const { t } = useLingui();
+  const passage = (id: string) =>
+    painted.find((entry) => entry.annotation.id === id)?.annotation.text ?? "";
+
   return (
-    <div className="highlight-layer" ref={ref} aria-hidden>
-      {painted.map(({ annotation, wash }) =>
-        annotation.id !== selectedId
-          ? null
-          : wash.map((box, index) => (
-              <div
-                key={`wash-${annotation.id}-${index}`}
-                className="highlight-wash"
-                style={
-                  {
-                    left: box.left,
-                    top: box.top,
-                    width: box.width,
-                    height: box.height,
-                    "--mark": markVar(annotation.color),
-                  } as CSSProperties
-                }
-              />
-            )),
-      )}
-      {/* **While one passage is selected, it is the wash and nothing else, and the rest fade.**
+    <div className="highlight-layer" ref={ref}>
+      <div aria-hidden>
+        {painted.map(({ annotation, wash }) =>
+          annotation.id !== selectedId
+            ? null
+            : wash.map((box, index) => (
+                <div
+                  key={`wash-${annotation.id}-${index}`}
+                  className="highlight-wash"
+                  style={
+                    {
+                      left: box.left,
+                      top: box.top,
+                      width: box.width,
+                      height: box.height,
+                      "--mark": markVar(annotation.color),
+                    } as CSSProperties
+                  }
+                />
+              )),
+        )}
+        {/* **While one passage is selected, it is the wash and nothing else, and the rest fade.**
           A wave over the wash said "a mark" a second time in the colour that was already saying
           "this one"; the other marks stay on the page at 30% rather than leaving it
           (`styles/book.css`). The same rule for a vertical book — the wave runs down the side
           there, and the wash is the same block on the words. */}
-      {painted.map(({ annotation, strips }) =>
-        annotation.id === selectedId
-          ? null
-          : strips.map((strip, index) => (
-              <div
-                key={`${annotation.id}-${index}`}
-                className={selectedId === null ? "highlight-box" : "highlight-box faded"}
-                data-axis={vertical ? "v" : "h"}
+        {painted.map(({ annotation, strips }) =>
+          annotation.id === selectedId
+            ? null
+            : strips.map((strip, index) => (
+                <div
+                  key={`${annotation.id}-${index}`}
+                  className={selectedId === null ? "highlight-box" : "highlight-box faded"}
+                  data-axis={vertical ? "v" : "h"}
+                  style={
+                    {
+                      left: strip.left,
+                      top: strip.top,
+                      width: strip.width,
+                      height: strip.height,
+                      "--mark": markVar(annotation.color),
+                    } as CSSProperties
+                  }
+                />
+              )),
+        )}
+      </div>
+      {dots.map(({ dots: pair, target }) => {
+        const first = pair[0]!;
+        const excerpt = opening(passage(first.id));
+        return (
+          <button
+            key={`dot-${first.id}`}
+            type="button"
+            className="note-dot"
+            data-testid="note-dot"
+            style={{
+              left: target.left,
+              top: target.top,
+              width: target.width,
+              height: target.height,
+            }}
+            aria-label={t({
+              message: `Note: ${excerpt}`,
+              comment:
+                "Screen-reader name of a [[Note dot]], the small dot in the page margin beside a marked passage that has a note. The placeholder is the first few characters of the marked passage, so the reader knows which note it is. Pressing it opens [[Reflect]] on that note.",
+            })}
+            onClick={() => onDot?.(first.id)}
+          >
+            {pair.map((dot) => (
+              <span
+                key={dot.id}
+                className={
+                  selectedId === null || selectedId === dot.id
+                    ? "note-dot-ink"
+                    : "note-dot-ink faded"
+                }
                 style={
                   {
-                    left: strip.left,
-                    top: strip.top,
-                    width: strip.width,
-                    height: strip.height,
-                    "--mark": markVar(annotation.color),
+                    left: dot.x - target.left - NOTE_DOT_SIZE / 2,
+                    top: dot.y - target.top - NOTE_DOT_SIZE / 2,
+                    "--mark": markVar(dot.color),
                   } as CSSProperties
                 }
               />
-            )),
-      )}
+            ))}
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+/** How much of a passage names its dot: enough to tell two notes apart, not the passage read out. */
+const OPENING_LENGTH = 20;
+
+function opening(text: string): string {
+  const characters = [...text.trim()];
+  return characters.length > OPENING_LENGTH
+    ? `${characters.slice(0, OPENING_LENGTH).join("")}…`
+    : characters.join("");
 }

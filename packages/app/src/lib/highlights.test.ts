@@ -3,6 +3,7 @@
 // rectangles themselves come from a real engine — packages/app/tests/browser/reader/highlights.spec.ts
 // paints one in three browsers and measures where it landed.
 import { readFileSync } from "node:fs";
+import { COLUMN_GAP } from "@yurenju/frond/renderer";
 import { describe, expect, it } from "vitest";
 import {
   boxesContain,
@@ -14,6 +15,9 @@ import {
   DEFAULT_MARK,
   MARKS,
   MARK_CLEARANCE,
+  NOTE_DOT_STEP,
+  NOTE_DOT_TARGET,
+  noteDots,
   WAVELENGTH,
   WAVE_THICKNESS,
 } from "./highlights";
@@ -392,5 +396,154 @@ describe("the wave's two numbers, which live in two languages", () => {
   it("and each tile's own viewBox is that size, so no crest is clipped", () => {
     expect(css).toContain(`width='${WAVELENGTH}' height='${WAVE_THICKNESS}'`);
     expect(css).toContain(`width='${WAVE_THICKNESS}' height='${WAVELENGTH}'`);
+  });
+});
+
+describe("noteDots", () => {
+  // A page inset by a 40px margin on the left and 30px at the top, as on a desktop window.
+  const INSET = { left: 40, top: 30, width: 500, height: 600 };
+  // Text on line `n` of a horizontal page: 20px lines, each 18px tall.
+  const across = (n: number, x: number, width: number): MarkedRectLike => {
+    const rect = { x, y: 30 + n * 20, width, height: 18 };
+    return { role: "text", rect, ink: rect };
+  };
+  // Text in column `n` of a vertical page, counted from the right-hand edge: 30px columns.
+  const down = (n: number, y: number, height: number): MarkedRectLike => {
+    const rect = { x: 510 - n * 30, y, width: 20, height };
+    return { role: "text", rect, ink: rect };
+  };
+  const noted = (id: string, ...marked: MarkedRectLike[]) => ({ id, color: "indigo", marked });
+  const centres = (groups: ReturnType<typeof noteDots>) =>
+    groups.map((group) => group.dots.map(({ id, x, y }) => ({ id, x, y })));
+
+  it("puts a horizontal passage's dot in the left margin, level with its line", () => {
+    expect(centres(noteDots([noted("a", across(2, 100, 200))], INSET, false))).toEqual([
+      [{ id: "a", x: 28, y: 79 }],
+    ]);
+  });
+
+  it("puts a vertical passage's dot above its column, in the top margin", () => {
+    expect(centres(noteDots([noted("a", down(1, 60, 200))], INSET, true))).toEqual([
+      [{ id: "a", x: 490, y: 18 }],
+    ]);
+  });
+
+  it("stands no further out than half its target on a wide margin", () => {
+    const wide = { ...INSET, left: 157 };
+    const [group] = noteDots([noted("a", across(0, 200, 100))], wide, false);
+    expect(group!.dots[0]!.x).toBe(157 - NOTE_DOT_TARGET / 2);
+  });
+
+  it("answers in a target centred on the dot, which may run past a narrow margin", () => {
+    // A phone's 20px margin: the dot sits in the middle of it and its square crosses the text.
+    const phone = { ...INSET, left: 20 };
+    const [group] = noteDots([noted("a", across(0, 20, 100))], phone, false);
+    expect(group!.target).toEqual({
+      left: 10 - NOTE_DOT_TARGET / 2,
+      top: 39 - NOTE_DOT_TARGET / 2,
+      width: NOTE_DOT_TARGET,
+      height: NOTE_DOT_TARGET,
+    });
+  });
+
+  it("follows the first line of a passage that runs over several", () => {
+    const passage = noted("a", across(3, 300, 200), across(4, 40, 500), across(5, 40, 120));
+    expect(centres(noteDots([passage], INSET, false))).toEqual([[{ id: "a", x: 28, y: 99 }]]);
+  });
+
+  it("follows the first column of a vertical passage that runs over several", () => {
+    const passage = noted("a", down(0, 400, 230), down(1, 30, 600));
+    expect(centres(noteDots([passage], INSET, true))).toEqual([[{ id: "a", x: 520, y: 18 }]]);
+  });
+
+  it("sets two passages starting on one line side by side, the first one read on the left", () => {
+    const groups = noteDots(
+      [noted("first", across(1, 60, 80)), noted("second", across(1, 300, 200))],
+      INSET,
+      false,
+    );
+    expect(centres(groups)).toEqual([
+      [
+        { id: "first", x: 28 - NOTE_DOT_STEP / 2, y: 59 },
+        { id: "second", x: 28 + NOTE_DOT_STEP / 2, y: 59 },
+      ],
+    ]);
+    expect(groups[0]!.target.left).toBe(28 - NOTE_DOT_TARGET / 2);
+  });
+
+  it("puts the first one read on the right above a vertical line", () => {
+    const groups = noteDots(
+      [noted("first", down(0, 40, 60)), noted("second", down(0, 200, 90))],
+      INSET,
+      true,
+    );
+    expect(centres(groups)).toEqual([
+      [
+        { id: "first", x: 520 + NOTE_DOT_STEP / 2, y: 18 },
+        { id: "second", x: 520 - NOTE_DOT_STEP / 2, y: 18 },
+      ],
+    ]);
+  });
+
+  it("draws two dots on a line with three noted passages, the two read first", () => {
+    const groups = noteDots(
+      [
+        noted("a", across(1, 40, 50)),
+        noted("b", across(1, 120, 50)),
+        noted("c", across(1, 200, 50)),
+      ],
+      INSET,
+      false,
+    );
+    expect(groups.map((group) => group.dots.map((dot) => dot.id))).toEqual([["a", "b"]]);
+  });
+
+  it("keeps passages on different lines apart, in book order", () => {
+    const groups = noteDots(
+      [noted("a", across(1, 40, 50)), noted("b", across(4, 120, 50))],
+      INSET,
+      false,
+    );
+    expect(groups.map((group) => group.dots.map((dot) => dot.id))).toEqual([["a"], ["b"]]);
+  });
+
+  it("marks a passage running onto the next page on this one, where it starts", () => {
+    // The tail of the passage is on the next page (x past 540), the head on this one.
+    const passage = noted("a", across(29, 300, 240), { ...across(0, 600, 300) });
+    expect(noteDots([passage], INSET, false)).toHaveLength(1);
+  });
+
+  it("does not mark a passage on the page it ends on", () => {
+    // The same passage, a page later: its first line now sits on the previous page.
+    const passage = noted("a", across(29, -260, 240), across(0, 40, 300));
+    expect(noteDots([passage], INSET, false)).toEqual([]);
+  });
+
+  it("marks a passage in the second of two columns in the gap before that column", () => {
+    // Two columns of (500 - gap) / 2 each; the second starts one column and one gap in.
+    const second = INSET.left + (INSET.width + COLUMN_GAP) / 2;
+    const groups = noteDots(
+      [noted("left", across(1, 60, 80)), noted("right", across(1, second + 30, 80))],
+      INSET,
+      false,
+      2,
+    );
+    // Same height, different columns: two places, not one pair.
+    expect(centres(groups)).toEqual([
+      [{ id: "left", x: 28, y: 59 }],
+      [{ id: "right", x: second - NOTE_DOT_TARGET / 2, y: 59 }],
+    ]);
+  });
+
+  it("takes its ink from its own passage", () => {
+    const [group] = noteDots(
+      [
+        { ...noted("a", across(1, 40, 50)), color: "ochre" },
+        { ...noted("b", across(1, 120, 50)), color: "moss" },
+      ],
+      INSET,
+      false,
+    );
+    expect(group!.dots.map((dot) => dot.color)).toEqual(["ochre", "moss"]);
   });
 });

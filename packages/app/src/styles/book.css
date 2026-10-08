@@ -315,6 +315,41 @@ button.selection-handle:active:not(:disabled) {
   opacity: 0.3;
 }
 
+/* A [[Note dot]]: the button is the 24px square a press counts in (`NOTE_DOT_TARGET`), and the dots
+   are drawn inside it where `noteDots` put them. Positions come from there; this only says what a
+   dot looks like — 6px (`NOTE_DOT_SIZE`), in its passage's own ink.
+
+   **The button takes no pointer events, like the layer around it.** A press with the pointer is
+   answered from frond's `pointerup`, which already counts the square (`Reader.tsx`'s `markAt`);
+   the button is there for Tab and Enter. Taking the pointer here as well would answer a tap twice. */
+.note-dot {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  pointer-events: none;
+}
+
+/* Drawn inside the square rather than around it: the layer clips at the container's edge, and on a
+   phone's 20px margin the square already reaches it. */
+.note-dot:focus-visible {
+  outline-offset: -2px;
+}
+
+.note-dot-ink {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mark);
+}
+
+/* The same step back as `.highlight-box.faded`, for the same reason: another passage is selected. */
+.note-dot-ink.faded {
+  opacity: 0.3;
+}
+
 /* `HighlightLayer` is told which axis this is; nothing in the box's geometry says so. The two
    tiles differ only in which way the wave runs — see `--wave-h` for why 4 and 5.333. */
 .highlight-box[data-axis="h"] {

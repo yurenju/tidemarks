@@ -598,6 +598,11 @@ msgstr "Not opened yet"
 msgid "Not signed in"
 msgstr "Not signed in"
 
+#. Screen-reader name of a [[Note dot]], the small dot in the page margin beside a marked passage that has a note. The placeholder is the first few characters of the marked passage, so the reader knows which note it is. Pressing it opens [[Reflect]] on that note.
+#: src/components/HighlightLayer.tsx
+msgid "Note: {excerpt}"
+msgstr "Note: {excerpt}"
+
 #. Placeholder in the empty note box under a marked passage. The ellipsis is one character.
 #: src/components/AnnotationItem.tsx
 msgid "Note…"

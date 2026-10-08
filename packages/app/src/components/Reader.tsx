@@ -28,7 +28,15 @@ import { useSelection } from "../lib/useSelection";
 import { chapterAt, type ChapterBoundary, type FlatTocItem } from "../lib/toc";
 import { groupByChapter } from "../lib/annotation-groups";
 import { markToOpenAt, markToTurnTo } from "../lib/annotation-position";
-import { boxesContain, hitBoxes, markStrips, textBoxes } from "../lib/highlights";
+import {
+  boxesContain,
+  hitBoxes,
+  markStrips,
+  noteDots,
+  textBoxes,
+  type NoteDotGroup,
+  type NotedPassage,
+} from "../lib/highlights";
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
 import NotesChapterHeading from "./NotesChapterHeading";
@@ -299,6 +307,8 @@ export default function Reader({
   // exactly what the highlight layer has to recompute against.
   const [geometry, setGeometry] = useState(0);
   const [painted, setPainted] = useState<PaintedHighlight[]>([]);
+  // The [[Note dot]]s on this page, measured in the same pass as `painted` and against the same box.
+  const [dots, setDots] = useState<NoteDotGroup[]>([]);
   // Page turns begun, turns frond has reported landing (`located`), and landings already answered
   // with `turnLanded`. **Counts, not flags**: an arrow pressed twice quickly commits the first turn
   // at once and starts a second, and a flag would answer for the middle page and then never for
@@ -308,6 +318,9 @@ export default function Reader({
   const turnsRef = useRef({ begun: 0, landed: 0, answered: 0 });
   // The same list the layer paints, for hit-testing a tap without waiting for a re-render.
   const paintedRef = useRef<PaintedHighlight[]>([]);
+  const dotsRef = useRef<NoteDotGroup[]>([]);
+  // How many columns frond was last told to lay out in; `book-session.ts` writes it.
+  const columnsRef = useRef(1);
   // The layer itself, so a turn in progress can slide it with the page it is drawn over. Moved
   // by hand rather than through state: this runs once per animation frame, and re-rendering the
   // reader at 60Hz to move one box would be paying for the whole tree to move a transform.
@@ -441,12 +454,18 @@ export default function Reader({
     theme: themeRef,
     webFonts: webFontsRef,
     applied: appliedRef,
+    columns: columnsRef,
     selection,
     place: dispatchPlace,
     ground,
     slide: (at) => slideMarks(marksRef.current, at),
+    // **A dot before a mark.** On a phone the dot's square runs a few px over the text, and a
+    // press there was aimed at the dot; the text it overlaps is a passage of its own only by
+    // accident. A pair answers for the one read first.
     markAt: (point) =>
-      paintedRef.current.find((entry) => boxesContain(point, entry.targets))?.annotation.id ?? null,
+      dotsRef.current.find((group) => boxesContain(point, [group.target]))?.dots[0]!.id ??
+      paintedRef.current.find((entry) => boxesContain(point, entry.targets))?.annotation.id ??
+      null,
     on: report,
   });
 
@@ -623,10 +642,13 @@ export default function Reader({
     if (!renderer || !page) {
       setPainted([]);
       paintedRef.current = [];
+      setDots([]);
+      dotsRef.current = [];
       return;
     }
 
     const next: PaintedHighlight[] = [];
+    const noted: NotedPassage[] = [];
     for (const annotation of annotations) {
       const marked = renderer.rectsFor(annotation.cfiRange);
       // **Three sets of boxes, and they are deliberately different.** What is painted is the
@@ -649,11 +671,19 @@ export default function Reader({
           targets,
           wash: textBoxes(marked, page),
         });
+        // Only a passage with a note gets a dot: a dot says "you wrote something here".
+        // `annotations` is in book order, which is the order the dots are reached by Tab.
+        if (annotation.note !== "") {
+          noted.push({ id: annotation.id, color: annotation.color, marked });
+        }
       }
     }
 
     setPainted(next);
     paintedRef.current = next;
+    const nextDots = noteDots(noted, page, verticalBook, columnsRef.current);
+    setDots(nextDots);
+    dotsRef.current = nextDots;
     // **The answer to the question a turn could not ask as it began**: which marks are on the page
     // it landed on. These boxes are that page's, measured at rest — so this is the first moment
     // anyone can say whether the passage [[Reflect]] was pointing at came along (`lib/chrome.ts`).
@@ -801,6 +831,8 @@ export default function Reader({
             <HighlightLayer
               ref={marksRef}
               painted={painted}
+              dots={dots}
+              onDot={(id) => sendChrome({ kind: "markPicked", id })}
               vertical={verticalBook}
               selectedId={selectedNoteId}
             />
