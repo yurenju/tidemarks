@@ -416,6 +416,33 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     await panel.getByRole("textbox").fill("Written at the foot of the page.");
     await panel.getByRole("button", { name: "Done" }).click();
     await expect(panel).toBeHidden();
+    await settled(page);
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+  });
+});
+
+// The other half of the case above, which that one cannot tell apart: the book taking its column
+// back on [[Done]]. By then the page is the narrow one the note was written beside, and from most
+// of those a wider page still reaches the passage from the old page start. This one does not —
+// found by holding the passage only while the note was open, which lost it here and on no other
+// page of the first ten of either book.
+test.describe("a desk, where Done gives the book its column back", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the passage just written about is still on the page", async ({ page }) => {
+    await openBook(page, BOOKS.horizontal);
+    for (let turn = 0; turn < 8; turn += 1) {
+      await page.keyboard.press("ArrowRight");
+      await settled(page);
+    }
+    await selectTheFoot(page);
+    await page.locator(".highlight-toolbar").getByRole("button", { name: "Mark and note" }).click();
+
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByRole("textbox").fill("Written at the foot of the page.");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel).toBeHidden();
+    await settled(page);
     await expect(page.locator(".highlight-box").first()).toBeVisible();
   });
 });

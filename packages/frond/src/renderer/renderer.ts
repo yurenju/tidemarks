@@ -780,7 +780,7 @@ export class Renderer {
       const view = this.view;
       if (view === undefined || this.destroyed) return Promise.resolve();
 
-      const kept = this.rangeKeptOnPage(view);
+      const kept = this.rangeKeptOnPage();
       const anchor = view.positionAtPageStart(view.page);
       view.relayout(this.settingsSource);
       // The peeks lay out to the same container, so a container that changed size changed
@@ -1046,6 +1046,8 @@ export class Renderer {
    * navigation, and a passage the reader has turned away from is not theirs to be thrown back
    * to. One that began on an earlier page and runs onto this one is ignored too — the page start
    * is inside it already.
+   * **What is promised is the start**: a passage long enough to run off the foot of the new page
+   * still does.
    *
    * Kept until it is replaced. Nothing here ends it, because nothing here knows when the
    * consumer stops caring; the rule above is what makes a stale one harmless.
@@ -1054,20 +1056,17 @@ export class Renderer {
     this.kept = typeof cfi === "string" ? tryParse(cfi) : cfi;
   }
 
-  /** The kept passage as a `Range` in `view`, if it begins on the page on screen. */
-  private rangeKeptOnPage(view: SectionView): Range | undefined {
-    if (this.kept === undefined || sectionIndexOf(this.kept) !== this.sectionIndex)
-      return undefined;
-    const range = rangeForCfi(view.document, this.kept);
-    if (range === undefined) return undefined;
+  /** The kept passage as a `Range` in the section on screen, if it begins on the page on screen. */
+  private rangeKeptOnPage(): Range | undefined {
+    const view = this.view;
+    const range = this.kept === undefined ? undefined : this.rangeIn(this.kept);
+    if (view === undefined || range === undefined) return undefined;
     return view.pageOf(range) === view.page ? range : undefined;
   }
 
   /** The kept passage, if it begins on the page on screen — the CFI a rebuild lands on. */
   private keptOnPage(): Cfi | undefined {
-    const view = this.view;
-    if (view === undefined) return undefined;
-    return this.rangeKeptOnPage(view) === undefined ? undefined : this.kept;
+    return this.rangeKeptOnPage() === undefined ? undefined : this.kept;
   }
 
   /**
