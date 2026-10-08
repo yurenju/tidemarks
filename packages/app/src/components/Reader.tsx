@@ -983,7 +983,7 @@ export default function Reader({
                     key={a.id}
                     annotation={a}
                     editing={editingId === a.id}
-                    pointedAt={selectedNoteId === a.id}
+                    selected={selectedNoteId === a.id}
                     onJump={() => {
                       // The jump is the place's to make: whether it opens a visit and where the
                       // book moves to are one decision, and they used to be two calls that had to

@@ -358,11 +358,15 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await openPanel(/Notes/, "panel-notes");
   });
 
-  // Selected by pressing its passage, which is what puts the dashed box under a mark with no
-  // note — on a desk only the selected card offers to write.
+  // On a desk only the selected card offers to write, and pressing its passage is what selects
+  // it. Narrower, every card already carries the box — and pressing the passage there closes the
+  // panel, so it is pressed only where the box is not already showing.
   await step("reader-note-editing", async () => {
-    await page.getByTestId("panel-notes").locator(".annotation-quote").first().click();
-    await page.getByRole("button", { name: "Write a note…" }).click();
+    const write = page.getByRole("button", { name: "Write a note…" });
+    if (!(await write.isVisible())) {
+      await page.getByTestId("panel-notes").locator(".annotation-quote").first().click();
+    }
+    await write.click();
     await page.locator(".note-editor textarea").fill("這一段想再讀一次。");
     await page.waitForTimeout(400);
   });

@@ -8,7 +8,7 @@ import { AGE_LABELS } from "./age-labels";
 export default function AnnotationItem({
   annotation,
   editing,
-  pointedAt,
+  selected,
   onJump,
   onEdit,
   onPersist,
@@ -17,8 +17,11 @@ export default function AnnotationItem({
 }: {
   annotation: Annotation;
   editing: boolean;
-  /** Whether the book is showing this passage filled in — see `aria-current` below. */
-  pointedAt: boolean;
+  /**
+   * The passage the reader pointed at — washed on the page, and the card that carries its tools
+   * and its whole note. See `aria-current` below.
+   */
+  selected: boolean;
   onJump: () => void;
   onEdit: () => void;
   /** Write the words down without closing anything. Called on every way out of the box. */
@@ -59,22 +62,25 @@ export default function AnnotationItem({
   const showsNote = !editing && annotation.note !== "";
   useEffect(() => {
     const body = noteRef.current;
-    if (!pointedAt || body === null) {
+    if (!selected || body === null) {
       setOverflow((was) => (was.tall ? { tall: false, atEnd: false } : was));
       return;
     }
     measureNote();
+    // The text as well as the box: once the box is held at its full height, a change in the
+    // type size or the panel's width changes only what is inside it.
     const observer = new ResizeObserver(measureNote);
     observer.observe(body);
+    if (body.firstElementChild !== null) observer.observe(body.firstElementChild);
     return () => observer.disconnect();
     // `measureNote` reads only the ref, so a fresh copy each render is not a change.
-  }, [pointedAt, showsNote, annotation.note]);
+  }, [selected, showsNote, annotation.note]);
   /**
-   * How many paragraphs the note has, for the line under a note that scrolls. A paragraph is a
-   * line the reader wrote with something on it — the note is shown with its line breaks kept
-   * (`styles/book.css`), so that is what the reader sees as one.
+   * How many paragraphs the note has, for the line under a note that scrolls. A paragraph is what
+   * a blank line separates — the note is shown with its line breaks kept (`styles/book.css`), so a
+   * single break is a line inside a paragraph, as in a list or a verse the reader copied out.
    */
-  const paragraphs = annotation.note.split("\n").filter((line) => line.trim() !== "").length;
+  const paragraphs = annotation.note.split(/\n\s*\n/).filter((part) => part.trim() !== "").length;
 
   /**
    * **[[Delete]] asks first, in the item itself.** Readers deleted notes they meant to keep, and a
@@ -93,6 +99,13 @@ export default function AnnotationItem({
   useEffect(() => {
     if (editing) setConfirming(false);
   }, [editing]);
+  // And when the reader points at another passage: on a desk the tools are only on the selected
+  // card, so a question left standing on one that has stepped back would be asking about a card
+  // whose [[Delete]] is no longer there to hand the focus back to. Only the move *away* ends it,
+  // so a card that was never selected — every card on a narrow window — can still ask.
+  useEffect(() => {
+    if (!selected) setConfirming(false);
+  }, [selected]);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const deleteRef = useRef<HTMLButtonElement | null>(null);
   /** Set by the reader stepping back from the question — and only then is the focus handed back. */
@@ -183,7 +196,7 @@ export default function AnnotationItem({
 
   return (
     <div
-      className={`annotation-item${pointedAt ? " selected" : ""}`}
+      className={`annotation-item${selected ? " selected" : ""}`}
       // The colour is set once here and read by the rule down the card's edge and the scrollbar
       // of a long note (`styles/book.css`), so the two cannot come out in different inks.
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
@@ -269,11 +282,11 @@ export default function AnnotationItem({
         >
           <p id={questionId} className="annotation-confirm-question">
             {annotation.note ? (
-              <Trans comment="Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.">
+              <Trans comment="Asked in place of the date row on a card in the notes panel, for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.">
                 Delete this mark and its note?
               </Trans>
             ) : (
-              <Trans comment="Asked in place of the buttons under a marked passage with no note, after Delete was pressed.">
+              <Trans comment="Asked in place of the date row on a card in the notes panel, for a passage with no note, after Delete was pressed.">
                 Delete this mark?
               </Trans>
             )}
@@ -293,7 +306,7 @@ export default function AnnotationItem({
                 onRemove();
               }}
             >
-              <Trans comment="The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.">
+              <Trans comment="The button that actually deletes, in the question asked in place of the date row on a card in the notes panel. Shares its entry with the Delete that asked.">
                 Delete
               </Trans>
             </button>
@@ -313,7 +326,7 @@ export default function AnnotationItem({
             {i18n._(AGE_LABELS[relativeAge(Date.now(), annotation.createdAt)])}
             {/* The exact day on the card being looked at, small. The ladder above is the right
                 answer for scanning a list and the wrong one for "when did I write this". */}
-            {pointedAt && (
+            {selected && (
               <span className="annotation-date">
                 {new Intl.DateTimeFormat(i18n.locale, { month: "numeric", day: "numeric" }).format(
                   annotation.createdAt,
@@ -332,13 +345,13 @@ export default function AnnotationItem({
           <span className="annotation-tools">
             {showsNote && (
               <button type="button" onClick={onEdit}>
-                <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
+                <Trans comment="Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.">
                   Edit note
                 </Trans>
               </button>
             )}
             <button type="button" ref={deleteRef} onClick={() => setConfirming(true)}>
-              <Trans comment="Button under a marked passage: removes the mark and any note on it.">
+              <Trans comment="Small text button at the end of the date row on a card in the notes panel: asks, then removes the mark and any note on it. On a desk it appears only on the card the reader has selected.">
                 Delete
               </Trans>
             </button>
@@ -364,7 +377,7 @@ export default function AnnotationItem({
       <button
         type="button"
         className="annotation-quote"
-        aria-current={pointedAt || undefined}
+        aria-current={selected || undefined}
         onClick={onJump}
         title={t({
           message: "Jump to this passage",
@@ -419,7 +432,7 @@ export default function AnnotationItem({
           that is not there yet. */}
       {!editing && annotation.note === "" && (
         <button type="button" className="annotation-write" onClick={onEdit}>
-          <Trans comment="Dashed box under a marked passage with no note, on the card the reader has selected in the notes panel. Pressing it opens the note box. The ellipsis is one character.">
+          <Trans comment="Dashed box under a marked passage with no note, on a card in the notes panel — on a desk only the card the reader has selected. Pressing it opens the note box. The ellipsis is one character.">
             Write a note…
           </Trans>
         </button>

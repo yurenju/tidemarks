@@ -853,8 +853,9 @@ button.selection-handle:active:not(:disabled) {
 /* **Only the selected card carries them**, and the dashed box below too. Forty cards each with
    a row of buttons read as a register, and the reader acts on the one they are looking at.
 
-   Restated for the narrow window in `device.css`: there the panel covers the book, pressing a
-   passage closes it, and so no card in a list the reader can see is ever selected. */
+   Restated for the narrow window in `device.css`: there the panel covers the book and pressing a
+   passage closes it, so pressing cannot be how a card in the list gets selected. The fade below,
+   the cut on the note and its scroll are restated there too. */
 .annotation-item:not(.selected) .annotation-tools,
 .annotation-item:not(.selected) .annotation-write {
   display: none;
@@ -863,9 +864,11 @@ button.selection-handle:active:not(:disabled) {
 /* Prose in a control, so the button rules that suit a label are undone here: it wraps, it fills
    the row, and it carries no border or fill of its own.
 
-   **The book's face, faded.** It is the book's sentence, so it is set in a serif as the book's
-   own text is; it is not what the card is for, so it stands back in `--text-muted` and the
-   reader's words under it are the ones in full ink. */
+   **A serif, faded.** It is the book's sentence, so it is set in the interface's serif — the
+   reading face, as against the control face the reader's own words are in. Not the face the
+   reader chose for the book in [[Layout]]: that one is applied inside frond's frame and is not a
+   value this stylesheet can read. It is not what the card is for, so it stands back in
+   `--text-muted` and the reader's words under it are the ones in full ink. */
 .annotation-quote {
   display: block;
   width: 100%;
@@ -936,7 +939,8 @@ button.annotation-quote:active:not(:disabled) {
 
 /* **Three lines until the card is selected.** A cut note is fine here and was not before,
    because there is now a way to the rest that is not the editor: pressing the passage selects
-   the card, and the selected card shows the note whole. */
+   the card, and the selected card shows the note whole. ⚠️ `device.css` undoes this below 820px,
+   where pressing the passage closes the panel instead. */
 .annotation-item:not(.selected) .note-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;

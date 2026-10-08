@@ -234,8 +234,8 @@ msgid "Dark"
 msgstr "Dark"
 
 #. Button in the book-details panel that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
-#. Button under a marked passage: removes the mark and any note on it.
-#. The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.
+#. Small text button at the end of the date row on a card in the notes panel: asks, then removes the mark and any note on it. On a desk it appears only on the card the reader has selected.
+#. The button that actually deletes, in the question asked in place of the date row on a card in the notes panel. Shares its entry with the Delete that asked.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
 #: src/components/AnnotationItem.tsx
@@ -247,12 +247,12 @@ msgstr "Delete"
 msgid "Delete “{title}”?"
 msgstr "Delete “{title}”?"
 
-#. Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
+#. Asked in place of the date row on a card in the notes panel, for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
 #: src/components/AnnotationItem.tsx
 msgid "Delete this mark and its note?"
 msgstr "Delete this mark and its note?"
 
-#. Asked in place of the buttons under a marked passage with no note, after Delete was pressed.
+#. Asked in place of the date row on a card in the notes panel, for a passage with no note, after Delete was pressed.
 #: src/components/AnnotationItem.tsx
 msgid "Delete this mark?"
 msgstr "Delete this mark?"
@@ -292,7 +292,7 @@ msgstr "Downloading font　{percent}%"
 msgid "Downloading the book…"
 msgstr "Downloading the book…"
 
-#. Button under a marked passage that already carries a note: opens it for changing.
+#. Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.
 #: src/components/AnnotationItem.tsx
 msgid "Edit note"
 msgstr "Edit note"
@@ -1075,7 +1075,7 @@ msgstr "Verification failed"
 msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 msgstr "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 
-#. Dashed box under a marked passage with no note, on the card the reader has selected in the notes panel. Pressing it opens the note box. The ellipsis is one character.
+#. Dashed box under a marked passage with no note, on a card in the notes panel — on a desk only the card the reader has selected. Pressing it opens the note box. The ellipsis is one character.
 #: src/components/AnnotationItem.tsx
 msgid "Write a note…"
 msgstr "Write a note…"
