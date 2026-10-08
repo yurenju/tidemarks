@@ -27,6 +27,7 @@ import { AT_REST } from "../lib/turn";
 import { useSelection } from "../lib/useSelection";
 import { chapterAt, type ChapterBoundary, type FlatTocItem } from "../lib/toc";
 import { groupByChapter } from "../lib/annotation-groups";
+import { markToOpenAt, markToTurnTo } from "../lib/annotation-position";
 import { boxesContain, hitBoxes, markStrips, textBoxes } from "../lib/highlights";
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
@@ -316,6 +317,12 @@ export default function Reader({
   // `relocate`, before the whole-book index exists — so the panel can mark the current
   // chapter while the Scrubber is still disabled.
   const [sectionIndex, setSectionIndex] = useState(0);
+  // Where the page in front of the reader begins, as a CFI. The notes list asks it one question:
+  // which marks lie further on, when this page has none of its own (`lib/annotation-position.ts`).
+  const [pageStart, setPageStart] = useState<string | null>(null);
+  // Bumped each time a turn's landing has been answered with `turnLanded`, so the notes list can
+  // follow the book onto the new page once the marks on it are known.
+  const [landings, setLandings] = useState(0);
   const themeRef = useRef(resolvedTheme);
   themeRef.current = resolvedTheme;
   const settingsRef = useRef(settings);
@@ -376,6 +383,7 @@ export default function Reader({
       setArrived(false);
       setFraction(0);
       setSectionIndex(0);
+      setPageStart(null);
       setChapters([]);
       setAnnotationsRead(false);
     },
@@ -403,6 +411,7 @@ export default function Reader({
       if (turns.landed < turns.begun) turns.landed += 1;
       setFraction(at.fraction);
       setSectionIndex(at.sectionIndex);
+      setPageStart(at.cfi);
       setGeometry((tick) => tick + 1);
     },
     moved: () => setGeometry((tick) => tick + 1),
@@ -540,6 +549,65 @@ export default function Reader({
     currentItemRef.current?.scrollIntoView({ block: "center" });
   }, [chrome, currentTocIndex]);
 
+  // The same courtesy for [[Notes]]: the list opens on the reader's page rather than at the first
+  // mark in the book, and follows the book when it turns. **Scrolled to, never selected** — which
+  // mark is the answer is `lib/annotation-position.ts`'s, and pointing at one stays the reader's.
+  // State rather than a ref: the panel is portalled, and its body mounts a render after [[Reflect]]
+  // opens. Holding the element as state is what gives the effect below a second chance once it is
+  // there, where a ref would still be empty and nothing would ask again.
+  const [notesList, setNotesList] = useState<HTMLDivElement | null>(null);
+  const reflecting = chrome === "reflect";
+  /**
+   * Brings a card to the top of the list. **The chapter's heading comes with it** when the card is
+   * the first of its run, so the list does not open on a card with its chapter's name scrolled
+   * just out of sight.
+   *
+   * The list is scrolled rather than the card asked to `scrollIntoView`, for the reason
+   * `AnnotationItem`'s editor gives: only the panel's own column should move.
+   */
+  function scrollNotesTo(id: string) {
+    const item = notesList?.querySelector<HTMLElement>(`[data-mark="${CSS.escape(id)}"]`);
+    const body = item?.closest<HTMLElement>(".panel-body");
+    if (!item || !body) return;
+    const run = item.closest<HTMLElement>(".annotation-chapter");
+    const anchor = run?.querySelector(".annotation-item") === item ? run : item;
+    body.scrollTop += anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
+  }
+  // Set as [[Reflect]] opens with nothing pointed at, and spent once there is a page to answer
+  // from. Two steps because the list can open before there is one: `?d=notes` raises it as the
+  // book opens, before the marks are read or the first page has been located. Only the opening
+  // asks — a mark picked or dropped inside [[Reflect]] is not the list opening.
+  const notesOpening = useRef(false);
+  const wasReflecting = useRef(false);
+  // Landings the list has already followed, so a render for any other reason does not scroll it.
+  const followedLandings = useRef(0);
+  // No dependency list on either: each one keeps its own record of what it has already answered,
+  // and the rest is read as it stands at that moment.
+  useEffect(() => {
+    if (reflecting !== wasReflecting.current) {
+      wasReflecting.current = reflecting;
+      notesOpening.current = reflecting && selectedNoteId === null;
+    }
+    if (!notesOpening.current || !annotationsRead || pageStart === null || !notesList) return;
+    notesOpening.current = false;
+    // `paintedRef` rather than `painted`: the highlight layer has just measured this page in a
+    // layout effect, and the state it set has not been rendered yet.
+    const onPage = paintedRef.current.map((entry) => entry.annotation.id);
+    const target = markToOpenAt(annotations, onPage, pageStart);
+    if (target !== null) scrollNotesTo(target.id);
+  });
+  // A turn that has landed, while the list stands beside the book. Not while a passage is still
+  // pointed at — one running across the turn keeps its wash (`lib/chrome.ts`) and the list is
+  // already on it — nor while a note is being written, whose box the reader is typing into.
+  useEffect(() => {
+    if (landings === followedLandings.current) return;
+    followedLandings.current = landings;
+    if (!reflecting || selectedNoteId !== null || editingId !== null) return;
+    const onPage = paintedRef.current.map((entry) => entry.annotation.id);
+    const target = markToTurnTo(annotations, onPage);
+    if (target !== null) scrollNotesTo(target.id);
+  });
+
   // Which highlight rectangles are on the page in front of the reader.
   //
   // A layout effect because it measures: it runs after the DOM is in its new shape and
@@ -593,6 +661,7 @@ export default function Reader({
     if (turns.answered < turns.landed) {
       turns.answered = turns.landed;
       sendChrome({ kind: "turnLanded", showing: next.map((entry) => entry.annotation.id) });
+      setLandings((n) => n + 1);
     }
     // Freshly measured boxes are measured against the page at rest, so whatever a turn left on
     // the layer is spent. This is also the backstop for a turn abandoned from inside frond — a
@@ -972,7 +1041,7 @@ export default function Reader({
         )}
 
         {face === "notes" && (
-          <div className="panel-list panel-list-notes">
+          <div className="panel-list panel-list-notes" ref={setNotesList}>
             {annotations.length === 0 && (
               <div className="notes-empty">
                 {/* One faint run of the mark the reader has not made yet, so the panel is not a

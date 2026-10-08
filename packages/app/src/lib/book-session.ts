@@ -113,8 +113,8 @@ export interface BookSessionReport {
   vertical(is: boolean): void;
   /** This book's marks as Dexie holds them, read once as the book opens. */
   annotations(marks: Annotation[]): void;
-  /** The page moved: which section, and how far through the whole book. */
-  located(at: { fraction: number; sectionIndex: number }): void;
+  /** The page moved: which section, how far through the whole book, and where the page begins. */
+  located(at: { fraction: number; sectionIndex: number; cfi: string }): void;
   /** Every rectangle frond reported is stale — a turn, a reflow, a resize. */
   moved(): void;
   /** The whole-book index is built, so a fraction can be resolved. */
@@ -742,7 +742,7 @@ export function openBookSession(options: BookSessionOptions): BookSession {
           lastCfi = at.cfi;
           const percentage = at.fraction ?? lastPercentage;
           lastPercentage = percentage;
-          on.located({ fraction: percentage, sectionIndex: at.sectionIndex });
+          on.located({ fraction: percentage, sectionIndex: at.sectionIndex, cfi: at.cfi });
 
           const now = Date.now();
           const position = {

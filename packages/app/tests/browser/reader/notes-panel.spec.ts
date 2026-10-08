@@ -241,3 +241,73 @@ test("N opens Reflect from the book, and closes it again", async ({ page }) => {
   await expect(panel).toBeHidden();
   await expect(page.getByTestId("chrome-bottom")).toBeHidden();
 });
+
+// Where the list points is `annotation-position.test.ts`'s, rung by rung. What is asked here is that
+// the reader really hands it the page it is on — the marks the highlight layer painted, and where
+// the page begins — and really scrolls the panel to the answer without pointing at it.
+
+/**
+ * Alice open on chapter three's first page, which holds the late mark, with eight long-noted marks
+ * from chapter one ahead of it in the list — enough that a list left at its top has no room to
+ * show the late one — and one more mark further on, so that the page's first mark is not also the
+ * book's last, which is where the list falls back to when it is handed no page at all.
+ */
+async function openNotesInChapterThree(page: Page): Promise<void> {
+  await page.goto("/");
+  await page.locator('input[type="file"][accept=".epub"]').setInputFiles(BOOKS.horizontal);
+  const card = bookCards(page).filter({ hasText: /Alice/ });
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  const bookId = (await card.getAttribute("data-book-id"))!;
+
+  await seedMarks(page, bookId, [
+    ...Array.from({ length: 8 }, (_, i) => ({
+      id: `notes-early-${i}`,
+      cfiRange: IN_CHAPTER_ONE,
+      text: `${EARLY_PASSAGE} (${i + 1})`,
+      note: LONG_NOTE,
+    })),
+    { id: "notes-late", cfiRange: IN_CHAPTER_THREE, text: LATE_PASSAGE, note: "" },
+    { id: "notes-later", cfiRange: FURTHER_ON, text: LATER_PASSAGE, note: "" },
+  ]);
+  // By address, to reach the scene: what is under test is the panel, not the way to chapter three.
+  const at = encodeURIComponent("cfi:epubcfi(/6/16!/4/2/2/2/1:0)");
+  await page.goto(`/#/book/${encodeURIComponent(bookId)}?at=${at}`);
+  await expect(page.locator('.reader[data-at="arrived"]')).toBeVisible({ timeout: 30_000 });
+  await settled(page);
+  await openPanel(page, /Notes/);
+}
+
+/** Two spine items past chapter three. */
+const FURTHER_ON = "epubcfi(/6/20!/4/2,/2/2/1:0,/2/2/1:8)";
+const LATER_PASSAGE = "A passage from later still";
+
+test("the list opens on the page's first mark, with nothing pointed at", async ({ page }) => {
+  await openNotesInChapterThree(page);
+  const panel = page.getByTestId("panel-notes");
+
+  await expect(panel.getByRole("button", { name: LATE_PASSAGE })).toBeInViewport();
+  await expect(panel.getByRole("button", { name: `${EARLY_PASSAGE} (1)` })).not.toBeInViewport();
+  // Scrolled to, not selected: no card is lit, so none of the others is dimmed around it.
+  await expect(panel.locator(".annotation-item.selected")).toHaveCount(0);
+});
+
+test("a page turned in Reflect brings the list to that page's first mark", async ({ page }) => {
+  await openNotesInChapterThree(page);
+  const panel = page.getByTestId("panel-notes");
+  const late = panel.getByRole("button", { name: LATE_PASSAGE });
+  await expect(late).toBeInViewport();
+
+  // The reader scrolls the list away, then turns off the page and back onto it. Turning onto the
+  // page it opened on is what makes the answer knowable here without measuring where chapter
+  // three's pages break.
+  await panel.locator(".panel-body").evaluate((body) => (body.scrollTop = 0));
+  await expect(late).not.toBeInViewport();
+  const before = await visibleText(page);
+  await page.getByRole("button", { name: "Next page" }).click();
+  await expect.poll(async () => await visibleText(page)).not.toBe(before);
+  await page.getByRole("button", { name: "Previous page" }).click();
+  await expect.poll(async () => await visibleText(page)).toBe(before);
+
+  await expect(late).toBeInViewport();
+  await expect(panel.locator(".annotation-item.selected")).toHaveCount(0);
+});
