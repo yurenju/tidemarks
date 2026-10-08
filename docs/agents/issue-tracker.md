@@ -166,8 +166,8 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 - **票會被關掉。** 每張 ticket 回答完就 close，探索走到終點時地圖也 close，tracker 裡不會剩下懸著的票。
 - **`.scratch/` 跟著 worktree 走。** 這個 repo 常常一個 worktree 一個 session，也常換機器；另開一個
   session 去做同一張地圖底下的另一張 ticket，它的 worktree 裡根本沒有那張地圖。2026-10-08 的
-  〈筆記怎麼呈現〉那次就是這樣，只能把絕對路徑塞給新的 session。issue 在哪台機器、哪個 worktree
-  都讀得到。
+  筆記呈現那次（後來搬成 #222）就是這樣，只能把絕對路徑塞給新的 session。issue 在哪台機器、
+  哪個 worktree 都讀得到。
 - **原生的相依性與 sub-issue 正好是 wayfinder 要的**：地圖底下有哪些 ticket、哪些被擋著，在 GitHub
   的畫面上就看得到，不必打開地圖。
 
@@ -182,19 +182,33 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 | **Map** | 一張貼 `wayfinder:map` label 的 issue，內文是 Destination／Notes／Decisions so far／Not yet specified／Out of scope |
 | **Ticket** | 地圖的 **sub-issue**，貼一張類型 label：`wayfinder:research`、`wayfinder:prototype`、`wayfinder:grilling`、`wayfinder:task`。問題寫在內文的 `## Question` 底下 |
 | **Blocking** | 原生的 blocked by（見上面〈Issue 之間的相依性〉），內文一樣要寫為什麼 |
+| **Frontier** | 見下面〈找 frontier〉 |
 | **Claim** | 動工前先 `gh issue edit <n> --add-assignee @me`，沒有 assignee 就是沒人認領 |
-| **Resolve** | 答案貼成一則留言，`gh issue close <n> --reason completed`，再到地圖的 Decisions so far 加一行 |
+| **Resolve** | 答案貼成一則留言，`gh issue close <n> --reason completed`，再到地圖的 Decisions so far 加一行，寫成 `- [<ticket 標題>](<連結>) — <一句話的結論>`，用標題指，不要只寫 `#12` |
 | **Out of scope** | `gh issue close <n> --reason "not planned"`，地圖的 Out of scope 加一行；不進 Decisions so far |
-| **Asset** | prototype 放成 artifact，連結貼在 ticket 的留言裡；research 的結論直接貼成留言 |
+| **Asset** | 見下面〈prototype 與 research 的成果放哪〉 |
+
+五張 label 已經建好了。新開地圖的時候直接貼，不必再建。
+
+### prototype 與 research 的成果放哪
+
+**prototype** 做成 artifact，連結貼在 ticket 的留言裡。⚠️ artifact 預設是私人的，在公開的 issue 裡
+只有維護者打得開，所以留言要**用文字寫出試了什麼、回饋是什麼、結論是什麼**，連結只是附帶的。
+
+**research** 的結論直接貼成 ticket 的留言。wayfinder 原本的做法是把結果 commit 到一條拋棄式的
+`research/<name>` 分支、再從 ticket 指過去；這裡不開那條分支，因為推上去的分支一樣公開，而結論
+放在留言裡就跟它回答的問題放在一起，不必再跳一次。
 
 ### 掛 sub-issue
 
 ⚠️ **跟相依性一樣，API 吃的是 numeric id，不是編號。**
 
 ```sh
+# 先換算：#12 的 numeric id
+gh api repos/<owner>/<repo>/issues/12 -q .id
+
 # 把 #12 掛到地圖 #10 底下
-gh api --method POST repos/<owner>/<repo>/issues/10/sub_issues \
-  -F sub_issue_id=$(gh api repos/<owner>/<repo>/issues/12 -q .id)
+gh api --method POST repos/<owner>/<repo>/issues/10/sub_issues -F sub_issue_id=<#12 的 numeric id>
 ```
 
 ### 找 frontier
