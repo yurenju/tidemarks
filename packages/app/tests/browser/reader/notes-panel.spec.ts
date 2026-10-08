@@ -12,6 +12,10 @@
 // panel can tell a passage that is really cut from one that merely fills three lines, and what
 // pressing it does. That is geometry plus a stylesheet, so no layer below this one can answer it.
 //
+// [[Delete]] asking first is here too. What it needs a browser for is the panel around it: the
+// question has to hold the focus inside a drawer that claims presses and Escape for itself, and
+// the deletion it ends in runs through the reader's store and back into the list.
+//
 // **The marks are seeded rather than drawn.** Two marks in two named chapters is what the
 // grouping needs, and reading far enough into the book to make the second one by hand would cost
 // a whole-book index and a dozen turns per engine to reach a state two `put`s describe exactly.
@@ -183,4 +187,36 @@ test("the whole passage is one press away, and only where something is hidden", 
     "aria-expanded",
     "true",
   );
+});
+
+test("delete asks in the item first, and only the confirming press removes the mark", async ({
+  page,
+}) => {
+  await openNotes(page);
+  const panel = page.getByTestId("panel-notes");
+  // The long passage is the first of the two in book order, and the only one with a note.
+  const passage = panel.getByRole("button", { name: EARLY_PASSAGE });
+  const question = panel.getByRole("group", { name: "Delete this mark and its note?" });
+  const asking = panel.getByRole("button", { name: "Delete", exact: true }).first();
+
+  // The first press asks, and the answer one Enter away is the one that keeps the note.
+  await asking.click();
+  await expect(question).toBeVisible();
+  await expect(question.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  // Escape is Cancel, and only Cancel: the panel is still standing behind the question.
+  await page.keyboard.press("Escape");
+  await expect(question).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  await expect(asking).toBeFocused();
+
+  await asking.click();
+  await question.getByRole("button", { name: "Cancel" }).click();
+  await expect(question).toHaveCount(0);
+  await expect(passage).toBeVisible();
+
+  await asking.click();
+  await question.getByRole("button", { name: "Delete" }).click();
+  await expect(passage).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: LATE_PASSAGE })).toBeVisible();
 });
