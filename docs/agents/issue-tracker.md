@@ -161,7 +161,7 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 由 `/wayfinder` 使用，**地圖與 ticket 都是 GitHub issue**（2026-10-08 起）。
 
 以前這一套放在 `.scratch/` 的檔案裡，理由是 ticket 的壽命只有一次探索那麼長，開成 issue 只會留下
-一堆沒人要關的票。實際跑起來，那個理由不成立，反而是代價先找上門：
+一堆沒人要關的票。實際跑起來，那個理由站不住，代價倒是很快就碰上了：
 
 - **票會被關掉。** 每張 ticket 回答完就 close，探索走到終點時地圖也 close，tracker 裡不會剩下懸著的票。
 - **`.scratch/` 跟著 worktree 走。** 這個 repo 常常一個 worktree 一個 session，也常換機器；另開一個
@@ -171,9 +171,9 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 - **原生的相依性與 sub-issue 正好是 wayfinder 要的**：地圖底下有哪些 ticket、哪些被擋著，在 GitHub
   的畫面上就看得到，不必打開地圖。
 
-代價是**全部公開**。探索中的問題、prototype 的回饋寫上去就收不回來，所以照
-`CLAUDE.md`〈這個 repo 是公開的，而且沒有私有的另一半〉那一條寫：給陌生人讀的標準，內文先寫成檔案、
-跑過 `zh-lint` 再送（見上面〈issue 內文怎麼寫〉）。
+代價是**全部公開**。探索中的問題、prototype 的回饋寫上去就收不回來，所以要照
+`CLAUDE.md`〈這個 repo 是公開的，而且沒有私有的另一半〉那一條，用給陌生人讀的標準來寫：內文先寫成
+檔案、跑過 `zh-lint` 再送（見上面〈issue 內文怎麼寫〉）。
 
 ### 對照
 
@@ -188,7 +188,7 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 | **Out of scope** | `gh issue close <n> --reason "not planned"`，地圖的 Out of scope 加一行；不進 Decisions so far |
 | **Asset** | 見下面〈prototype 與 research 的成果放哪〉 |
 
-五張 label 已經建好了。新開地圖的時候直接貼，不必再建。
+五張 label 已經建好了，新開地圖的時候直接用，不必再建。
 
 ### prototype 與 research 的成果放哪
 
@@ -213,8 +213,8 @@ gh api --method POST repos/<owner>/<repo>/issues/10/sub_issues -F sub_issue_id=<
 
 ### 找 frontier
 
-open、沒人認領、擋著它的票都已經 close 的 sub-issue。`issue_dependencies_summary.blocked_by` 數的是
-**還開著**的擋路票，所以等於 0 就是沒被擋：
+frontier 是同時符合三個條件的 sub-issue：open、沒人認領、擋著它的票都已經 close。
+`issue_dependencies_summary.blocked_by` 數的是擋著它而且**還開著**的票，所以等於 0 就是沒被擋：
 
 ```sh
 gh api repos/<owner>/<repo>/issues/<地圖>/sub_issues --paginate -q '.[]
