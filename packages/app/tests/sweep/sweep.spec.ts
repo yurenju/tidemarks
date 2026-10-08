@@ -431,19 +431,23 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await expect(toolbar).toBeVisible({ timeout: 10_000 });
     await toolbar.getByRole("button", { name: "Mark and note" }).click();
     await page.locator(".note-editor textarea").fill("ここから読み直す。");
-    await page.locator(".note-editor button").click();
+    await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
     await closePanel();
 
     expect(await selectProse(page, { from: 5, to: 8 })).not.toBeNull();
     await expect(toolbar).toBeVisible({ timeout: 10_000 });
     await toolbar.locator(".swatch").nth(1).click();
     await openPanel(/Notes/, "panel-notes");
-    // On a desk only the selected card offers to write; narrower, every card does.
-    const write = panel.getByRole("button", { name: "Write a note…" });
-    if (!(await write.isVisible())) await panel.locator(".annotation-quote").nth(1).click();
+    // On a desk only the selected card offers to write; narrower, every card does. Asked once both
+    // cards are drawn, and of the second card alone: asked earlier, an empty list says "no" on a
+    // phone too, and pressing the quote there closes the panel the box was about to appear in.
+    const cards = panel.locator(".annotation-item");
+    await expect(cards).toHaveCount(2);
+    const write = cards.nth(1).getByRole("button", { name: "Write a note…" });
+    if (!(await write.isVisible())) await cards.nth(1).locator(".annotation-quote").click();
     await write.click();
     await page.locator(".note-editor textarea").fill("前の段落と比べる。");
-    await page.locator(".note-editor button").click();
+    await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
     await closePanel();
 
     // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
