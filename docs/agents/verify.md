@@ -33,6 +33,19 @@ host 的 playwright-cli 上，但仍然是兩件事：一個看引擎排出來�
 
 ## 前置
 
+`playwright-cli: command not found` 的話先裝。套件是 Microsoft 的 `@playwright/cli`，裝完還要另外下載
+瀏覽器：
+
+```bash
+npm install -g @playwright/cli
+playwright-cli install-browser chromium --with-deps
+```
+
+預設只要 chromium。動到渲染層、要三家截圖的時候，再把 `firefox`、`webkit` 各裝一次。`--with-deps` 在
+Linux 上會用 sudo 跑 apt，補上瀏覽器要的系統函式庫與字型，一次大約一百個套件。⚠️ 少了它，下載會成功，
+但 `open` 會失敗，訊息埋在一長串啟動參數底下：`error while loading shared libraries: libglib-2.0.so.0`。
+只看最後一行的話會以為是 playwright-cli 自己壞了。
+
 新開的 worktree 若 `node_modules` 是空的，先 `npm install`（不然 vite 起不來，會報 `vite-plugin-pwa`
 找不到）。
 

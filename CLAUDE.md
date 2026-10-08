@@ -4,6 +4,10 @@
 monorepo，只有一份 lockfile，在某個 package 底下裝東西會裝出一棵對不上的樹。要指定 package 用
 `-w`（`npm install -w app dexie`）。
 
+⚠️ **Node 要官方 build 的 22.18 以上**，`scripts/` 底下的 `.ts` 是直接 `node` 執行的。Ubuntu apt 的
+`nodejs` 不行，症狀是 `npm run build:frond` 死在 `ERR_UNKNOWN_FILE_EXTENSION ".ts"`，看起來像 code 壞了。
+見 [development.md](docs/development.md)〈需要先有〉。
+
 `npm install` 順便會把 git 的 `core.hooksPath` 指到 `.githooks/`，那裡的 **pre-commit 會對即將
 commit 的檔案跑 prettier 再重新 stage**，所以 commit 出來的東西一定是格式化過的。格式規則在
 `.prettierrc.json`（預設風格加 `printWidth: 100`），**markdown 不在管轄範圍**（`.prettierignore`：
