@@ -297,9 +297,13 @@ export default function Reader({
   // exactly what the highlight layer has to recompute against.
   const [geometry, setGeometry] = useState(0);
   const [painted, setPainted] = useState<PaintedHighlight[]>([]);
-  // Whether a page turn has begun and not yet been followed by a fresh set of boxes. A ref, not
-  // state: it is read and cleared inside the layout effect that measures, and nothing renders it.
-  const landingRef = useRef(false);
+  // Page turns begun, turns frond has reported landing (`located`), and landings already answered
+  // with `turnLanded`. **Counts, not flags**: an arrow pressed twice quickly commits the first turn
+  // at once and starts a second, and a flag would answer for the middle page and then never for
+  // the last. And it is the landing that counts, not the measurement — the effect below also runs
+  // when marks arrive from sync mid-slide, and that measures the page being left. Refs, not state:
+  // nothing renders them.
+  const turnsRef = useRef({ begun: 0, landed: 0, answered: 0 });
   // The same list the layer paints, for hit-testing a tap without waiting for a re-render.
   const paintedRef = useRef<PaintedHighlight[]>([]);
   // The layer itself, so a turn in progress can slide it with the page it is drawn over. Moved
@@ -394,6 +398,8 @@ export default function Reader({
     // A move is also every measured rectangle going stale, which is what the highlight layer
     // recomputes against.
     located: (at) => {
+      const turns = turnsRef.current;
+      if (turns.landed < turns.begun) turns.landed += 1;
       setFraction(at.fraction);
       setSectionIndex(at.sectionIndex);
       setGeometry((tick) => tick + 1);
@@ -405,7 +411,7 @@ export default function Reader({
     chrome: (event) => {
       // A turn is asked about again once it has landed (`turnLanded`, sent from the highlight
       // layer below): which marks are on the new page is not known until it is laid out.
-      if (event.kind === "turned") landingRef.current = true;
+      if (event.kind === "turned") turnsRef.current.begun += 1;
       sendChrome(event);
     },
   };
@@ -582,8 +588,9 @@ export default function Reader({
     // **The answer to the question a turn could not ask as it began**: which marks are on the page
     // it landed on. These boxes are that page's, measured at rest — so this is the first moment
     // anyone can say whether the passage [[Reflect]] was pointing at came along (`lib/chrome.ts`).
-    if (landingRef.current) {
-      landingRef.current = false;
+    const turns = turnsRef.current;
+    if (turns.answered < turns.landed) {
+      turns.answered = turns.landed;
       sendChrome({ kind: "turnLanded", showing: next.map((entry) => entry.annotation.id) });
     }
     // Freshly measured boxes are measured against the page at rest, so whatever a turn left on
@@ -932,6 +939,7 @@ export default function Reader({
         // four faces differ by has one answer per face and one place to change it
         // (`lib/media.ts`).
         needs={PANEL_NEEDS[face]}
+        bookDecides={face === "notes"}
         container={panelHostRef}
       >
         {face === "toc" && (

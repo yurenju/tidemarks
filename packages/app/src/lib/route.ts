@@ -18,7 +18,7 @@
 // The two panels the reader's bar raises are named once, in the state machine that owns them
 // (`lib/chrome.ts`). Spelling them again here would be a second list to keep in step, and the
 // address and the machine have to agree on those names exactly.
-import { isPanel, type Face } from "./chrome";
+import { isFace, isPanel, type Face } from "./chrome";
 
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";
@@ -300,7 +300,7 @@ function panelSegment(panel: Panel): string {
  * reader's chrome has the three, and [[About]] standing means the chrome has none of them up.
  */
 export function barPanel(panel: Panel | null): (Panel & { kind: Face }) | null {
-  return panel !== null && panel.kind !== "about" ? panel : null;
+  return panel !== null && isFace(panel.kind) ? (panel as Panel & { kind: Face }) : null;
 }
 
 /**

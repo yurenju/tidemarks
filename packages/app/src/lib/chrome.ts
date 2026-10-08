@@ -10,8 +10,8 @@
 // timer, no sampling and nothing to inject, so there is no state to hide — React keeps it, and
 // two copies of a state is two copies that can drift apart.
 //
-// **It owns [[Find]] and [[Reflect]], not [[Marking]].** A selection's rectangles, CFI and `live` stay in `Reader.tsx`,
-// for the same reason the gesture machine refuses to hold frond's objects: the part of them
+// **It owns [[Find]] and [[Reflect]], not [[Marking]].** A selection's rectangles, CFI and `live`
+// stay in `Reader.tsx`, for the same reason the gesture machine refuses to hold frond's objects: the part of them
 // hardest to fake in node is the part that matters. What lives here is the *rule* — a selection
 // arriving puts the chrome away, unless [[Reflect]] is standing — under the name `selectionArrived`.
 //
@@ -59,6 +59,9 @@ export type Face = PanelKind | "notes";
  */
 export const isPanel = (chrome: string): chrome is PanelKind =>
   (PANEL_KINDS as readonly string[]).includes(chrome);
+
+/** Whether a segment of the address names one of the reader's own three faces. */
+export const isFace = (kind: string): kind is Face => kind === "notes" || isPanel(kind);
 
 /**
  * Which face the panel is showing, or `null` when none is — the one fact the *layout* turns on:
@@ -236,6 +239,12 @@ function settle(
   };
 }
 
+/**
+ * Where an event that puts [[Find]] away leaves the chrome: down, unless [[Reflect]] is standing,
+ * which a turn and a selection both leave where it is (see each below for why).
+ */
+const reflectOrDown = (chrome: Chrome): Chrome => (chrome === "reflect" ? "reflect" : "down");
+
 export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState {
   switch (event.kind) {
     case "tapped":
@@ -250,12 +259,7 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // on purpose — [[Reflect]] is a place they walked into and have a door out of. [[Find]] is the
       // chrome lent for a moment, and a turn says the moment is over. Whether the passage pointed
       // at is still on the page is `turnLanded`'s to answer.
-      return settle(
-        state,
-        state.chrome === "reflect" ? "reflect" : "down",
-        state.editing,
-        state.selected,
-      );
+      return settle(state, reflectOrDown(state.chrome), state.editing, state.selected);
     case "turnLanded":
       // Still on the page — a passage that runs across the turn — and it goes on being pointed
       // at; gone, and nothing is. A wash left on a passage the reader cannot see would leave the
@@ -275,7 +279,7 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // The wash goes either way: a selection puts a second answer on the same page, and two
       // passages lit at once says neither. So does a note being written — its box has just lost
       // the focus to the page, which is what commits it.
-      return settle(state, state.chrome === "reflect" ? "reflect" : "down", null, null);
+      return settle(state, reflectOrDown(state.chrome), null, null);
     case "jumped":
       // Same shape as `notePressed`, and the same question behind it — see `keepPanel` there.
       // The wash goes either way: the reader has been taken somewhere else in the book.
@@ -299,9 +303,10 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // The reader is still on the page they were on, so a passage they pressed goes on being
       // washed. Closing the panel is how they get to look at it. [[Find]]'s two drop back to the
       // bare bar they were raised from; [[Reflect]] was not raised from it, and goes back to [[Read]].
+      if (isPanel(state.chrome)) return settle(state, "up", state.editing, state.selected);
       return settle(
         state,
-        isPanel(state.chrome) ? "up" : state.chrome === "reflect" ? "down" : state.chrome,
+        reflectOrDown(state.chrome) === "reflect" ? "down" : state.chrome,
         state.editing,
         state.selected,
       );
