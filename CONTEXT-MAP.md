@@ -1,6 +1,7 @@
 # Context map
 
-這個 repo 有兩份詞彙表，各管一層。Matt 的 skill 靠這個檔案知道不只一份。
+這個 repo 有兩份詞彙表，各管一層。Matt Pocock 的 skills
+（[mattpocock/skills](https://github.com/mattpocock/skills)）靠這個檔案知道不只一份。
 
 | context | 詞彙表 | ADR | 管什麼 |
 | --- | --- | --- | --- |

@@ -253,13 +253,14 @@ sub-issue。repo 裡只留量測與判讀，放在 `docs/specs/<feature>/`；那
 
 prototype 照 `/prototype`：要跟真的 app 一起看的，做在既有路由上用 `?variant=` 切換；一頁假畫面就
 回答得了的，做成一個 HTML 檔。程式碼推到 `prototype/<name>` 分支，不進 main。根目錄的 `prototype/`
-是搬 repo 之前留下的，不是放新 prototype 的地方。
+是搬 repo 之前留下的，不是放新 prototype 的地方。`/research` 的結果貼成相關 issue 的留言，沒有相關的
+issue 就先開一張，不在 repo 裡建檔。
 
 ### Triage labels
 
-Matt 的五個 triage 角色，label 字串跟角色同名：`needs-triage`、`needs-info`、`ready-for-agent`、
-`ready-for-human`、`wontfix`。拒絕的需求關成 not planned，不另外記在 `.out-of-scope/`。見
-`docs/agents/triage-labels.md`。
+Matt Pocock 的 skills（`mattpocock/skills`，以下簡稱 Matt 的 skill）用五個 triage 角色，label
+字串跟角色同名：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。
+拒絕的需求關成 not planned，不另外記在 `.out-of-scope/`。見 `docs/agents/triage-labels.md`。
 
 ### Domain docs
 

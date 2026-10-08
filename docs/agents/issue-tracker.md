@@ -4,21 +4,29 @@
 `gh issue create`／`gh issue list`，在這個 repo 底下跑就會落在對的地方。PR 用 closing keyword 關它們
 （見 [pull-requests.md](pull-requests.md)）。
 
-**repo 裡只留量測。** 支撐某個 feature 的量測、判讀、實驗紀錄放在 `docs/specs/<feature-slug>/`，
+這裡說的 skill 是 Matt Pocock 的 skills（[mattpocock/skills](https://github.com/mattpocock/skills)），
+下面簡稱 Matt 的 skill。
+
+**PRs as a request surface: no.** 外部的 PR 不當成需求，`/triage` 不處理它們。
+
+**repo 裡只留量測與判讀。** 支撐某個 feature 的量測、判讀、實驗紀錄放在 `docs/specs/<feature-slug>/`，
 進版控。它們跟 ADR 的分工是：**ADR 寫決定與為什麼，這裡寫數字與怎麼重驗**。spec 的 issue 連過去。
 
 **tracker 只有一個，就是這個 repo 的。** 更早的那些 private repo 已經不再使用，那邊的 issue 也不必
 去查，理由見 `CLAUDE.md` 的〈這個 repo 是公開的，而且沒有私有的另一半〉。
 
-同一件事**不要兩邊都放**。內容放兩份必然漂移，而漂移之後沒有人知道哪一份是真的。
+同一件事**不要兩邊都放**：spec 寫在 issue 裡，就不要在 `docs/specs/` 再放一份。內容放兩份必然漂移，
+而漂移之後沒有人知道哪一份是真的。
 
 ## spec 以前放在 repo 裡
 
-2026-07-30 到 2026-10-08 之間，spec 是 `docs/specs/<feature-slug>/spec.md`，理由是它跟著 branch 走，
-才對得起那個 branch 的程式碼。2026-10-08 改成 issue，理由是：
+2026-07-30 起 spec 留在 repo 裡：2026-08-07 以前放在 `.scratch/` 底下，之後是
+`docs/specs/<feature-slug>/spec.md`。搬出 `.scratch/` 是因為那個名字在說謊：一份 `.scratch/` 底下卻
+被 commit 的檔案，讀的人第一個念頭是「這是不是誰不小心加進來的」。留在 repo 裡的理由是它跟著 branch
+走，才對得起那個 branch 的程式碼。2026-10-08 改成 issue，理由是：
 
 - **Matt 的 `/to-spec` 與 `/to-tickets` 本來就是這樣用的**：spec 發在 tracker 上，拆出來的 ticket
-  指回它。放在 repo 裡，等於每次都要跟 skill 說「這裡不一樣」。
+  掛成它的 sub-issue。放在 repo 裡，等於每次都要跟 skill 說「這裡不一樣」。
 - **spec 不寫檔案路徑**（見下面〈spec 怎麼寫〉），所以「跟 branch 的程式碼對得上」這件事本來就不靠它。
   真的要跟程式碼對得上的是量測，而量測留在 repo 裡。
 
@@ -31,9 +39,6 @@
 | --- | --- | --- |
 | `docs/specs/<feature-slug>/` | **會** | 量測、判讀、實驗紀錄；2026-10-08 以前的 spec |
 | `.scratch/` | **不會**（`.gitignore` 擋著） | 暫存：issue 與 PR 內文的草稿、畫面巡檢的圖 |
-
-spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個名字在說謊：一份 `.scratch/` 底下卻
-被 commit 的檔案，讀的人第一個念頭是「這是不是誰不小心加進來的」。
 
 ## 引用工作項目：寫號碼加標題
 
@@ -63,12 +68,19 @@ spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個
 | Out of Scope | `## 不在範圍內` |
 | Further Notes | `## 其他` |
 
-**spec 不寫檔案路徑與程式碼片段**，那是 Matt 的規則，這裡照用：路徑很快就會過期，而 spec 講的是
-「要什麼」。例外也照 Matt：prototype 做出來的狀態機、型別這類比文字更精確的片段，可以節錄進對應的
+**spec 不寫程式碼的檔案路徑與片段**，那是 Matt 的規則，這裡照用：路徑很快就會過期，而 spec 講的是
+「要什麼」。連到 `docs/specs/<feature-slug>/` 的量測不算，那是證據，
+不是指著程式碼的路徑。例外也照 Matt：prototype 做出來的狀態機、型別這類比文字更精確的片段，可以節錄進對應的
 決定裡，註明來自 prototype。
 
 這跟下面〈issue 內文怎麼寫〉要求「具體到檔案與行號」不衝突，兩者是不同的東西：**spec 講要什麼，
-從它拆出來的 ticket 才講改哪裡**。所以 `/to-tickets` 拆出來的 ticket 照下面那一節寫。
+從它拆出來的 ticket 才講改哪裡**。所以 `/to-tickets` 拆出來的 ticket：
+
+- 掛成 spec 的 sub-issue（`/to-tickets` 本來就這樣做），先後用原生的 blocked by
+- 內文照下面那一節的四段寫：背景、要做什麼、相依性、驗收，取代 Matt 的 Parent／What to build／
+  Acceptance criteria／Blocked by
+- **要寫到檔案與行號**。這條蓋過 `/to-tickets`「不要寫具體路徑」的規定：ticket 是動手時才讀的，
+  過期的代價比 spec 小，而少了它，接手的人要從頭找一次
 
 spec 貼 `ready-for-agent` label（見 [triage-labels.md](triage-labels.md)），有量測就連到
 `docs/specs/<feature-slug>/`。內文一樣先寫成檔案、跑過 `zh-lint` 再送。
@@ -182,7 +194,8 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 正常。
 
 **sub-issue 是另一個功能**（`/issues/<n>/sub_issues`），用在「一張大票拆成幾張小票」的層級關係上，
-跟這裡的先後關係不是同一件事。現在只有 wayfinding 在用（見下一節）：一張地圖底下掛著它的 ticket。
+跟這裡的先後關係不是同一件事。用在兩個地方：spec 底下掛著從它拆出來的 ticket（見上面〈spec 怎麼寫〉），
+wayfinding 的地圖底下掛著它的 ticket（見下一節）。
 
 ## Wayfinding 操作
 
