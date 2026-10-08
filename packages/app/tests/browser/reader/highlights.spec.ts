@@ -368,6 +368,30 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     await page.getByRole("button", { name: "Next page" }).click();
     await expect(page.locator(".highlight-wash")).toHaveCount(0);
   });
+
+  // The one wire up to `lib/chrome.test.ts`'s note written on the spot: that file says the reader
+  // stays in [[Marking]] and that [[Done]] is [[Read]]. What only a browser can say is that the
+  // box really is on screen with no bars around it, and that it is gone afterwards with the mark
+  // left on the page.
+  test("Mark and note writes beside the book with no chrome, and Done goes back to it", async ({
+    page,
+  }) => {
+    await selectPassage(page);
+    await page.locator(".highlight-toolbar").getByRole("button", { name: "Mark and note" }).click();
+
+    const panel = page.getByTestId("panel-notes");
+    const box = panel.getByRole("textbox");
+    await expect(box).toBeFocused();
+    await expect(page.getByTestId("chrome-top")).toBeHidden();
+    await expect(page.getByTestId("chrome-bottom")).toBeHidden();
+
+    await box.fill("Written while it was fresh.");
+    await panel.getByRole("button", { name: "Done" }).click();
+
+    await expect(panel).toBeHidden();
+    await expect(page.getByTestId("chrome-top")).toBeHidden();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+  });
 });
 
 /**
