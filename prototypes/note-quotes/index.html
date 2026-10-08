@@ -1,0 +1,933 @@
+<meta charset="utf-8" />
+<title>筆記卡片的引文</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@400;500&display=swap"
+/>
+<style>
+  /* Layout: controls on top, a desktop reader frame (book + notes column), a log line under it. */
+  :root {
+    --paper: #f4eee2;
+    --raised: #fbf7ed;
+    --sunken: #ede5d6;
+    --ink: #14171c;
+    --muted: #5d636b;
+    --faint: #8f949a;
+    --line: #d9d0bf;
+    --mark: #1b2e4d;
+    --tide: #2e4a75;
+    --on-tide: #f4eee2;
+    --ochre: #a4622f;
+    --moss: #5f7a4e;
+    --soot: #3d4348;
+    --serif: "Noto Serif TC", "Songti TC", serif;
+    --sans: "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16202b;
+      --raised: #1b2733;
+      --sunken: #101a24;
+      --ink: #f2f1e9;
+      --muted: #a3aeb6;
+      --faint: #6e7c88;
+      --line: #2a3845;
+      --mark: #a9c4de;
+      --tide: #7ea6ce;
+      --on-tide: #16202b;
+      --ochre: #cf8b4e;
+      --moss: #8aab72;
+      --soot: #9aa4ab;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16202b;
+    --raised: #1b2733;
+    --sunken: #101a24;
+    --ink: #f2f1e9;
+    --muted: #a3aeb6;
+    --faint: #6e7c88;
+    --line: #2a3845;
+    --mark: #a9c4de;
+    --tide: #7ea6ce;
+    --on-tide: #16202b;
+    --ochre: #cf8b4e;
+    --moss: #8aab72;
+    --soot: #9aa4ab;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--sunken);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 16px;
+    margin: 0;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+  }
+  h1 {
+    font: 500 1.05rem/1.4 var(--sans);
+    margin: 0;
+  }
+  .lede {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.7;
+    max-width: 78ch;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 10px;
+  }
+  .rule {
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+  }
+  .rule b {
+    font-weight: 500;
+    font-size: 0.82rem;
+  }
+  .seg {
+    display: grid;
+    gap: 4px;
+  }
+  .seg button {
+    font: inherit;
+    font-size: 0.78rem;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--tide);
+    color: var(--on-tide);
+    border-color: var(--tide);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--tide);
+    outline-offset: 2px;
+  }
+  .statusrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    font-size: 0.82rem;
+  }
+  .states {
+    display: flex;
+    gap: 4px;
+  }
+  .states span {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--faint);
+  }
+  .states span.on {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .turners {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--muted);
+  }
+  .turners button {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .log {
+    font-size: 0.82rem;
+    color: var(--muted);
+    min-height: 1.4em;
+  }
+  .log b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .stage {
+    overflow-x: auto;
+  }
+  .frame {
+    position: relative;
+    min-width: 900px;
+    height: 640px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+  }
+  .book {
+    flex: 1;
+    min-width: 0;
+    padding: 56px 64px;
+    overflow: hidden;
+  }
+  .page {
+    font: 400 1.1rem/2 var(--serif);
+    max-width: 32em;
+    margin: 0 auto;
+    position: relative;
+    height: 100%;
+  }
+  .page p {
+    margin: 0 0 1em;
+    text-indent: 2em;
+  }
+  .page p.cont {
+    text-indent: 0;
+  }
+  .page .chap {
+    text-indent: 0;
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin-bottom: 1.4em;
+  }
+  .page .folio {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font: 0.75rem var(--sans);
+    color: var(--faint);
+  }
+  .mark {
+    text-decoration: underline wavy var(--c, var(--mark));
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 6px;
+    cursor: pointer;
+    transition:
+      opacity 0.15s,
+      background 0.15s;
+  }
+  .dim .mark {
+    opacity: 0.35;
+  }
+  .dim .mark.sel {
+    opacity: 1;
+    background: color-mix(in srgb, var(--c, var(--mark)) 22%, transparent);
+    text-decoration-color: transparent;
+  }
+
+  /* chrome */
+  .bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--raised);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    font-size: 0.85rem;
+    transition: transform 0.18s;
+    z-index: 3;
+  }
+  .top {
+    top: 0;
+    height: 48px;
+    transform: translateY(-100%);
+  }
+  .bottom {
+    bottom: 0;
+    height: 64px;
+    transform: translateY(100%);
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+  .frame.find .top,
+  .frame.find .bottom {
+    transform: none;
+  }
+  .top .title {
+    flex: 1;
+    text-align: center;
+    color: var(--muted);
+  }
+  .top button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 4px 6px;
+  }
+  .rail {
+    width: 70%;
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    position: relative;
+  }
+  .rail i {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--tide);
+    border-radius: 2px;
+    transition: width 0.18s;
+  }
+  .bottom small {
+    color: var(--muted);
+  }
+
+  /* notes column */
+  .panel {
+    width: 0;
+    flex: none;
+    background: var(--sunken);
+    overflow: hidden;
+    transition: width 0.18s;
+    display: flex;
+    flex-direction: column;
+  }
+  .frame.panel-open .panel {
+    width: 360px;
+    border-left: 1px solid var(--line);
+  }
+  .phead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 8px;
+    min-width: 360px;
+    box-sizing: border-box;
+  }
+  .phead h2 {
+    font: 600 1rem/1.4 var(--serif);
+    margin: 0;
+  }
+  .phead button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  .cards {
+    overflow-y: auto;
+    padding: 4px 14px 120px;
+    min-width: 360px;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    flex: 1;
+  }
+  .chead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font: 600 0.9rem/1.4 var(--serif);
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 2px 6px;
+    margin-bottom: 10px;
+  }
+  .chead.here {
+    color: var(--ink);
+  }
+  .chead small {
+    font: 400 0.72rem var(--sans);
+    color: var(--faint);
+  }
+  .chead .tag {
+    font: 400 0.7rem var(--sans);
+    color: var(--tide);
+    margin-left: 8px;
+  }
+  .card {
+    background: var(--raised);
+    border-left: 3px solid var(--c, var(--mark));
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
+    display: grid;
+    gap: 6px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    transition: opacity 0.15s;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .cards.dim .card:not(.sel) {
+    opacity: 0.45;
+  }
+  .card .meta {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.76rem;
+  }
+  .card .meta .acts {
+    display: none;
+    gap: 10px;
+  }
+  .card.sel .meta .acts {
+    display: flex;
+  }
+  .card .meta button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--tide);
+    cursor: pointer;
+    padding: 0;
+  }
+  /* The quote: the book's typeface, so it reads as the book's words and not the reader's. */
+  .quote {
+    font: 400 0.9rem/1.75 var(--serif);
+    color: var(--ink);
+    background: none;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .quote:hover {
+    text-decoration: underline wavy color-mix(in srgb, var(--c, var(--mark)) 50%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+  .card .body {
+    font-size: 0.82rem;
+  }
+  .card .body p {
+    margin: 0 0 0.5em;
+  }
+  .card .body p:last-child {
+    margin-bottom: 0;
+  }
+  .card:not(.sel) .body {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card.sel .body {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .card .write {
+    border: 1px dashed var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--faint);
+    display: none;
+  }
+  .card.sel .write {
+    display: block;
+  }
+  /* Quote styles. Each one is a different answer to "how does the book's voice differ from the reader's". */
+  /* 1 muted: the book's words step back in color, the reader's words stay in full ink. */
+  .cards[data-qs="muted"] .quote {
+    color: var(--muted);
+  }
+  /* 2 rule: an indented quotation with a thin rule in the mark's ink, like a block quote. */
+  .cards[data-qs="rule"] .quote {
+    color: var(--muted);
+    border-left: 2px solid color-mix(in srgb, var(--c, var(--mark)) 55%, transparent);
+    padding-left: 10px;
+  }
+  /* 3 wash: the quote sits on the same wash a selected mark has on the page. */
+  .cards[data-qs="wash"] .quote {
+    background: color-mix(in srgb, var(--c, var(--mark)) 12%, transparent);
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin: 0 -4px;
+  }
+  /* 4 wavy: the quote carries the mark itself, so it looks like the words on the page. */
+  .cards[data-qs="wavy"] .quote {
+    text-decoration: underline wavy var(--c, var(--mark));
+    text-decoration-thickness: 1.2px;
+    text-underline-offset: 5px;
+    line-height: 1.95;
+  }
+  .cards[data-qs="wavy"] .quote:hover {
+    text-decoration-color: var(--c, var(--mark));
+  }
+  /* 5 split: quote on top, a short dash in the mark's ink, then the note (the mobile single-note page's divider). */
+  .cards[data-qs="split"] .quote {
+    color: var(--muted);
+  }
+  .cards[data-qs="split"] .quote + .body::before,
+  .cards[data-qs="split"] .quote + .write::before {
+    content: "";
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--c, var(--mark));
+    margin: 2px auto 10px;
+  }
+  .cards[data-qs="split"] .card:not(.sel) .quote + .body {
+    -webkit-line-clamp: 4;
+  }
+  /* 6 sizes: the quote is the larger, the note smaller and in ink; the gap between them does the rest. */
+  .cards[data-qs="sizes"] .quote {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+  .cards[data-qs="sizes"] .body {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <h1>筆記卡片什麼時候放引文</h1>
+  <p class="lede">
+    桌機版，兩章五頁的假書，右欄列整本書。點書上的波浪線進〈回看〉並選中那一則；點右欄的卡片或引文，書跳到那一段。
+    點書頁空白處叫出或收起 chrome；頂列的「筆記」或按 N 進〈回看〉整本書；Esc 回〈讀〉。翻頁用 ← → 或下面的按鈕。
+    第三章有一條跨段的長重點（第 3 頁），還有一條從第 4 頁跨到第 5 頁的重點。
+  </p>
+
+  <div class="controls" id="controls"></div>
+
+  <div class="statusrow">
+    <div class="states" id="states">
+      <span data-s="read">讀</span><span data-s="find">找</span><span data-s="reflect">回看</span>
+    </div>
+    <div class="turners">
+      翻頁 <button id="prev" aria-label="上一頁">‹</button><span id="pageno"></span
+      ><button id="next" aria-label="下一頁">›</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="bar top">
+        <button>‹ 書架</button><span class="title">灘地筆記（假書）</span> <button>目錄</button
+        ><button id="openNotes">筆記</button><button>排版</button>
+      </div>
+      <div class="book" id="book">
+        <div class="page" data-p="0" data-ch="2">
+          <p class="chap">第二章　堤防</p>
+          <p>
+            鎮上的堤防是五十年前修的，水泥的顏色跟灘地的泥差不多，從遠處看分不出哪裡是人做的、哪裡是海留下的。
+          </p>
+          <p>
+            每天傍晚都有人沿著堤防走，走到盡頭的燈塔再走回來。<span
+              class="mark"
+              data-id="f"
+              style="--c: var(--moss)"
+              >沒有人約好，但每個人走的速度都差不多，好像堤防本身有一個節奏</span
+            >。
+          </p>
+          <p>
+            我剛搬來的時候也跟著走。走了一個月，才發現自己從來沒有往堤防外面看過，<span
+              class="mark"
+              data-id="g"
+              >眼睛一直盯著前面那個人的背</span
+            >。
+          </p>
+          <div class="folio">1</div>
+        </div>
+        <div class="page" data-p="1" data-ch="3" hidden>
+          <p class="chap">第三章　退潮之後</p>
+          <p>
+            潮水退到最低的那一個鐘頭，灘地會整片露出來。從堤防走下去，第一步踩到的是乾的沙，第二步就陷進一層軟泥裡，冷得像踩進一盆隔夜的洗碗水。
+          </p>
+          <p>
+            我是在搬來這個鎮的第二年才開始去走灘的。那之前我只在堤防上看，看人彎著腰在泥裡找東西。我以為他們在找蛤蜊，後來才知道，<span
+              class="mark"
+              data-id="a"
+              >大部分的人什麼都沒在找</span
+            >。
+          </p>
+          <p>
+            隔壁的老陳說，走灘最要緊的是記得回頭的時間。潮水回來的時候不是一道浪，是從四面八方的溝裡同時滲上來，等你發現腳邊的水變多了，<span
+              class="mark"
+              data-id="b"
+              >退路往往已經比來路還長</span
+            >。
+          </p>
+          <div class="folio">2</div>
+        </div>
+        <div class="page" data-p="2" data-ch="3" hidden>
+          <p>
+            第一次一個人下去，我帶了手錶，每走十分鐘就看一次。結果整個下午我看到的只有錶面，灘地長什麼樣子一點也想不起來。
+          </p>
+          <p>
+            第二次我把錶留在車上，改成看水。<span class="mark" data-id="c" style="--c: var(--moss)"
+              >溝裡的水在退的時候是往外流的，水面上漂著的細沙會排成一條一條往海那邊指的線；等那些線停下來，開始打轉，就是該回頭的時候了。</span
+            >
+          </p>
+          <p>
+            <span class="mark" data-id="c" style="--c: var(--moss)"
+              >這個方法老陳沒有教過我，是我自己蹲在溝邊看了很久才看出來的。那天回到堤防上，我第一次覺得自己不是在灘地上做客。我不再需要知道現在幾點，只需要知道水往哪邊走。</span
+            >
+          </p>
+          <div class="folio">3</div>
+        </div>
+        <div class="page" data-p="3" data-ch="3" hidden>
+          <p>
+            後來我常常想，那些彎腰的人到底在看什麼。有一次我問了一個每天都來的阿姨，她想了一下說：<span
+              class="mark"
+              data-id="d"
+              style="--c: var(--ochre)"
+              >「看看今天留下了什麼。」</span
+            >
+          </p>
+          <p>
+            她說她年輕的時候也是來挖蛤蜊的，一斤可以賣二十塊。後來蛤蜊少了，價錢也不值得彎一整個下午的腰，她還是每天來。<span
+              class="mark"
+              data-id="h"
+              >她說灘地每天都不一樣，可是她每天都知道自己站在哪裡，那種感覺在別的地方找不到；在家裡、在市場、在女兒住的城市裡，</span
+            >
+          </p>
+          <div class="folio">4</div>
+        </div>
+        <div class="page" data-p="4" data-ch="3" hidden>
+          <p class="cont">
+            <span class="mark" data-id="h"
+              >她每天都要先想一下自己在哪裡，才知道接下來要做什麼</span
+            >。
+          </p>
+          <p>
+            潮水每天來兩次，退兩次。每一次退下去，灘地上的紋路都被重新畫過，昨天的腳印一個也不剩，<span
+              class="mark"
+              data-id="e"
+              >只有那幾塊大石頭還在原來的位置</span
+            >。
+          </p>
+          <p>
+            我現在走灘還是會帶手機，但只用來拍照。照片裡的灘地每一張都差不多，可是我記得每一張是哪一天、那天的水往哪邊走。
+          </p>
+          <div class="folio">5</div>
+        </div>
+      </div>
+      <aside class="panel" aria-label="筆記">
+        <div class="phead">
+          <h2>筆記</h2>
+          <button id="closePanel" aria-label="關閉">✕</button>
+        </div>
+        <div class="cards" id="cards"></div>
+      </aside>
+      <div class="bar bottom">
+        <div class="rail"><i id="railfill"></i></div>
+        <small id="chapname"></small>
+      </div>
+    </div>
+  </div>
+  <div class="log" id="log">現在在〈讀〉。</div>
+</div>
+
+<script>
+  const PAGES = 5;
+  const CHAPTERS = { 2: "第二章　堤防", 3: "第三章　退潮之後" };
+  const RULES = [
+    {
+      key: "quote",
+      title: "引文規則",
+      opts: [
+        ["b", "(b) 選中的不放，其他放兩行"],
+        ["c", "(c) 一律不放"],
+        ["a", "(a) 重點在攤開的這一頁上就不放，不在就放兩行"],
+        ["d", "(d) 一律放兩行"],
+      ],
+    },
+    {
+      key: "turn",
+      title: "在〈回看〉裡翻頁",
+      opts: [
+        ["A", "A：回到〈讀〉，面板收掉（〈筆記該不該藏在 chrome 裡〉定的）"],
+        ["B", "B：留在〈回看〉，只有點書頁、✕、Esc 才離開"],
+        ["I", "(i) 只在選中的跨頁重點範圍內翻頁才留著，翻出去回〈讀〉"],
+      ],
+    },
+    {
+      key: "qstyle",
+      title: "引文樣式（引文用書的字體，筆記用無襯線字，這點每一種都一樣）",
+      opts: [
+        ["plain", "0 原本：只差字體"],
+        ["muted", "1 引文變淡：原文灰，筆記是正常的墨色"],
+        ["rule", "2 引文前一條細線：像引用段落，線是重點的顏色"],
+        ["wash", "3 引文鋪底色：跟書上選中的重點同一種底色，淡一點"],
+        ["wavy", "4 引文帶波浪線：長得跟書上的重點一樣"],
+        ["split", "5 中間一段短線：跟手機單則全頁的分隔一樣"],
+        ["sizes", "6 字級對調：引文大、筆記小一級而且淡"],
+      ],
+    },
+  ];
+  const NAMES = { read: "讀", find: "找", reflect: "回看" };
+  const notes = {
+    f: { age: "上個月", date: "9/2", note: "像在辦公室裡。沒有人規定，大家還是會照同一個速度走。" },
+    g: { age: "上個月", date: "9/2", note: "" },
+    a: { age: "三天前", date: "10/5", note: "" },
+    b: {
+      age: "三天前",
+      date: "10/5",
+      note: "這句可以拿來講很多事情。工作、感情，還有我那個拖了三年的計畫。",
+    },
+    c: {
+      age: "上週",
+      date: "9/30",
+      note: "我讀書的時候也是一直在看錶：看還剩幾頁、看這章多長。\n\n也許該換成看「水」：哪一段讓我停下來，哪一段讓我想回頭再讀一次。\n\n那些線停下來開始打轉的時候，就是該停下來寫點什麼的時候。\n\n不知道這樣想對不對，先記著。\n\n隔天補：今天讀了一個小時沒有看頁數，結果讀得比平常少，可是記得的比較多。",
+    },
+    d: { age: "昨天", date: "10/7", note: "跟劃重點很像。每天留下來的都不一樣，地方卻是同一個。" },
+    h: {
+      age: "昨天",
+      date: "10/7",
+      note: "「知道自己站在哪裡」。我讀書的時候想要的大概也是這個：不是讀了多少，是知道自己讀到了哪裡。",
+    },
+    e: { age: "今天", date: "10/8", note: "" },
+  };
+  const s = { mode: "read", page: 1, sel: null, rules: { quote: "d", turn: "B", qstyle: "muted" } };
+  const $ = (q) => document.querySelector(q);
+  const frame = $("#frame"),
+    book = $("#book"),
+    cards = $("#cards");
+
+  function say(html) {
+    $("#log").innerHTML = html;
+  }
+  function spansOf(id) {
+    return [...book.querySelectorAll(`.mark[data-id="${id}"]`)];
+  }
+  function ids() {
+    const seen = [];
+    book.querySelectorAll(".mark").forEach((m) => {
+      if (!seen.includes(m.dataset.id)) seen.push(m.dataset.id);
+    });
+    return seen;
+  }
+  function pagesOf(id) {
+    return [...new Set(spansOf(id).map((m) => +m.closest(".page").dataset.p))];
+  }
+  function chapterOfPage(p) {
+    return +book.querySelector(`.page[data-p="${p}"]`).dataset.ch;
+  }
+  function onPage(id) {
+    return pagesOf(id).includes(s.page);
+  }
+  function colorOf(id) {
+    return spansOf(id)[0].style.getPropertyValue("--c") || "var(--mark)";
+  }
+  function quoteOf(id) {
+    return spansOf(id)
+      .map((m) => m.textContent.trim())
+      .join("");
+  }
+  function showsQuote(id) {
+    switch (s.rules.quote) {
+      case "b":
+        return id !== s.sel;
+      case "c":
+        return false;
+      case "a":
+        return !onPage(id);
+      default:
+        return true;
+    }
+  }
+
+  function buildControls() {
+    $("#controls").innerHTML = RULES.map(
+      (r) =>
+        `<div class="rule"><b>${r.title}</b><div class="seg">${r.opts
+          .map(([v, label]) => `<button data-r="${r.key}" data-v="${v}">${label}</button>`)
+          .join("")}</div></div>`,
+    ).join("");
+    $("#controls").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-r]");
+      if (!b) return;
+      s.rules[b.dataset.r] = b.dataset.v;
+      render();
+    });
+  }
+
+  function cardHtml(id) {
+    const n = notes[id],
+      sel = id === s.sel;
+    const quote = showsQuote(id)
+      ? `<button class="quote" data-go="${id}" title="到書裡這一段">${quoteOf(id)}</button>`
+      : "";
+    const body = n.note
+      ? `<div class="body">${n.note
+          .split("\n\n")
+          .map((p) => `<p>${p}</p>`)
+          .join("")}</div>`
+      : `<div class="write">寫筆記…</div>`;
+    const age = sel ? `${n.age}　${n.date}` : n.age + (n.note ? "" : " · 只劃了重點");
+    return `<div class="card${sel ? " sel" : ""}" data-card="${id}" style="--c:${colorOf(id)}">
+      <div class="meta"><span>${age}</span><span class="acts"><button>編輯</button><button>刪除</button></span></div>
+      ${quote}${body}</div>`;
+  }
+
+  function renderCards(scrollTo) {
+    const here = chapterOfPage(s.page);
+    const byCh = {};
+    ids().forEach((id) => {
+      const ch = chapterOfPage(pagesOf(id)[0]);
+      (byCh[ch] ||= []).push(id);
+    });
+    cards.innerHTML = Object.keys(byCh)
+      .map(
+        (ch) =>
+          `<div class="chead${+ch === here ? " here" : ""}" data-ch="${ch}"><span>${CHAPTERS[ch]}${
+            +ch === here ? '<span class="tag">在這一章</span>' : ""
+          }</span><small>${byCh[ch].length} 則</small></div>${byCh[ch].map(cardHtml).join("")}`,
+      )
+      .join("");
+    cards.classList.toggle("dim", !!s.sel);
+    cards.dataset.qs = s.rules.qstyle;
+    if (scrollTo === "sel" && s.sel) {
+      const c = cards.querySelector(`[data-card="${s.sel}"]`);
+      if (c) cards.scrollTop = Math.max(0, c.offsetTop - cards.offsetTop - 28);
+    } else if (scrollTo === "chapter") {
+      const h = cards.querySelector(`.chead[data-ch="${here}"]`);
+      if (h) cards.scrollTop = Math.max(0, h.offsetTop - cards.offsetTop - 4);
+    }
+  }
+
+  function render(scrollTo) {
+    book.querySelectorAll(".page").forEach((p) => (p.hidden = +p.dataset.p !== s.page));
+    $("#pageno").textContent = `${s.page + 1} / ${PAGES}`;
+    $("#railfill").style.width = `${((s.page + 1) / PAGES) * 100}%`;
+    $("#chapname").textContent = CHAPTERS[chapterOfPage(s.page)];
+    const open = s.mode === "reflect";
+    frame.classList.toggle("find", s.mode === "find");
+    frame.classList.toggle("panel-open", open);
+    book.classList.toggle("dim", open && !!s.sel);
+    book
+      .querySelectorAll(".mark")
+      .forEach((m) => m.classList.toggle("sel", m.dataset.id === s.sel));
+    document
+      .querySelectorAll("#states span")
+      .forEach((x) => x.classList.toggle("on", x.dataset.s === s.mode));
+    document
+      .querySelectorAll(".seg button")
+      .forEach((b) => b.setAttribute("aria-pressed", s.rules[b.dataset.r] === b.dataset.v));
+    if (open) renderCards(scrollTo);
+  }
+
+  function go(mode, why, scrollTo) {
+    const from = s.mode;
+    s.mode = mode;
+    if (mode !== "reflect") s.sel = null;
+    render(scrollTo);
+    say(
+      from === mode
+        ? `留在〈<b>${NAMES[mode]}</b>〉：${why}`
+        : `〈${NAMES[from]}〉→〈<b>${NAMES[mode]}</b>〉：${why}`,
+    );
+  }
+
+  function turn(d) {
+    const p = s.page + d;
+    if (p < 0 || p >= PAGES) return;
+    s.page = p;
+    if (s.mode !== "reflect") return go(s.mode, "翻頁");
+    const rule = s.rules.turn;
+    if (rule === "A") return go("read", "翻頁（A）");
+    if (rule === "I") {
+      if (s.sel && onPage(s.sel)) {
+        render();
+        return say("留在〈<b>回看</b>〉：翻到選中那條重點的另一半（(i)）");
+      }
+      return go("read", "翻頁，翻出了選中的重點（(i)）");
+    }
+    // B: stay. Keep the selection only while its mark is still in front of the reader, and bring
+    // the list to the first note on the new page; a page with no marks leaves the list where it is.
+    const dropped = s.sel && !onPage(s.sel);
+    if (dropped) s.sel = null;
+    const first = ids().find((id) => onPage(id)) || null;
+    const keep = cards.scrollTop;
+    render();
+    cards.scrollTop = keep;
+    if (first && !s.sel) {
+      const c = cards.querySelector(`[data-card="${first}"]`);
+      cards.scrollTop = Math.max(0, c.offsetTop - cards.offsetTop - 28);
+    }
+    say(
+      `留在〈<b>回看</b>〉：翻頁（B）${dropped ? "，選中的重點不在這一頁了，取消選中" : ""}${
+        first ? (s.sel ? "" : "，列表捲到這一頁的第一則") : "，這一頁沒有重點，列表不動"
+      }`,
+    );
+  }
+
+  function tapPage() {
+    if (s.mode === "read") return go("find", "點書頁");
+    if (s.mode === "find") return go("read", "再點一次書頁");
+    if (s.mode === "reflect") return go("read", "點書頁空白處");
+  }
+
+  function select(id, why) {
+    s.sel = id;
+    const ps = pagesOf(id);
+    const jumped = !ps.includes(s.page);
+    if (jumped) s.page = ps[0];
+    go("reflect", why + (jumped ? "，書跳到那一頁" : ""), "sel");
+  }
+
+  book.addEventListener("click", (e) => {
+    const m = e.target.closest(".mark");
+    if (m) return select(m.dataset.id, "點書上的一條重點");
+    tapPage();
+  });
+  cards.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-card]");
+    if (!c || c.dataset.card === s.sel) return;
+    select(c.dataset.card, e.target.closest(".quote") ? "點了卡片上的引文" : "點了列表裡的一則");
+  });
+  $("#openNotes").addEventListener("click", (e) => {
+    e.stopPropagation();
+    s.sel = null;
+    go("reflect", "在頂列按「筆記」", "chapter");
+  });
+  $("#closePanel").addEventListener("click", () => go("read", "按 ✕"));
+  $("#prev").addEventListener("click", () => turn(-1));
+  $("#next").addEventListener("click", () => turn(1));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") turn(1);
+    else if (e.key === "ArrowLeft") turn(-1);
+    else if (e.key === "Escape" && s.mode !== "read") go("read", "Esc");
+    else if (e.key.toLowerCase() === "n" && s.mode !== "reflect") {
+      s.sel = null;
+      go("reflect", "按 N", "chapter");
+    }
+  });
+  buildControls();
+  render();
+</script>
