@@ -358,14 +358,36 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await openPanel(/Notes/, "panel-notes");
   });
 
+  // On a desk only the selected card offers to write, and pressing its passage is what selects
+  // it. Narrower, every card already carries the box — and pressing the passage there closes the
+  // panel, so it is pressed only where the box is not already showing.
   await step("reader-note-editing", async () => {
-    await page.getByRole("button", { name: "Add note" }).first().click();
+    const write = page.getByRole("button", { name: "Write a note…" });
+    if (!(await write.isVisible())) {
+      await page.getByTestId("panel-notes").locator(".annotation-quote").first().click();
+    }
+    await write.click();
     await page.locator(".note-editor textarea").fill("這一段想再讀一次。");
     await page.waitForTimeout(400);
   });
 
-  await step("reader-about-panel", async () => {
+  // The same card, still selected, with a note long enough to scroll inside it: the thin scrollbar
+  // in the mark's ink, the fade at the bottom, and the line under it that counts what is left.
+  await step("reader-notes-long-selected", async () => {
+    await page
+      .locator(".note-editor textarea")
+      .fill(
+        Array.from(
+          { length: 10 },
+          (_, i) =>
+            `第 ${i + 1} 段：這一段想再讀一次，下次讀到這一章的時候，把它跟前面那段對照著看。`,
+        ).join("\n\n"),
+      );
     await page.locator(".note-editor button").click();
+    await page.waitForTimeout(600);
+  });
+
+  await step("reader-about-panel", async () => {
     await page.keyboard.press("Escape");
     await raiseChrome();
     await page.getByTestId("reader-about").click();

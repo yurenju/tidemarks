@@ -41,6 +41,11 @@ msgstr "{count, plural, other {# 天前}}"
 msgid "{count, plural, one {# hour ago} other {# hours ago}}"
 msgstr "{count, plural, other {# 小時前}}"
 
+#. Read by a screen reader after a chapter name in the notes panel, in place of the bare number shown at the end of the heading. Marks are the passages the reader marked in that chapter.
+#: src/components/NotesChapterHeading.tsx
+msgid "{count, plural, one {# mark} other {# marks}}"
+msgstr "{count, plural, other {# 則重點}}"
+
 #. On the banner naming the reader's place in the book: how long ago it was read. Whole minutes, under an hour.
 #: src/components/ElsewhereBanner.tsx
 msgid "{count, plural, one {# minute ago} other {# minutes ago}}"
@@ -65,6 +70,11 @@ msgstr "{limit} 本中的 {held} 本在同步{onDevice, plural, =0 {。} other {
 #: src/lib/book-status.ts
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, other {大約還要 # 小時}}"
+
+#. Small line under a long note in the notes panel that scrolls inside its card, while there is more of it below. The number is how many paragraphs the whole note has, not how many are left.
+#: src/components/AnnotationItem.tsx
+msgid "{paragraphs, plural, one {# paragraph · more below} other {# paragraphs · more below}}"
+msgstr "{paragraphs, plural, other {# 段 · 往下還有}}"
 
 #. The how-many-times number in the book-details panel, with its unit. A sitting is one continuous stretch of reading.
 #: src/components/AboutBook.tsx
@@ -110,11 +120,6 @@ msgstr "帳號"
 msgid "Add a passkey"
 msgstr "新增 passkey"
 
-#. Button under a marked passage with no note yet: opens an empty note box.
-#: src/components/AnnotationItem.tsx
-msgid "Add note"
-msgstr "加筆記"
-
 #. The button that grants the agent access to the shelf.
 #. js-lingui-explicit-id
 #: worker/authorize.ts
@@ -141,6 +146,11 @@ msgstr "換一段"
 #: worker/auth.ts
 msgid "auth.code.none"
 msgstr "請先要一組登入碼"
+
+#. Small line under a long note in the notes panel that scrolls inside its card, once the reader has scrolled to its end.
+#: src/components/AnnotationItem.tsx
+msgid "At the end"
+msgstr "到底了"
 
 #. One of three column choices for a page: let the line length decide how many columns fit.
 #: src/lib/settings.ts
@@ -224,8 +234,8 @@ msgid "Dark"
 msgstr "深色"
 
 #. Button in the book-details panel that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
-#. Button under a marked passage: removes the mark and any note on it.
-#. The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.
+#. Small text button at the end of the date row on a card in the notes panel: asks, then removes the mark and any note on it. On a desk it appears only on the card the reader has selected.
+#. The button that actually deletes, in the question asked in place of the date row on a card in the notes panel. Shares its entry with the Delete that asked.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
 #: src/components/AnnotationItem.tsx
@@ -237,12 +247,12 @@ msgstr "刪除"
 msgid "Delete “{title}”?"
 msgstr "刪除「{title}」？"
 
-#. Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
+#. Asked in place of the date row on a card in the notes panel, for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
 #: src/components/AnnotationItem.tsx
 msgid "Delete this mark and its note?"
 msgstr "刪除這段重點與筆記？"
 
-#. Asked in place of the buttons under a marked passage with no note, after Delete was pressed.
+#. Asked in place of the date row on a card in the notes panel, for a passage with no note, after Delete was pressed.
 #: src/components/AnnotationItem.tsx
 msgid "Delete this mark?"
 msgstr "刪除這段重點？"
@@ -282,7 +292,7 @@ msgstr "字型下載中　{percent}%"
 msgid "Downloading the book…"
 msgstr "下載書籍中…"
 
-#. Button under a marked passage that already carries a note: opens it for changing.
+#. Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.
 #: src/components/AnnotationItem.tsx
 msgid "Edit note"
 msgstr "編輯筆記"
@@ -393,6 +403,11 @@ msgstr "匯入 epub"
 msgid "Importing, reading, marking, note-taking, typesetting and exporting all run in your browser."
 msgstr "匯入、閱讀、劃重點、寫筆記、排版、匯出，都在你的瀏覽器裡跑。"
 
+#. Small word beside a chapter name in the notes panel, on the chapter the page the reader is on belongs to. Says where the reader is, not which chapter is selected.
+#: src/components/NotesChapterHeading.tsx
+msgid "In this chapter"
+msgstr "在這一章"
+
 #. One of four ink colours for marking a passage. A pigment name, not a hue: the dye from the indigo plant (蓼藍).
 #: src/lib/highlights.ts
 msgid "Indigo"
@@ -419,6 +434,11 @@ msgstr "剛剛加進來的"
 #: src/components/ElsewhereBanner.tsx
 msgid "Just now"
 msgstr "剛剛"
+
+#. After how long ago a passage was marked, on a card in the notes panel for a mark with no note written under it — '3 days ago · Just the mark'. Says what the card is, not that something is missing.
+#: src/components/AnnotationItem.tsx
+msgid "Just the mark"
+msgstr "只劃了重點"
 
 #. The way out of the delete confirmation: change nothing. Deliberately not 'Cancel' — it says what happens to the book, which is that it stays.
 #: src/components/AboutBook.tsx
@@ -754,16 +774,6 @@ msgstr "明體"
 msgid "Settings"
 msgstr "設定"
 
-#. Button under a marked passage in the notes panel that has been opened to its full length. Pressing it cuts the passage back to three lines. The counterpart of 'Show the whole passage'.
-#: src/components/AnnotationItem.tsx
-msgid "Show less"
-msgstr "收合"
-
-#. Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.
-#: src/components/AnnotationItem.tsx
-msgid "Show the whole passage"
-msgstr "顯示完整段落"
-
 #. Button that submits the code from the email and finishes signing in.
 #. Heading of the sign-in section, shown when there is no account on this device yet.
 #: src/components/AccountPanel.tsx
@@ -1064,6 +1074,11 @@ msgstr "驗證失敗"
 #: src/components/AccountPanel.tsx
 msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 msgstr "不想付、又想要兩台裝置？同步這半邊可以自己架。"
+
+#. Dashed box under a marked passage with no note, on a card in the notes panel — on a desk only the card the reader has selected. Pressing it opens the note box. The ellipsis is one character.
+#: src/components/AnnotationItem.tsx
+msgid "Write a note…"
+msgstr "寫筆記…"
 
 #. How long ago the reader marked the passage the reader is being shown: more than two years, the far end of the scale. Vague on purpose — past a certain distance the exact count stops meaning anything.
 #: src/components/age-labels.ts

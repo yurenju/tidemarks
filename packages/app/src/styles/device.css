@@ -207,6 +207,36 @@
   .panel-popup[data-needs][data-ending-style] {
     transform: translateY(100%);
   }
+
+  /* **Every card in [[Notes]] carries what only the selected one does on a desk, and selecting
+     one changes nothing about the others** (`book.css`). Here the panel covers the book and
+     pressing a passage closes it so the reader can see the passage — so pressing is not a way to
+     select a card in a list the reader is looking at. A card is selected here only by being
+     edited, and that is not the reader asking for the rest of the list to step back, or for the
+     note they just wrote to shrink into a scroll inside a panel that already scrolls. */
+  .annotation-item:not(.selected) .annotation-tools {
+    display: flex;
+  }
+
+  .annotation-item:not(.selected) .annotation-write {
+    display: block;
+  }
+
+  .annotation-item:not(.selected) .note-text {
+    display: block;
+    overflow: visible;
+  }
+
+  .panel-list-notes:has(.annotation-item.selected) .annotation-item:not(.selected) {
+    opacity: 1;
+  }
+
+  .annotation-item.selected .note-body,
+  .annotation-item.selected .note-body.more {
+    max-height: none;
+    overflow-y: visible;
+    mask-image: none;
+  }
 }
 
 /* The window

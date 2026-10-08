@@ -191,3 +191,15 @@ a {
   color: var(--tide);
   text-underline-offset: 0.2em;
 }
+
+/* Words for a screen reader that the screen says another way — a number at the end of a row,
+   say, where the eye needs only the figure and the ear needs to know what it counts. Off the
+   screen rather than `display: none`, which would take it out of the accessibility tree too. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

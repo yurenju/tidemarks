@@ -1,4 +1,4 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Annotation } from "../lib/types";
 import { markVar } from "../lib/highlights";
@@ -8,7 +8,7 @@ import { AGE_LABELS } from "./age-labels";
 export default function AnnotationItem({
   annotation,
   editing,
-  pointedAt,
+  selected,
   onJump,
   onEdit,
   onPersist,
@@ -17,8 +17,11 @@ export default function AnnotationItem({
 }: {
   annotation: Annotation;
   editing: boolean;
-  /** Whether the book is showing this passage filled in — see `aria-current` below. */
-  pointedAt: boolean;
+  /**
+   * The passage the reader pointed at — washed on the page, and the card that carries its tools
+   * and its whole note. See `aria-current` below.
+   */
+  selected: boolean;
   onJump: () => void;
   onEdit: () => void;
   /** Write the words down without closing anything. Called on every way out of the box. */
@@ -28,37 +31,56 @@ export default function AnnotationItem({
 }) {
   const { t, i18n } = useLingui();
   const [draft, setDraft] = useState(annotation.note);
-  /** Set by the reader, and only ever in one direction: a passage they opened stays open. */
-  const [whole, setWhole] = useState(false);
-  /**
-   * Whether the three-line cut is actually hiding anything.
-   *
-   * **Measured rather than guessed from the length of the text.** A passage that happens to end
-   * on the third line is not cut, and drawing the fade and the press under it would announce a
-   * rest that does not exist; how many lines a passage takes is a question about the reader's
-   * type size (ADR-0006), the panel's width and the script it is set in, so counting characters
-   * answers a different question in every one of those.
-   *
-   * The observer is what keeps the answer true afterwards: the panel is a column that changes
-   * width when the window does, and the type size changes under the reader's hand in [[Layout]].
-   */
-  const [cut, setCut] = useState(false);
-  const quoteRef = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
-    const quote = quoteRef.current;
-    if (quote === null) return;
-    // Once open there is no clamp left to overflow, so the answer would come back `false` and
-    // take the press away from under a reader who may want to close it again.
-    if (whole) return;
-    const measure = () => setCut(quote.scrollHeight > quote.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(quote);
-    return () => observer.disconnect();
-  }, [whole, annotation.text]);
   useEffect(() => {
     if (editing) setDraft(annotation.note);
   }, [editing, annotation.note]);
+
+  /**
+   * Whether the selected card's note runs past the height it is given, and whether the reader has
+   * scrolled to its end.
+   *
+   * **Measured rather than guessed from the length of the text**, for the reason the passage's
+   * cut used to be: how tall a note stands is a question about the type size (ADR-0006), the
+   * panel's width and the script, so counting characters answers a different question in every
+   * one of those. The observer keeps the answer true as the column or the type size changes.
+   *
+   * Only while selected: an unselected card cuts its note to three lines and says nothing about
+   * the rest, because pressing the passage is how the reader asks to see this one whole.
+   */
+  const [overflow, setOverflow] = useState<{ tall: boolean; atEnd: boolean }>({
+    tall: false,
+    atEnd: false,
+  });
+  const noteRef = useRef<HTMLDivElement | null>(null);
+  const measureNote = () => {
+    const body = noteRef.current;
+    if (body === null) return;
+    const tall = body.scrollHeight > body.clientHeight + 1;
+    const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 1;
+    setOverflow((was) => (was.tall === tall && was.atEnd === atEnd ? was : { tall, atEnd }));
+  };
+  const showsNote = !editing && annotation.note !== "";
+  useEffect(() => {
+    const body = noteRef.current;
+    if (!selected || body === null) {
+      setOverflow((was) => (was.tall ? { tall: false, atEnd: false } : was));
+      return;
+    }
+    measureNote();
+    // The text as well as the box: once the box is held at its full height, a change in the
+    // type size or the panel's width changes only what is inside it.
+    const observer = new ResizeObserver(measureNote);
+    observer.observe(body);
+    if (body.firstElementChild !== null) observer.observe(body.firstElementChild);
+    return () => observer.disconnect();
+    // `measureNote` reads only the ref, so a fresh copy each render is not a change.
+  }, [selected, showsNote, annotation.note]);
+  /**
+   * How many paragraphs the note has, for the line under a note that scrolls. A paragraph is what
+   * a blank line separates — the note is shown with its line breaks kept (`styles/book.css`), so a
+   * single break is a line inside a paragraph, as in a list or a verse the reader copied out.
+   */
+  const paragraphs = annotation.note.split(/\n\s*\n/).filter((part) => part.trim() !== "").length;
 
   /**
    * **[[Delete]] asks first, in the item itself.** Readers deleted notes they meant to keep, and a
@@ -77,6 +99,13 @@ export default function AnnotationItem({
   useEffect(() => {
     if (editing) setConfirming(false);
   }, [editing]);
+  // And when the reader points at another passage: on a desk the tools are only on the selected
+  // card, so a question left standing on one that has stepped back would be asking about a card
+  // whose [[Delete]] is no longer there to hand the focus back to. Only the move *away* ends it,
+  // so a card that was never selected — every card on a narrow window — can still ask.
+  useEffect(() => {
+    if (!selected) setConfirming(false);
+  }, [selected]);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const deleteRef = useRef<HTMLButtonElement | null>(null);
   /** Set by the reader stepping back from the question — and only then is the focus handed back. */
@@ -167,9 +196,9 @@ export default function AnnotationItem({
 
   return (
     <div
-      className={`annotation-item${cut ? " cut" : ""}${whole ? " whole" : ""}`}
-      // The colour is set once here and read by the swatch and the rule beside the passage
-      // (`styles/book.css`), so the two cannot come out in different inks.
+      className={`annotation-item${selected ? " selected" : ""}`}
+      // The colour is set once here and read by the rule down the card's edge and the scrollbar
+      // of a long note (`styles/book.css`), so the two cannot come out in different inks.
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
     >
       {/* **The box is the first thing in the item, and that is the whole of ADR-0044.** A virtual
@@ -221,92 +250,26 @@ export default function AnnotationItem({
           </button>
         </div>
       )}
-      {/* **A real button, and the panel it sits in is why.** Base UI's drawer claims a press
-          that does not land on something interactive, so that a swipe anywhere on the panel
-          dismisses it — and claiming it means capturing the pointer, which retargets the
-          `click` to the panel. A quote that was only a styled `<blockquote>` therefore never
-          heard its own click on a desk. It still worked under a finger, because the swipe
-          takes no pointer capture there, and that is the shape the report had: jumping works
-          on a phone and does nothing on a desktop.
+      {/* **What this is about the mark rather than part of it**: how long ago, and — on the one
+          card the reader is looking at — the day itself. The same ladder the shelf's card climbs
+          (`lib/revisit.ts`) and the same words (`age-labels.ts`): a reader who meets "Last month"
+          on the shelf meets it here too.
 
-          `button` is one of the elements the drawer stands aside for
-          (`button,a,input,select,textarea,label,[role="button"]`), so this is the fix and the
-          keyboard route in one — the quote was not reachable by tab either. */}
-      {/* `aria-current` because the wash is the only other answer, and it is drawn on a layer
-          that is `aria-hidden` — the boxes are decoration over text a screen reader already
-          reads from the book. Before the panel started staying open, "that press landed" was
-          the whole column closing, which every reader got. What replaced it is a colour, so
-          the same fact has to be said in the tree as well (ADR-0021). */}
-      {/* **What this is about the mark rather than part of it**: the ink it was made in, and how
-          long ago. The same row the shelf's card carries, minus the book and the label — every
-          passage in this panel came out of the book the reader is holding, so naming it on each
-          one would be a word that repeats and says nothing.
+          **The ink is not in this row any more.** A dot here said the colour a second time, after
+          the rule down the card's edge had already said it.
 
-          The distance is the same ladder the card climbs (`lib/revisit.ts`) and the same words
-          (`age-labels.ts`): a reader who meets "Last month" on the shelf meets it here too.
+          [[Edit note]] and [[Delete]] stand at the end of it, and only on the selected card
+          (`styles/book.css`): forty cards each with a row of buttons under it read as a register,
+          and the reader acts on the one they are looking at. [[Delete]]'s question takes the row's
+          place rather than opening a dialog: the reader is looking at this card, and a dialog in
+          the middle of the screen would take them away from the passage being asked about.
 
           Under the editor rather than over it, which is ADR-0044 again — the box has to be the
           first thing in the item, so that the caret starts where a virtual keyboard cannot reach.
           Nothing is above it when it is standing. */}
-      <p className="annotation-head">
-        {/* The colour is on the rule beside the passage as well, so this dot is a second saying
-            of it and carries no name of its own. */}
-        <span className="annotation-swatch" aria-hidden="true" />
-        {i18n._(AGE_LABELS[relativeAge(Date.now(), annotation.createdAt)])}
-      </p>
-      <button
-        type="button"
-        className="annotation-quote"
-        aria-current={pointedAt || undefined}
-        onClick={onJump}
-        title={t({
-          message: "Jump to this passage",
-          comment:
-            "Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.",
-        })}
-      >
-        {/* The passage is cut to three lines, and the cut is on this span rather than on the
-            button around it — WebKit clamps nothing set on a control (`styles/book.css`). */}
-        <span ref={quoteRef} className="annotation-quote-text">
-          {annotation.text}
-        </span>
-      </button>
-      {/* **The way back to the whole passage, under the passage.** Only where the cut is really
-          hiding something — a passage that happens to end on the third line has nothing to open.
-
-          **It stays after it has been pressed, and says so with `aria-expanded`.** The first
-          version took itself away, on the argument that a reader who wanted the passage whole
-          wanted it whole. What that cost is the reader who is not using a mouse: pressing it
-          destroyed the focused element, so the focus fell to the document and the next Tab
-          started again from the top of the panel — and nothing announced that anything had
-          happened, because the thing that changed was a number of lines (ADR-0021). A disclosure
-          that stands is what every assistive technology already knows how to read.
-
-          Nothing like this stands under the note, and that asymmetry is the point: the passage
-          can be cut because pressing it goes to where it stands in the book, whole. A note has no
-          such route, so it is never cut (`styles/book.css`). */}
-      {cut && (
-        <button
-          type="button"
-          className="annotation-expand"
-          aria-expanded={whole}
-          onClick={() => setWhole(!whole)}
-        >
-          {whole ? (
-            <Trans comment="Button under a marked passage in the notes panel that has been opened to its full length. Pressing it cuts the passage back to three lines. The counterpart of 'Show the whole passage'.">
-              Show less
-            </Trans>
-          ) : (
-            <Trans comment="Button under a marked passage that has been cut to three lines in the notes panel. Pressing it shows the rest of the passage in place. 'Whole' rather than 'more' because nothing is being fetched — the words were always there.">
-              Show the whole passage
-            </Trans>
-          )}
-        </button>
-      )}
-      {!editing && annotation.note && <p className="note-text">{annotation.note}</p>}
       {confirming ? (
         <div
-          className="annotation-actions annotation-confirm"
+          className="annotation-head annotation-confirm"
           role="group"
           aria-labelledby={questionId}
           onKeyDown={(e) => {
@@ -319,11 +282,11 @@ export default function AnnotationItem({
         >
           <p id={questionId} className="annotation-confirm-question">
             {annotation.note ? (
-              <Trans comment="Asked in place of the buttons under a marked passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.">
+              <Trans comment="Asked in place of the date row on a card in the notes panel, for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.">
                 Delete this mark and its note?
               </Trans>
             ) : (
-              <Trans comment="Asked in place of the buttons under a marked passage with no note, after Delete was pressed.">
+              <Trans comment="Asked in place of the date row on a card in the notes panel, for a passage with no note, after Delete was pressed.">
                 Delete this mark?
               </Trans>
             )}
@@ -343,7 +306,7 @@ export default function AnnotationItem({
                 onRemove();
               }}
             >
-              <Trans comment="The button that actually deletes, in the question asked in place under a marked passage. Shares its entry with the Delete that asked.">
+              <Trans comment="The button that actually deletes, in the question asked in place of the date row on a card in the notes panel. Shares its entry with the Delete that asked.">
                 Delete
               </Trans>
             </button>
@@ -358,26 +321,121 @@ export default function AnnotationItem({
           </span>
         </div>
       ) : (
-        <div className="annotation-actions">
-          {!editing && (
-            <button onClick={onEdit}>
-              {annotation.note ? (
-                <Trans comment="Button under a marked passage that already carries a note: opens it for changing.">
+        <div className="annotation-head">
+          <p className="annotation-when">
+            {i18n._(AGE_LABELS[relativeAge(Date.now(), annotation.createdAt)])}
+            {/* The exact day on the card being looked at, small. The ladder above is the right
+                answer for scanning a list and the wrong one for "when did I write this". */}
+            {selected && (
+              <span className="annotation-date">
+                {new Intl.DateTimeFormat(i18n.locale, { month: "numeric", day: "numeric" }).format(
+                  annotation.createdAt,
+                )}
+              </span>
+            )}
+            {annotation.note === "" && (
+              <>
+                {" · "}
+                <Trans comment="After how long ago a passage was marked, on a card in the notes panel for a mark with no note written under it — '3 days ago · Just the mark'. Says what the card is, not that something is missing.">
+                  Just the mark
+                </Trans>
+              </>
+            )}
+          </p>
+          <span className="annotation-tools">
+            {showsNote && (
+              <button type="button" onClick={onEdit}>
+                <Trans comment="Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.">
                   Edit note
                 </Trans>
-              ) : (
-                <Trans comment="Button under a marked passage with no note yet: opens an empty note box.">
-                  Add note
-                </Trans>
-              )}
+              </button>
+            )}
+            <button type="button" ref={deleteRef} onClick={() => setConfirming(true)}>
+              <Trans comment="Small text button at the end of the date row on a card in the notes panel: asks, then removes the mark and any note on it. On a desk it appears only on the card the reader has selected.">
+                Delete
+              </Trans>
             </button>
-          )}
-          <button ref={deleteRef} onClick={() => setConfirming(true)}>
-            <Trans comment="Button under a marked passage: removes the mark and any note on it.">
-              Delete
-            </Trans>
-          </button>
+          </span>
         </div>
+      )}
+      {/* **A real button, and the panel it sits in is why.** Base UI's drawer claims a press
+          that does not land on something interactive, so that a swipe anywhere on the panel
+          dismisses it — and claiming it means capturing the pointer, which retargets the
+          `click` to the panel. A quote that was only a styled `<blockquote>` therefore never
+          heard its own click on a desk. It still worked under a finger, because the swipe
+          takes no pointer capture there, and that is the shape the report had: jumping works
+          on a phone and does nothing on a desktop.
+
+          `button` is one of the elements the drawer stands aside for
+          (`button,a,input,select,textarea,label,[role="button"]`), so this is the fix and the
+          keyboard route in one — the quote was not reachable by tab either. */}
+      {/* `aria-current` because the wash is the only other answer, and it is drawn on a layer
+          that is `aria-hidden` — the boxes are decoration over text a screen reader already
+          reads from the book. Before the panel started staying open, "that press landed" was
+          the whole column closing, which every reader got. What replaced it is a colour, so
+          the same fact has to be said in the tree as well (ADR-0021). */}
+      <button
+        type="button"
+        className="annotation-quote"
+        aria-current={selected || undefined}
+        onClick={onJump}
+        title={t({
+          message: "Jump to this passage",
+          comment:
+            "Tooltip on a quoted passage in the notes panel. Clicking it takes the reader to where that passage is in the book.",
+        })}
+      >
+        {/* **Two lines of the passage, faded, on every card** — the selected one too. The
+            passage is what the note is about, not what the card is for, so it is a reminder
+            rather than a reading: pressing it goes to where it stands in the book, whole, and
+            that is the way to the rest of it. Nothing in the panel opens it in place.
+
+            The cut is on this span rather than on the button around it — WebKit clamps nothing
+            set on a control (`styles/book.css`). */}
+        <span className="annotation-quote-text">{annotation.text}</span>
+      </button>
+      {showsNote && (
+        // **Cut to three lines until the card is selected, then whole** — inside the card, as
+        // a scroll of its own once it runs past what the card is given, so one long note cannot
+        // push every other card off the panel. The reader selects a card by pressing its passage,
+        // so the rest of a note is one press away and never behind the editor.
+        //
+        // Focusable only while it scrolls, so a keyboard can scroll it and Tab does not stop
+        // on a note that has nothing to scroll.
+        <div
+          ref={noteRef}
+          className={`note-body${overflow.tall && !overflow.atEnd ? " more" : ""}`}
+          tabIndex={overflow.tall ? 0 : undefined}
+          onScroll={measureNote}
+        >
+          <p className="note-text">{annotation.note}</p>
+        </div>
+      )}
+      {showsNote && overflow.tall && (
+        <p className="note-more">
+          {overflow.atEnd ? (
+            <Trans comment="Small line under a long note in the notes panel that scrolls inside its card, once the reader has scrolled to its end.">
+              At the end
+            </Trans>
+          ) : (
+            <Plural
+              comment="Small line under a long note in the notes panel that scrolls inside its card, while there is more of it below. The number is how many paragraphs the whole note has, not how many are left."
+              value={paragraphs}
+              one="# paragraph · more below"
+              other="# paragraphs · more below"
+            />
+          )}
+        </p>
+      )}
+      {/* **A mark with nothing written under it gets a place to start one** — on the selected
+          card only, and drawn as an empty box with a dashed edge, which is what it is: the note
+          that is not there yet. */}
+      {!editing && annotation.note === "" && (
+        <button type="button" className="annotation-write" onClick={onEdit}>
+          <Trans comment="Dashed box under a marked passage with no note, on a card in the notes panel — on a desk only the card the reader has selected. Pressing it opens the note box. The ellipsis is one character.">
+            Write a note…
+          </Trans>
+        </button>
       )}
     </div>
   );
