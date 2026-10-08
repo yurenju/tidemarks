@@ -14,14 +14,25 @@
 import { describe, expect, it } from "vitest";
 import {
   chromeShowing,
+  faceOf,
   initialChrome,
   nextChrome,
   type ChromeEvent,
   type ChromeState,
 } from "./chrome";
 
-/** A state to start a case from, spelled out only where the case is about it. */
-const at = (over: Partial<ChromeState> = {}): ChromeState => ({ ...initialChrome, ...over });
+/**
+ * A state to start a case from, spelled out only where the case is about it.
+ *
+ * `kept` follows `selected` in [[Reflect]] and [[Marking]] unless a case says otherwise, and is
+ * empty everywhere else: a state that differs is one the reducer never produces.
+ */
+const at = (over: Partial<ChromeState> = {}): ChromeState => ({
+  ...initialChrome,
+  kept:
+    over.chrome !== undefined && faceOf(over.chrome) === "notes" ? (over.selected ?? null) : null,
+  ...over,
+});
 
 /** Replays a run of events, which is how an interleaving is stated. */
 const run = (state: ChromeState, ...events: ChromeEvent[]): ChromeState =>
@@ -286,6 +297,54 @@ describe("the note written on the spot", () => {
   });
 });
 
+// What the page holds on to when the book reflows beside a panel. Whether frond really keeps it on
+// screen is for a browser (`tests/browser/reader/highlights.spec.ts`); what is here is which
+// passage that is, and when it stops being one.
+describe("the passage kept through a reflow", () => {
+  const writing = () => run(at(), { kind: "marked", id: "a", withNote: true });
+
+  it("is the one pointed at, wherever something is", () => {
+    expect(writing().kept).toBe("a");
+    expect(nextChrome(at(), { kind: "markPicked", id: "b" }).kept).toBe("b");
+  });
+
+  // The book takes its column back in the same frame the note closes, and that reflow is the one
+  // that used to put the passage on the next page.
+  it.each([
+    ["Done is pressed", { kind: "noteSaved" } as const],
+    ["the reader taps the page", { kind: "tapped" } as const],
+    ["the panel dismisses itself", { kind: "panelDismissed" } as const],
+  ])("outlives Marking's note when %s, though nothing is pointed at", (_what, event) => {
+    expect(nextChrome(writing(), event)).toMatchObject({
+      chrome: "down",
+      selected: null,
+      kept: "a",
+    });
+  });
+
+  it("is let go by the next thing that happens in Read", () => {
+    const done = nextChrome(writing(), { kind: "noteSaved" });
+    expect(nextChrome(done, { kind: "turned" }).kept).toBeNull();
+    expect(nextChrome(done, { kind: "tapped" }).kept).toBeNull();
+  });
+
+  // A wash outlives the panel on purpose (`selected`), and [[Layout]] can be raised under it. Its
+  // preview reflows from the top of the page, the price ADR-0005 accepts, not from the wash.
+  it("is not held for Contents or Layout, even under a wash left standing", () => {
+    const closed = nextChrome(at({ chrome: "reflect", face: "notes", selected: "a" }), {
+      kind: "panelDismissed",
+    });
+    const raised = run(closed, { kind: "tapped" }, { kind: "togglePanel", panel: "layout" });
+    expect(raised).toMatchObject({ chrome: "layout", selected: "a", kept: null });
+  });
+
+  it("follows the pointer out of Reflect, rather than outliving it", () => {
+    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
+    expect(nextChrome(state, { kind: "turnLanded", showing: [] }).kept).toBeNull();
+    expect(nextChrome(state, { kind: "panelDismissed" }).kept).toBe("a");
+  });
+});
+
 // **A note stops being edited the moment Reflect stops standing**, and nothing has to be lost
 // with it: the words are committed when the box loses focus, so what closes here is the editor
 // and not the writing (ADR-0044, on what it costs). Held any longer, `editing` would still be set the next
@@ -437,6 +496,7 @@ describe("the chrome an address already naming a face comes back to", () => {
       face: "layout",
       editing: null,
       selected: null,
+      kept: null,
     });
   });
 
@@ -446,6 +506,7 @@ describe("the chrome an address already naming a face comes back to", () => {
       face: "notes",
       editing: null,
       selected: "n1",
+      kept: "n1",
     });
   });
 

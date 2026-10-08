@@ -115,6 +115,26 @@ export interface ChromeState {
    * showed up as a passage lighting up on a panel the reader had just reopened.
    */
   readonly selected: string | null;
+  /**
+   * Which marked passage the page holds on to when the book reflows under it — frond's
+   * `keepInView`, which `Reader.tsx` hands this to.
+   *
+   * On a desk a panel takes a column from the book, so raising or closing one lays the book out
+   * again at another width. Left to itself frond carries the reader across by the first character
+   * of the page, and a passage near the foot of it lands on the next page — measured on the last
+   * line of nine pages of Alice at 1280px: off screen while its note was being written on three
+   * of them, and after [[Done]] on four (#250, the reflow around the notes panel).
+   *
+   * **It is `selected` while the notes panel stands and as it closes, and nothing otherwise.**
+   * Those are the two reflows with a passage on screen that matters more than the top of the
+   * page. One difference: it outlives [[Marking]]. The reader is shown the passage they are
+   * writing about, and when the note closes the book takes its column back — the reflow that has
+   * to keep that passage in view happens in the very frame `selected` lets go of it. Either way
+   * the next thing that happens drops it, so [[Contents]] and [[Layout]] reflow from the top of
+   * the page as they always have, even under a wash left standing. A stale one costs nothing
+   * besides: frond only honours it while the passage begins on the page on screen.
+   */
+  readonly kept: string | null;
 }
 
 /** Everything that can happen to the chrome, named by what the reader did rather than by result. */
@@ -198,6 +218,7 @@ export const initialChrome: ChromeState = {
   face: "toc",
   editing: null,
   selected: null,
+  kept: null,
 };
 
 /**
@@ -217,8 +238,10 @@ export const initialChrome: ChromeState = {
  */
 export function chromeShowing(face: Face | null, noteId: string | null): ChromeState {
   if (face === null) return initialChrome;
-  if (face === "notes") return { chrome: "reflect", face, editing: null, selected: noteId };
-  return { chrome: face, face, editing: null, selected: null };
+  if (face === "notes") {
+    return { chrome: "reflect", face, editing: null, selected: noteId, kept: noteId };
+  }
+  return { chrome: face, face, editing: null, selected: null, kept: null };
 }
 
 /**
@@ -244,11 +267,21 @@ function settle(
   // [[Reflect]]'s wash, it was never the reader asking to be shown a passage — they are back in
   // [[Read]], and a lit passage there is a question nobody asked. A press that points somewhere
   // new on the way out is the reader's own, and stays: a quote pressed on a narrow window.
-  const pointed =
-    state.chrome === "marking" && next === "down" && selected === state.selected ? null : selected;
+  const leavingMarking = state.chrome === "marking" && next === "down";
+  const pointed = leavingMarking && selected === state.selected ? null : selected;
+  // **But the page goes on holding it**, through the reflow that closing the note sets off — see
+  // `kept` for why that is the same frame. Only around the notes panel, though: a wash left
+  // standing after it closes is no reason for [[Layout]]'s preview to stop anchoring at the top.
+  const aroundNotes = faceOf(next) === "notes" || faceOf(state.chrome) === "notes";
+  const kept = aroundNotes ? (pointed ?? (leavingMarking ? state.selected : null)) : null;
   // `face` is not asked about: it only ever changes when `chrome` gets a face, so a `chrome` that
   // did not move cannot have moved it either.
-  if (next === state.chrome && stillEditing === state.editing && pointed === state.selected) {
+  if (
+    next === state.chrome &&
+    stillEditing === state.editing &&
+    pointed === state.selected &&
+    kept === state.kept
+  ) {
     return state;
   }
   return {
@@ -257,6 +290,7 @@ function settle(
     face: faceOf(next) ?? state.face,
     editing: stillEditing,
     selected: pointed,
+    kept,
   };
 }
 

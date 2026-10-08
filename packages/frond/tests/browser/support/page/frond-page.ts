@@ -199,6 +199,10 @@ const harness: FrondHarness = {
     return snapshot();
   },
 
+  keepInView(cfi): void {
+    active().keepInView(cfi ?? undefined);
+  },
+
   layoutCalls(): readonly LayoutCall[] {
     return layoutCalls;
   },

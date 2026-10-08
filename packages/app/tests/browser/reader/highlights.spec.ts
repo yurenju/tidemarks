@@ -462,7 +462,110 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     await expect(page.getByTestId("chrome-top")).toBeHidden();
     await expect(page.locator(".highlight-box").first()).toBeVisible();
   });
+
+  // The panel takes a column from the book as the note opens and gives it back on [[Done]], and
+  // each time the book is laid out again at another width. A passage at the foot of the page is
+  // the one that reflow puts on the next page, unless the page holds on to it (`kept` in
+  // `lib/chrome.ts`, frond's `keepInView`) — and the case above, a passage near the top, cannot
+  // tell the two apart.
+  test("a passage at the foot of the page stays in view while its note is written, and after", async ({
+    page,
+  }) => {
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await settled(page);
+    await selectTheFoot(page);
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+    await page.locator(".highlight-toolbar").getByRole("button", { name: "Mark and note" }).click();
+
+    const panel = page.getByTestId("panel-notes");
+    await expect(panel.getByRole("textbox")).toBeFocused();
+    // The wash is drawn only over a pointed passage on the page on screen.
+    await expect(page.locator(".highlight-wash").first()).toBeVisible();
+
+    await panel.getByRole("textbox").fill("Written at the foot of the page.");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel).toBeHidden();
+    await settled(page);
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+  });
 });
+
+// The other half of the case above, which that one cannot tell apart: the book taking its column
+// back on [[Done]]. By then the page is the narrow one the note was written beside, and from most
+// of those a wider page still reaches the passage from the old page start. This one does not —
+// found by holding the passage only while the note was open, which lost it here and on no other
+// page of the first ten of either book.
+test.describe("a desk, where Done gives the book its column back", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("the passage just written about is still on the page", async ({ page }) => {
+    await openBook(page, BOOKS.horizontal);
+    for (let turn = 0; turn < 8; turn += 1) {
+      await page.keyboard.press("ArrowRight");
+      await settled(page);
+    }
+    await selectTheFoot(page);
+    await page.locator(".highlight-toolbar").getByRole("button", { name: "Mark and note" }).click();
+
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByRole("textbox").fill("Written at the foot of the page.");
+    await panel.getByRole("button", { name: "Done" }).click();
+    await expect(panel).toBeHidden();
+    await settled(page);
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+  });
+});
+
+/**
+ * Selects the last few characters on the page on screen, whatever direction the book runs in.
+ *
+ * Found by asking each character whether it is drawn inside the frame, from the end of the text
+ * backwards: the page ends at a different edge in a vertical book, and the order of the text is
+ * the one thing that does not change with it.
+ */
+async function selectTheFoot(page: import("@playwright/test").Page): Promise<void> {
+  const selected = await readerFrame(page)
+    .locator("body")
+    .evaluate((body) => {
+      const document = body.ownerDocument;
+      const view = document.defaultView!;
+      const nodes: Text[] = [];
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode() !== null) nodes.push(walker.currentNode as Text);
+
+      const range = document.createRange();
+      const drawn = (node: Text, offset: number): boolean => {
+        range.setStart(node, offset);
+        range.setEnd(node, offset + 1);
+        const rect = range.getBoundingClientRect();
+        return (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.left >= 0 &&
+          rect.top >= 0 &&
+          rect.right <= view.innerWidth &&
+          rect.bottom <= view.innerHeight
+        );
+      };
+
+      for (const node of nodes.reverse()) {
+        for (let end = node.data.length - 1; end >= 0; end -= 1) {
+          if (!drawn(node, end) || node.data[end]!.trim() === "") continue;
+          let start = end;
+          while (start > 0 && end - start < 6 && drawn(node, start - 1)) start -= 1;
+          const selection = document.getSelection()!;
+          range.setStart(node, start);
+          range.setEnd(node, end + 1);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return range.toString();
+        }
+      }
+      return null;
+    });
+  expect(selected, "nothing drawn on this page to select").not.toBeNull();
+}
 
 /**
  * What the notes panel does with a mark that is longer than the panel.

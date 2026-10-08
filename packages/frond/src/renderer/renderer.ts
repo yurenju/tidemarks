@@ -280,6 +280,8 @@ export class Renderer {
    * device that was not knowable when the book opened.
    */
   private nativeSelection: boolean;
+  /** The passage a reflow is to leave on screen (`keepInView`), or `undefined` for none. */
+  private kept: Cfi | undefined;
   private resources: ResourceUrls;
   private view: SectionView | undefined;
   private sectionIndex = 0;
@@ -726,7 +728,7 @@ export class Renderer {
     this.resources = new ResourceUrls(this.book, this.currentSettings);
 
     await this.enqueue(async () => {
-      const cfi = this.currentCfi();
+      const cfi = this.keptOnPage() ?? this.currentCfi();
       await this.loadSection(
         this.sectionIndex,
         cfi === undefined ? { kind: "first-page" } : { kind: "cfi", cfi },
@@ -778,6 +780,7 @@ export class Renderer {
       const view = this.view;
       if (view === undefined || this.destroyed) return Promise.resolve();
 
+      const kept = this.rangeKeptOnPage();
       const anchor = view.positionAtPageStart(view.page);
       view.relayout(this.settingsSource);
       // The peeks lay out to the same container, so a container that changed size changed
@@ -787,7 +790,8 @@ export class Renderer {
         this.peeks[side]?.view.relayout(this.settingsSource);
       }
 
-      if (anchor !== undefined) view.goToPage(view.pageOf(view.rangeAt(anchor)));
+      if (kept !== undefined) view.goToPage(view.pageOf(kept));
+      else if (anchor !== undefined) view.goToPage(view.pageOf(view.rangeAt(anchor)));
       this.refreshNeighbours();
 
       // **This is the route that used to be silent.** No document is rebuilt, so there is no
@@ -1018,6 +1022,51 @@ export class Renderer {
       view?.suppressSelection(!allowed);
     }
     if (this.turn?.live !== true) this.view?.suppressSelection(!allowed);
+  }
+
+  /**
+   * Names a passage that a reflow is to leave on screen, or `undefined` to name none.
+   *
+   * A reflow the reader did not ask for — the container changing size, or a settings change —
+   * carries the position across by the first character of the page (user story 32). That keeps
+   * the top of the page in view and lets everything below it fall where the new page size puts
+   * it, which is the right answer when nothing on the page matters more than where reading
+   * began. When something does — a passage the consumer is pointing at while a panel opens or
+   * closes beside the book — the page start is the wrong anchor: a wider or narrower page starts
+   * somewhere else, and a passage near the bottom lands on the page after.
+   *
+   * **Which passage matters is the consumer's to say** (ADR-0002): frond cannot tell a passage
+   * being written about from one marked last week. What frond owns is the half the consumer
+   * cannot reach — the reflow starts on frond's own `ResizeObserver`, and the page it lands on is
+   * chosen before anything is painted, so a consumer correcting it afterwards would show the
+   * reader the wrong page first and then jump.
+   *
+   * **It holds only while the passage begins on the page on screen**, read at the moment of each
+   * reflow. Anywhere else it is ignored and the page start anchors as before: a reflow is not a
+   * navigation, and a passage the reader has turned away from is not theirs to be thrown back
+   * to. One that began on an earlier page and runs onto this one is ignored too — the page start
+   * is inside it already.
+   * **What is promised is the start**: a passage long enough to run off the foot of the new page
+   * still does.
+   *
+   * Kept until it is replaced. Nothing here ends it, because nothing here knows when the
+   * consumer stops caring; the rule above is what makes a stale one harmless.
+   */
+  keepInView(cfi: string | Cfi | undefined): void {
+    this.kept = typeof cfi === "string" ? tryParse(cfi) : cfi;
+  }
+
+  /** The kept passage as a `Range` in the section on screen, if it begins on the page on screen. */
+  private rangeKeptOnPage(): Range | undefined {
+    const view = this.view;
+    const range = this.kept === undefined ? undefined : this.rangeIn(this.kept);
+    if (view === undefined || range === undefined) return undefined;
+    return view.pageOf(range) === view.page ? range : undefined;
+  }
+
+  /** The kept passage, if it begins on the page on screen — the CFI a rebuild lands on. */
+  private keptOnPage(): Cfi | undefined {
+    return this.rangeKeptOnPage() === undefined ? undefined : this.kept;
   }
 
   /**
