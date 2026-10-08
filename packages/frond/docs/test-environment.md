@@ -48,7 +48,7 @@ browserType.launch: Executable doesn't exist at ~/.cache/ms-playwright/chromium_
 
 ## 需要先裝什麼
 
-要求是**跑測試不需要 root 等價的權限**，而**podman 是達到它最短的一條路**：非 root 使用者跑它本來就是 rootless，沒有收尾設定、沒有 daemon 要顧、沒有 client 要指去哪裡，而且吃同一份 Dockerfile、產出 OCI 映像。`scripts/container.sh` 因此以 podman 為第一順位：預設該給那個**沒辦法被設定成 rootful** 的引擎。
+**podman 要設定的東西最少**：非 root 使用者跑它不需要顧 daemon，也不用把 client 指去哪裡，而且吃同一份 Dockerfile、產出 OCI 映像。`scripts/container.sh` 因此以 podman 為第一順位。
 
 ```bash
 apt-get install -y podman uidmap fuse-overlayfs passt slirp4netns
@@ -62,21 +62,15 @@ dev:100000:65536
 
 沒有那個範圍是 podman 跑不動最常見的原因。`container.sh` 連不上引擎時會照引擎分別給建議，podman 那條指的就是這裡，它沒有 daemon 可以「沒起來」，所以往「服務掛了」的方向查是白費力氣。
 
-### rootless docker 是 fallback
+### docker 是 fallback，rootful 或 rootless 都行
 
-**rootless docker 一樣滿足這個要求**：dockerd 跑在一般 uid 底下，socket 開在 `$XDG_RUNTIME_DIR`，沒有 `docker` 群組可加。已經這樣設好的機器照舊能跑，`TIDEMARKS_CONTAINER_ENGINE=docker` 也隨時指定得動。
+沒有 podman 的時候用 docker，**rootful 和 rootless 都跑得動**，`container.sh` 不會為了哪一種印警告。機器上的 docker 要怎麼設，由管那台機器的人決定，不是測試腳本的事。
+
+rootless docker 要多付兩樣東西：一行安裝步驟，以及下一節那個裝完不會有人提醒的坑。
 
 ```bash
 dockerd-rootless-setuptool.sh install
 ```
-
-它讓出第一順位的理由不是不安全，是**要付兩樣東西**：上面那一行安裝步驟，以及下一節那個安裝步驟不會提醒你的坑。podman 兩樣都不用付。
-
-被排除的是 **rootful** docker，不是 docker。rootful 那種的代價有兩層：socket 等同 host root，要用它就得把使用者加進 `docker` 群組，那等於給出對整台機器的讀寫權；而且 dockerd 會自行往 netfilter 插 NAT 與 `DOCKER-USER` 鏈，順序在既有的過濾規則之前，出口管制若有設定就需要重做，做錯的失敗模式是靜默放行。這兩層在 rootless 底下都不存在。
-
-`container.sh` 不靠引擎的名字去猜這件事，它問 daemon（`docker info` 的 `SecurityOptions` 會列出 `name=rootless`），rootful 就印警告。警告而不中斷：rootful docker 上測試照樣跑得完，跑到一半去重設一台機器的引擎不是測試腳本的事，但也不該悶著不說。CI 裡不印，那裡的 runner 跑完一份工作就丟掉，這個問題換不到東西。
-
-**這個檢查只問 docker**，不是因為相信 podman 的名字（上一段的重點正是名字不算證據），而是因為沒有 rootful podman 要抓：非 root 使用者跑它就是映射到從屬 UID 範圍，它只有這一種模式。
 
 兩個引擎都在時要指定哪一個，用 `TIDEMARKS_CONTAINER_ENGINE=docker`（或 `=podman`）。CI 就是這樣釘的，而且**那個釘子是必要的而不是保險**：GitHub runner 兩個引擎都有，但它的 podman 跟旁邊的 crun 對 OCI spec 版本認知不合，`podman build` 會在每個 `RUN` 真正執行之前就死在 `unknown version specified`。順序改成 podman 優先之後，CI 少了那一行就會落在壞掉的那個引擎上。
 

@@ -41,8 +41,8 @@ PR 的說明長是應該的，底下那些證據每一項都有理由。長的�
 三格：一格推翻了「滿版」，一格是這一輪的主張本身，一格證明某個東西不被 chrome 推動。其餘是背景，
 整張表折起來。
 
-⚠️ **收起來不等於刪掉。** 一句原文都不刪，只是不佔第一屏，三十天後圖被 R2 刪了，`<details>` 裡的
-文字照樣活著。
+⚠️ **收起來不等於刪掉。** 一句原文都不刪，只是不佔第一屏，哪天圖整批失效了（見〈圖怎麼放〉），
+`<details>` 裡的文字照樣活著。
 
 ### 補了一輪之後，舊的那套證據要降級
 
@@ -201,8 +201,8 @@ frond 那邊有一個現成的範例，它的判讀表把「委派段像素有�
 
 ## 圖怎麼放：`pr-image`
 
-圖用 [pr-image](https://github.com/yurenju/pr-image) 傳到 R2，換一個公開的 URL 回來，直接內嵌進 PR
-說明。**圖不 commit 進 repo。**
+圖用 [pr-image](https://github.com/yurenju/pr-image) 傳到 Vercel Blob，換一個公開的 URL 回來，直接內嵌進
+PR 說明。**圖不 commit 進 repo。**
 
 ```bash
 pr-image upload --markdown chromium-before.png chromium-after.png
@@ -211,17 +211,26 @@ pr-image upload --markdown chromium-before.png chromium-after.png
 印出來的就是可以貼的 Markdown，一個檔一行：
 
 ```
-![chromium-before](https://pr-image.yurenju.me/OjMjwaQH2zkR4ZXk68M4zA.png)
-![chromium-after](https://pr-image.yurenju.me/Bn4GAYpownDGz8Hz8CKZ-Q.png)
+![chromium-before](https://abc123.public.blob.vercel-storage.com/aB1cD2eF3gH4iJ5kL6mN7o.png)
+![chromium-after](https://abc123.public.blob.vercel-storage.com/pQ8rS9tU0vW1xY2zA3bC4d.png)
 ```
 
 **alt text 取自檔名**，所以截圖的時候名字就要取好（`chromium-before`、`webkit-reader`），不要
 `shot1.png`。不加 `--markdown` 就只印裸的 URL，`url=$(pr-image upload shot.png)` 接得住。
 
-`pr-image: command not found` 的話**先裝，不要退回舊做法**，安裝步驟在
-[pr-image 的 README](https://github.com/yurenju/pr-image#per-machine-setup)，要 Cloudflare R2 加
-1Password service account，不是 `npm install` 一行就好。裝不起來就把這件事講出來，別自己找替代路徑：
-下一段那兩條都試過了，都是死路。
+`pr-image: command not found` 的話**先裝，不要退回舊做法**：
+
+```bash
+npm install -g @yurenju/pr-image
+```
+
+它要 Node 24 以上，token 從環境變數 `PR_IMAGE_BLOB_TOKEN` 讀。在 Docker Sandbox 裡，那個變數是 host 用
+`sbx secret` 設定的佔位值，真的 token 由 sandbox 的 proxy 在上傳時換進去，sandbox 裡看不到。設定方式見
+[pr-image 的 README](https://github.com/yurenju/pr-image#per-machine-setup)。裝不起來或沒有 token 就把這件事
+講出來，別自己找替代路徑：下一段那兩條都試過了，都是死路。
+
+⚠️ **0.1 版的設定已經不用了。** 如果 `pr-image --help` 還列著 `init`，那是 0.1，傳的是 R2，要升級：
+`npm install -g @yurenju/pr-image@latest`。`~/.config/pr-image/config.json` 也可以刪了。
 
 以前這一節寫的是「commit 進 `docs/evidence/`，PR 內文用釘 SHA 的 blob 連結指過去」。那是被 private repo
 逼出來的繞路：`raw.githubusercontent.com` 對私有 repo 要認證，Markdown 的 `![](…)` 拿不到憑證，圖會變
@@ -229,9 +238,10 @@ pr-image upload --markdown chromium-before.png chromium-after.png
 pr-image 的 URL 兩件事都不受影響，圖真的內嵌得進去，所以那條繞路連同它的代價（每個 PR 往 git 歷史塞
 幾百 KB 的 PNG、讀的人要點進去才看得到）一起不必了。
 
-**代價是圖 30 天後會消失**，bucket 的 lifecycle rule 在刪，沒有東西會提醒你。所以上一節那條「圖旁邊
-一定要附數字」在這裡是承重的，不是建議：三十天後回頭看這個 PR，活著的只剩你寫下來的數字，以及判讀表。
-判讀表本身用文字寫在 PR 內文裡，它才是可以被否證的那一半。
+**圖不會自動刪除，但可能整批失效。** store 若在免費方案上，額度用完時 Vercel 會把整個 store 封 30 天，
+很可能連讀取一起封，所有 PR 裡的圖會同時破掉，事前沒有警告。所以上一節那條「圖旁邊一定要附數字」在這裡
+是承重的，不是建議：圖失效之後，活著的只剩你寫下來的數字與判讀表。就算圖一直都在，它也只說得出「看起來
+對」；判讀表用文字寫在 PR 內文裡，它才是可以被否證的那一半。
 
 `docs/evidence/` 已經刪掉了，連目錄都不在，**截圖一律不進 repo，沒有例外，也沒有舊路可以退**。
 舊 PR 說明裡指向那些檔案的連結因此是破的；為什麼接受這件事，見
@@ -302,7 +312,7 @@ pr-image upload --markdown "$SHOTS"/*.png   # 印出來的三行直接貼進 PR 
 
 **那段 bash 連同填好的操作一起貼進 PR 說明，收在 `<details>` 裡。** 它就是「做法」本身，以前那裡放
 的是一段文字描述，現在貼上去的東西跟實際跑過的是同一份。收起來是因為它是重現用的，不是判讀用的
-（見〈內文怎麼排〉）；**文字還在**，三十天後圖被刪了它照樣活著。
+（見〈內文怎麼排〉）；**文字還在**，哪天圖失效了它照樣活著。
 
 ### ⚠️ 數字跟圖是同一趟，不是兩支腳本
 
@@ -439,19 +449,19 @@ advance」和「排版算錯」，但 CDP 問得到，做法在 [verify.md](veri
 可以直接貼。（測試映像少一套帶直排 advance 的字型、整節漢字疊在一起那個缺陷拖那麼久才找到，就是
 因為當時沒有這個問法。）
 
-### 傳上去的圖是公開的，先想清楚畫面上有什麼
+### 傳上去的圖是公開的，而且不會自己消失，先想清楚畫面上有什麼
 
-`pr-image` 的 URL 沒有認證，任何拿到它的人都看得到那張圖，30 天內都算數。**repo 是私有的不代表圖是私有
-的**，這兩件事在這裡分家了。所以截圖之前先看一眼畫面上有什麼：
+`pr-image` 的 URL 沒有認證，任何拿到它的人都看得到那張圖，**而且沒有期限**。這個 repo 本身也是公開的，
+PR 說明裡的圖等於直接貼在網路上。所以截圖之前先看一眼畫面上有什麼：
 
-- **不要截版權內的書。** 授權不因 repo 私有而改變，而現在圖是真的公開在網路上，不只是「PR 說明會被
-  轉貼」的風險。要示範實際排版就用 `tests/books/` 那兩本公版書。
+- **不要截版權內的書。** 圖真的公開在網路上，不只是「PR 說明會被轉貼」的風險。要示範實際排版就用
+  `tests/books/` 那兩本公版書。
 - **不要截帶著自己帳號的畫面。** email、登入碼、token、sync 的伺服器回應，收尾驗證那條路
   （[verify.md](verify.md)）本來就要登入，所以這件事最容易發生在那裡。除錯過程的畫面本身沒問題，
   該遮的是畫面上的身分。
 
 會踩到的時候通常不是「截了一張機密的圖」，而是「截了一張正常的圖，角落有東西」。所以是先看再傳，不是
-傳完再回想，傳上去就收不回來了，pr-image 沒有刪除的指令，只有 30 天後 bucket 自己刪。
+傳完再回想：pr-image 沒有刪除的指令，傳錯了只能自己進 Vercel 的後台刪，而在那之前它一直公開著。
 
 ## PR 開出去之後：盯 CI 到綠
 

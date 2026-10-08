@@ -11,10 +11,10 @@
 # the host now (docs/adr/0007-pr-evidence-is-captured-on-the-host.md).
 #
 # It stays a file of its own because it answers a different question than its caller does: this one
-# is about reaching a container engine at all (which engine, is the daemon up, is it rootless), and
-# that is worth reading — and failing — separately from "which tests to run". If no second caller
-# ever appears, folding it into `test-in-container.sh` is a reasonable thing to do next time
-# someone touches either.
+# is about reaching a container engine at all (which engine, is the daemon up), and that is worth
+# reading — and failing — separately from "which tests to run". If no second caller ever appears,
+# folding it into `test-in-container.sh` is a reasonable thing to do next time someone touches
+# either.
 #
 # After sourcing, available are:
 #   ENGINE           podman or docker
@@ -45,21 +45,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # one behind. Cleanup is in docs/development.md.
 IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test-$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]')}"
 
-# The requirement is that running the tests needs no root-equivalent access, and **podman is the
-# shortest way to meet it** — run by a non-root user it is rootless already, with nothing to
-# install afterwards, no daemon to keep alive, and no client to point anywhere. That is why it
-# comes first: the default should be the engine that cannot be misconfigured into rootful.
+# podman comes first because it is the engine with the least to set up: run by a non-root user it
+# needs no daemon to keep alive and no client to point anywhere, and it builds the same Dockerfile
+# into the same OCI image.
 #
-# Rootless docker meets the same requirement and stays as the fallback: a dockerd under an
-# ordinary uid, its socket in $XDG_RUNTIME_DIR rather than /var/run/docker.sock, and no `docker`
-# group for anyone to join. What it costs is a setup step (`dockerd-rootless-setuptool.sh
-# install`) and one trap that step does not mention — the client keeps pointing at the rootful
-# socket until a context is created for it, and the error when it does not reads as "docker is
-# not installed". Machines already set up that way keep working; they just no longer decide the
-# order for machines that are not.
-#
-# Preferring podman does not weaken the rootless guarantee for docker, because the order is not
-# what enforces it. The check after the reachability probe measures it off the daemon.
+# docker is the fallback, rootful or rootless — the tests run on either, and which one a machine
+# uses is that machine's business, not this script's. Rootless docker carries one trap worth
+# knowing: the client keeps pointing at the rootful socket until a context is created for it, and
+# the error when it does not reads as "docker is not installed". The reachability check below
+# names that case.
 #
 # An explicit choice still wins, and CI makes one: the runner ships both engines, so which one
 # builds the image should not depend on what that image happens to include. Its podman writes an
@@ -108,29 +102,6 @@ if ! "$ENGINE" info >/dev/null 2>&1; then
         echo "Check whether the daemon is running, and where the client points (docker context ls / DOCKER_HOST)." >&2
     fi
     exit 1
-fi
-
-# Rootless is the requirement, so measure it instead of reading it off the engine's name. The
-# daemon reports it, and by this point the daemon is known to be reachable.
-#
-# Only docker gets asked. Not because podman is trusted on its name — the point above is that
-# names are not evidence — but because there is no rootful podman to catch here: run by a
-# non-root user it maps into a subordinate UID range and that is the only mode it has. Reaching
-# this line at all now means docker was named explicitly or podman was not installed.
-#
-# What a rootful dockerd costs: its socket is equivalent to host root, because anything that can
-# reach it can bind-mount the host filesystem into a privileged container — so joining the
-# `docker` group hands over the machine. It also writes NAT and DOCKER-USER chains into netfilter
-# ahead of the rules already there, which quietly reopens an egress whitelist if one is set up.
-#
-# A warning, not an exit: the tests do run on a rootful docker, and rebuilding a machine's engine
-# setup mid-run is not this script's business. Staying quiet about it is not either. Silent under
-# CI, where the runner is discarded after one job and the question buys nothing.
-if [[ -z "${CI:-}" && "$ENGINE" == docker ]] &&
-    ! docker info --format '{{.SecurityOptions}}' 2>/dev/null | grep -q 'name=rootless'; then
-    echo "Warning: this dockerd is rootful. Its socket is equivalent to host root, and it puts" >&2
-    echo "  its own rules into netfilter. This project expects a rootless engine: installing" >&2
-    echo "  podman is the shorter way there, and 'dockerd-rootless-setuptool.sh install' the other." >&2
 fi
 
 # A proxy on the host's loopback needs the build to share the host's network.

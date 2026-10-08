@@ -18,15 +18,43 @@ package 佈局怎麼變都不用回頭改它。
 `npm install` 順便會把 git 的 `core.hooksPath` 指到 `.githooks/`，那裡的 pre-commit 會對即將
 commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一定是格式化過的。
 
+### 需要先有
+
+- **Node 22.18 以上的官方 build**（CI 用 22）。`scripts/` 底下的工具都是直接 `node xxx.ts` 執行，靠的是
+  Node 內建的 TypeScript 型別剝除，22.18 起預設開著。⚠️ **Ubuntu apt 的 `nodejs`（版本號帶 `+dfsg`）
+  實測沒有這個功能**，`process.features.typescript` 是 `false`，`npm run build:frond` 會在 `tsc` 跑完之後
+  死在 `ERR_UNKNOWN_FILE_EXTENSION ".ts"`。看起來像 frond 壞了，其實是 Node 不對。用 fnm、nvm 或官方
+  tarball 裝；要用 pr-image 就直接裝 24，它要 24 以上。
+- **podman 或 docker**，`npm run test:container` 用。docker 的 rootful 與 rootless 都可以，見
+  [frond 的 test-environment.md](../packages/frond/docs/test-environment.md)〈需要先裝什麼〉。
+- **開 PR 要附截圖的話**，還要 host 上的 playwright-cli（裝法見 [agents/verify.md](agents/verify.md)
+  〈前置〉）與 pr-image（見 [agents/pull-requests.md](agents/pull-requests.md)〈圖怎麼放〉）。
+
+在容器裡開發的時候，dev server 本來就聽所有介面（[vite.config.ts](../packages/app/vite.config.ts)），
+把 5001 forward 出來，host 的瀏覽器就連得到。瀏覽器只需要 5001：`/api`、`/auth` 與 `/billing` 是 Vite
+在容器裡代理到 5002 的。`/authorize` 與 `/mcp` 沒有代理，要從 host 用 MCP client 或走 OAuth 的話，5002
+也要 forward。
+
 ### 在 git worktree 裡開工的時候
 
-這個專案常以 worktree 開發，而 `node_modules` 在主 checkout 底下，worktree 只有原始碼。所以
-`npm run typecheck` 會給你 `tsc: not found`，`oxlint` 同理（`npx prettier --check` 反而跑得動）。
+新的 worktree 只有原始碼，沒有 `node_modules`，也沒有 frond 的 `dist/`。所以第一件事是在 **worktree 裡**：
 
-⚠️ **這個錯誤訊息不好認**：npm 把 `tsc: not found` 印在很前面，底下還接著一大段 npm 自己的錯誤，
-所以 `grep "error TS"` 什麼都抓不到，看起來就像「跑過了、沒有型別錯誤」。量到過同一個坑撞三次。
+```sh
+npm install && npm run build:frond
+```
 
-最省事的是**回主 checkout 跑**。要在容器裡跑也行，但**得先把映像建到最新**：
+少了 `build:frond` 的話，`npm run typecheck` 會噴幾十個 `Cannot find module '@yurenju/frond/epub'`，
+原因見根目錄的 `CLAUDE.md`。
+
+⚠️ **還沒裝之前，壞掉的樣子不好認。** worktree 開在主 checkout 底下（`.claude/worktrees/…`）的時候，
+Node 往上找得到主 checkout 的 `node_modules`，於是有些東西跑得動（`npx prettier --check`），有些不行：
+`npm run typecheck` 給你 `tsc: not found`，`oxlint` 同理。npm 把 `tsc: not found` 印在很前面，底下還
+接著一大段 npm 自己的錯誤，所以 `grep "error TS"` 什麼都抓不到，看起來就像「跑過了、沒有型別錯誤」。
+量到過同一個坑撞三次。
+
+### 測試映像
+
+要在容器裡跑 `test:container` 以外的指令時，**得先把映像建到最新**（用 docker 就把 `podman` 換掉）：
 
 ```sh
 IMG="tidemarks-test-$(basename "$PWD")"

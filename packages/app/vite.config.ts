@@ -135,6 +135,12 @@ export default defineConfig({
     // to itself. Refusing to start says which port is occupied; drifting says nothing until
     // every request to /api comes back as the React app.
     strictPort: true,
+    // Every interface, not just loopback. Development often happens inside a container, and a
+    // port forwarded into one arrives on the container's network interface — a server bound to
+    // `localhost` there is unreachable from the browser on the host, with nothing in the log to
+    // say why. What it costs: on a laptop the dev server is visible to the rest of the network.
+    // Only this port needs it; the API below is reached through the proxy, from inside.
+    host: true,
     // dev: API served by `wrangler dev` on 5002 (wrangler.jsonc sets that port)
     proxy: {
       "/api": "http://localhost:5002",
