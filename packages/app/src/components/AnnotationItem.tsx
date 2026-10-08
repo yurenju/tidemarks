@@ -197,6 +197,9 @@ export default function AnnotationItem({
   return (
     <div
       className={`annotation-item${selected ? " selected" : ""}`}
+      // What the notes list scrolls to by (`Reader.tsx`, `scrollNotesTo`): the mark's id names the
+      // card, and nothing else about the card is stable enough to find it by.
+      data-mark={annotation.id}
       // The colour is set once here and read by the rule down the card's edge and the scrollbar
       // of a long note (`styles/book.css`), so the two cannot come out in different inks.
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
