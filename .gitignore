@@ -51,8 +51,8 @@ packages/app/src/locales/*.mjs
 playwright-report/
 test-results/
 
-# Wayfinding: one exploration's working notes, whose life is that exploration and no longer.
-# What survives becomes a GitHub issue or a file under docs/specs/ (docs/agents/issue-tracker.md).
+# Scratch space: drafts of issue and PR bodies, the screen sweep's pictures, setup scripts' notes.
+# Nothing here outlives the task that wrote it (docs/agents/issue-tracker.md).
 .scratch/
 
 # playwright-cli's scratch output: snapshots and console logs it writes beside the repo root

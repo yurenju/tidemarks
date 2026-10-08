@@ -21,7 +21,7 @@
 | | 進版控？ | 放什麼 |
 | --- | --- | --- |
 | `docs/specs/<feature-slug>/` | **會** | spec，以及支撐它的量測與判讀 |
-| `.scratch/` | **不會**（`.gitignore` 擋著） | wayfinding，探索過程的暫存 |
+| `.scratch/` | **不會**（`.gitignore` 擋著） | 暫存：issue 與 PR 內文的草稿、畫面巡檢的圖 |
 
 spec 曾經也放在 `.scratch/` 底下，2026-08-07 搬出來。理由是那個名字在說謊：一份 `.scratch/` 底下卻
 被 commit 的檔案，讀的人第一個念頭是「這是不是誰不小心加進來的」。現在名字跟事實對得上，
@@ -118,8 +118,7 @@ GitHub 的 issue 吃 ```mermaid 圍籬。**只在兩種情況畫**：
 
 ## 當 skill 說「fetch the relevant ticket」
 
-`gh issue view <n>`。若拿到的是檔案路徑，那是 spec（`docs/specs/`）或 wayfinding 的 child
-（`.scratch/`），直接讀檔。
+`gh issue view <n>`。若拿到的是檔案路徑，那是 spec（`docs/specs/`），直接讀檔。
 
 ## Issue 之間的相依性
 
@@ -155,22 +154,58 @@ gh api repos/<owner>/<repo>/issues/4/dependencies/blocking    -q '[.[].number]' 
 正常。
 
 **sub-issue 是另一個功能**（`/issues/<n>/sub_issues`），用在「一張大票拆成幾張小票」的層級關係上，
-跟這裡的先後關係不是同一件事。目前沒有在用。
+跟這裡的先後關係不是同一件事。現在只有 wayfinding 在用（見下一節）：一張地圖底下掛著它的 ticket。
 
 ## Wayfinding 操作
 
-由 `/wayfinder` 使用，**這一套完全在 `.scratch/` 裡跑**，沒有搬到 GitHub。理由：wayfinding 的
-child 是「一個待回答的問題」而不是「一件待做的工作」，它的生命週期只有一次探索那麼長，開成 issue 只會
-在 tracker 裡留下一堆沒人要關的票。
+由 `/wayfinder` 使用，**地圖與 ticket 都是 GitHub issue**（2026-10-08 起）。
 
-同一個理由讓它不進版控：探索收斂之後，該留下來的東西會變成 issue 或 `docs/specs/` 底下的檔案，過程
-本身不必跟著 repo 走。代價是換機器、換 worktree 就接不上進度，那是刻意接受的。
+以前這一套放在 `.scratch/` 的檔案裡，理由是 ticket 的壽命只有一次探索那麼長，開成 issue 只會留下
+一堆沒人要關的票。實際跑起來，那個理由不成立，反而是代價先找上門：
 
-**map** 是一個檔案，每張 ticket 對應一個 **child** 檔案。
+- **票會被關掉。** 每張 ticket 回答完就 close，探索走到終點時地圖也 close，tracker 裡不會剩下懸著的票。
+- **`.scratch/` 跟著 worktree 走。** 這個 repo 常常一個 worktree 一個 session，也常換機器；另開一個
+  session 去做同一張地圖底下的另一張 ticket，它的 worktree 裡根本沒有那張地圖。2026-10-08 的
+  〈筆記怎麼呈現〉那次就是這樣，只能把絕對路徑塞給新的 session。issue 在哪台機器、哪個 worktree
+  都讀得到。
+- **原生的相依性與 sub-issue 正好是 wayfinder 要的**：地圖底下有哪些 ticket、哪些被擋著，在 GitHub
+  的畫面上就看得到，不必打開地圖。
 
-- **Map**：`.scratch/<effort>/map.md` — 內容為 Notes / Decisions-so-far / Fog。
-- **Child ticket**：`.scratch/<effort>/issues/NN-<slug>.md`，從 `01` 開始編號，問題寫在內文。`Type:` line 記錄 ticket 類型（`research`/`prototype`/`grilling`/`task`）；`Status:` line 記錄 `claimed`/`resolved`。
-- **Blocking**：頂端附近的 `Blocked by: NN, NN` line。當它列出的每個檔案都是 `resolved` 時，這張 ticket 才解除 block。（GitHub issue 那邊有原生的相依性可以用，見上面那節；wayfinding 這一套刻意留在檔案裡，因為它整組都不進 GitHub。）
-- **Frontier**：掃描 `.scratch/<effort>/issues/`，找出 open、未被 block、且未被 claim 的檔案；編號最小者優先。
-- **Claim**：動工前先設 `Status: claimed` 並存檔。
-- **Resolve**：在 `## Answer` heading 底下附上答案，設 `Status: resolved`，再把一則 context pointer（摘要 + 連結）附加到 `map.md` 的 Decisions-so-far。
+代價是**全部公開**。探索中的問題、prototype 的回饋寫上去就收不回來，所以照
+`CLAUDE.md`〈這個 repo 是公開的，而且沒有私有的另一半〉那一條寫：給陌生人讀的標準，內文先寫成檔案、
+跑過 `zh-lint` 再送（見上面〈issue 內文怎麼寫〉）。
+
+### 對照
+
+| wayfinder 的說法 | 這個 repo 的做法 |
+| --- | --- |
+| **Map** | 一張貼 `wayfinder:map` label 的 issue，內文是 Destination／Notes／Decisions so far／Not yet specified／Out of scope |
+| **Ticket** | 地圖的 **sub-issue**，貼一張類型 label：`wayfinder:research`、`wayfinder:prototype`、`wayfinder:grilling`、`wayfinder:task`。問題寫在內文的 `## Question` 底下 |
+| **Blocking** | 原生的 blocked by（見上面〈Issue 之間的相依性〉），內文一樣要寫為什麼 |
+| **Claim** | 動工前先 `gh issue edit <n> --add-assignee @me`，沒有 assignee 就是沒人認領 |
+| **Resolve** | 答案貼成一則留言，`gh issue close <n> --reason completed`，再到地圖的 Decisions so far 加一行 |
+| **Out of scope** | `gh issue close <n> --reason "not planned"`，地圖的 Out of scope 加一行；不進 Decisions so far |
+| **Asset** | prototype 放成 artifact，連結貼在 ticket 的留言裡；research 的結論直接貼成留言 |
+
+### 掛 sub-issue
+
+⚠️ **跟相依性一樣，API 吃的是 numeric id，不是編號。**
+
+```sh
+# 把 #12 掛到地圖 #10 底下
+gh api --method POST repos/<owner>/<repo>/issues/10/sub_issues \
+  -F sub_issue_id=$(gh api repos/<owner>/<repo>/issues/12 -q .id)
+```
+
+### 找 frontier
+
+open、沒人認領、擋著它的票都已經 close 的 sub-issue。`issue_dependencies_summary.blocked_by` 數的是
+**還開著**的擋路票，所以等於 0 就是沒被擋：
+
+```sh
+gh api repos/<owner>/<repo>/issues/<地圖>/sub_issues --paginate -q '.[]
+  | select(.state == "open" and (.assignees | length) == 0 and .issue_dependencies_summary.blocked_by == 0)
+  | "#\(.number) \(.title)"'
+```
+
+有好幾張的時候，編號最小的先。

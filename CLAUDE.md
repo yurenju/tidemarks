@@ -246,8 +246,8 @@ shown while it downloads`）。
 ### Issue tracker
 
 Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 markdown 存放於 `docs/specs/<feature>/`，
-會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。issue 之間的先後用 GitHub 原生的
-相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見 `docs/agents/issue-tracker.md`。
+會進版控。wayfinding 的地圖與 ticket 也是 issue，ticket 掛成地圖的 sub-issue。issue 之間的先後用 GitHub
+原生的相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見 `docs/agents/issue-tracker.md`。
 
 ### Domain docs
 

@@ -70,7 +70,7 @@ PR 內文吃 ```mermaid 圍籬。**只在兩種情況畫**：
 
 ## 說明裡要指向它做的那張票
 
-bug 與 task 用 **GitHub issue**（2026-07-30 起；spec 在 `docs/specs/`，wayfinding 在 `.scratch/`，見
+bug 與 task 用 **GitHub issue**（2026-07-30 起；spec 在 `docs/specs/`，見
 [issue-tracker.md](issue-tracker.md)），所以 closing keyword 就照常用：
 
 ```
