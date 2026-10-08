@@ -245,15 +245,28 @@ shown while it downloads`）。
 
 ### Issue tracker
 
-Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 markdown 存放於 `docs/specs/<feature>/`，
-會進版控。wayfinding 留在 `.scratch/`，那個目錄被 `.gitignore` 擋著。issue 之間的先後用 GitHub 原生的
-相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見 `docs/agents/issue-tracker.md`。
+Bug、task、spec 都是 GitHub issue（`gh issue`），wayfinding 的地圖與 ticket 也是，ticket 掛成地圖的
+sub-issue。repo 裡只留量測與判讀，放在 `docs/specs/<feature>/`；那裡的 `spec.md` 是 2026-10-08 以前的，
+留在原地不搬。spec 用 `/to-spec` 的模板，標題換成中文，**不寫檔案路徑**。issue 之間的先後用 GitHub
+原生的相依性（blocked by／blocking），**API 吃的是 numeric id 不是編號**。見
+`docs/agents/issue-tracker.md`。
+
+prototype 照 `/prototype`：要跟真的 app 一起看的，做在既有路由上用 `?variant=` 切換；一頁假畫面就
+回答得了的，做成一個 HTML 檔。程式碼推到 `prototype/<name>` 分支，不進 main。根目錄的 `prototype/`
+是搬 repo 之前留下的，不是放新 prototype 的地方。`/research` 的結果貼成相關 issue 的留言，沒有相關的
+issue 就先開一張，不在 repo 裡建檔。
+
+### Triage labels
+
+Matt Pocock 的 skills（`mattpocock/skills`，以下簡稱 Matt 的 skill）用五個 triage 角色，label
+字串跟角色同名：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。
+拒絕的需求關成 not planned，不另外記在 `.out-of-scope/`。見 `docs/agents/triage-labels.md`。
 
 ### Domain docs
 
-一個 package 一份 `CONTEXT.md` 加自己的 `docs/adr/`：根目錄那組是 Tidemarks 的，`packages/frond/` 那組
-是 frond 的。兩套 ADR **各自編號**，所以引用時要寫清楚是哪一邊的（「frond ADR-0002」加相對路徑）。
-見 `docs/agents/domain.md`。
+Multi-context：一個 package 一份 `CONTEXT.md` 加自己的 `docs/adr/`，根目錄那組是 Tidemarks 的，
+`packages/frond/` 那組是 frond 的，根目錄的 `CONTEXT-MAP.md` 列出兩份。兩套 ADR **各自編號**，所以
+引用時要寫清楚是哪一邊的（「frond ADR-0002」加相對路徑）。見 `docs/agents/domain.md`。
 
 **一個問題只有一份 ADR。** 決定變了就**改寫原本那一份**，不開新編號、不留舊檔案：標題與檔名跟著
 換，編號不換，日期那一行寫成「原始日期，改寫日 改寫」並補一句前一版的標題與它的決定。**新的問題才
@@ -418,6 +431,10 @@ node scripts/zh-lint.ts .scratch/pr-body.md
 
 審核在 push **之前**跑，不在之後，查出來的東西要能改在同一批 commit 裡，等 PR 開了才審就變成在自己
 的 PR 上追加修正，讀的人分不出哪些是本來要做的、哪些是補的。
+
+這裡的 `/code-review` 指 Matt 的那一個（`mattpocock-skills:code-review`），不是 harness 內建的同名
+skill。它要找這個 repo 的標準，就讀 `CLAUDE.md` 與 `docs/agents/` 底下跟改動有關的那幾份；這個
+repo 沒有 `CODING_STANDARDS.md` 或 `CONTRIBUTING.md`。
 
 **`/code-review` 一定用 agent 跑，不要在寫 code 的同一個 context 裡自己審。** 剛寫完的人審自己的
 code，看到的是「我本來想寫的」，不是「實際寫出來的」；要有第二個角度，就得換一個沒參與實作的 agent

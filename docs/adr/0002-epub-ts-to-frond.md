@@ -72,7 +72,8 @@ content CSS，那次 relayout 把還原的位置沖掉。`Renderer.attach()` 同
 
 ## 為什麼不是 foliate-js
 
-`docs/research/epub-rendering-libraries.md` 的中期首選是 foliate-js，prototype 也實測它直排零
-patch。它輸在三件事：官方明說 API 不穩定且無官方 npm、themes／annotations 等高階能力要自己重寫、
+當時那份 epub 渲染函式庫的調查（`docs/research/epub-rendering-libraries.md`，
+留在舊 repo，沒有搬過來）的中期首選是 foliate-js，prototype 也實測它直排零 patch。
+它輸在三件事：官方明說 API 不穩定且無官方 npm、themes／annotations 等高階能力要自己重寫、
 Firefox 直排已知有問題。frond 三家等價測試（同一份程式碼在 675 個瀏覽器測試裡跑過 Chromium、
 Firefox、WebKit），而且 API 是照 spine 的需求長的。

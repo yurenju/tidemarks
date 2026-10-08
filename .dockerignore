@@ -14,9 +14,9 @@
 
 # Local state that has no business in a test image.
 .git/
-# Wayfinding, and where the screen sweep leaves its pictures. The sweep writes about 10 MB into
-# `.scratch/shots/` on every run, and inside the build context that is 10 MB of churn which
-# invalidates `COPY . .` — so the next sweep would rebuild frond before it could start.
+# Scratch space, including where the screen sweep leaves its pictures. The sweep writes about
+# 10 MB into `.scratch/shots/` on every run, and inside the build context that is 10 MB of churn
+# which invalidates `COPY . .` — so the next sweep would rebuild frond before it could start.
 .scratch/
 **/.wrangler/
 **/public/fixtures/
