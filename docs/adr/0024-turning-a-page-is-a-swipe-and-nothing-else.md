@@ -51,7 +51,7 @@
 
 `preventTapDefault()` 一個字都不改，條件仍然是「手指或觸控筆、不是連結」。它的理由換了人：以前
 保護的是那一下 tap 要翻的頁，現在保護的是那一下 tap 要叫的 chrome。條件不看位置，所以整頁通用這
-件事本來就成立（[ADR-0020](0020-the-interface-steps-behind-the-book.md) 已經論過一次）。
+件事本來就成立（[ADR-0020](0020-four-states-follow-the-reader-s-loop.md) 已經論過一次）。
 
 `PointerEnd.tapsTurnPages` 刪掉。它問的是「chrome 升起時 tap 還翻不翻頁」，而 tap 已經不翻頁了。
 chrome 升起時**拖曳照樣翻頁**，並且順手把 chrome 收起來。

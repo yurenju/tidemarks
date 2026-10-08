@@ -138,7 +138,7 @@ Reader 的同一組 `onPress`／`onMove`／`onRelease`。
 - `swipeAction()` 與 `MIN_SWIPE_PX`：刪除。放手要看的條件換成上面那兩條，離散路徑不留。
 - `CONTEXT.md`〈Navigator〉的點擊分區那幾段：改寫成拖曳翻頁的規則。**這一項跟著實作那次改**，因為
   那份表描述的是現況。
-- [ADR-0020](../../adr/0020-the-interface-steps-behind-the-book.md)：加一行指向 ADR-0024，說明分區
+- [ADR-0020](../../adr/0020-four-states-follow-the-reader-s-loop.md)：加一行指向 ADR-0024，說明分區
   那一半被取代。
 
 ## 不在這一輪

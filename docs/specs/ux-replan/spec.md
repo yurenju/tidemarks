@@ -23,7 +23,7 @@
 
 這份文件是**決定**，不是提案。用詞照 [CONTEXT.md](../../../CONTEXT.md)，那份表是上游；這一輪新定的
 〈chrome〉與〈抽屜〉已經寫進去了。決定背後的取捨在
-[ADR-0020](../../adr/0020-the-interface-steps-behind-the-book.md) 與
+[ADR-0020](../../adr/0020-four-states-follow-the-reader-s-loop.md) 與
 [ADR-0021](../../adr/0021-accessibility-is-borrowed-not-written.md)。
 
 工作項目三件，見底下〈三個工作項目〉：兩個抽屜、閱讀器 chrome、書架第一屏與「還要多久」。
