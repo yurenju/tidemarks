@@ -1,0 +1,971 @@
+<title>回看的進出規則</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@400;500&display=swap"
+/>
+<style>
+  /* Layout: a control strip on top, a desktop reader frame below (book + right column), a log line under it. */
+  :root {
+    --paper: #f4eee2;
+    --raised: #fbf7ed;
+    --sunken: #ede5d6;
+    --ink: #14171c;
+    --muted: #5d636b;
+    --faint: #8f949a;
+    --line: #d9d0bf;
+    --mark: #1b2e4d;
+    --tide: #2e4a75;
+    --on-tide: #f4eee2;
+    --ochre: #a4622f;
+    --moss: #5f7a4e;
+    --soot: #3d4348;
+    --wash: color-mix(in srgb, var(--mark) 22%, transparent);
+    --serif: "Noto Serif TC", "Songti TC", serif;
+    --sans: "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16202b;
+      --raised: #1b2733;
+      --sunken: #101a24;
+      --ink: #f2f1e9;
+      --muted: #a3aeb6;
+      --faint: #6e7c88;
+      --line: #2a3845;
+      --mark: #a9c4de;
+      --tide: #7ea6ce;
+      --on-tide: #16202b;
+      --ochre: #cf8b4e;
+      --moss: #8aab72;
+      --soot: #9aa4ab;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16202b;
+    --raised: #1b2733;
+    --sunken: #101a24;
+    --ink: #f2f1e9;
+    --muted: #a3aeb6;
+    --faint: #6e7c88;
+    --line: #2a3845;
+    --mark: #a9c4de;
+    --tide: #7ea6ce;
+    --on-tide: #16202b;
+    --ochre: #cf8b4e;
+    --moss: #8aab72;
+    --soot: #9aa4ab;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--sunken);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 16px;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+  }
+  h1 {
+    font: 500 1.05rem/1.4 var(--sans);
+    margin: 0;
+  }
+  .lede {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    max-width: 70ch;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+  }
+  .rule {
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+  .rule b {
+    font-weight: 500;
+    font-size: 0.82rem;
+  }
+  .seg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .seg button {
+    font: inherit;
+    font-size: 0.78rem;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--tide);
+    color: var(--on-tide);
+    border-color: var(--tide);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--tide);
+    outline-offset: 2px;
+  }
+
+  .statusrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    font-size: 0.82rem;
+  }
+  .states {
+    display: flex;
+    gap: 4px;
+  }
+  .states span {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--faint);
+  }
+  .states span.on {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .turners {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--muted);
+  }
+  .turners button {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .log {
+    font-size: 0.82rem;
+    color: var(--muted);
+    min-height: 1.4em;
+  }
+  .log b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .stage {
+    overflow-x: auto;
+  }
+  .frame {
+    position: relative;
+    min-width: 860px;
+    height: 640px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+  }
+  .book {
+    flex: 1;
+    min-width: 0;
+    padding: 56px 72px;
+    overflow: hidden;
+    cursor: default;
+  }
+  .page {
+    font: 400 1.12rem/2 var(--serif);
+    max-width: 34em;
+    margin: 0 auto;
+  }
+  .page p {
+    margin: 0 0 1em;
+    text-indent: 2em;
+  }
+  .page .chap {
+    text-indent: 0;
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin-bottom: 1.4em;
+  }
+  .mark {
+    text-decoration: underline wavy var(--c, var(--mark));
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 6px;
+    cursor: pointer;
+    transition:
+      opacity 0.15s,
+      background 0.15s;
+  }
+  .dim .mark {
+    opacity: 0.35;
+  }
+  .dim .mark.sel {
+    opacity: 1;
+    background: color-mix(in srgb, var(--c, var(--mark)) 22%, transparent);
+    text-decoration-color: transparent;
+  }
+  .notedot {
+    display: none;
+  }
+  .icons .notedot {
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    margin-left: 0.15em;
+    vertical-align: super;
+    border-radius: 1px 50% 50% 50%;
+    background: var(--c, var(--mark));
+  }
+
+  /* chrome */
+  .bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--raised);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    font-size: 0.85rem;
+    transition: transform 0.18s;
+    z-index: 3;
+  }
+  .top {
+    top: 0;
+    height: 48px;
+    transform: translateY(-100%);
+  }
+  .bottom {
+    bottom: 0;
+    height: 64px;
+    transform: translateY(100%);
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+  .frame.find .top,
+  .frame.find .bottom {
+    transform: none;
+  }
+  .top .title {
+    flex: 1;
+    text-align: center;
+    color: var(--muted);
+  }
+  .top button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 4px 6px;
+  }
+  .rail {
+    width: 70%;
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    position: relative;
+  }
+  .rail i {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--tide);
+    border-radius: 2px;
+    transition: width 0.18s;
+  }
+  .bottom small {
+    color: var(--muted);
+  }
+
+  /* panel */
+  .panel {
+    width: 0;
+    flex: none;
+    background: var(--sunken);
+    overflow: hidden;
+    transition: width 0.18s;
+    display: flex;
+    flex-direction: column;
+  }
+  .frame.panel-open .panel {
+    width: 340px;
+    border-left: 1px solid var(--line);
+  }
+  .phead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 8px;
+    min-width: 340px;
+  }
+  .phead h2 {
+    font: 600 1rem/1.4 var(--serif);
+    margin: 0;
+  }
+  .phead small {
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .phead button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  .cards {
+    overflow-y: auto;
+    padding: 4px 14px 40px;
+    display: grid;
+    gap: 10px;
+    min-width: 340px;
+    scroll-behavior: smooth;
+  }
+  .card {
+    background: var(--raised);
+    border-left: 3px solid var(--c, var(--mark));
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
+    display: grid;
+    gap: 6px;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    transition: opacity 0.15s;
+    cursor: pointer;
+  }
+  .cards.dim .card:not(.sel) {
+    opacity: 0.45;
+  }
+  .card .meta {
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 0.76rem;
+  }
+  .card .meta span:last-child {
+    display: none;
+    gap: 10px;
+  }
+  .card.sel .meta span:last-child {
+    display: flex;
+  }
+  .card .meta button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--tide);
+    cursor: pointer;
+    padding: 0;
+  }
+  .card .body p {
+    margin: 0 0 0.5em;
+  }
+  .card:not(.sel) .body {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card .write {
+    border: 1px dashed var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--faint);
+    display: none;
+  }
+  .card.sel .write {
+    display: block;
+  }
+  .card textarea {
+    font: inherit;
+    width: 100%;
+    min-height: 110px;
+    border: 1px solid var(--tide);
+    border-radius: 4px;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 6px 8px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .card .done {
+    justify-self: end;
+    font: inherit;
+    background: var(--tide);
+    color: var(--on-tide);
+    border: 0;
+    border-radius: 4px;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+
+  /* marking toolbar */
+  .tool {
+    position: absolute;
+    z-index: 4;
+    display: none;
+    gap: 6px;
+    align-items: center;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 10px;
+    box-shadow: 0 1px 0 var(--line);
+  }
+  .tool.on {
+    display: flex;
+  }
+  .tool .sw {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 0;
+    cursor: pointer;
+    background: var(--c);
+  }
+  .tool .add {
+    font: inherit;
+    font-size: 0.8rem;
+    background: none;
+    border: 0;
+    border-left: 1px solid var(--line);
+    padding: 0 0 0 8px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <h1>〈回看〉的進出規則</h1>
+  <p class="lede">
+    桌機版。書頁是一章假書。點書上的波浪線進〈回看〉；點書頁空白處叫出或收起
+    chrome；選一段字進〈標〉。翻頁用鍵盤 ← →，或用下面的按鈕（代替滑動）。按 N
+    直接進〈回看〉整本書，Esc 回〈讀〉。上面四條規則可以切換 A／B，切完直接在書上試。
+  </p>
+
+  <div class="controls" id="controls"></div>
+
+  <div class="statusrow">
+    <div class="states" id="states">
+      <span data-s="read">讀</span><span data-s="find">找</span><span data-s="mark">標</span
+      ><span data-s="reflect">回看</span>
+    </div>
+    <div class="turners">
+      翻頁 <button id="prev" aria-label="上一頁">‹</button><span id="pageno">1 / 3</span
+      ><button id="next" aria-label="下一頁">›</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="bar top">
+        <button>‹ 書架</button><span class="title">灘地筆記（假書）</span> <button>目錄</button
+        ><button id="openNotes">筆記</button><button>排版</button>
+      </div>
+      <div class="book icons" id="book">
+        <div class="page" data-p="0">
+          <p class="chap">第三章　退潮之後</p>
+          <p>
+            潮水退到最低的那一個鐘頭，灘地會整片露出來。從堤防走下去，第一步踩到的是乾的沙，第二步就陷進一層軟泥裡，冷得像踩進一盆隔夜的洗碗水。
+          </p>
+          <p>
+            我是在搬來這個鎮的第二年才開始去走灘的。那之前我只在堤防上看，看人彎著腰在泥裡找東西，看他們的影子被斜陽拉得很長。我以為他們在找蛤蜊，後來才知道，<span
+              class="mark"
+              data-id="a"
+              >大部分的人什麼都沒在找</span
+            >。
+          </p>
+          <p>
+            隔壁的老陳說，走灘最要緊的是記得回頭的時間。潮水回來的時候不是一道浪，是從四面八方的溝裡同時滲上來，等你發現腳邊的水變多了，<span
+              class="mark"
+              data-id="b"
+              >退路往往已經比來路還長</span
+            >。
+          </p>
+        </div>
+        <div class="page" data-p="1" hidden>
+          <p>
+            第一次一個人下去，我帶了手錶，每走十分鐘就看一次。結果整個下午我看到的只有錶面，灘地長什麼樣子一點也想不起來。
+          </p>
+          <p>
+            第二次我把錶留在車上，改成看水。<span class="mark" data-id="c" style="--c: var(--moss)"
+              >溝裡的水在退的時候是往外流的，水面上漂著的細沙會排成一條一條往海那邊指的線；等那些線停下來，開始打轉，就是該回頭的時候了。</span
+            >
+          </p>
+          <p>
+            <span class="mark" data-id="c" style="--c: var(--moss)"
+              >這個方法老陳沒有教過我，是我自己蹲在溝邊看了很久才看出來的。那天回到堤防上，我第一次覺得自己不是在灘地上做客。我不再需要知道現在幾點，只需要知道水往哪邊走。</span
+            >
+          </p>
+        </div>
+        <div class="page" data-p="2" hidden>
+          <p>
+            後來我常常想，那些彎腰的人到底在看什麼。有一次我問了一個每天都來的阿姨，她想了一下說：<span
+              class="mark"
+              data-id="d"
+              style="--c: var(--ochre)"
+              >「看看今天留下了什麼。」</span
+            >
+          </p>
+          <p>
+            潮水每天來兩次，退兩次。每一次退下去，灘地上的紋路都被重新畫過，昨天的腳印一個也不剩，<span
+              class="mark"
+              data-id="e"
+              >只有那幾塊大石頭還在原來的位置</span
+            >。
+          </p>
+          <p>
+            我現在走灘還是會帶手機，但只用來拍照。照片裡的灘地每一張都差不多，可是我記得每一張是哪一天、那天的水往哪邊走。
+          </p>
+        </div>
+      </div>
+      <aside class="panel" aria-label="筆記">
+        <div class="phead">
+          <div>
+            <h2>筆記</h2>
+            <small id="pcount"></small>
+          </div>
+          <button id="closePanel" aria-label="關閉">✕</button>
+        </div>
+        <div class="cards" id="cards"></div>
+      </aside>
+      <div class="bar bottom">
+        <div class="rail"><i id="railfill"></i></div>
+        <small>第三章　退潮之後</small>
+      </div>
+      <div class="tool" id="tool">
+        <button class="sw" style="--c: var(--mark)" data-c="var(--mark)" aria-label="蓼藍"></button>
+        <button
+          class="sw"
+          style="--c: var(--ochre)"
+          data-c="var(--ochre)"
+          aria-label="赭石"
+        ></button>
+        <button class="sw" style="--c: var(--moss)" data-c="var(--moss)" aria-label="苔綠"></button>
+        <button class="sw" style="--c: var(--soot)" data-c="var(--soot)" aria-label="松煙"></button>
+        <button class="add" id="addNote">加筆記</button>
+      </div>
+    </div>
+  </div>
+  <div class="log" id="log">現在在〈讀〉。</div>
+</div>
+
+<script>
+  const RULES = [
+    {
+      key: "turn",
+      title: "一、在〈回看〉裡翻頁",
+      a: "A：回到〈讀〉，面板收掉",
+      b: "B：面板留著，捲到新的這一頁的筆記",
+    },
+    {
+      key: "tap",
+      title: "二、在〈回看〉裡點書頁空白處",
+      a: "A：兩步，先回〈讀〉",
+      b: "B：一步，直接到〈找〉",
+    },
+    {
+      key: "select",
+      title: "三、在〈回看〉裡選一段字",
+      a: "A：〈標〉取代〈回看〉，面板收掉",
+      b: "B：面板留著，顏色列疊在書上",
+    },
+    {
+      key: "other",
+      title: "四、在〈回看〉裡點書上另一條重點",
+      a: "A：留在〈回看〉，換選中的那一則",
+      b: "B：回到〈讀〉，要再點一次",
+    },
+    { key: "icon", title: "附：有筆記的重點旁加小記號（另一張票）", a: "顯示", b: "不顯示" },
+  ];
+  const NAMES = { read: "讀", find: "找", mark: "標", reflect: "回看" };
+  const notes = {
+    a: { age: "三天前", note: "" },
+    b: { age: "三天前", note: "這句可以拿來講很多事情。工作、感情，還有我那個拖了三年的計畫。" },
+    c: {
+      age: "上週",
+      note: "我讀書的時候也是一直在看錶：看還剩幾頁、看這章多長。\n\n也許該換成看「水」：哪一段讓我停下來，哪一段讓我想回頭再讀一次。\n\n那些線停下來開始打轉的時候，就是該停下來寫點什麼的時候。\n\n不知道這樣想對不對，先記著。",
+    },
+    d: { age: "昨天", note: "跟劃重點很像。每天留下來的都不一樣，地方卻是同一個。" },
+    e: { age: "今天", note: "" },
+  };
+  const s = {
+    mode: "read",
+    page: 0,
+    sel: null,
+    editing: null,
+    overlayBar: false,
+    writingFromMark: false,
+    rules: { turn: "a", tap: "a", select: "a", other: "a", icon: "a" },
+  };
+  const $ = (q) => document.querySelector(q);
+  const frame = $("#frame"),
+    book = $("#book"),
+    cards = $("#cards"),
+    tool = $("#tool");
+  let pendingRange = null,
+    nextId = 1;
+
+  function say(html) {
+    $("#log").innerHTML = html;
+  }
+  function ids() {
+    const seen = [];
+    book.querySelectorAll(".mark").forEach((m) => {
+      if (!seen.includes(m.dataset.id)) seen.push(m.dataset.id);
+    });
+    return seen;
+  }
+  function pageOf(id) {
+    return +book.querySelector(`.mark[data-id="${id}"]`).closest(".page").dataset.p;
+  }
+  function colorOf(id) {
+    return (
+      book.querySelector(`.mark[data-id="${id}"]`).style.getPropertyValue("--c") || "var(--mark)"
+    );
+  }
+
+  function buildControls() {
+    $("#controls").innerHTML = RULES.map(
+      (r) => `<div class="rule"><b>${r.title}</b><div class="seg">
+    <button data-r="${r.key}" data-v="a">${r.a}</button><button data-r="${r.key}" data-v="b">${r.b}</button></div></div>`,
+    ).join("");
+    $("#controls").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-r]");
+      if (!b) return;
+      s.rules[b.dataset.r] = b.dataset.v;
+      render();
+    });
+  }
+
+  function addDots() {
+    book.querySelectorAll(".notedot").forEach((d) => d.remove());
+    ids().forEach((id) => {
+      if (!notes[id].note) return;
+      const spans = book.querySelectorAll(`.mark[data-id="${id}"]`);
+      const last = spans[spans.length - 1];
+      const dot = document.createElement("span");
+      dot.className = "notedot";
+      dot.setAttribute("aria-hidden", "true");
+      dot.style.setProperty("--c", colorOf(id));
+      last.after(dot);
+    });
+  }
+
+  function renderCards() {
+    const list = ids();
+    $("#pcount").textContent = `第三章 · ${list.length} 則`;
+    cards.innerHTML = list
+      .map((id) => {
+        const n = notes[id],
+          sel = id === s.sel,
+          editing = id === s.editing;
+        const body = editing
+          ? `<textarea id="ta-${id}" aria-label="筆記">${n.note}</textarea><button class="done" data-done="${id}">完成</button>`
+          : n.note
+            ? `<div class="body">${n.note
+                .split("\n\n")
+                .map((p) => `<p>${p}</p>`)
+                .join("")}</div>`
+            : `<div class="write" data-edit="${id}">寫筆記…</div>`;
+        return `<div class="card${sel ? " sel" : ""}" data-card="${id}" style="--c:${colorOf(id)}">
+      <div class="meta"><span>${n.age}${n.note ? "" : " · 只劃了重點"}</span><span><button data-edit="${id}">編輯</button><button>刪除</button></span></div>${editing ? "" : ""}${body}</div>`;
+      })
+      .join("");
+    cards.classList.toggle("dim", !!s.sel);
+    if (s.editing) {
+      const ta = $(`#ta-${s.editing}`);
+      ta && setTimeout(() => ta.focus(), 0);
+    }
+    if (s.sel) {
+      const c = cards.querySelector(`[data-card="${s.sel}"]`);
+      if (c) cards.scrollTop = Math.max(0, c.offsetTop - 24);
+    }
+  }
+
+  function render() {
+    book.querySelectorAll(".page").forEach((p) => (p.hidden = +p.dataset.p !== s.page));
+    $("#pageno").textContent = `${s.page + 1} / 3`;
+    $("#railfill").style.width = `${((s.page + 1) / 3) * 100}%`;
+    const panelOpen = s.mode === "reflect" || (s.mode === "mark" && s.editing);
+    frame.classList.toggle("find", s.mode === "find");
+    frame.classList.toggle("panel-open", panelOpen);
+    book.classList.toggle("icons", s.rules.icon === "a");
+    book.classList.toggle("dim", panelOpen && !!s.sel);
+    book
+      .querySelectorAll(".mark")
+      .forEach((m) => m.classList.toggle("sel", m.dataset.id === s.sel));
+    document
+      .querySelectorAll("#states span")
+      .forEach((x) => x.classList.toggle("on", x.dataset.s === s.mode));
+    document
+      .querySelectorAll(".seg button")
+      .forEach((b) => b.setAttribute("aria-pressed", s.rules[b.dataset.r] === b.dataset.v));
+    const showTool = (s.mode === "mark" && !s.editing) || (s.mode === "reflect" && s.overlayBar);
+    tool.classList.toggle("on", showTool);
+    addDots();
+    if (panelOpen) renderCards();
+  }
+
+  function go(mode, why) {
+    const from = s.mode;
+    s.mode = mode;
+    if (mode !== "reflect" && !(mode === "mark" && s.editing)) {
+      s.sel = mode === "mark" ? s.sel : null;
+    }
+    if (mode !== "mark" && mode !== "reflect") {
+      s.editing = null;
+      s.overlayBar = false;
+    }
+    if (mode === "read" || mode === "find") window.getSelection().removeAllRanges();
+    render();
+    say(
+      from === mode
+        ? `留在〈<b>${NAMES[mode]}</b>〉：${why}`
+        : `〈${NAMES[from]}〉→〈<b>${NAMES[mode]}</b>〉：${why}`,
+    );
+  }
+
+  function saveEditing() {
+    if (!s.editing) return;
+    const ta = $(`#ta-${s.editing}`);
+    if (ta) notes[s.editing].note = ta.value.trim();
+    s.editing = null;
+  }
+
+  function turn(d) {
+    const p = s.page + d;
+    if (p < 0 || p > 2) return;
+    saveEditing();
+    s.page = p;
+    if (s.mode === "reflect" && s.rules.turn === "b") {
+      const first = ids().find((id) => pageOf(id) === p) || null;
+      s.sel = first;
+      s.overlayBar = false;
+      render();
+      say(
+        `留在〈<b>回看</b>〉：翻頁，面板跟著捲到這一頁${first ? "的第一則" : "（這一頁沒有重點，什麼都不選）"}（規則一 B）`,
+      );
+      return;
+    }
+    const why = s.mode === "reflect" ? "翻頁（規則一 A）" : "翻頁";
+    go("read", why);
+  }
+
+  function tapPage() {
+    if (s.mode === "read") return go("find", "點書頁");
+    if (s.mode === "find") return go("read", "再點一次書頁");
+    if (s.mode === "mark") {
+      saveEditing();
+      return go("read", s.writingFromMark ? "寫完，點書頁（寫下的字留著）" : "取消選取");
+    }
+    if (s.mode === "reflect") {
+      saveEditing();
+      if (s.overlayBar) {
+        s.overlayBar = false;
+        window.getSelection().removeAllRanges();
+        render();
+        return say("留在〈<b>回看</b>〉：取消選取（規則三 B）");
+      }
+      return s.rules.tap === "a"
+        ? go("read", "點書頁空白處（規則二 A）")
+        : go("find", "點書頁空白處（規則二 B）");
+    }
+  }
+
+  function clickMark(id) {
+    if (s.mode === "reflect") {
+      if (s.rules.other === "b" && id !== s.sel) return go("read", "點書上另一條重點（規則四 B）");
+      saveEditing();
+      s.sel = id;
+      s.overlayBar = false;
+      render();
+      return say(`留在〈<b>回看</b>〉：換選中的那一則（規則四 A）`);
+    }
+    saveEditing();
+    s.sel = id;
+    go("reflect", "點書上的一條重點");
+  }
+
+  function placeTool(range) {
+    const r = range.getBoundingClientRect(),
+      f = frame.getBoundingClientRect();
+    tool.style.left = `${Math.max(8, r.left - f.left + r.width / 2 - 110)}px`;
+    tool.style.top = `${Math.max(8, r.top - f.top - 52)}px`;
+  }
+
+  function onSelection() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    if (!book.contains(range.commonAncestorContainer)) return false;
+    pendingRange = range.cloneRange();
+    if (s.mode === "reflect" && s.rules.select === "b") {
+      saveEditing();
+      s.overlayBar = true;
+      render();
+      placeTool(range);
+      say("留在〈<b>回看</b>〉：選了一段字，顏色列疊在書上（規則三 B）");
+    } else {
+      const why = s.mode === "reflect" ? "選了一段字（規則三 A）" : "選了一段字";
+      saveEditing();
+      s.writingFromMark = false;
+      go("mark", why);
+      placeTool(range);
+    }
+    return true;
+  }
+
+  function makeMark(color) {
+    if (!pendingRange) return null;
+    const id = `n${nextId++}`;
+    const span = document.createElement("span");
+    span.className = "mark";
+    span.dataset.id = id;
+    span.style.setProperty("--c", color);
+    try {
+      pendingRange.surroundContents(span);
+    } catch {
+      say("這段跨了段落，prototype 只吃同一段裡的選取。");
+      return null;
+    }
+    notes[id] = { age: "剛剛", note: "" };
+    pendingRange = null;
+    window.getSelection().removeAllRanges();
+    return id;
+  }
+
+  book.addEventListener("mouseup", () =>
+    setTimeout(() => {
+      if (onSelection()) return;
+    }, 0),
+  );
+  book.addEventListener("click", (e) => {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && book.contains(sel.anchorNode)) return;
+    const m = e.target.closest(".mark");
+    if (m) return clickMark(m.dataset.id);
+    tapPage();
+  });
+  tool.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const sw = e.target.closest(".sw");
+    if (sw) {
+      const id = makeMark(sw.dataset.c);
+      if (!id) return;
+      if (s.mode === "reflect") {
+        s.overlayBar = false;
+        s.sel = id;
+        render();
+        return say("留在〈<b>回看</b>〉：劃了一條新的重點，選中它（規則三 B）");
+      }
+      return go("read", "選了顏色，重點劃好了");
+    }
+    if (e.target.id === "addNote") {
+      const id = makeMark("var(--mark)");
+      if (!id) return;
+      if (s.mode === "reflect") {
+        s.overlayBar = false;
+        s.sel = id;
+        s.editing = id;
+        render();
+        return say("留在〈<b>回看</b>〉：加筆記，在面板裡寫（規則三 B）");
+      }
+      s.sel = id;
+      s.editing = id;
+      s.writingFromMark = true;
+      s.mode = "mark";
+      render();
+      say("留在〈<b>標</b>〉：加筆記，在右欄寫。寫完按「完成」或點書頁就回〈讀〉");
+    }
+  });
+  cards.addEventListener("click", (e) => {
+    const done = e.target.closest("[data-done]");
+    if (done) {
+      saveEditing();
+      if (s.mode === "mark") return go("read", "寫完，按「完成」");
+      render();
+      return say("留在〈<b>回看</b>〉：改完，按「完成」");
+    }
+    const ed = e.target.closest("[data-edit]");
+    if (ed) {
+      saveEditing();
+      s.sel = ed.dataset.edit;
+      s.editing = ed.dataset.edit;
+      render();
+      return say("留在〈<b>回看</b>〉：編輯這一則");
+    }
+    const c = e.target.closest("[data-card]");
+    if (c && c.dataset.card !== s.sel && !s.editing) {
+      s.sel = c.dataset.card;
+      const p = pageOf(s.sel);
+      if (p !== s.page) s.page = p;
+      render();
+      say("留在〈<b>回看</b>〉：點了列表裡的一則，書跳到那一頁");
+    }
+  });
+  $("#openNotes").addEventListener("click", (e) => {
+    e.stopPropagation();
+    s.sel = null;
+    go("reflect", "在頂列按「筆記」");
+  });
+  $("#closePanel").addEventListener("click", () => {
+    saveEditing();
+    go("read", "按 ✕");
+  });
+  $("#prev").addEventListener("click", () => turn(-1));
+  $("#next").addEventListener("click", () => turn(1));
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "TEXTAREA") {
+      if (e.key === "Escape") {
+        e.target.blur();
+        saveEditing();
+        go(s.mode === "mark" ? "read" : s.mode, "Esc");
+      }
+      return;
+    }
+    if (e.key === "ArrowRight") turn(1);
+    else if (e.key === "ArrowLeft") turn(-1);
+    else if (e.key === "Escape" && s.mode !== "read") {
+      saveEditing();
+      go("read", "Esc");
+    } else if (e.key.toLowerCase() === "n" && s.mode !== "reflect") {
+      s.sel = null;
+      go("reflect", "按 N");
+    }
+  });
+  buildControls();
+  render();
+</script>
