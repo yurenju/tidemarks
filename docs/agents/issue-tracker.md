@@ -69,9 +69,9 @@
 | Further Notes | `## 其他` |
 
 **spec 不寫程式碼的檔案路徑與片段**，那是 Matt 的規則，這裡照用：路徑很快就會過期，而 spec 講的是
-「要什麼」。連到 `docs/specs/<feature-slug>/` 的量測不算，那是證據，
-不是指著程式碼的路徑。例外也照 Matt：prototype 做出來的狀態機、型別這類比文字更精確的片段，可以節錄進對應的
-決定裡，註明來自 prototype。
+「要什麼」。連到 `docs/specs/<feature-slug>/` 的量測不算，那是證據，不是指著程式碼的路徑。例外也照
+Matt：prototype 做出來的狀態機、型別這類比文字更精確的片段，可以節錄進對應的決定裡，註明來自
+prototype。
 
 這跟下面〈issue 內文怎麼寫〉要求「具體到檔案與行號」不衝突，兩者是不同的東西：**spec 講要什麼，
 從它拆出來的 ticket 才講改哪裡**。所以 `/to-tickets` 拆出來的 ticket：
