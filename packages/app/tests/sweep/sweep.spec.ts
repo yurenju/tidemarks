@@ -143,11 +143,15 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     // real: the marks moved under the old point when line heights changed (ADR-0032) and took
     // two steps of this sweep with them.
     //
-    // The marks are on screen as `.highlight-box`, so the point is chosen rather than guessed:
-    // the first of these heights that clears every one of them by a line or so. The list starts
-    // where this always pressed, so a page with no marks presses exactly where it used to.
+    // The marks are on screen as `.highlight-box`, **and the one pointed at as `.highlight-wash`
+    // instead** — it loses its box to the wash (`HighlightLayer.tsx`), and the wash outlives
+    // [[Reflect]]. Missing the wash, the press after a note is written lands on the passage still
+    // lit and puts [[Reflect]] back up, and every round after closes it only to press there again
+    // (#244). So the point is chosen rather than guessed: the first of these heights that clears
+    // every one of them by a line or so. The list starts where this always pressed, so a page with
+    // no marks presses exactly where it used to.
     const clearOfMarks = async (): Promise<number> => {
-      const marks = await page.locator(".highlight-box").evaluateAll((nodes) =>
+      const marks = await page.locator(".highlight-box, .highlight-wash").evaluateAll((nodes) =>
         nodes.map((node) => {
           const rect = node.getBoundingClientRect();
           return { top: rect.top, bottom: rect.bottom };
