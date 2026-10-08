@@ -362,11 +362,6 @@
   }
   .passage .hl {
     background: color-mix(in srgb, var(--ink) 22%, transparent);
-    text-decoration-line: underline;
-    text-decoration-style: wavy;
-    text-decoration-color: var(--ink);
-    text-decoration-thickness: 1.2px;
-    text-underline-offset: 6px;
   }
   .clip {
     overflow: hidden;
@@ -374,24 +369,6 @@
   }
   .clip.cut {
     mask-image: linear-gradient(to bottom, #000 calc(100% - 60px), transparent);
-  }
-  /* Vertical: the passage is laid out as stacked blocks, each one a short vertical page read right to left, then the next block below. One scroll direction for the whole screen. */
-  .vstack {
-    writing-mode: vertical-rl;
-    column-width: 250px;
-    column-gap: 26px;
-    column-fill: auto;
-    width: 100%;
-  }
-  .vstack .hl {
-    text-underline-position: right;
-    text-underline-offset: 5px;
-  }
-  .vstack p {
-    text-indent: 2em;
-  }
-  .vstack {
-    column-rule: 1px dashed var(--hair);
   }
   .expand {
     display: flex;
@@ -409,13 +386,108 @@
     cursor: pointer;
   }
 
-  .wave {
+  /* separator between passage and note: three shapes x two colours */
+  .sep {
+    --c: var(--ink);
+    margin: 18px 24px 14px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .sep.c-fixed {
+    --c: var(--firm);
+  }
+  .sep i {
+    display: none;
+  }
+  .sep-hair i:first-child {
     display: block;
-    height: 10px;
-    width: calc(100% - 48px);
-    margin: 16px 24px 14px;
-    color: var(--ink);
-    opacity: 0.55;
+    flex: 1;
+    height: 1px;
+    background: var(--c);
+  }
+  .sep-short i:first-child {
+    display: block;
+    width: 44px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--c);
+  }
+  .sep-dots i {
+    display: block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--c);
+  }
+  .sep-band {
+    margin: 18px 0 14px;
+  }
+  .sep-band i:first-child {
+    display: block;
+    flex: 1;
+    height: 8px;
+    background: color-mix(in srgb, var(--c) 18%, transparent);
+  }
+  .sep-band.c-fixed i:first-child {
+    background: var(--sunken);
+  }
+  /* [[Chrome]], reduced */
+  .chrome-top,
+  .chrome-bot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 8;
+    background: var(--raised);
+    font-size: 13px;
+  }
+  .chrome-top {
+    top: 0;
+    padding: 38px 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .chrome-top .bt {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .chrome-top .ic {
+    margin-left: auto;
+    display: flex;
+    gap: 14px;
+  }
+  .tbtn.strong {
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .chrome-bot {
+    bottom: 0;
+    padding: 12px 22px 22px;
+    border-top: 1px solid var(--hair);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .chrome-bot .track {
+    width: 100%;
+    height: 3px;
+    background: var(--hair);
+    border-radius: 2px;
+  }
+  .chrome-bot .track i {
+    display: block;
+    height: 100%;
+    background: var(--tide);
+    border-radius: 2px;
+  }
+  .chrome-bot .cn {
+    color: var(--muted);
+    font-size: 12px;
   }
   .meta {
     display: flex;
@@ -644,13 +716,26 @@
       <div class="seg" id="c-case">
         <button data-v="m3">1 只有重點</button><button data-v="m1">2 一句配一段</button
         ><button data-v="m4">3 跨段配長筆記</button><button data-v="m4s">3′ 跨段配短筆記</button
-        ><button data-v="">回到書</button>
+        ><button data-v="idx">從書上打開〈筆記〉</button><button data-v="">回到書</button>
       </div>
     </div>
     <div class="ctl">
-      <span>排向</span>
+      <span>書的排向（筆記那頁一律橫排）</span>
       <div class="seg" id="c-dir">
         <button data-v="h">橫排</button><button data-v="v">直排</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span>原文與筆記之間的分隔</span>
+      <div class="seg" id="c-sep">
+        <button data-v="hair">細線</button><button data-v="short">短線</button
+        ><button data-v="dots">三點</button><button data-v="band">色帶</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span>分隔的顏色</span>
+      <div class="seg" id="c-sepc">
+        <button data-v="ink">跟重點同色</button><button data-v="fixed">固定色</button>
       </div>
     </div>
   </div>
@@ -737,20 +822,24 @@
     writing: false,
     confirm: false,
     index: false,
+    chrome: false,
+    sep: "short",
+    sepc: "ink",
   };
   try {
-    Object.assign(S, JSON.parse(localStorage.getItem("mn-proto-2") || "{}"), {
+    Object.assign(S, JSON.parse(localStorage.getItem("mn-proto-3") || "{}"), {
       writing: false,
       confirm: false,
       index: false,
       open: false,
+      chrome: false,
     });
   } catch (e) {}
   function save() {
     try {
       localStorage.setItem(
-        "mn-proto-2",
-        JSON.stringify({ sel: S.sel, dir: S.dir, short4: S.short4 }),
+        "mn-proto-3",
+        JSON.stringify({ sel: S.sel, dir: S.dir, short4: S.short4, sep: S.sep, sepc: S.sepc }),
       );
     } catch (e) {}
   }
@@ -800,30 +889,46 @@
   function render() {
     save();
     document.querySelectorAll(".seg button").forEach((b) => {
+      const k = b.parentElement.id;
       const v =
-        b.parentElement.id === "c-dir"
+        k === "c-dir"
           ? S.dir
-          : S.sel
-            ? S.sel === "m4" && S.short4
-              ? "m4s"
-              : S.sel
-            : "";
+          : k === "c-sep"
+            ? S.sep
+            : k === "c-sepc"
+              ? S.sepc
+              : S.index
+                ? "idx"
+                : S.sel
+                  ? S.sel === "m4" && S.short4
+                    ? "m4s"
+                    : S.sel
+                  : "";
       b.setAttribute("aria-pressed", String(b.dataset.v === v));
     });
     renderBook();
     overlay.innerHTML = "";
     explain();
+    if (S.index) return viewIndex();
     if (!S.sel) {
-      overlay.innerHTML = `<div class="tap-hint">點任何一條波浪線</div>`;
+      overlay.innerHTML = S.chrome
+        ? chromeHTML()
+        : `<div class="tap-hint">點波浪線看那一則；點別處叫出 chrome</div>`;
       return;
     }
-    if (S.index) return viewIndex();
     if (S.writing) return viewWrite();
     viewSingle();
   }
 
+  // [[Chrome]] in its [[Find]] state, reduced to what matters here: the top row's 筆記 opens the index.
+  function chromeHTML() {
+    return `<div class="chrome-top"><button class="tbtn" data-act="noop">‹ 書架</button><span class="bt">潮線</span>
+      <span class="ic"><button class="tbtn" data-act="noop">目錄</button><button class="tbtn strong" data-act="index">筆記</button><button class="tbtn" data-act="noop">排版</button></span></div>
+    <div class="chrome-bot"><div class="track"><i style="width:38%"></i></div><div class="cn">第三章　退潮之後</div></div>`;
+  }
+
   function viewIndex() {
-    overlay.innerHTML = `<div class="layer"><div class="bar"><span class="ttl">全部筆記</span><button class="x" data-act="close" aria-label="回到書">✕</button></div>
+    overlay.innerHTML = `<div class="layer"><div class="bar"><span class="ttl">筆記</span><button class="x" data-act="close" aria-label="回到書">✕</button></div>
     <div class="index"><div class="chap"><span>第三章　退潮之後</span><small>4 則</small></div>
     ${ORDER.map(
       (
@@ -847,42 +952,28 @@
     overlay.innerHTML = `<div class="layer" style="--ink:${inkVar(id)}">
     <div class="bar"><span>第三章　退潮之後</span><button class="tbtn" data-act="jump" style="margin-left:auto">在書裡打開</button><button class="x" data-act="close" aria-label="回到書" style="margin-left:4px">✕</button></div>
     <div class="single" id="single">
-      <div class="src"><div class="clip" id="clip"><div class="passage ${vert ? "vstack" : ""}" id="pass">${passageHTML(id)}</div></div>
+      <div class="src"><div class="clip" id="clip"><div class="passage" id="pass">${passageHTML(id)}</div></div>
         <div class="expand" id="expand" hidden><button data-act="toggle"></button></div></div>
-      <svg class="wave" viewBox="0 0 320 10" preserveAspectRatio="none" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+      <div class="sep sep-${S.sep} c-${S.sepc}" aria-hidden="true"><i></i><i></i><i></i></div>
       ${meta}
       ${has ? `<div class="note">${note.map((t) => `<p>${esc(t)}</p>`).join("")}</div>` : `<button class="write-cta" data-act="edit">寫筆記…</button>`}
     </div>
     <div class="nav"><button data-go="${ORDER[i - 1] || ""}" ${i === 0 ? "disabled" : ""}>‹ 上一則</button>
       <button class="c" data-act="index">${i + 1} / ${ORDER.length} · 全部</button>
       <button class="r" data-go="${ORDER[i + 1] || ""}" ${i === ORDER.length - 1 ? "disabled" : ""}>下一則 ›</button></div></div>`;
-    let d = "M0 5";
-    for (let x = 0; x < 320; x += 8) d += ` Q ${x + 2} 1 ${x + 4} 5 T ${x + 8} 5`;
-    overlay.querySelector(".wave path").setAttribute("d", d);
     if (S.confirm) $("#cancel").focus();
     fitPassage();
   }
 
-  /* The rule being tried: the passage takes at most half the screen, but only when that cap is what keeps the note
-   from being pushed below the fold. A long passage with a short note (3′) or with no note (1) shows in full. */
+  /* The passage takes at most half the screen, whatever the note's length: the note is the point of this page. */
   function fitPassage() {
     const single = $("#single"),
       clip = $("#clip"),
       pass = $("#pass"),
-      ex = $("#expand"),
-      vert = S.dir === "v";
-    if (vert) {
-      // stacked vertical blocks: let it lay out tall, then measure how far the last glyph reaches
-      pass.style.height = "4000px";
-      const spans = pass.querySelectorAll("span"),
-        last = spans[spans.length - 1].getBoundingClientRect();
-      pass.style.height = Math.ceil(last.bottom - pass.getBoundingClientRect().top + 4) + "px";
-    } else pass.style.height = "";
+      ex = $("#expand");
     const full = pass.offsetHeight,
-      view = single.clientHeight,
-      half = Math.round(view * 0.5);
-    const rest = single.scrollHeight - clip.offsetHeight; // wave + meta + note
-    const tooLong = full > half && full + rest > view;
+      half = Math.round(single.clientHeight * 0.5);
+    const tooLong = full > half;
     ex.hidden = !tooLong;
     if (!tooLong) {
       clip.style.maxHeight = "";
@@ -895,15 +986,10 @@
       ex.firstChild.textContent = "收起原文";
       return;
     }
-    // cut on a line (horizontal) or on a block boundary (vertical)
-    const unit = vert ? 276 : 30;
-    const cap = Math.max(unit, Math.floor(half / unit) * unit);
+    const cap = Math.max(30, Math.floor(half / 30) * 30); // cut on a whole line
     clip.style.maxHeight = cap + "px";
     clip.classList.add("cut");
-    const moreLines = vert ? Math.ceil((full - cap) / unit) : Math.round((full - cap) / 30);
-    ex.firstChild.textContent = vert
-      ? `展開全文（還有 ${moreLines} 塊）`
-      : `展開全文（還有 ${moreLines} 行）`;
+    ex.firstChild.textContent = `展開全文（還有 ${Math.round((full - cap) / 30)} 行）`;
   }
 
   function viewWrite() {
@@ -930,6 +1016,13 @@
     if (mk && !overlay.querySelector(".layer")) {
       S.sel = mk.dataset.id;
       S.open = false;
+      S.chrome = false;
+      render();
+      return;
+    }
+    // a tap on the page that is not a mark toggles [[Chrome]]
+    if (e.target.closest("#book") && !overlay.querySelector(".layer")) {
+      S.chrome = !S.chrome;
       render();
       return;
     }
@@ -944,10 +1037,12 @@
     }
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (!act) return;
+    if (act === "noop") return;
     if (act === "close") {
       S.sel = null;
       S.index = false;
       S.confirm = false;
+      S.chrome = false;
     }
     if (act === "jump") {
       toast("跳到書裡這一段（prototype 只回到書）");
@@ -970,7 +1065,10 @@
       S.confirm = false;
       toast("prototype 不真的刪");
     }
-    if (act === "index") S.index = true;
+    if (act === "index") {
+      S.index = true;
+      S.chrome = false;
+    }
     render();
   });
   document.addEventListener("keydown", (e) => {
@@ -985,35 +1083,44 @@
       const b = e.target.closest("button");
       if (!b) return;
       if (seg.id === "c-dir") S.dir = b.dataset.v;
-      else {
+      else if (seg.id === "c-sep") S.sep = b.dataset.v;
+      else if (seg.id === "c-sepc") S.sepc = b.dataset.v;
+      else if (b.dataset.v === "idx") {
+        S.index = true;
+        S.sel = null;
+        S.chrome = false;
+      } else {
         const v = b.dataset.v;
         S.short4 = v === "m4s";
         S.sel = v === "m4s" ? "m4" : v || null;
         S.open = false;
         S.index = false;
       }
-      S.confirm = false;
-      S.writing = false;
+      if (seg.id === "c-case") {
+        S.confirm = false;
+        S.writing = false;
+      }
       render();
     }),
   );
 
   function explain() {
     const now = S.sel
-      ? `<p style="color:var(--muted);font-size:.8rem">現在顯示：${S.sel === "m4" && S.short4 ? "情況 3′" : CASE_LABEL[S.sel]}，${S.dir === "h" ? "橫排" : "直排"}。</p>`
+      ? `<p style="color:var(--muted);font-size:.8rem">現在顯示：${S.sel === "m4" && S.short4 ? "情況 3′" : CASE_LABEL[S.sel]}，書是${S.dir === "h" ? "橫排" : "直排"}。</p>`
       : "";
     $("#explain").innerHTML = `<h2>單則全頁</h2>
-    <p>一則一頁：上面是重點所在的那幾段原文（書的字體與字級，重點帶底色與波浪線，同段裡重點以外的字變淡），一條波浪線隔開，底下是日期列與筆記，整頁一起捲。最下面一列：上一則、全部（索引）、下一則。</p>
+    <p>一則一頁：上面是重點所在的那幾段原文（書的字體與字級，重點只帶底色、旁邊不畫波浪線，同段裡重點以外的字變淡），一條分隔，底下是日期列與筆記，整頁一起捲。最下面一列：上一則、全部（索引）、下一則。</p>
     ${now}
     <h3>原文最多半個畫面</h3>
-    <p>原文超過半個畫面，<strong>而且</strong>整則放不進一個畫面的時候，原文剪在半個畫面（剪在整行上），下緣淡出，底下一顆「展開全文（還有 N 行）」。展開之後同一顆鈕變成「收起原文」。</p>
-    <p>原文很長但筆記很短（3′），或沒有筆記（1）的時候不剪：那時候筆記不會被擠下去，剪了只是多按一下。</p>
-    <h3>直排</h3>
-    <p>原文排成一塊一塊的短直排（每塊十幾個字高，從右往左讀），一塊讀完接下一塊，塊與塊之間一條虛線。這樣整頁只有一個捲動方向，剪的時候也剪在塊與塊之間。筆記仍然橫排。</p>
+    <p>原文超過半個畫面就剪，不看筆記長短：剪在整行上，下緣淡出，底下一顆「展開全文（還有 N 行）」，展開後變成「收起原文」。</p>
+    <h3>直排的書</h3>
+    <p>書頁照書直排，進到這一頁之後原文與筆記一律橫排。</p>
+    <h3>從書裡怎麼到〈筆記〉</h3>
+    <p>點書頁上波浪線以外的地方叫出 chrome，頂列的「筆記」打開索引（第一層），點其中一則進到單則（第二層）。點書上的波浪線則直接進第二層，這時候「全部」與 ✕ 是兩條路：「全部」往上一層到索引，✕ 回到書。</p>
+    <h3>分隔</h3>
+    <p>上面兩組按鈕切換形狀（細線、短線、三點、色帶）與顏色（跟這則重點同色、或固定的紙色線）。</p>
     <h3>寫筆記</h3>
-    <p>按「編輯」或「寫筆記…」：原文收成最上面一條兩行的引文，輸入框緊接在它底下（ADR-0044，貼近上緣），鍵盤在最下面。順序跟讀的時候一樣，原文在上、筆記在下。</p>
-    <h3>頂列</h3>
-    <p>章名、「在書裡打開」（跳到這段在書裡的那一頁）與 ✕（回到剛剛讀的那一頁）。從書上點進來時兩者是同一頁；從「全部」換到別則之後就不一樣了。</p>`;
+    <p>原文收成最上面一條兩行的引文，輸入框緊接在它底下，鍵盤在最下面。</p>`;
   }
   window.addEventListener("resize", () => {
     if (S.sel && !S.index && !S.writing) fitPassage();
