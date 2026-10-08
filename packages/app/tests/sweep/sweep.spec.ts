@@ -420,22 +420,32 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await openBook("草枕", /^一$/);
   });
 
-  // Two notes starting on one column, so their [[Note dot]]s share one place in the top margin.
-  // Both are made with "Mark and note", which writes in the default ink, so the pair is one colour
-  // here; what the picture is for is where the pair sits and that it reads as one mark.
+  // Two notes starting on one column, so their [[Note dot]]s share one place in the top margin,
+  // each in its own ink. "Mark and note" writes in the default ink, so the second is marked from
+  // the colour row and given its note afterwards, from its card.
   await step("reader-vertical-note-dots", async () => {
-    for (const [from, to, note] of [
-      [0, 3, "ここから読み直す。"],
-      [5, 8, "前の段落と比べる。"],
-    ] as const) {
-      expect(await selectProse(page, { from, to })).not.toBeNull();
-      const toolbar = page.locator(".highlight-toolbar");
-      await expect(toolbar).toBeVisible({ timeout: 10_000 });
-      await toolbar.getByRole("button", { name: "Mark and note" }).click();
-      await page.locator(".note-editor textarea").fill(note);
-      await page.locator(".note-editor button").click();
-      await closePanel();
-    }
+    const toolbar = page.locator(".highlight-toolbar");
+    const panel = page.getByTestId("panel-notes");
+
+    expect(await selectProse(page, { from: 0, to: 3 })).not.toBeNull();
+    await expect(toolbar).toBeVisible({ timeout: 10_000 });
+    await toolbar.getByRole("button", { name: "Mark and note" }).click();
+    await page.locator(".note-editor textarea").fill("ここから読み直す。");
+    await page.locator(".note-editor button").click();
+    await closePanel();
+
+    expect(await selectProse(page, { from: 5, to: 8 })).not.toBeNull();
+    await expect(toolbar).toBeVisible({ timeout: 10_000 });
+    await toolbar.locator(".swatch").nth(1).click();
+    await openPanel(/Notes/, "panel-notes");
+    // On a desk only the selected card offers to write; narrower, every card does.
+    const write = panel.getByRole("button", { name: "Write a note…" });
+    if (!(await write.isVisible())) await panel.locator(".annotation-quote").nth(1).click();
+    await write.click();
+    await page.locator(".note-editor textarea").fill("前の段落と比べる。");
+    await page.locator(".note-editor button").click();
+    await closePanel();
+
     // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
     // on the page and the other dot is faded. A reload puts both at rest, which is the picture.
     await page.reload();

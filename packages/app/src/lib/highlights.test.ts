@@ -18,6 +18,8 @@ import {
   NOTE_DOT_STEP,
   NOTE_DOT_TARGET,
   noteDots,
+  noteDotName,
+  NOTE_DOT_NAME_LENGTH,
   WAVELENGTH,
   WAVE_THICKNESS,
 } from "./highlights";
@@ -545,5 +547,16 @@ describe("noteDots", () => {
       false,
     );
     expect(group!.dots.map((dot) => dot.color)).toEqual(["ochre", "moss"]);
+  });
+});
+
+describe("noteDotName", () => {
+  it("is the whole passage when it is short", () => {
+    expect(noteDotName("  山路を登りながら  ")).toBe("山路を登りながら");
+  });
+
+  it("stops a long passage at its opening characters, and says it stopped", () => {
+    const long = "智に働けば角が立つ。情に棹させば流される。意地を通せば窮屈だ。";
+    expect(noteDotName(long)).toBe(`${[...long].slice(0, NOTE_DOT_NAME_LENGTH).join("")}…`);
   });
 });

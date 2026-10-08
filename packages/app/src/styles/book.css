@@ -329,6 +329,10 @@ button.selection-handle:active:not(:disabled) {
   border-radius: 50%;
   background: none;
   pointer-events: none;
+  /* The global button floor (`--tap-min`, controls.css) would make this taller than the square
+     `noteDots` measured, and the drawn dots would sit off its centre. */
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Drawn inside the square rather than around it: the layer clips at the container's edge, and on a

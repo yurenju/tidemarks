@@ -329,7 +329,9 @@ test.describe("drawing a highlight", () => {
 
     await expect(dot).toHaveCount(1);
     // Named for the passage it belongs to, by its opening words.
-    await expect(dot).toHaveAccessibleName(new RegExp(`^Note: ${text.trim().slice(0, 8)}`));
+    // A prefix rather than a pattern: the passage is the book's own text, punctuation and all.
+    const name = (await dot.getAttribute("aria-label")) ?? "";
+    expect(name.startsWith(`Note: ${text.trim().slice(0, 8)}`), name).toBe(true);
     const at = (await dot.boundingBox())!;
     await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
     await expect(panel).toBeVisible();

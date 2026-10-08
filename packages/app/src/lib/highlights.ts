@@ -206,6 +206,22 @@ export const NOTE_DOT_STEP = 4;
  */
 const NOTE_DOT_REACH = NOTE_DOT_TARGET / 2;
 
+/** How many characters of a passage name its dot: enough to tell two notes apart, not a reading. */
+export const NOTE_DOT_NAME_LENGTH = 20;
+
+/**
+ * The opening words a [[Note dot]] is named by for a screen reader — "Note:" and these.
+ *
+ * Counted in characters rather than words: a Chinese or Japanese passage has no spaces to count,
+ * and a code point at a time keeps a character outside the BMP whole.
+ */
+export function noteDotName(text: string): string {
+  const characters = [...text.trim()];
+  return characters.length > NOTE_DOT_NAME_LENGTH
+    ? `${characters.slice(0, NOTE_DOT_NAME_LENGTH).join("")}…`
+    : characters.join("");
+}
+
 /** A marked passage with a note on it, as the dots need it: who it is, its ink, its rectangles. */
 export interface NotedPassage {
   readonly id: string;
@@ -249,6 +265,10 @@ export interface NoteDotGroup {
  * margin would sit beside the first column's line at that height, which is a different passage.
  * Only a horizontal book is ever set in two (frond cannot paginate a vertical one in more), so
  * `columns` is about horizontal pages; it is the count `resolveLayout` last answered with.
+ *
+ * **A right-to-left horizontal book is not handled**: its lines start at the right, and these dots
+ * still go in the left margin. The spec says "left" for horizontal, and no such book is in the
+ * library yet; the rule it would follow is the same one — outside the end the line starts from.
  *
  * `passages` is taken in book order and the groups come back in it, which is the order they are
  * reached by Tab.

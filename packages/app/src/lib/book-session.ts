@@ -158,6 +158,8 @@ export interface BookSessionOptions {
    * How many columns the last layout was answered with — written here, since `resolveLayout` is
    * where the answer is given and frond does not report it back. The [[Note dot]]s need it: in two
    * columns a passage in the second one is marked in the gap before it, not in the page's margin.
+   * It is read when the highlight layer measures, and that happens after the `layout` event the
+   * same layout ends in — so it always holds the answer for the page being measured.
    */
   columns: RefObject<number>;
   selection: RefObject<SelectionCommands>;

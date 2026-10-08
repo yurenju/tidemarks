@@ -1,6 +1,12 @@
 import { useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
-import { markVar, NOTE_DOT_SIZE, type HighlightBox, type NoteDotGroup } from "../lib/highlights";
+import {
+  markVar,
+  noteDotName,
+  NOTE_DOT_SIZE,
+  type HighlightBox,
+  type NoteDotGroup,
+} from "../lib/highlights";
 import type { Annotation } from "../lib/types";
 
 export interface PaintedHighlight {
@@ -126,7 +132,7 @@ export default function HighlightLayer({
       </div>
       {dots.map(({ dots: pair, target }) => {
         const first = pair[0]!;
-        const excerpt = opening(passage(first.id));
+        const excerpt = noteDotName(passage(first.id));
         return (
           <button
             key={`dot-${first.id}`}
@@ -168,14 +174,4 @@ export default function HighlightLayer({
       })}
     </div>
   );
-}
-
-/** How much of a passage names its dot: enough to tell two notes apart, not the passage read out. */
-const OPENING_LENGTH = 20;
-
-function opening(text: string): string {
-  const characters = [...text.trim()];
-  return characters.length > OPENING_LENGTH
-    ? `${characters.slice(0, OPENING_LENGTH).join("")}…`
-    : characters.join("");
 }
