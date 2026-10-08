@@ -1,0 +1,1338 @@
+<title>手機上的本文與筆記</title>
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@400;500&display=swap"
+/>
+<style>
+  /* Layout: a control strip and a 375px phone on the left, a notes column explaining the variant on the right; stacks below 900px. Colours are Tidemarks' own tokens. */
+  :root {
+    --page: #f4eee2;
+    --raised: #fbf7ed;
+    --sunken: #ede5d6;
+    --hair: #e4ddce;
+    --firm: #d9d1be;
+    --text: #14171c;
+    --body: #232833;
+    --muted: #585d64;
+    --faint: #9aa1ac;
+    --tide: #2e4a75;
+    --on-tide: #f4eee2;
+    --danger: #9a3b2e;
+    --indigo: #1b2e4d;
+    --ochre: #a4622f;
+    --moss: #5f7a4e;
+    --soot: #3d4348;
+    --stage: #e6dfd1;
+    --serif: "Noto Serif TC", "Source Han Serif TC", "Songti TC", "PMingLiU", serif;
+    --sans: "Noto Sans TC", system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #16202b;
+      --raised: #1b2733;
+      --sunken: #101a24;
+      --hair: #27343f;
+      --firm: #35424e;
+      --text: #f2f1e9;
+      --body: #e4e9ec;
+      --muted: #a3aeb6;
+      --faint: #6e7c88;
+      --tide: #7ea6ce;
+      --on-tide: #16202b;
+      --danger: #e08b7a;
+      --indigo: #a9c4de;
+      --ochre: #cf8b4e;
+      --moss: #8aab72;
+      --soot: #9aa4ab;
+      --stage: #0c141c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #16202b;
+    --raised: #1b2733;
+    --sunken: #101a24;
+    --hair: #27343f;
+    --firm: #35424e;
+    --text: #f2f1e9;
+    --body: #e4e9ec;
+    --muted: #a3aeb6;
+    --faint: #6e7c88;
+    --tide: #7ea6ce;
+    --on-tide: #16202b;
+    --danger: #e08b7a;
+    --indigo: #a9c4de;
+    --ochre: #cf8b4e;
+    --moss: #8aab72;
+    --soot: #9aa4ab;
+    --stage: #0c141c;
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--stage);
+    color: var(--body);
+    font-family: var(--sans);
+    margin: 0;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 20px 40px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.35rem;
+    color: var(--text);
+    margin: 0 0 4px;
+  }
+  .lede {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 16px;
+    max-width: 60ch;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    margin-bottom: 18px;
+  }
+  .ctl {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ctl > span {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--firm);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--raised);
+    flex-wrap: wrap;
+  }
+  .seg button {
+    font: inherit;
+    font-size: 0.85rem;
+    border: 0;
+    background: none;
+    color: var(--body);
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .seg button + button {
+    border-left: 1px solid var(--hair);
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--tide);
+    color: var(--on-tide);
+  }
+  .seg button:focus-visible,
+  button:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--tide);
+    outline-offset: 2px;
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: 375px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .stage {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .explain {
+    font-size: 0.9rem;
+    line-height: 1.75;
+    max-width: 58ch;
+    min-width: 0;
+  }
+  .explain h2 {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: var(--text);
+    margin: 0 0 6px;
+  }
+  .explain h3 {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin: 18px 0 4px;
+    font-weight: 500;
+  }
+  .explain p,
+  .explain ul {
+    margin: 0 0 8px;
+  }
+  .explain ul {
+    padding-left: 1.2em;
+  }
+
+  /* ---- the phone ---- */
+  .phone {
+    width: 375px;
+    max-width: 100%;
+    height: 740px;
+    border-radius: 34px;
+    border: 10px solid #1e2228;
+    background: var(--page);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .status {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    z-index: 50;
+    pointer-events: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 22px 0;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- the book ---- */
+  .book {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 30px;
+    bottom: 0;
+    overflow: hidden;
+    transition: bottom 0.25s ease;
+  }
+  .flow {
+    position: absolute;
+    font-family: var(--serif);
+    color: var(--body);
+    font-size: 17px;
+    line-height: 30px;
+    transition: transform 0.3s ease;
+  }
+  .flow p {
+    margin: 0;
+    text-indent: 2em;
+  }
+  .flow h4 {
+    margin: 0 0 30px;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+    text-indent: 0;
+  }
+  .h .flow {
+    left: 24px;
+    right: 24px;
+    top: 20px;
+  }
+  .v .flow {
+    writing-mode: vertical-rl;
+    top: 28px;
+    bottom: 28px;
+    right: 24px;
+  }
+  .v .flow h4 {
+    margin: 0 0 0 30px;
+  }
+  .foot {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mk {
+    cursor: pointer;
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+    text-decoration-thickness: 1.2px;
+    text-decoration-color: var(--ink);
+    text-underline-offset: 6px;
+    transition:
+      background 0.2s,
+      text-decoration-color 0.2s;
+  }
+  .v .mk {
+    text-underline-position: right;
+    text-underline-offset: 5px;
+  }
+  .dim .mk {
+    text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent);
+  }
+  .dim .mk.sel {
+    text-decoration-color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+
+  /* ---- the card (from the desktop refinement ticket) ---- */
+  .card {
+    border-left: 3px solid var(--ink);
+    padding: 2px 0 2px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .card .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 22px;
+  }
+  .card .row .date small {
+    color: var(--faint);
+    margin-left: 4px;
+  }
+  .card .row .acts {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+  }
+  .tbtn {
+    font: inherit;
+    font-size: 12px;
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    color: var(--tide);
+    cursor: pointer;
+  }
+  .tbtn.danger {
+    color: var(--danger);
+  }
+  .card .quote {
+    font-family: var(--serif);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card .note {
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.75;
+    color: var(--body);
+  }
+  .card .note p {
+    margin: 0 0 0.6em;
+  }
+  .card .note p:last-child {
+    margin-bottom: 0;
+  }
+  .card.clamp .note {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card .only {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .write-cta {
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    color: var(--muted);
+    background: none;
+    border: 1px dashed var(--firm);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .scrollnote {
+    position: relative;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink) transparent;
+  }
+  .scrollnote.more {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+  .morehint {
+    font-size: 11px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .card.faded {
+    opacity: 0.55;
+  }
+  .confirm {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+    flex-wrap: wrap;
+  }
+
+  /* ---- shared overlay chrome ---- */
+  .layer {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: var(--raised);
+    display: flex;
+    flex-direction: column;
+  }
+  .bar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 36px 14px 8px;
+    border-bottom: 1px solid var(--hair);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .bar .ttl {
+    color: var(--text);
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .bar .x {
+    margin-left: auto;
+    font: inherit;
+    font-size: 18px;
+    background: none;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+
+  /* variant A: full-screen list */
+  .list {
+    overflow-y: auto;
+    padding: 14px 18px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    scroll-behavior: smooth;
+  }
+  .chap {
+    font-family: var(--serif);
+    color: var(--text);
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--hair);
+    padding-bottom: 6px;
+  }
+  .chap small {
+    font-family: var(--sans);
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  /* variant B: sheet */
+  .sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    background: var(--raised);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.14);
+    display: flex;
+    flex-direction: column;
+    transition: height 0.25s ease;
+  }
+  .sheet.dragging {
+    transition: none;
+  }
+  .grip {
+    flex: none;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    cursor: grab;
+    touch-action: none;
+  }
+  .grip i {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--firm);
+  }
+  .sheet .inner {
+    flex: 1;
+    min-height: 0;
+    padding: 0 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sheet .card {
+    flex: 1;
+    min-height: 0;
+  }
+  .sheet .scrollnote {
+    flex: 1;
+    min-height: 0;
+  }
+  .peekhint {
+    position: absolute;
+    z-index: 9;
+    left: 12px;
+    right: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  /* variant C: split */
+  .split-top {
+    position: relative;
+    flex: none;
+    background: var(--page);
+    overflow: auto;
+    scrollbar-width: thin;
+  }
+  .passage {
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 30px;
+    color: var(--body);
+    padding: 16px 22px;
+  }
+  .passage p {
+    margin: 0;
+    text-indent: 2em;
+  }
+  .passage .ctx {
+    color: var(--faint);
+  }
+  .passage .ctx .mk {
+    text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent);
+  }
+  .passage .hl {
+    background: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+  .v-pass {
+    writing-mode: vertical-rl;
+    height: 100%;
+    padding: 18px 20px;
+  }
+  .divider {
+    flex: none;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    background: var(--raised);
+    border-top: 1px solid var(--hair);
+    cursor: row-resize;
+    touch-action: none;
+  }
+  .divider i {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--firm);
+  }
+  .split-bot {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 18px 18px;
+  }
+  .split-bot .card,
+  .split-bot .scrollnote {
+    flex: 1;
+    min-height: 0;
+  }
+  .overhint {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px;
+    background: linear-gradient(to bottom, transparent, var(--page) 60%);
+  }
+
+  /* variant D: single */
+  .single {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--page);
+  }
+  .single .passage {
+    padding: 22px 24px 8px;
+  }
+  .vbox {
+    height: 360px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 14px 0 4px;
+    direction: rtl;
+    scrollbar-width: thin;
+  }
+  .vbox .v-pass {
+    direction: ltr;
+    display: inline-block;
+    height: 100%;
+  }
+  .wave {
+    height: 10px;
+    margin: 14px 24px;
+    color: var(--ink);
+    opacity: 0.5;
+  }
+  .single .card {
+    margin: 0 24px 30px;
+    border-left: 0;
+    padding-left: 0;
+  }
+  .single .card .note {
+    font-size: 15px;
+  }
+  .nav {
+    flex: none;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    border-top: 1px solid var(--hair);
+    background: var(--raised);
+    padding: 10px 14px 22px;
+    font-size: 13px;
+  }
+  .nav button {
+    font: inherit;
+    background: none;
+    border: 0;
+    color: var(--tide);
+    cursor: pointer;
+    padding: 6px 4px;
+  }
+  .nav button:disabled {
+    color: var(--faint);
+    cursor: default;
+  }
+  .nav .r {
+    justify-self: end;
+  }
+  .nav .c {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .index {
+    overflow-y: auto;
+    padding: 8px 0 30px;
+  }
+  .index button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--hair);
+    padding: 14px 20px;
+    cursor: pointer;
+    color: var(--body);
+  }
+  .index .q {
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    border-left: 3px solid var(--ink);
+    padding-left: 10px;
+  }
+  .index .n {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 4px;
+    padding-left: 13px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* write screen (ADR-0044: input at the top) */
+  .write {
+    z-index: 30;
+    animation: up 0.2s ease;
+  }
+  @keyframes up {
+    from {
+      transform: translateY(30px);
+      opacity: 0;
+    }
+  }
+  .write .ed {
+    padding: 40px 18px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .write textarea {
+    font: inherit;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 150px;
+    border: 1px solid var(--firm);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--page);
+    color: var(--body);
+    resize: none;
+  }
+  .write .done {
+    align-self: flex-end;
+    font: inherit;
+    font-size: 14px;
+    background: var(--tide);
+    color: var(--on-tide);
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 18px;
+    cursor: pointer;
+  }
+  .write .for {
+    margin: 6px 18px;
+    font-family: var(--serif);
+    font-size: 13px;
+    color: var(--faint);
+    border-left: 3px solid var(--ink);
+    padding-left: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .kbd {
+    margin-top: auto;
+    height: 300px;
+    background: var(--sunken);
+    display: grid;
+    place-items: center;
+    color: var(--faint);
+    font-size: 12px;
+    border-top: 1px solid var(--hair);
+  }
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 90px;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--page);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    z-index: 60;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <h1>手機上的本文與筆記</h1>
+  <p class="lede">
+    點書上的波浪線，看「讀筆記」那個畫面。上面切換變體、情況與排向；在任何一則按「編輯」或「寫筆記…」會進到共用的寫筆記畫面。文字是自己寫的一章假書。
+  </p>
+  <div class="controls">
+    <div class="ctl">
+      <span>變體</span>
+      <div class="seg" id="c-variant">
+        <button data-v="A">現狀</button><button data-v="B">底部 sheet</button
+        ><button data-v="C">上下分割</button><button data-v="D">單則全頁</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span>情況（等於在書上點那一段）</span>
+      <div class="seg" id="c-case">
+        <button data-v="m3">1 只有重點</button><button data-v="m1">2 一句配一段</button
+        ><button data-v="m4">3 跨段配長筆記</button><button data-v="">回到書</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span>排向</span>
+      <div class="seg" id="c-dir">
+        <button data-v="h">橫排</button><button data-v="v">直排</button>
+      </div>
+    </div>
+    <div class="ctl" id="ctl-reflow">
+      <span>直排時 sheet 底下的書</span>
+      <div class="seg" id="c-reflow">
+        <button data-v="cover">蓋住</button><button data-v="reflow">重排</button>
+      </div>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <div class="status"><span>9:41</span><span>●●● 82%</span></div>
+        <div class="book" id="book">
+          <div class="flow" id="flow"></div>
+          <div class="foot" id="foot">第三章　退潮之後</div>
+        </div>
+        <div id="overlay"></div>
+      </div>
+    </div>
+    <div class="explain" id="explain"></div>
+  </div>
+</div>
+
+<script>
+  const PARAS = [
+    "外婆家在海邊，潮水一天退兩次。小時候我以為海是會走路的，早上走到很遠的地方，傍晚又自己走回來，像一個每天出門上工的人。",
+    "退潮的時候，泥灘會整片露出來，顏色比天空還暗一點。{m1}外婆說，海退得越遠，留下來的東西就越多，只是大部分的人不會低頭看。{/}她說這句話的時候正在把竹簍裡的蛤蜊倒進水桶，頭也沒有抬。",
+    "我花了很多年才懂那句話不是在講蛤蜊。",
+    "那年夏天我在泥灘上撿到一枚舊銅錢，邊緣被磨得很圓，中間的方孔塞滿了細沙。{m2}我把它舉起來對著太陽看，光從孔裡穿過去，落在我的手心上，小小的一塊。{/}外婆看了一眼，說那是以前船上的人掉的，叫我收好。",
+    "後來我把那枚銅錢放在書桌的抽屜裡，搬了三次家都還在。每次打開抽屜，{m3}都會聞到一點點海的味道{/}，雖然我知道那只是舊木頭的氣味。",
+    "外婆過世那年，我回去過一次。堤防加高了，泥灘還在，只是走下去的那道石階被封起來，旁邊立了一塊牌子，寫著潮汐時刻與禁止進入。",
+    "{m4}我站在堤防上等退潮。風很大，水退得比記憶裡慢，一開始只是浪頭變矮，後來才看得出岸邊的石頭一顆一顆冒出來，濕的那一面朝著天。{/}",
+    "{m4}退到最低的時候，泥灘上有一條一條很淡的線，是水在不同的時間停過的地方。最外面那條幾乎看不見，最裡面那條還是濕的，顏色很深。我想起外婆的話，那些線就是海走過的路，每一條都是它曾經停下來的證據。{/}",
+    "{m4}我沒有走下去。我只是站著，一直看到那些線被下一次的潮水重新蓋住，一條接著一條，從最外面開始。{/}天黑以前，泥灘又變回一片平平的水。",
+    "回到城裡以後，我開始在讀過的書上劃線。劃得很少，有時候一整本只有兩三處。我不太回頭去看它們，但我知道它們在那裡，像抽屜裡那枚銅錢。",
+    "有一次朋友借走了我的一本書，還回來的時候說，你劃的地方都很奇怪，不是重點。我說那些是我停下來的地方。",
+  ];
+  const MARKS = {
+    m1: {
+      ink: "indigo",
+      age: "昨天",
+      md: "10/7",
+      note: [
+        "小時候以為這是在講撿東西的技巧。現在讀起來比較像在講注意力：東西一直都在，差別只在有沒有人停下來看。外婆一輩子都在低頭看，所以她撿得到。",
+      ],
+    },
+    m2: {
+      ink: "moss",
+      age: "兩週前",
+      md: "9/24",
+      note: ["光穿過方孔的那一塊，後來我一直記得形狀。"],
+    },
+    m3: { ink: "indigo", age: "三天前", md: "10/5", note: [] },
+    m4: {
+      ink: "ochre",
+      age: "上個月",
+      md: "9/12",
+      note: [
+        "這一段我讀了好幾次。它寫的是等，不是看海。作者把等待拆成好幾個階段：浪頭變矮、石頭冒出來、線出現、線被蓋住，每一段都比上一段慢。",
+        "那些「水在不同時間停過的地方」，我第一次讀的時候以為只是景色，後來才發現它在講記憶：最外面的最淡，最裡面的最新，而它們會被下一次的潮水從外面開始蓋掉。",
+        "也就是說，最先消失的是最舊的。這跟我自己的經驗不太一樣，我常常覺得最舊的反而留得最久，最近的事情才忘得快。也許兩種都對，只是一個在講海，一個在講人。",
+        "「我沒有走下去」這句很重要。石階被封了是理由之一，但我覺得不是全部。走下去就會踩到那些線，而他只想看著它們。",
+        "想跟最後一段那句「那些是我停下來的地方」放在一起讀。劃線也是一種潮痕：書不會記得你在哪裡停過，只有那條線記得。",
+      ],
+    },
+  };
+  const ORDER = ["m1", "m2", "m3", "m4"];
+  const CASE_OF = { m3: 1, m1: 2, m4: 3, m2: 2 };
+
+  // text of a mark, and the paragraphs it touches
+  function markText(id) {
+    return PARAS.flatMap((p) =>
+      [...p.matchAll(/\{(m\d)\}(.*?)\{\/\}/g)].filter((m) => m[1] === id).map((m) => m[2]),
+    );
+  }
+  function markParas(id) {
+    return PARAS.map((p, i) => (p.includes("{" + id + "}") ? i : -1)).filter((i) => i >= 0);
+  }
+  function inkVar(id) {
+    return `var(--${MARKS[id].ink})`;
+  }
+  function renderPara(p, sel, plain) {
+    return p.replace(/\{(m\d)\}(.*?)\{\/\}/g, (_, id, t) =>
+      plain
+        ? `<span class="mk${id === sel ? " hl" : ""}" style="--ink:${inkVar(id)}">${t}</span>`
+        : `<span class="mk${id === sel ? " sel" : ""}" data-id="${id}" style="--ink:${inkVar(id)}">${t}</span>`,
+    );
+  }
+  function esc(s) {
+    return s.replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+    );
+  }
+
+  let S = {
+    variant: "B",
+    sel: "m1",
+    dir: "h",
+    reflow: "reflow",
+    writing: false,
+    confirm: false,
+    sheet: "half",
+    split: 0.45,
+    index: false,
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem("mn-proto") || "{}");
+    Object.assign(S, saved, { writing: false, confirm: false, index: false });
+  } catch (e) {}
+  function save() {
+    try {
+      localStorage.setItem(
+        "mn-proto",
+        JSON.stringify({ variant: S.variant, sel: S.sel, dir: S.dir, reflow: S.reflow }),
+      );
+    } catch (e) {}
+  }
+
+  const $ = (s) => document.querySelector(s);
+  const screen = $("#screen"),
+    book = $("#book"),
+    flow = $("#flow"),
+    overlay = $("#overlay");
+
+  function renderBook() {
+    screen.className = "screen " + S.dir + (S.sel ? " dim" : "");
+    flow.innerHTML =
+      `<h4>第三章　退潮之後</h4>` + PARAS.map((p) => `<p>${renderPara(p, S.sel)}</p>`).join("");
+  }
+
+  // Paginated book: bring the page that holds the mark's start into view. Snapped to whole lines.
+  function placePage(visibleH) {
+    const LH = 30;
+    if (!S.sel) {
+      flow.style.transform = "";
+      return;
+    }
+    const first = flow.querySelector(`.mk[data-id="${S.sel}"]`);
+    const fr = flow.getBoundingClientRect(),
+      mr = first.getBoundingClientRect();
+    if (S.dir === "h") {
+      const top = mr.top - fr.top;
+      // keep the page start if the mark already fits in the visible part, else shift so its first line sits two lines down
+      let off = 0;
+      if (top + 30 > visibleH - 20) off = Math.max(0, Math.floor((top - LH * 2) / LH) * LH);
+      flow.style.transform = `translateY(${-off}px)`;
+    } else {
+      const fromRight = fr.right - mr.right;
+      let off = 0;
+      if (fromRight + 40 > book.clientWidth - 48)
+        off = Math.max(0, Math.floor((fromRight - LH * 2) / LH) * LH);
+      flow.style.transform = `translateX(${off}px)`;
+    }
+  }
+
+  function card(id, opts = {}) {
+    const m = MARKS[id],
+      sel = !!opts.selected;
+    const cls = ["card"];
+    if (!sel && opts.clamp) cls.push("clamp");
+    if (opts.faded) cls.push("faded");
+    const has = m.note.length > 0;
+    let row;
+    if (sel && S.confirm) {
+      row = `<div class="confirm"><span>${has ? "刪掉這段重點和筆記？" : "刪掉這段重點？"}</span>
+      <button class="tbtn danger" data-act="del-yes">刪除</button><button class="tbtn" data-act="del-no" autofocus>取消</button></div>`;
+    } else {
+      row = `<div class="row"><span class="date">${m.age}${sel ? `<small>${m.md}</small>` : ""}</span>${!has ? `<span class="only">· 只劃了重點</span>` : ""}
+      ${sel ? `<span class="acts">${has ? `<button class="tbtn" data-act="edit">編輯</button>` : ""}<button class="tbtn" data-act="del">刪除</button></span>` : ""}</div>`;
+    }
+    const quote = opts.quote ? `<div class="quote">${esc(markText(id).join(""))}</div>` : "";
+    let body = "";
+    if (has) {
+      const ps = m.note.map((t) => `<p>${esc(t)}</p>`).join("");
+      body =
+        sel && opts.scroll
+          ? `<div class="scrollnote note" data-paras="${m.note.length}">${ps}</div><div class="morehint"></div>`
+          : `<div class="note">${ps}</div>`;
+    } else if (sel) body = `<button class="write-cta" data-act="edit">寫筆記…</button>`;
+    return `<div class="${cls.join(" ")}" data-card="${id}" style="--ink:${inkVar(id)}">${row}${quote}${body}</div>`;
+  }
+  function wireScrollHints(root) {
+    root.querySelectorAll(".scrollnote").forEach((sc) => {
+      const hint = sc.nextElementSibling,
+        n = sc.dataset.paras;
+      const upd = () => {
+        const over = sc.scrollHeight > sc.clientHeight + 2;
+        const end = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2;
+        sc.classList.toggle("more", over && !end);
+        hint.textContent = over ? `${n} 段 · ${end ? "到底了" : "往下還有"}` : "";
+      };
+      sc.addEventListener("scroll", upd);
+      requestAnimationFrame(upd);
+    });
+  }
+
+  function passageHTML(id, { context = true } = {}) {
+    const idx = markParas(id),
+      lo = idx[0],
+      hi = idx[idx.length - 1];
+    const out = [];
+    if (context && lo > 0) out.push(`<p class="ctx">${renderPara(PARAS[lo - 1], id, true)}</p>`);
+    for (let i = lo; i <= hi; i++) {
+      // inside the mark's own paragraphs, text outside the mark is context too
+      out.push(
+        `<p>${PARAS[i]
+          .replace(/\{(m\d)\}(.*?)\{\/\}/g, (_, mid, t) => (mid === id ? `\u0000${t}\u0001` : t))
+          .split(/(\u0000.*?\u0001)/)
+          .map((s) =>
+            s.startsWith("\u0000")
+              ? `<span class="mk hl" style="--ink:${inkVar(id)}">${s.slice(1, -1)}</span>`
+              : s
+                ? `<span class="ctx">${s}</span>`
+                : "",
+          )
+          .join("")}</p>`,
+      );
+    }
+    if (context && hi < PARAS.length - 1)
+      out.push(`<p class="ctx">${renderPara(PARAS[hi + 1], id, true)}</p>`);
+    return out.join("");
+  }
+
+  function render() {
+    save();
+    document.querySelectorAll(".seg button").forEach((b) => {
+      const k = b.parentElement.id;
+      const v = {
+        "c-variant": S.variant,
+        "c-case": S.sel || "",
+        "c-dir": S.dir,
+        "c-reflow": S.reflow,
+      }[k];
+      b.setAttribute("aria-pressed", String(b.dataset.v === v));
+    });
+    $("#ctl-reflow").hidden = !(S.variant === "B" && S.dir === "v");
+    renderBook();
+    book.style.bottom = "0px";
+    overlay.innerHTML = "";
+    explain();
+    if (!S.sel) {
+      flow.style.transform = "";
+      return;
+    }
+    ({ A: viewList, B: viewSheet, C: viewSplit, D: viewSingle })[S.variant]();
+    if (S.writing) viewWrite();
+  }
+
+  /* A: today — a full-screen list, card with the quote */
+  function viewList() {
+    overlay.innerHTML = `<div class="layer"><div class="bar"><span class="ttl">筆記</span><button class="x" data-act="close" aria-label="關閉">✕</button></div>
+    <div class="list" id="list"><div class="chap"><span>第三章　退潮之後</span><small>4 則</small></div>
+    ${ORDER.map((id) => card(id, { selected: id === S.sel, clamp: true, quote: true })).join("")}</div></div>`;
+    const list = $("#list"),
+      c = list.querySelector(`[data-card="${S.sel}"]`);
+    list.style.scrollBehavior = "auto";
+    list.scrollTop = Math.max(0, c.offsetTop - 70);
+    list.style.scrollBehavior = "";
+  }
+
+  /* B: bottom sheet over the page */
+  const SHEET_H = { peek: 92, half: 0.46, full: 0.84 };
+  function sheetPx(st) {
+    const H = screen.clientHeight;
+    const v = SHEET_H[st];
+    return v < 1 ? Math.round(H * v) : v;
+  }
+  function viewSheet() {
+    overlay.innerHTML = `<div class="sheet" id="sheet"><div class="grip" id="grip" role="button" tabindex="0" aria-label="拉高或放低"><i></i></div>
+    <div class="inner">${card(S.sel, { selected: true, scroll: true })}</div></div><div class="peekhint" id="peekhint"></div>`;
+    const sheet = $("#sheet");
+    const apply = (h, final) => {
+      sheet.style.height = h + "px";
+      const reflow = S.dir === "v" && S.reflow === "reflow";
+      book.style.bottom = reflow ? h + "px" : "0px";
+      if (final) requestAnimationFrame(() => placePage(screen.clientHeight - 30 - h));
+      const ph = $("#peekhint");
+      ph.style.bottom = h + 6 + "px";
+      ph.textContent = S.sheet === "peek" ? "" : "往下拉 sheet 可以看到整段重點";
+    };
+    apply(sheetPx(S.sheet), true);
+    wireScrollHints(sheet);
+    const grip = $("#grip");
+    grip.onclick = () => {
+      S.sheet = { peek: "half", half: "full", full: "peek" }[S.sheet];
+      apply(sheetPx(S.sheet), true);
+    };
+    grip.onpointerdown = (e) => {
+      const y0 = e.clientY,
+        h0 = sheet.clientHeight;
+      let moved = false;
+      sheet.classList.add("dragging");
+      grip.setPointerCapture(e.pointerId);
+      grip.onpointermove = (ev) => {
+        const d = y0 - ev.clientY;
+        if (Math.abs(d) > 4) moved = true;
+        apply(Math.max(70, Math.min(screen.clientHeight - 60, h0 + d)), false);
+      };
+      grip.onpointerup = (ev) => {
+        grip.onpointermove = grip.onpointerup = null;
+        sheet.classList.remove("dragging");
+        if (!moved) return;
+        const h = sheet.clientHeight;
+        S.sheet = Object.keys(SHEET_H).reduce(
+          (a, k) => (Math.abs(sheetPx(k) - h) < Math.abs(sheetPx(a) - h) ? k : a),
+          "half",
+        );
+        apply(sheetPx(S.sheet), true);
+        grip.onclick = null;
+        setTimeout(
+          () =>
+            (grip.onclick = () => {
+              S.sheet = { peek: "half", half: "full", full: "peek" }[S.sheet];
+              apply(sheetPx(S.sheet), true);
+            }),
+        );
+      };
+    };
+  }
+
+  /* C: fixed split — top is only the passage, bottom is the note */
+  function viewSplit() {
+    const vert = S.dir === "v";
+    overlay.innerHTML = `<div class="layer"><div class="bar"><span>第三章　退潮之後</span><button class="x" data-act="close" aria-label="回到書">✕</button></div>
+    <div class="split-top" id="top">${vert ? `<div class="passage v-pass">${passageHTML(S.sel)}</div>` : `<div class="passage">${passageHTML(S.sel)}</div>`}<span class="overhint" id="overhint"></span></div>
+    <div class="divider" id="div" role="separator" aria-label="拖曳調整上下比例"><i></i></div>
+    <div class="split-bot">${card(S.sel, { selected: true, scroll: true })}</div></div>`;
+    const top = $("#top"),
+      layer = top.parentElement;
+    const size = () => {
+      top.style.height = Math.round((layer.clientHeight - 60) * S.split) + "px";
+      hint();
+    };
+    const hl = () => top.querySelector(".hl");
+    function hint() {
+      const oh = $("#overhint"),
+        spans = [...top.querySelectorAll(".hl")];
+      if (vert) {
+        oh.style.display = "none";
+        return;
+      }
+      const last = spans[spans.length - 1].getBoundingClientRect(),
+        tr = top.getBoundingClientRect();
+      const hidden = Math.max(0, Math.round((last.bottom - tr.bottom) / 30));
+      oh.textContent = hidden > 0 ? `重點往下還有 ${hidden} 行` : "";
+      oh.style.display = hidden > 0 ? "block" : "none";
+    }
+    size();
+    // start with the mark's first line near the top (or the right edge, vertically)
+    requestAnimationFrame(() => {
+      const r = hl().getBoundingClientRect(),
+        tr = top.getBoundingClientRect();
+      if (vert) top.scrollLeft += r.right - tr.right + 30;
+      else top.scrollTop += r.top - tr.top - 34;
+      hint();
+    });
+    top.addEventListener("scroll", hint);
+    wireScrollHints(layer);
+    const dv = $("#div");
+    dv.onpointerdown = (e) => {
+      dv.setPointerCapture(e.pointerId);
+      const y0 = e.clientY,
+        s0 = S.split,
+        H = layer.clientHeight - 60;
+      dv.onpointermove = (ev) => {
+        S.split = Math.max(0.2, Math.min(0.75, s0 + (ev.clientY - y0) / H));
+        size();
+      };
+      dv.onpointerup = () => {
+        dv.onpointermove = dv.onpointerup = null;
+      };
+    };
+  }
+
+  /* D: one mark per page, the whole page scrolls; prev / index / next at the bottom */
+  function viewSingle() {
+    const i = ORDER.indexOf(S.sel),
+      vert = S.dir === "v";
+    if (S.index) {
+      overlay.innerHTML = `<div class="layer"><div class="bar"><span class="ttl">第三章　退潮之後</span><span>4 則</span><button class="x" data-act="close" aria-label="回到書">✕</button></div>
+      <div class="index">${ORDER.map(
+        (
+          id,
+        ) => `<button data-go="${id}" style="--ink:${inkVar(id)}"><div class="q">${esc(markText(id).join(""))}</div>
+        <div class="n">${MARKS[id].note.length ? esc(MARKS[id].note[0]) : "只劃了重點"}</div></button>`,
+      ).join("")}</div></div>`;
+      return;
+    }
+    const pass = vert
+      ? `<div class="vbox"><div class="passage v-pass">${passageHTML(S.sel, { context: false })}</div></div>`
+      : `<div class="passage">${passageHTML(S.sel, { context: false })}</div>`;
+    overlay.innerHTML = `<div class="layer" style="--ink:${inkVar(S.sel)}"><div class="bar"><span>第三章　退潮之後</span><button class="x" data-act="close" aria-label="回到書">✕</button></div>
+    <div class="single" id="single">${pass}
+      <svg class="wave" viewBox="0 0 320 10" preserveAspectRatio="none" aria-hidden="true"><path d="M0 5 Q 4 0 8 5 T 16 5 T 24 5 T 32 5 T 40 5 T 48 5 T 56 5 T 64 5" fill="none" stroke="currentColor" stroke-width="1.4" transform="scale(1 1)"/></svg>
+      ${card(S.sel, { selected: true })}</div>
+    <div class="nav"><button data-go="${ORDER[i - 1] || ""}" ${i === 0 ? "disabled" : ""}>‹ 上一則</button>
+      <button class="c" data-act="index">${i + 1} / ${ORDER.length} · 全部</button>
+      <button class="r" data-go="${ORDER[i + 1] || ""}" ${i === ORDER.length - 1 ? "disabled" : ""}>下一則 ›</button></div></div>`;
+    // the wave spans the column; a short tile repeated
+    const path = overlay.querySelector(".wave path");
+    let d = "M0 5";
+    for (let x = 0; x < 320; x += 8) d += ` Q ${x + 2} 1 ${x + 4} 5 T ${x + 8} 5`;
+    path.setAttribute("d", d);
+    if (vert)
+      requestAnimationFrame(() => {
+        const vb = overlay.querySelector(".vbox");
+        vb.scrollLeft = vb.scrollWidth;
+      });
+  }
+
+  function viewWrite() {
+    const m = MARKS[S.sel];
+    const w = document.createElement("div");
+    w.className = "layer write";
+    w.innerHTML = `<div class="ed"><textarea id="ta" aria-label="筆記" placeholder="寫點什麼…">${esc(m.note.join("\n\n"))}</textarea>
+    <button class="done" data-act="done">完成</button></div>
+    <div class="for" style="--ink:${inkVar(S.sel)}">${esc(markText(S.sel).join(""))}</div>
+    <div class="kbd">鍵盤</div>`;
+    overlay.appendChild(w);
+    const ta = $("#ta");
+    ta.focus({ preventScroll: true });
+  }
+
+  function toast(t) {
+    const d = document.createElement("div");
+    d.className = "toast";
+    d.textContent = t;
+    screen.appendChild(d);
+    setTimeout(() => d.remove(), 1600);
+  }
+
+  screen.addEventListener("click", (e) => {
+    const mk = e.target.closest(".flow .mk");
+    if (mk && !e.target.closest("#overlay")) {
+      S.sel = mk.dataset.id;
+      S.sheet = "half";
+      S.index = false;
+      render();
+      return;
+    }
+    const go = e.target.closest("[data-go]");
+    if (go && go.dataset.go) {
+      S.sel = go.dataset.go;
+      S.index = false;
+      S.confirm = false;
+      render();
+      overlay.querySelector(".single")?.scrollTo(0, 0);
+      return;
+    }
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (!act) {
+      const c = e.target.closest("[data-card]");
+      if (c && S.variant === "A" && c.dataset.card !== S.sel) {
+        S.sel = c.dataset.card;
+        S.confirm = false;
+        render();
+      }
+      return;
+    }
+    if (act === "close") {
+      S.sel = null;
+      S.confirm = false;
+      S.index = false;
+    }
+    if (act === "edit") S.writing = true;
+    if (act === "done") {
+      const v = $("#ta").value.trim();
+      MARKS[S.sel].note = v ? v.split(/\n\s*\n/) : [];
+      S.writing = false;
+    }
+    if (act === "del") S.confirm = true;
+    if (act === "del-no") S.confirm = false;
+    if (act === "del-yes") {
+      S.confirm = false;
+      toast("prototype 不真的刪");
+    }
+    if (act === "index") S.index = true;
+    render();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && S.confirm) {
+      S.confirm = false;
+      render();
+    }
+  });
+
+  document.querySelectorAll(".seg").forEach((seg) =>
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const v = b.dataset.v;
+      if (seg.id === "c-variant") {
+        S.variant = v;
+        S.index = false;
+        if (!S.sel) S.sel = "m1";
+      }
+      if (seg.id === "c-case") {
+        S.sel = v || null;
+        S.sheet = "half";
+        S.index = false;
+      }
+      if (seg.id === "c-dir") S.dir = v;
+      if (seg.id === "c-reflow") S.reflow = v;
+      S.confirm = false;
+      S.writing = false;
+      render();
+    }),
+  );
+
+  const TEXT = {
+    A: `<h2>現狀：全螢幕的〈筆記〉</h2><p>基準。點書上的重點，〈筆記〉面板佔滿整個畫面，捲到那一則。卡片照 app 現在的樣子帶著引文，因為書完全看不到。</p>
+    <h3>看什麼</h3><ul><li>讀筆記時完全看不到書，只有兩行引文。</li><li>情況 3：引文剪成兩行，五段筆記在列表裡全部攤開。</li></ul>`,
+    B: `<h2>底部 sheet</h2><p>書留在原地，筆記從下方升起。重點如果落在 sheet 會蓋住的地方，書頁往上移，讓重點的第一行停在上面。拉把手有三段：一條（只剩日期列）、一半、幾乎全滿；點把手也會輪流切換。</p>
+    <h3>情況 3</h3><p>重點比 sheet 上方的空間長，畫面上只看得到開頭幾行。要讀完整段就把 sheet 拉到最低，讀完再拉回來。筆記在 sheet 裡面捲。</p>
+    <h3>直排</h3><p>sheet 從下面蓋上來，等於把<strong>每一行的下半截</strong>都蓋掉，不是蓋掉後面幾行。所以直排多一個選項：「重排」讓書在 sheet 上方重新分頁（行變短、行數變多），代價是拉 sheet 的每一下都要讓 frond 重排一次，桌機〈排版〉面板已經在付這筆。</p>`,
+    C: `<h2>上下分割</h2><p>另一個固定畫面：上半只留重點所在的那幾段，重點以外的字變淡；下半是筆記。中間那條可以拖，調上下比例。上下各自捲動。</p>
+    <h3>情況 3</h3><p>上半自己捲，底下一行寫「重點往下還有 N 行」。筆記也在下半自己捲，所以兩邊可以各讀各的。</p>
+    <h3>直排</h3><p>上半的字直排、往左捲；下半的筆記橫排。桌機那張的結論是直排書配橫排筆記最分得開，這裡兩種方向剛好分在上下兩塊。</p>`,
+    D: `<h2>單則全頁捲動</h2><p>一則一頁：上面是重點那幾段原文（書的字體、書的字級、整段帶底色），一條波浪線隔開，下面是筆記，整頁一起捲。底下一列導航：上一則、全部（索引）、下一則。</p>
+    <h3>情況 3</h3><p>原文與筆記都長，但它們在同一條捲軸上，沒有哪一塊要被擠小，讀完原文往下捲就是筆記。</p>
+    <h3>直排</h3><p>原文放在一個固定高度的直排框裡，從右往左捲；筆記仍然橫排、在框的下面。框有兩個方向的捲動（框內往左、整頁往下），是這個變體在直排上最可能卡住的地方。</p>
+    <h3>跟現狀的差別</h3><p>它其實是把〈筆記〉的「第二層」（某一則）變成獨立的一頁，列表退成「全部」那個索引。ADR-0046 的兩層網址剛好對得上。</p>`,
+  };
+  function explain() {
+    const c = S.sel
+      ? `<p style="color:var(--muted);font-size:.8rem">現在顯示：情況 ${CASE_OF[S.sel]}${S.sel === "m2" ? "（另一則短筆記）" : ""}，${S.dir === "h" ? "橫排" : "直排"}。</p>`
+      : "";
+    $("#explain").innerHTML =
+      TEXT[S.variant] +
+      c +
+      `<h3>共用的寫筆記畫面</h3><p>按「編輯」或「寫筆記…」進去。照 ADR-0044，輸入框貼在畫面上緣、鍵盤在下面；輸入框底下留兩行原文，提醒這則掛在哪裡。</p>`;
+  }
+  window.addEventListener("resize", () => render());
+  render();
+</script>
