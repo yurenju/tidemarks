@@ -47,12 +47,28 @@ import {
  * reader pressing ⋯ while [[About]] stood would have the press swallowed here and nothing would
  * happen. There are three doors and one room; the fourth door is not one of them.
  */
-const fromChrome = (event: Event): boolean => {
+const fromChrome = (event: Event): boolean => landedIn(event, ".chrome");
+
+/**
+ * Whether the thing that dismissed this panel was a press on the book — the page, its margin, or
+ * one of the two page buttons beside it.
+ *
+ * **The chrome machine already hears every one of those**, through frond and the gesture machine:
+ * a tap, a turn, a tap on a marked passage (`lib/chrome.ts`). Each says for itself what becomes of
+ * the face standing, and [[Reflect]] answers differently from [[Find]]'s two — it stays through a
+ * turn, and moves to the passage tapped. Closing here as well would answer first, and wrongly: a
+ * page button would take [[Reflect]] away with the page it turned, and a tap on another passage
+ * would close the list and open it again.
+ */
+const fromBook = (event: Event): boolean => landedIn(event, ".reader-body");
+
+/** Whether either end of the event — what was pressed, or where the focus went — is inside `box`. */
+function landedIn(event: Event, box: string): boolean {
   const related = "relatedTarget" in event ? (event as FocusEvent).relatedTarget : null;
   return [event.target, related].some(
-    (node) => node instanceof Element && node.closest(".chrome") !== null,
+    (node) => node instanceof Element && node.closest(box) !== null,
   );
-};
+}
 
 /**
  * One shell for all four faces — [[Contents]], [[Notes]], [[Layout]] and [[About]] (ADR-0046).
@@ -121,6 +137,7 @@ export default function Panel({
         // places that each have to know that.
         const dismissal = details.reason === "outside-press" || details.reason === "focus-out";
         if (needs !== "nothing" && dismissal && fromChrome(details.event)) return;
+        if (needs !== "nothing" && dismissal && fromBook(details.event)) return;
         onClose();
       }}
       /* Trapping keeps the keyboard inside the panel and marks the rest of the screen

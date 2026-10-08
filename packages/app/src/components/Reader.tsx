@@ -17,9 +17,10 @@ import { useCarriedFont } from "../lib/useCarriedFont";
 import { BOOK_KEEPS_A_COLUMN, PANEL_NEEDS, useMediaQuery } from "../lib/media";
 import {
   chromeShowing,
-  isPanel,
+  faceOf,
   nextChrome,
   type ChromeEvent,
+  type Face,
   type PanelKind,
 } from "../lib/chrome";
 import { AT_REST } from "../lib/turn";
@@ -49,7 +50,7 @@ import { READER_MESSAGES } from "./reader-messages";
  * Naming the three ids keeps every existing spec pointing at the panel it was written for; the
  * merge below is a change to the shell, and a shell change should not rewrite five suites.
  */
-const PANEL_FACES: Record<PanelKind, { title: MessageDescriptor; testId: string }> = {
+const PANEL_FACES: Record<Face, { title: MessageDescriptor; testId: string }> = {
   toc: { title: READER_MESSAGES.panelToc, testId: "panel-toc" },
   notes: { title: READER_MESSAGES.panelNotes, testId: "panel-notes" },
   layout: { title: READER_MESSAGES.panelLayout, testId: "panel-layout" },
@@ -193,7 +194,12 @@ export default function Reader({
   );
   // Whether the book is still on screen with a panel up. Only `notePressed` asks (`lib/media.ts`).
   const bookKeepsAColumn = useMediaQuery(BOOK_KEEPS_A_COLUMN);
-  const { chrome, panelKind, editing: editingId, selected: selectedNoteId } = chromeState;
+  const { chrome, face, editing: editingId, selected: selectedNoteId } = chromeState;
+  // Whether the bars are on screen. Not whenever the chrome is anything but down: [[Reflect]]
+  // sends them away, so that what is left is the book and the reader's own notes beside it.
+  const barsUp = chrome !== "down" && chrome !== "reflect";
+  // Whether anything of the reader's is laid over the book, which is what the platform's frame
+  // matches — a panel as much as the bars.
   const chromeUp = chrome !== "down";
   // Told upward so the platform's frame can match what is under it, and told on the way out too: a
   // reader who leaves a book with the chrome up is going back to a shelf that has no chrome.
@@ -207,24 +213,24 @@ export default function Reader({
 
   // The panel layer and the address bar, kept saying the same thing in both directions
   // (`lib/usePanelAddress.ts`). Nothing comes back: what it does is keep the two in step.
-  usePanelAddress({ panel, onPanel, chrome, editingId, bookId, sendChrome });
+  usePanelAddress({ panel, onPanel, chrome, selectedId: selectedNoteId, bookId, sendChrome });
 
   /**
-   * A `?d=notes/<book>/<note>` naming a mark this book no longer has.
+   * A `?d=notes/<book>/<note>` naming a mark this book no longer has — or a mark pointed at that
+   * has just been deleted, here or on another device.
    *
-   * The address is whatever somebody pasted, and a mark can have been deleted on another device
-   * since. **Losing one note should not cost the whole list**, which is what `lib/route.ts` does
-   * with every other unreadable address — so the editor closes, the panel stays, and the mirror
-   * above writes the shorter address back.
+   * The address is whatever somebody pasted. **Losing one note should not cost the whole list**,
+   * which is what `lib/route.ts` does with every other unreadable address — so nothing is pointed
+   * at any more, the panel stays, and the mirror above writes the shorter address back.
    *
    * It waits for the marks to arrive rather than checking at the first render: they are read out
    * of Dexie a moment after the book opens, and an empty list before then is not an answer.
    */
   useEffect(() => {
     if (!annotationsRead) return;
-    if (editingId === null || annotations.some((a) => a.id === editingId)) return;
-    sendChrome({ kind: "noteSaved" });
-  }, [annotationsRead, annotations, editingId]);
+    const gone = (id: string | null) => id !== null && !annotations.some((a) => a.id === id);
+    if (gone(selectedNoteId) || gone(editingId)) sendChrome({ kind: "pickDropped" });
+  }, [annotationsRead, annotations, selectedNoteId, editingId]);
   /**
    * Where the reader is in this book — what this device claims, what is on screen, whether a
    * visit is holding, whether another device has offered a position — and everything that acts
@@ -291,6 +297,9 @@ export default function Reader({
   // exactly what the highlight layer has to recompute against.
   const [geometry, setGeometry] = useState(0);
   const [painted, setPainted] = useState<PaintedHighlight[]>([]);
+  // Whether a page turn has begun and not yet been followed by a fresh set of boxes. A ref, not
+  // state: it is read and cleared inside the layout effect that measures, and nothing renders it.
+  const landingRef = useRef(false);
   // The same list the layer paints, for hit-testing a tap without waiting for a re-render.
   const paintedRef = useRef<PaintedHighlight[]>([]);
   // The layer itself, so a turn in progress can slide it with the page it is drawn over. Moved
@@ -393,7 +402,12 @@ export default function Reader({
     indexed: () => setIndexed(true),
     ready: setRenderer,
     arrived: () => setArrived(true),
-    chrome: sendChrome,
+    chrome: (event) => {
+      // A turn is asked about again once it has landed (`turnLanded`, sent from the highlight
+      // layer below): which marks are on the new page is not known until it is laid out.
+      if (event.kind === "turned") landingRef.current = true;
+      sendChrome(event);
+    },
   };
 
   // One sitting with one book, opened once per book and torn down on the way out
@@ -565,6 +579,13 @@ export default function Reader({
 
     setPainted(next);
     paintedRef.current = next;
+    // **The answer to the question a turn could not ask as it began**: which marks are on the page
+    // it landed on. These boxes are that page's, measured at rest — so this is the first moment
+    // anyone can say whether the passage [[Reflect]] was pointing at came along (`lib/chrome.ts`).
+    if (landingRef.current) {
+      landingRef.current = false;
+      sendChrome({ kind: "turnLanded", showing: next.map((entry) => entry.annotation.id) });
+    }
     // Freshly measured boxes are measured against the page at rest, so whatever a turn left on
     // the layer is spent. This is also the backstop for a turn abandoned from inside frond — a
     // resize or a jump ends it without the code that started it hearing about it, and both of
@@ -595,7 +616,7 @@ export default function Reader({
     scheduleSync();
     setAnnotations((prev) => sortByBookOrder([...prev, annotation]));
     selection.current.clear();
-    if (withNote) sendChrome({ kind: "openNote", id: annotation.id });
+    sendChrome({ kind: "marked", id: annotation.id, withNote });
   }
 
   /**
@@ -630,8 +651,9 @@ export default function Reader({
 
   /** Raises a panel, or drops it back to the bare bar if it was already the one showing. */
   const togglePanel = (panel: PanelKind) => sendChrome({ kind: "togglePanel", panel });
-  // `styles/reader.css` draws both arrangements; this only says which state the reader is in.
-  const panelOpen = isPanel(chrome);
+  // `styles/reader.css` draws both arrangements; this only says whether a face is standing —
+  // [[Find]]'s two or [[Reflect]]'s list, which take the same column.
+  const panelOpen = faceOf(chrome) !== null;
 
   // Where each chapter begins on the axis, for a finger to land on. The TOC says which section
   // a chapter starts at; turning that into a position takes the character counts behind the
@@ -737,7 +759,7 @@ export default function Reader({
           is the whole of the state as CSS reads it — down, they are outside the reader's box and
           `visibility: hidden`, so nothing on this layer is reachable by a pointer, by the
           keyboard or by a screen reader (`styles/reader.css`). */}
-      <div className="chrome" data-up={chromeUp || undefined}>
+      <div className="chrome" data-up={barsUp || undefined}>
         {/* Which book, and the way back to the shelf. **Not which chapter** — that went down to
             the Scrubber's row, where "where am I" is already being answered by a rail; the two
             were the same question asked at opposite edges of the screen. What is left here is
@@ -761,10 +783,9 @@ export default function Reader({
               Contents
             </Trans>
           </button>
-          <button
-            className={chrome === "notes" ? "ghost active" : "ghost"}
-            onClick={() => togglePanel("notes")}
-          >
+          {/* Not a toggle like its neighbours: what it raises is [[Reflect]], which sends this bar
+              away, so there is never an "active" state of it to draw. */}
+          <button className="ghost" onClick={() => sendChrome({ kind: "notesToggled" })}>
             <Trans comment="Bar button raising the panel that lists what the reader has marked. The number in brackets is how many marks this book carries.">
               Notes ({markCount})
             </Trans>
@@ -905,15 +926,15 @@ export default function Reader({
       <Panel
         open={panelOpen}
         onClose={() => sendChrome({ kind: "panelDismissed" })}
-        title={PANEL_FACES[panelKind].title}
-        testId={PANEL_FACES[panelKind].testId}
+        title={PANEL_FACES[face].title}
+        testId={PANEL_FACES[face].testId}
         // Read off the face rather than written at each of the three, so the one question the
         // four faces differ by has one answer per face and one place to change it
         // (`lib/media.ts`).
-        needs={PANEL_NEEDS[panelKind]}
+        needs={PANEL_NEEDS[face]}
         container={panelHostRef}
       >
-        {panelKind === "toc" && (
+        {face === "toc" && (
           <div className="panel-list">
             {toc.map((item, i) => {
               const isCurrent = i === currentTocIndex;
@@ -941,7 +962,7 @@ export default function Reader({
           </div>
         )}
 
-        {panelKind === "notes" && (
+        {face === "notes" && (
           <div className="panel-list panel-list-notes">
             {annotations.length === 0 && (
               <p className="empty">
@@ -1001,7 +1022,7 @@ export default function Reader({
         {/* Six settings, one record, every book. They are in the reader's panel rather than only
             in [[Settings]] because this is the one place with a preview: what the panel leaves showing
             is the real page, resetting as the reader drags (ADR-0005). */}
-        {panelKind === "layout" && (
+        {face === "layout" && (
           <TypographyForm
             settings={settings}
             onChange={onSettingChange}

@@ -146,7 +146,8 @@ export type GestureIntent =
   | { kind: "settleSelection" }
   /** Put the selection away entirely. */
   | { kind: "dropSelection" }
-  | { kind: "openNote"; annotationId: string };
+  /** Show the note of the mark a tap landed on — to be looked at, not written in. */
+  | { kind: "viewMark"; annotationId: string };
 
 export interface GestureResponse {
   readonly intents: readonly GestureIntent[];
@@ -449,9 +450,9 @@ export function createGestureMachine(
       return;
     }
 
-    // A tap that landed on a highlight opens its note, and is spent on that.
+    // A tap that landed on a highlight shows its note, and is spent on that.
     if (event.onHighlight !== null) {
-      intents.push({ kind: "openNote", annotationId: event.onHighlight });
+      intents.push({ kind: "viewMark", annotationId: event.onHighlight });
       return;
     }
 

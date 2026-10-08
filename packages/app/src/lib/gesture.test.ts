@@ -473,12 +473,12 @@ describe("A tap, and the one thing it is spent on", () => {
     expect(kinds(m.send(release()).intents)).toEqual(["cancelLongPress", "toggleChrome"]);
   });
 
-  it("opens the note of a highlight it landed on, and nothing else", () => {
+  it("shows the note of a highlight it landed on, and nothing else", () => {
     const m = machine();
     m.send(press());
     expect(m.send(release({ onHighlight: "ann-7" })).intents).toEqual([
       { kind: "cancelLongPress" },
-      { kind: "openNote", annotationId: "ann-7" },
+      { kind: "viewMark", annotationId: "ann-7" },
     ]);
   });
 

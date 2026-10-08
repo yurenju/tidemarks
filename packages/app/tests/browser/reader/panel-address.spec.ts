@@ -300,7 +300,7 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
 
     // [[Mark and note]] is the route that climbs both storeys at once: the reader is put straight
     // into the editor from a selection on the page, having never seen the list. (Pressing a mark
-    // already on the page is the same jump through the same `openNote`; this one is asked for
+    // already on the page climbs the same two storeys through `markPicked`; this one is asked for
     // through a button rather than through a hit test on boxes drawn beside the text.)
     await longPressSelect(page);
     await expect(page.locator(".highlight-toolbar")).toBeVisible();
