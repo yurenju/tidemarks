@@ -235,22 +235,28 @@ function settle(
   // standing — the chrome going down, a face of [[Find]]'s coming up, the panel being dismissed —
   // closes the editor, without the transition below having said so. A wash outlives [[Reflect]]
   // and an editor does not, for the reasons on each field above.
-  const stillEditing = chrome === "reflect" || chrome === "marking" ? editing : null;
+  const stillEditing = faceOf(chrome) === "notes" ? editing : null;
   // **And [[Marking]]'s half of this value is the note**, so the note closing — [[Done]], or the
   // mark under it deleted — is [[Marking]] over, and what is left is the book. Said once here
   // rather than at each event that can close a note, for the same reason as the line above.
-  const landed = chrome === "marking" && stillEditing === null ? "down" : chrome;
+  const next = chrome === "marking" && stillEditing === null ? "down" : chrome;
+  // **The passage [[Marking]] points at is the note being written, and goes with it.** Unlike
+  // [[Reflect]]'s wash, it was never the reader asking to be shown a passage — they are back in
+  // [[Read]], and a lit passage there is a question nobody asked. A press that points somewhere
+  // new on the way out is the reader's own, and stays: a quote pressed on a narrow window.
+  const pointed =
+    state.chrome === "marking" && next === "down" && selected === state.selected ? null : selected;
   // `face` is not asked about: it only ever changes when `chrome` gets a face, so a `chrome` that
   // did not move cannot have moved it either.
-  if (landed === state.chrome && stillEditing === state.editing && selected === state.selected) {
+  if (next === state.chrome && stillEditing === state.editing && pointed === state.selected) {
     return state;
   }
   return {
-    chrome: landed,
+    chrome: next,
     // Only entering a face updates this; leaving one leaves it remembering what it was.
-    face: faceOf(landed) ?? state.face,
+    face: faceOf(next) ?? state.face,
     editing: stillEditing,
-    selected,
+    selected: pointed,
   };
 }
 
@@ -337,16 +343,23 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // the book and has to go. **The wash survives that either way** — it names the passage the
       // press was asking to be shown, and on the narrow window there is nothing else left saying
       // which one. A quote pressed beside [[Marking]]'s note is the reader looking back over the
-      // list, which is [[Reflect]].
+      // list, which is [[Reflect]] — and the note they were writing has just lost the focus to
+      // another card, which is what commits it, so it closes rather than standing open in a list
+      // now pointing somewhere else.
       return settle(
         state,
         event.keepPanel ? lookingBack(state.chrome) : "down",
-        state.editing,
+        state.chrome === "marking" ? null : state.editing,
         event.id,
       );
     case "markPicked":
       // From [[Read]] into [[Reflect]], or from one note to another inside it. Either way a box being
       // written in has just lost the focus to the page, and is done.
+      //
+      // **Beside [[Marking]]'s note it is a tap on the page like any other**, and goes back to
+      // [[Read]]: the passage under the reader's finger is most often the one they have just
+      // marked, and a tap is how they say the note is written. A second tap is [[Reflect]].
+      if (state.chrome === "marking") return settle(state, "down", null, state.selected);
       return settle(state, "reflect", null, event.id);
     case "pickDropped":
       return settle(state, state.chrome, null, null);
@@ -358,10 +371,11 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       }
       // **Anywhere else, a note is written where it was thought of** (ADR-0020): [[Marking]]
       // keeps standing with the box open and no chrome around it, and [[Done]] goes back to the
-      // book. Nothing is pointed at — the reader is writing, not looking back, so the list is not
-      // dimmed around the card and the address names no note. Without a note, nothing moves:
-      // marking a passage in [[Read]] is the whole act.
-      if (event.withNote) return settle(state, "marking", event.id, null);
+      // book. The new mark is pointed at while it is written — washed on the page, so the reader
+      // can see which words the note is about, and selected in the list, which is what puts
+      // [[Delete]] on its card for a reader who changes their mind. Without a note, nothing
+      // moves: marking a passage in [[Read]] is the whole act.
+      if (event.withNote) return settle(state, "marking", event.id, event.id);
       return state;
     case "editNote":
       // Changing an old note is looking back, so from beside [[Marking]]'s note it is [[Reflect]].

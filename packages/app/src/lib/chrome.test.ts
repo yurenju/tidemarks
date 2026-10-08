@@ -220,14 +220,14 @@ describe("the passage pointed at across a page turn", () => {
 describe("the note written on the spot", () => {
   const writing = () => run(at(), { kind: "marked", id: "a", withNote: true });
 
-  it("stays in Marking with the note open, pointing at nothing", () => {
-    // Nothing pointed at: the reader is writing, not looking back, so the list is not dimmed
-    // around the card and the address does not name the note as one being looked at.
+  it("stays in Marking with the note open and pointed at", () => {
+    // Pointed at so the page shows which words the note is about, and so its card in the list
+    // carries [[Delete]] for a reader who changes their mind.
     expect(writing()).toMatchObject({
       chrome: "marking",
       face: "notes",
       editing: "a",
-      selected: null,
+      selected: "a",
     });
   });
 
@@ -247,6 +247,7 @@ describe("the note written on the spot", () => {
     ["a page is turned", { kind: "turned" } as const],
     ["a selection arrives", { kind: "selectionArrived" } as const],
     ["the mark under it is deleted", { kind: "pickDropped" } as const],
+    ["a marked passage is tapped, most often this one", { kind: "markPicked", id: "a" } as const],
   ])("goes back to Read when %s, with nothing open and nothing pointed at", (_what, event) => {
     expect(nextChrome(writing(), event)).toMatchObject({
       chrome: "down",
@@ -258,9 +259,18 @@ describe("the note written on the spot", () => {
   it.each([
     ["a quote is pressed in the list beside it", { kind: "notePressed", id: "b", keepPanel: true }],
     ["Edit is pressed on another card", { kind: "editNote", id: "b" }],
-    ["another passage is tapped", { kind: "markPicked", id: "b" }],
   ] as const)("becomes Reflect when %s, which is looking back", (_what, event) => {
-    expect(nextChrome(writing(), event)).toMatchObject({ chrome: "reflect", selected: "b" });
+    // Whatever is open afterwards is the card pressed, never the new note left standing beside it.
+    const after = nextChrome(writing(), event);
+    expect(after).toMatchObject({ chrome: "reflect", selected: "b" });
+    expect(after.editing).not.toBe("a");
+  });
+
+  it("keeps pointing where a quote pressed on a narrow window sends the reader", () => {
+    // The panel is over the book there, so the press takes it away — and the wash it leaves is
+    // the passage the reader pressed, not the note they were writing.
+    const after = nextChrome(writing(), { kind: "notePressed", id: "b", keepPanel: false });
+    expect(after).toMatchObject({ chrome: "down", editing: null, selected: "b" });
   });
 
   it("is written in Reflect instead when the passage was marked there, and stays there", () => {

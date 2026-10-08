@@ -21,6 +21,7 @@ import {
   openPanel,
   longPressSelect,
   selectVisibleText,
+  textPoints,
 } from "../support/library.js";
 
 /** The `?d=` field of the address, or `null` when there is none. */
@@ -300,15 +301,18 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
    */
   test("a note opened from the page takes one press of back to leave", async ({ page }) => {
     await openBook(page, BOOKS.vertical);
-
-    // [[Mark and note]] is the route that climbs both storeys at once: the reader is put straight
-    // into the editor from a selection on the page, having never seen the list. (Pressing a mark
-    // already on the page climbs the same two storeys through `markPicked`; this one is asked for
-    // through a button rather than through a hit test on boxes drawn beside the text.)
-    await longPressSelect(page);
+    const bookId = openBookId(page);
+    // Aimed at a run of text rather than the middle of the page, which on the vertical book is not
+    // reliably on a character (`textPoints`) — and the tap below has to land on the same words.
+    const [at] = await textPoints(page);
+    await longPressSelect(page, { at });
     await expect(page.locator(".highlight-toolbar")).toBeVisible();
-    await page.getByRole("button", { name: "Mark and note" }).click();
+    await paintMark(page);
+
+    // A tap on the passage just marked: `markPicked`, the route that climbs both storeys at once.
+    await page.touchscreen.tap(at.x, at.y);
     await expect(page.getByTestId("panel-notes")).toBeVisible();
+    expect(panelInAddress(page)).toMatch(new RegExp(`^notes/${bookId}/.+`));
 
     await page.goBack();
     await expect(page.getByTestId("panel-notes")).toBeHidden();
