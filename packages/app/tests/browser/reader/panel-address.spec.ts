@@ -212,10 +212,13 @@ test.describe("on a desk, where a panel stands beside the book", () => {
    */
   test("a ✕ on an open note leaves the whole stack, not one storey of it", async ({ page }) => {
     await openBook(page, BOOKS.vertical);
-    await markVisiblePassage(page);
+    const text = await markVisiblePassage(page);
     await openPanel(page, /Notes/);
 
-    await page.getByTestId("panel-notes").getByRole("button", { name: "Add note" }).click();
+    // On a desk only the selected card offers to write, and pressing its passage selects it.
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByRole("button", { name: text.slice(0, 12) }).click();
+    await panel.getByRole("button", { name: "Write a note…" }).click();
     expect(panelInAddress(page)).toMatch(/^notes\/.+\/.+/);
 
     await page.getByTestId("panel-notes").getByRole("button", { name: "Close" }).click();
@@ -276,7 +279,7 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
     await markPassage(page);
 
     await openPanel(page, /Notes/);
-    await page.getByTestId("panel-notes").getByRole("button", { name: "Add note" }).click();
+    await page.getByTestId("panel-notes").getByRole("button", { name: "Write a note…" }).click();
     expect(panelInAddress(page)).toMatch(new RegExp(`^notes/${bookId}/.+`));
 
     await page.goBack();

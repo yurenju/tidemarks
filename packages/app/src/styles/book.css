@@ -306,6 +306,15 @@ button.selection-handle:active:not(:disabled) {
   background: color-mix(in srgb, var(--mark) 22%, transparent);
 }
 
+/* **While one passage is selected, every other mark on the page steps back** — to 30%, still
+   there, so the page does not look as if the others were deleted. The selected passage itself
+   has no wave at all while it is washed (`HighlightLayer`): the wash already says "this one", and
+   a wave over it said "a mark" a second time in the same colour. The cards in the panel do the
+   same (`.annotation-item`), so the page and the list give one answer. */
+.highlight-box.faded {
+  opacity: 0.3;
+}
+
 /* `HighlightLayer` is told which axis this is; nothing in the box's geometry says so. The two
    tiles differ only in which way the wave runs — see `--wave-h` for why 4 and 5.333. */
 .highlight-box[data-axis="h"] {
@@ -710,12 +719,16 @@ button.selection-handle:active:not(:disabled) {
   gap: var(--space-3);
 }
 
-/* **The book's word, so it is set as the book's**: the interface's serif at the small size, not
-   the tracked-out mono label the system uses when it is talking about itself. A chapter name is
-   the one thing on this panel that the book wrote.
+/* **The book's word, so it is set as the book's**: the interface's serif, not the tracked-out
+   mono label the system uses when it is talking about itself. A chapter name is the one thing on
+   this panel that the book wrote. What follows it on the row — "In this chapter" and the count —
+   is the app talking, so it is in the control face.
 
    The rule under it is the panel's own hairline, which is what separates two runs when a chapter
    has only one mark and the gap alone is not enough to read as a division.
+
+   **The chapter the page is in is a step darker than the rest**, and says so in a word: the
+   panel lists a whole book, and this is how the reader finds where in it they are standing.
 
    ⚠️ **Not sticky, though a heading that followed the reader down a long chapter would be worth
    having.** Sticky offsets are measured from `.panel-body`'s scrollport, and that is the same
@@ -723,12 +736,34 @@ button.selection-handle:active:not(:disabled) {
    note box, which is the one thing on this panel that must never be covered. Getting both would
    mean the heading knowing about the editor, and it is not worth that. */
 .annotation-chapter-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
   margin: 0;
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--line-hair);
+  font-family: var(--font-ui);
   font-size: var(--type-ui);
   font-weight: 600;
+  color: var(--text-muted);
+}
+
+.annotation-chapter-name.here {
   color: var(--text-primary);
+}
+
+.annotation-chapter-here,
+.annotation-chapter-count {
+  flex: none;
+  font-family: var(--font-control);
+  font-size: var(--type-eyebrow);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.annotation-chapter-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* One marked passage in the panel, as a card.
@@ -740,65 +775,116 @@ button.selection-handle:active:not(:disabled) {
    share is the cover and the book's name, which have nothing to say here. Every passage in this
    panel came out of the book the reader is holding.
 
-   The mark's own colour is the rule beside the passage rather than the edge of the card: the
-   card is paper and the colour is ink (`docs/design-system.md`), and ink belongs against the
-   reading, not around the frame. */
+   **The mark's ink is the card's left edge, and only there.** It used to be a rule beside the
+   passage and a dot in the row above it — the same colour said twice. Once the passage became a
+   faded reminder rather than the thing being read, the rule beside it was marking the wrong
+   part of the card; on the edge it belongs to the whole of it, the reader's words included.
+
+   **One card selected, the others step back** — the same statement the page makes when the
+   other marks on it fade (`.highlight-box.faded`), so the card and the passage it is washed on
+   read as one answer. Nothing fades while nothing is selected: opening the list is not the same
+   as pointing at something in it. */
 .annotation-item {
   padding: var(--space-4);
   border: 1px solid var(--line-firm);
+  border-left: 3px solid var(--mark, var(--mark-indigo));
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
+  transition: opacity 160ms ease;
 }
 
-/* **The housekeeping row**: the colour it was marked in, and how long ago. Both are about the
-   mark rather than part of it, so both are set in the label face at the smallest size — the
-   same division the shelf's `.mark-head` draws.
+.panel-list-notes:has(.annotation-item.selected) .annotation-item:not(.selected) {
+  opacity: 0.5;
+}
 
-   No word in front of the dot. The shelf's card says "From your marks" because it appears
-   among other kinds of block; nothing else is in this panel, so a label here would repeat on
-   every row and say nothing. */
+/* **The housekeeping row**: how long ago, then — on the selected card — what can be done to it.
+   Set in the control face at the smallest size, the same division the shelf's `.mark-head` draws.
+
+   [[Delete]]'s question takes this row's place when it is asked (`AnnotationItem`), so the
+   answers stand where the reader's eye already was. */
 .annotation-head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-2);
   font-family: var(--font-control);
   font-size: var(--type-eyebrow);
   color: var(--text-muted);
 }
 
-.annotation-swatch {
-  width: 8px;
-  height: 8px;
+.annotation-when {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.annotation-date {
+  margin-left: var(--space-2);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Words, not a row of boxed buttons: they belong to the row they sit in, and a pair of outlined
+   controls on the line that says "3 days ago" would outweigh it. Borderless is allowed where the
+   container has already said this can be pressed (`controls.css`) — the selected card has. */
+.annotation-tools {
+  display: flex;
   flex: none;
-  border-radius: var(--radius-dot);
-  background: var(--mark, var(--mark-indigo));
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.annotation-tools button {
+  padding: var(--space-1) var(--space-2);
+  min-height: var(--tap-dense);
+  border: none;
+  background: none;
+  font-family: var(--font-control);
+  font-size: var(--type-eyebrow);
+  color: var(--text-muted);
+}
+
+.annotation-tools button:hover {
+  color: var(--text-primary);
+  /* `button:hover` strokes the rule in tide as well, and there is no rule here to stroke. */
+  border-color: transparent;
+}
+
+/* **Only the selected card carries them**, and the dashed box below too. Forty cards each with
+   a row of buttons read as a register, and the reader acts on the one they are looking at.
+
+   Restated for the narrow window in `device.css`: there the panel covers the book, pressing a
+   passage closes it, and so no card in a list the reader can see is ever selected. */
+.annotation-item:not(.selected) .annotation-tools,
+.annotation-item:not(.selected) .annotation-write {
+  display: none;
 }
 
 /* Prose in a control, so the button rules that suit a label are undone here: it wraps, it fills
-   the row, and it carries no border or fill of its own. */
+   the row, and it carries no border or fill of its own.
+
+   **The book's face, faded.** It is the book's sentence, so it is set in a serif as the book's
+   own text is; it is not what the card is for, so it stands back in `--text-muted` and the
+   reader's words under it are the ones in full ink. */
 .annotation-quote {
   display: block;
   width: 100%;
   margin: 0;
   border: none;
   background: none;
-  padding: 0 0 0 var(--space-3);
-  /* **The mark's own ink, as a shadow rather than a border.** `controls.css` restates
-     `border-color` on every button it does not exempt while it is pressed, so a border here
-     flashed tide under the reader's finger — and out-specifying that rule costs a selector
-     nobody can read. A shadow is not in that rule's vocabulary. */
-  box-shadow: inset 3px 0 0 var(--mark, var(--mark-indigo));
+  padding: 0;
   text-align: left;
   white-space: normal;
-  font-family: inherit;
+  font-family: var(--font-ui);
   font-size: var(--type-body);
   line-height: var(--leading-text);
+  color: var(--text-muted);
 }
 
 .annotation-quote:hover {
   background: none;
   border: none;
+  color: var(--text-body);
   text-decoration: underline;
 }
 
@@ -812,101 +898,104 @@ button.annotation-quote:active:not(:disabled) {
   color: inherit;
 }
 
-/* **Three lines, then the passage fades out** — and only the passage. The note under it is
-   whole however long it runs.
-   -------------------------------------------------------------------------------------
+/* **Two lines, on every card, and nothing in the panel opens it further.**
+   -----------------------------------------------------------------------
    A mark is however much text the reader dragged over, so a paragraph-long one filled the panel
-   on its own and a book with six marks read as one wall of prose — nothing was findable by
-   scanning it. The passage can be cut because there is a way back that costs nothing: pressing
-   it goes to where it stands in the book, whole. **The note cannot**, which is why the cut used
-   to be wrong on it: the only route to the rest of a cut note was [[Edit note]], and asking a
-   reader to open an editor in order to *read* is asking them to risk changing what they wrote.
+   on its own. Two lines are enough to say which passage this was; the rest is a press away,
+   where it stands in the book, whole. The press that used to open it in place is gone: it made
+   the panel a second, worse place to read the book in.
 
    **The clamp is on a span inside the button, not on the button.** WebKit wraps a button's
    content in an anonymous box, so a clamp set on the control itself has one line item to count
-   and clips nothing — the passage came back full height there while chromium and firefox cut
-   it. The shelf's card met this first and answers it the same way (`.mark-quote`,
-   `library.css`). The whole passage stays in the DOM either way, so the button's accessible
-   name is still the passage: the cut is what sighted readers get, not what the mark is. */
+   and clips nothing. The shelf's card met this first and answers it the same way (`.mark-quote`,
+   `library.css`). The whole passage stays in the DOM, so the button's accessible name is still
+   the passage: the cut is what sighted readers get, not what the mark is. */
 .annotation-quote-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* **The reader's own words, in the control face and a step below the book's size** — the face
+   that is not the book's, so the two voices on the card cannot be mistaken for each other.
+   Blank lines in a note are the reader's paragraphs, so the whitespace is kept rather than
+   collapsed. */
+.note-body {
+  margin-top: var(--space-3);
+}
+
+.note-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-control);
+  font-size: var(--type-ui);
+  line-height: var(--leading-text);
+  color: var(--text-body);
+}
+
+/* **Three lines until the card is selected.** A cut note is fine here and was not before,
+   because there is now a way to the rest that is not the editor: pressing the passage selects
+   the card, and the selected card shows the note whole. */
+.annotation-item:not(.selected) .note-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
 }
 
-.annotation-item.whole .annotation-quote-text {
-  display: block;
-  overflow: visible;
+/* **Whole, but inside the card.** Past 340px the note scrolls in place, so one long note does
+   not push every other card off the panel while it is open. The scrollbar is thin and in the
+   mark's own ink, so it reads as part of this card rather than a second panel scroller, and the
+   bottom edge fades while there is more below — the line under it says how much
+   (`AnnotationItem`). The fade goes when the reader reaches the end, or the last line would stay
+   half-hidden with nothing left to scroll to.
+
+   340px is about ten lines of a note at the desk's type size: enough to read a paragraph without
+   scrolling, short enough that the card under it still shows. */
+.annotation-item.selected .note-body {
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mark, var(--mark-indigo)) transparent;
 }
 
-/* **The last line sinks into the card**, which is what a passage running out of room looks like
-   on paper. It is drawn only where something is actually hidden — the component measures rather
-   than guesses (`AnnotationItem.tsx`), because a fade under a passage that happens to end on the
-   third line would announce a rest that is not there.
-
-   Painted on the span, so it follows the passage's own box and no width has to be kept in step
-   with the card's padding. `--surface-raised` is the card underneath it; a gradient to
-   `transparent` fades to black in some engines' colour interpolation, so the two ends are the
-   same colour with different alpha. */
-.annotation-item.cut .annotation-quote-text {
-  position: relative;
+.annotation-item.selected .note-body.more {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
 }
 
-.annotation-item.cut .annotation-quote-text::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: calc(var(--type-body) * var(--leading-text));
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0), var(--surface-raised));
-  pointer-events: none;
-}
-
-/* **Under the passage it opens, not in the row of actions.** Beside [[Edit note]] and [[Delete]] it
-   read as a third thing done to the mark; under the passage, what it opens is its position.
-
-   Borderless, which `controls.css` allows only where a container has already said this can be
-   pressed — the card has. The padding is what `button:hover`'s wash needs in order not to sit on
-   the words, and the left margin gives it back so the words still line up under the passage. */
-.annotation-expand {
-  display: inline-block;
-  margin: var(--space-2) 0 0 calc(var(--space-3) - var(--space-2));
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-control);
-  background: none;
-  min-height: var(--tap-dense);
+.note-more {
+  margin: var(--space-2) 0 0;
   font-family: var(--font-control);
   font-size: var(--type-eyebrow);
   color: var(--text-muted);
 }
 
-.annotation-expand:hover {
-  color: var(--text-primary);
-  /* `button:hover` strokes the rule in tide as well, and there is no rule here to stroke. */
-  border-color: transparent;
-}
-
-/* The reader's own words, behind the same indent as the passage and never cut. Blank lines in a
-   note are the reader's paragraphs, so the whitespace is kept rather than collapsed — a note
-   written over three sittings is three paragraphs, and one run-on block is not what they wrote. */
-.note-text {
-  margin: var(--space-3) 0 0;
-  padding-top: var(--space-3);
-  border-top: 1px dashed var(--line-hair);
-  white-space: pre-wrap;
+/* The note that is not there yet: an empty box with a dashed edge, where the note would stand. */
+.annotation-write {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--tap-dense);
+  border: 1px dashed var(--line-actionable);
+  border-radius: var(--radius-control);
+  background: none;
+  text-align: left;
+  font-family: var(--font-control);
   font-size: var(--type-ui);
-  color: var(--text-body);
+  color: var(--text-muted);
 }
 
 .note-editor {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  margin-bottom: var(--space-3);
 }
 
 .note-editor textarea {
+  font-family: var(--font-control);
   font-size: var(--type-ui);
   min-height: 4rem;
   resize: vertical;
@@ -915,27 +1004,13 @@ button.annotation-quote:active:not(:disabled) {
   padding: 0.4rem;
 }
 
-.annotation-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  margin-top: var(--space-3);
-}
-
-.annotation-actions button {
-  font-size: var(--type-note);
-  padding: 0.15rem 0.45rem;
-  min-height: var(--tap-dense);
-}
-
 /* [[Delete]] asking first, in the row it was pressed in (`AnnotationItem`). The question takes
-   what room is left and the two answers keep to the end, where the row's buttons always are —
-   so the answers stand where the reader's eye already was. Where the row is too narrow for all
-   three, as in the desk's column, the answers move under the question together rather than one
-   of them being left on a line of its own. */
+   what room is left and the two answers keep to the end, where [[Delete]] stood — so the answers
+   stand where the reader's eye already was. Where the row is too narrow for all three, as in the
+   desk's column, the answers move under the question together rather than one of them being
+   left on a line of its own. */
 .annotation-confirm {
   flex-wrap: wrap;
-  align-items: center;
 }
 
 .annotation-confirm-answers {
@@ -944,9 +1019,37 @@ button.annotation-quote:active:not(:disabled) {
   margin-left: auto;
 }
 
+.annotation-confirm-answers button {
+  font-size: var(--type-note);
+  padding: 0.15rem 0.45rem;
+  min-height: var(--tap-dense);
+}
+
 .annotation-confirm-question {
   flex: 1 1 10rem;
   margin: 0;
   font-size: var(--type-note);
   color: var(--text-body);
+}
+
+/* An empty panel: one faint run of the wave a mark is drawn as, over the sentence that says
+   there are none yet. */
+.notes-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 3rem;
+}
+
+.notes-empty .empty {
+  padding-top: var(--space-4);
+}
+
+.notes-empty-wave {
+  width: 6rem;
+  height: 4px;
+  background: var(--text-faint);
+  mask-image: var(--wave-h);
+  mask-repeat: repeat-x;
+  mask-size: 5.333px 4px;
 }

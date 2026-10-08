@@ -1,16 +1,14 @@
 // The notes panel as the reader meets it: marks filed under the chapter they were made in, and
-// a note that is never cut.
+// a card that shows a note cut until it is selected, then whole inside the card.
 //
 // **Wiring tests.** Which chapter a mark falls in, and where one run of them ends, is exhausted
 // in `src/lib/annotation-groups.test.ts` where it costs nothing. What only a browser can answer
 // is that the panel really reads the chapters the book was opened with — the boundaries are
-// built at open and carried through three components — and that the note in front of the reader
-// is whole, which is a question about a stylesheet and a layout rather than about a function.
+// built at open and carried through three components — and how tall a note stands, which is a
+// question about a stylesheet and a layout rather than about a function.
 //
-// The passage's own three-line cut is `highlights.spec.ts`'s, in the file that draws a real mark
-// by dragging over real text. What is asked here instead is the control beside it: whether the
-// panel can tell a passage that is really cut from one that merely fills three lines, and what
-// pressing it does. That is geometry plus a stylesheet, so no layer below this one can answer it.
+// The passage's own two-line cut is `highlights.spec.ts`'s, in the file that draws a real mark
+// by dragging over real text.
 //
 // [[Delete]] asking first is here too. What it needs a browser for is the panel around it: the
 // question has to hold the focus inside a drawer that claims presses and Escape for itself, and
@@ -43,14 +41,15 @@ const EARLY_PASSAGE = [
 ].join(" ");
 
 /**
- * A note of three paragraphs, which is the shape the cut used to lose: only the first was
- * visible, and the only route to the other two was the editor.
+ * A note of twelve paragraphs: past three lines, so the unselected card has something to cut, and
+ * past the 340px the selected card gives a note before it scrolls, at any type size the reader can
+ * choose.
  */
-const LONG_NOTE = [
-  "The first thing I thought when I read this, written down in a hurry so as not to lose it.",
-  "What I thought about it again a week later, once the chapter it belongs to had finished.",
-  "And a reminder to copy both of those out somewhere the book cannot take them back.",
-].join("\n\n");
+const LONG_NOTE = Array.from(
+  { length: 12 },
+  (_, i) =>
+    `Paragraph ${i + 1}: what I thought about this passage, written down so as not to lose it.`,
+).join("\n\n");
 
 /** Writes marked passages straight into IndexedDB — the rows a highlight leaves behind. */
 async function seedMarks(
@@ -114,7 +113,7 @@ test("the marks are filed under the chapters they were made in, in book order", 
   // Two runs, because the two marks are in two chapters. The names are Alice's own words, so
   // what is asserted is that they are the book's headings and that they arrive in the order the
   // book puts them in — not what Lewis Carroll called his chapters.
-  const headings = panel.locator(".annotation-chapter-name");
+  const headings = panel.locator(".annotation-chapter-label");
   await expect(headings).toHaveCount(2);
   // **Checked against the book's own contents**, rather than against "two different non-empty
   // strings": section indices, TOC rows and any other pair of distinct labels would pass that,
@@ -132,61 +131,42 @@ test("the marks are filed under the chapters they were made in, in book order", 
   const runs = panel.getByTestId("annotation-chapter");
   await expect(runs.nth(0).getByRole("button", { name: EARLY_PASSAGE })).toBeVisible();
   await expect(runs.nth(1).getByRole("button", { name: LATE_PASSAGE })).toBeVisible();
+
+  // And the run the page is in says so. Which chapter that is comes from where the book is,
+  // through the same boundaries — so it moves when the book does.
+  await runs.nth(0).getByRole("button", { name: EARLY_PASSAGE }).click();
+  await expect(runs.nth(0).getByRole("heading")).toContainText("In this chapter");
+  await expect(runs.nth(1).getByRole("heading")).not.toContainText("In this chapter");
 });
 
-test("a note of several paragraphs is shown whole, and as paragraphs", async ({ page }) => {
-  await openNotes(page);
-  const note = page.getByTestId("panel-notes").locator(".note-text").first();
-
-  const measured = await note.evaluate((el) => ({
-    shown: el.getBoundingClientRect().height,
-    whole: el.scrollHeight,
-    line: parseFloat(getComputedStyle(el).lineHeight),
-  }));
-
-  // Taller than three lines, or the note is not long enough here to prove anything — and nothing
-  // of it is cut off. The passage above it may be; the note never is, because the only way back
-  // to a cut note would be the editor.
-  expect(Math.round(measured.shown / measured.line)).toBeGreaterThan(3);
-  expect(measured.whole).toBeLessThanOrEqual(measured.shown + 1);
-
-  // The blank line between two paragraphs is the reader's, and it survives to the screen: a note
-  // rendered with collapsed whitespace runs the three together into one block.
-  await expect(note).toHaveCSS("white-space", "pre-wrap");
-});
-
-test("the whole passage is one press away, and only where something is hidden", async ({
+test("a note is cut until its card is selected, then scrolls inside the card to its end", async ({
   page,
 }) => {
   await openNotes(page);
   const panel = page.getByTestId("panel-notes");
-  const expand = panel.getByRole("button", { name: "Show the whole passage" });
+  const note = panel.locator(".note-text").first();
 
-  // One press, not two: the short passage has nothing under its third line, and a control
-  // offering to open what is already open would be the panel announcing a rest that is not there.
-  await expect(expand).toHaveCount(1);
-
-  const quote = panel.locator(".annotation-quote-text").first();
-  const cut = await quote.evaluate((el) => ({
+  // Three lines while the reader is scanning the list, so one long note does not push every
+  // other card off the panel.
+  const cut = await note.evaluate((el) => ({
     shown: el.getBoundingClientRect().height,
     whole: el.scrollHeight,
+    line: parseFloat(getComputedStyle(el).lineHeight),
   }));
-  expect(
-    cut.whole,
-    "the long passage fits in three lines here, so nothing is being hidden",
-  ).toBeGreaterThan(cut.shown + 1);
+  expect(Math.round(cut.shown / cut.line)).toBe(3);
+  expect(cut.whole).toBeGreaterThan(cut.shown + 1);
 
-  await expand.click();
+  // Pressing the passage selects the card, and that is the way to the rest of the note.
+  await panel.getByRole("button", { name: EARLY_PASSAGE }).click();
+  const body = panel.locator(".note-body").first();
+  await expect.poll(() => body.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(true);
+  // The blank line between two paragraphs is the reader's, and it survives to the screen.
+  await expect(note).toHaveCSS("white-space", "pre-wrap");
 
-  // The passage now stands at its full height, and the control stays — as the way back, and so
-  // that a press does not destroy the element the keyboard was on (ADR-0021).
-  await expect
-    .poll(() => quote.evaluate((el) => el.getBoundingClientRect().height))
-    .toBeGreaterThan(cut.shown + 1);
-  await expect(panel.getByRole("button", { name: "Show less" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
+  // The line under it counts the paragraphs, then says when there is nothing left below.
+  await expect(panel.getByText("12 paragraphs · more below")).toBeVisible();
+  await body.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await expect(panel.getByText("At the end")).toBeVisible();
 });
 
 test("delete asks in the item first, and only the confirming press removes the mark", async ({
@@ -197,7 +177,13 @@ test("delete asks in the item first, and only the confirming press removes the m
   // The long passage is the first of the two in book order, and the only one with a note.
   const passage = panel.getByRole("button", { name: EARLY_PASSAGE });
   const question = panel.getByRole("group", { name: "Delete this mark and its note?" });
-  const asking = panel.getByRole("button", { name: "Delete", exact: true }).first();
+  const asking = panel.getByRole("button", { name: "Delete", exact: true });
+
+  // Only the selected card carries [[Delete]], in its date row; a list of cards each with its own
+  // row of buttons is what the panel stopped being.
+  await expect(asking).toHaveCount(0);
+  await passage.click();
+  await expect(asking).toHaveCount(1);
 
   // The first press asks, and the answer one Enter away is the one that keeps the note.
   await asking.click();

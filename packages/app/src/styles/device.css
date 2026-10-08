@@ -207,6 +207,23 @@
   .panel-popup[data-needs][data-ending-style] {
     transform: translateY(100%);
   }
+
+  /* **Every card in [[Notes]] carries what only the selected one does on a desk** (`book.css`).
+     Here the panel covers the book, and pressing a passage closes it so the reader can see the
+     passage — so a card in a list the reader is looking at is never the selected one, and the
+     selected-only rules would leave no way to edit, delete or read a long note whole. */
+  .annotation-item:not(.selected) .annotation-tools {
+    display: flex;
+  }
+
+  .annotation-item:not(.selected) .annotation-write {
+    display: block;
+  }
+
+  .annotation-item:not(.selected) .note-text {
+    display: block;
+    overflow: visible;
+  }
 }
 
 /* The window

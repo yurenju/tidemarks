@@ -331,6 +331,9 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
     // `.highlight-box` — every mark on the page has one of those, marked or pressed.
     await expect(page.getByTestId("panel-notes")).toBeVisible();
     await expect(page.locator(".highlight-wash").first()).toBeVisible();
+    // **And the wash alone.** The wave beside the pressed passage goes while it is washed — the
+    // wash already says "this one", and a wave in the same ink on top of it said "a mark" again.
+    await expect(page.locator(".highlight-box")).toHaveCount(0);
 
     // Said in the tree as well as in ink. The wash sits on an `aria-hidden` layer, so without
     // this a reader who cannot see the colour is told nothing at all about which quote they
@@ -359,7 +362,7 @@ test.describe("a desk, where the book keeps a column beside the panel", () => {
  *
  * A prose Chinese book rather than the vertical one the rest of this file uses: the vertical
  * fixture is ruby-annotated, which chops its paragraphs into runs of a few characters, and this
- * needs one continuous passage long enough to overflow three lines in a column that is at most
+ * needs one continuous passage long enough to overflow two lines in a column that is at most
  * 420px wide.
  */
 test.describe("a mark longer than the panel", () => {
@@ -367,7 +370,7 @@ test.describe("a mark longer than the panel", () => {
     await openBook(page, BOOKS.emphasis);
   });
 
-  test("its quote in the notes panel stops at three lines", async ({ page }) => {
+  test("its quote in the notes panel stops at two lines", async ({ page }) => {
     // **The panel must not grow with the passage.** A mark is however much text the reader
     // dragged over, so one paragraph-long mark used to fill the whole column and a book with
     // six of them read as one wall of prose. The cut is in `styles/book.css`, and it is
@@ -383,10 +386,9 @@ test.describe("a mark longer than the panel", () => {
         (ps) =>
           ps.map((p) => (p.textContent ?? "").trim()).sort((a, b) => b.length - a.length)[0] ?? "",
       );
-    expect(
-      phrase.length,
-      "no paragraph here is long enough to overflow three lines",
-    ).toBeGreaterThan(70);
+    expect(phrase.length, "no paragraph here is long enough to overflow two lines").toBeGreaterThan(
+      70,
+    );
 
     // Reopened with it selected, because `?select=` is read when a book opens (`lib/route.ts`).
     const bookId = new URL(page.url()).hash.slice("#/book/".length).split("?")[0];
@@ -409,9 +411,9 @@ test.describe("a mark longer than the panel", () => {
 
     expect(
       measured.whole,
-      "the passage fits in three lines here, so the cut would prove nothing",
+      "the passage fits in two lines here, so the cut would prove nothing",
     ).toBeGreaterThan(measured.shown + 1);
-    expect(Math.round(measured.shown / measured.line)).toBe(3);
+    expect(Math.round(measured.shown / measured.line)).toBe(2);
     // Clipped for the eye only. Asserted on the accessible name rather than on the text in the
     // DOM, because that is the half that has to survive: a screen reader and `getByRole` alike
     // find this mark by the passage, and clipping must not take it out of the name.

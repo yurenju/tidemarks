@@ -29,6 +29,7 @@ import { groupByChapter } from "../lib/annotation-groups";
 import { boxesContain, hitBoxes, markStrips, textBoxes } from "../lib/highlights";
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
+import NotesChapterHeading from "./NotesChapterHeading";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
 import SelectionLayer from "./SelectionLayer";
@@ -944,11 +945,17 @@ export default function Reader({
         {panelKind === "notes" && (
           <div className="panel-list panel-list-notes">
             {annotations.length === 0 && (
-              <p className="empty">
-                <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
-                  This book is unmarked. Select a passage to leave a mark.
-                </Trans>
-              </p>
+              <div className="notes-empty">
+                {/* One faint run of the mark the reader has not made yet, so the panel is not a
+                    blank column with a sentence in it — and so the sentence comes with a picture
+                    of what "a mark" is. Decoration: the words say all of it. */}
+                <span className="notes-empty-wave" aria-hidden="true" />
+                <p className="empty">
+                  <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
+                    This book is unmarked. Select a passage to leave a mark.
+                  </Trans>
+                </p>
+              </div>
             )}
             {noteGroups.map((group, i) => (
               <section
@@ -964,7 +971,13 @@ export default function Reader({
                     inventing a word for it. A mark before the first chapter — in a dedication, on
                     a cover — is still the reader's, and a heading reading "Front matter" over it
                     would be Tidemarks talking where the book says nothing. */}
-                {group.label !== null && <h3 className="annotation-chapter-name">{group.label}</h3>}
+                {group.label !== null && (
+                  <NotesChapterHeading
+                    label={group.label}
+                    count={group.marks.length}
+                    here={group.tocIndex === currentTocIndex}
+                  />
+                )}
                 {group.marks.map((a) => (
                   <AnnotationItem
                     key={a.id}

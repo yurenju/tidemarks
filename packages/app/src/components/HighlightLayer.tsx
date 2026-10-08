@@ -81,23 +81,30 @@ export default function HighlightLayer({
               />
             )),
       )}
+      {/* **While one passage is selected, it is the wash and nothing else, and the rest fade.**
+          A wave over the wash said "a mark" a second time in the colour that was already saying
+          "this one"; the other marks stay on the page at 30% rather than leaving it
+          (`styles/book.css`). The same rule for a vertical book — the wave runs down the side
+          there, and the wash is the same block on the words. */}
       {painted.map(({ annotation, strips }) =>
-        strips.map((strip, index) => (
-          <div
-            key={`${annotation.id}-${index}`}
-            className="highlight-box"
-            data-axis={vertical ? "v" : "h"}
-            style={
-              {
-                left: strip.left,
-                top: strip.top,
-                width: strip.width,
-                height: strip.height,
-                "--mark": markVar(annotation.color),
-              } as CSSProperties
-            }
-          />
-        )),
+        annotation.id === selectedId
+          ? null
+          : strips.map((strip, index) => (
+              <div
+                key={`${annotation.id}-${index}`}
+                className={selectedId === null ? "highlight-box" : "highlight-box faded"}
+                data-axis={vertical ? "v" : "h"}
+                style={
+                  {
+                    left: strip.left,
+                    top: strip.top,
+                    width: strip.width,
+                    height: strip.height,
+                    "--mark": markVar(annotation.color),
+                  } as CSSProperties
+                }
+              />
+            )),
       )}
     </div>
   );
