@@ -4,7 +4,7 @@
 monorepo，只有一份 lockfile，在某個 package 底下裝東西會裝出一棵對不上的樹。要指定 package 用
 `-w`（`npm install -w app dexie`）。
 
-⚠️ **Node 要官方 build 的 22.18 以上**，`scripts/` 底下的 `.ts` 是直接 `node` 執行的。Ubuntu apt 的
+**Node 要官方 build 的 22.18 以上**，`scripts/` 底下的 `.ts` 是直接 `node` 執行的。Ubuntu apt 的
 `nodejs` 不行，症狀是 `npm run build:frond` 死在 `ERR_UNKNOWN_FILE_EXTENSION ".ts"`，看起來像 code 壞了。
 見 [development.md](docs/development.md)〈需要先有〉。
 
@@ -95,7 +95,7 @@ Tidemarks 而做的，**但 UI 一項都不在它裡面**。
 **frond 吐事實，app 做政策**。事實是「這本書是 rtl、是直排、是繁體、這個範圍佔哪些矩形、
 現在的 fraction 是多少」；政策是「所以往左滑等於下一頁、highlight 畫成這個顏色、目錄長成側欄」。
 
-⚠️ **這條線現在只剩這段文字在守。** 以前擋著違規的是成本：要動 frond 就得開另一個 repo 的 PR、
+**這條線現在只剩這段文字在守。** 以前擋著違規的是成本：要動 frond 就得開另一個 repo 的 PR、
 等 merge、等手動發版。那道摩擦沒有了（[ADR-0017](docs/adr/0017-frond-moves-in-and-stops-being-published.md)），
 現在改 frond 跟改 app 一樣近，所以怎麼分要自己講得清楚。它一句話講得完：
 
@@ -114,7 +114,7 @@ package 邊界是真的邊界：app 一律從 `@yurenju/frond/epub` 與 `@yurenj
 改完 frond 要 `npm run build:frond`（根目錄的 `dev`、`build`、`test` 都會先做這件事；一邊改一邊看
 就開 `npm run build:watch -w @yurenju/frond`）。
 
-⚠️ **`typecheck` 不在那三個裡面**，所以在一個還沒 build 過 frond 的乾淨 worktree 裡，
+**`typecheck` 不在那三個裡面**，所以在一個還沒 build 過 frond 的乾淨 worktree 裡，
 `npm run typecheck` 會噴幾十個錯。它們全部是同一個根因，`Cannot find module '@yurenju/frond/epub'`，
 後面那一長串 `implicitly has an 'any' type` 只是 import 掛掉之後的下游效應。**看起來像 code 壞了，
 其實是環境還沒準備好**，所以新 worktree 的第一件事是：
@@ -165,7 +165,7 @@ custom property。**新增樣式檔就要加進清單**，不然它既不進 bun
 理由（**不是 `docs/` 的一部分**）。之後有 `/zh-TW/…` 的頁面時，那些頁面的 `.md` 就是中文，因為那一頁
 本來就是中文的。
 
-⚠️ **`.astro` 永遠是英文，沒有例外**，它在上面第一列裡。這不只是慣例，是因為 `check-language.ts`
+**`.astro` 永遠是英文，沒有例外**，它在上面第一列裡。這不只是慣例，是因為 `check-language.ts`
 掃 `.astro`，而它的規則二看的是整個檔案的中文與拉丁字母比例，分不出 frontmatter 與版面。一個中文的
 `.astro` 頁面會讓它紅，而唯一的出路是整檔豁免，那會連那個檔案的註解一起放掉。**所以翻譯過的頁面一律
 寫成 `.md`**，版面共用同一個 layout。
@@ -198,7 +198,7 @@ README 不同：授權條款的中文譯本沒有法律效力，出處要照原�
 這個記號**也用在畫面上那幾個字**（`[[Keep reading]]`、`[[Done]]`、`[[Margin]]`），規則跟詞條一樣：
 寫英文那半，因為介面文案的原文就是英文（[ADR-0031](docs/adr/0031-english-is-the-source-and-chinese-becomes-a-translation.md)）。
 
-⚠️ **英文的註解裡不要出現 `〈…〉`**，那是這條界線最常破的地方：句子是英文的，中間夾一個中文詞。
+**英文的註解裡不要出現 `〈…〉`**，那是這條界線最常破的地方：句子是英文的，中間夾一個中文詞。
 要指某個概念就用 `[[…]]` 加英文名；詞彙表裡沒有的概念，就先去詞彙表補一條。**指某份中文文件的某一節
 不要用記號**，那個節名沒有英文版，用一句英文說它在講什麼就好（`see ADR-0014, on what the reader is
 shown while it downloads`）。
@@ -236,7 +236,7 @@ shown while it downloads`）。
 
 豁免清單在 `scripts/language-scan.ts` 裡，只收**中文本身就是主題**的檔案，現在是九個項目
 （`zh-rules.ts`、`zh-lint.ts`、`language-scan.ts`、`chinese.ts`、`locale.ts`、`prototype/`，
-加上其中三個的測試）。⚠️ 豁免是整個檔案的，所以那些檔案裡寫了中文註解，腳本
+加上其中三個的測試）。豁免是整個檔案的，所以那些檔案裡寫了中文註解，腳本
 看不到。**清單短是這件事還可以接受的唯一原因**，要加檔案之前先確認它真的整份都是資料。
 
 翻譯超過幾行的時候，**跟功能變更分成兩個 commit**，讓真正的改動在 diff 裡還讀得出來。
@@ -255,11 +255,11 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 是 frond 的。兩套 ADR **各自編號**，所以引用時要寫清楚是哪一邊的（「frond ADR-0002」加相對路徑）。
 見 `docs/agents/domain.md`。
 
-⚠️ **一個問題只有一份 ADR。** 決定變了就**改寫原本那一份**，不開新編號、不留舊檔案：標題與檔名跟著
+**一個問題只有一份 ADR。** 決定變了就**改寫原本那一份**，不開新編號、不留舊檔案：標題與檔名跟著
 換，編號不換，日期那一行寫成「原始日期，改寫日 改寫」並補一句前一版的標題與它的決定。**新的問題才
 開新編號**，就算它會影響某份既有的 ADR。
 
-⚠️ **註解、文件、issue 裡引用 ADR 一律寫成 `ADR-0007` 這個形狀**（四位數）。預設看這句話寫在哪一邊：
+**註解、文件、issue 裡引用 ADR 一律寫成 `ADR-0007` 這個形狀**（四位數）。預設看這句話寫在哪一邊：
 `packages/frond/` 底下指 frond 那套，其餘指 Tidemarks 那套；**指另一套的時候 `ADR-` 前面要帶著
 `frond` 這個字**。這個 repo 有一百多處引用散在原始碼註解裡，改號的時候找不找得到它們，全靠這個寫法。
 
@@ -270,9 +270,9 @@ Bug 與 task 用 GitHub issue（`gh issue`）；spec 與支撐它的量測以 ma
 
 每一條詞條的 `comment` 是**必填**的，而那是這整件事的重點：翻錯最常見的形式不是翻得爛，是拿
 另一個地方的詞條來用，而從英文字面看不出來的差別只有 comment 講得出來。同一個英文要有兩種
-翻法時加 `context`；⚠️ **只在真的撞到的時候才加**，預設是共用。
+翻法時加 `context`；**只在真的撞到的時候才加**，預設是共用。
 
-⚠️ **`worker/` 底下不能用 macro**（wrangler 走 esbuild，沒有 Babel），Worker 碰得到的 app 模組
+**`worker/` 底下不能用 macro**（wrangler 走 esbuild，沒有 Babel），Worker 碰得到的 app 模組
 也不行，那份清單就是 `tsconfig.worker.json` 的 `include`。見 `docs/agents/i18n.md`。
 
 ### 測試分層
@@ -300,45 +300,39 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 
 #### 一邊改一邊跑的時候，跑窄的那一支
 
-⚠️ **不要每改一行就 `npm run test:container`。** 那一支是兩個 package 的全套；改到一半的時候你要的
+**不要每改一行就 `npm run test:container`。** 那一支是兩個 package 的全套；改到一半的時候你要的
 不是全套，是剛剛那支測試。narrow 的寫法是同一支腳本加 `--only=`：
 
 ```bash
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
 
-⚠️ **不要繞過腳本直接下 `podman run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
+**不要繞過腳本直接下 `podman run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
 
 **21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上三家全套實測的 **6 分 46 秒**。現在本地
 的全套只有 chromium，所以那個數字大約降到三分之一。`--only=frond` 同理。路徑**相對於那個 package**
 （`tests/browser/…`，不是 `packages/app/tests/browser/…`），因為 Playwright 的 cwd 在 package 裡。
 
-順序是**先窄後寬**：改的時候跑窄的，commit 之前跑一次全套，開 PR 之前再跑一次。⚠️ 那兩趟「全套」現在
+順序是**先窄後寬**：改的時候跑窄的，commit 之前跑一次全套，開 PR 之前再跑一次。那兩趟「全套」現在
 都是 chromium 一家，所以**只有 firefox 或 webkit 會紅的失敗第一次出現是在 CI**，代價是多推一輪。
 ADR-0039 把這筆帳算在那裡。
 
-⚠️ **這一節管的是改 code 的迴圈，不管查 flaky。** 查 flake 的時候把範圍縮到單一支 spec，常常直接
+**這一節管的是改 code 的迴圈，不管查 flaky。** 查 flake 的時候把範圍縮到單一支 spec，常常直接
 讓它不再重現，見 `docs/agents/flaky.md`〈想知道一條 flake 有多敏感〉。
 
-⚠️ **輸出一定要存檔再看**（`| tee /tmp/…/ct.log`），不要為了換一個 `grep` 就重跑。實際發生過：同一個
+**輸出一定要存檔再看**（`| tee /tmp/…/ct.log`），不要為了換一個 `grep` 就重跑。實際發生過：同一個
 失敗連跑三趟，只為了先 `tail -60`、再 `grep -B30`、再 `grep -A25`，七分鐘沒有跑到任何新的 code。
 
-⚠️ **在 worktree 裡，帶重導向或 `&&`、`for` 的複合指令會被隔離守衛擋下來**，包括上面那個 `| tee`。
+**在 worktree 裡，帶重導向或 `&&`、`for` 的複合指令會被隔離守衛擋下來**，包括上面那個 `| tee`。
 **寫成 scratchpad 裡的一支 `.sh` 再 `bash` 它**，一次解決，而且下一次要改參數重跑也只要改那個檔案。
 
-#### 跑得完就前景跑，背景的不要用 `sleep` 等
-
-⚠️ **不要用 `sleep N` 去等一個背景任務。** 三場 flaky 調查逐筆量過時間，`sleep` 輪詢在其中兩場都是
-最大的一塊損失，各吃掉工作時長的四分之一與工具時間的一半。
+#### 跑得完就前景跑
 
 **跑得完就前景跑。** 前景的上限是 10 分鐘，而幾乎所有的跑法都在那之內：narrow 那支 21 秒、單一引擎
-一支 spec 幾十秒到兩三分鐘。前景會在它結束的那一秒回來，`sleep` 多付的全是尾巴。
+一支 spec 幾十秒到兩三分鐘。前景會在它結束的那一秒回來。
 
-⚠️ 真的超過 10 分鐘才丟背景，而**查 flaky 常常真的超過**（整套 × 三個並行容器一趟就要五到十分鐘）。
+真的超過 10 分鐘才丟背景，而**查 flaky 常常真的超過**（整套 × 三個並行容器一趟就要五到十分鐘）。
 那種的丟背景，然後**等它自己通知**，不要輪詢。
-
-⚠️ **`sleep 900; tail …` 這種寫法會整個白做。** `sleep` 撞上工具自己的 10 分鐘上限被砍（exit 143），
-分號後面的 `tail` 一次都沒跑到，那一格拿回零位元組。
 
 以上講的是**東西放在哪一層**。**一條測試該不該存在**是另一個問題：每個測試都要說得出它測到的角度，
 而那個角度是其他層次測不到的，答不出來就刪。加測試之前先讀那一份，尤其「同一個命題在上層最多留
@@ -399,7 +393,7 @@ spec／feature 收尾、宣稱完成前，用 playwright-cli 在 host 上把功�
 再逐段讀有沒有「每個字都對、合起來不像中文」的句子。
 
 報告分兩種：`[一定要改]` 是這個 repo 沒有正確用法的字串，照著改；`[要檢查]` 是腳本分不出對錯的，
-**每一條都要給出結論**，改了或者這是正例都算，跳過不算。⚠️ 不要照著建議盲目取代，把對的中文改壞
+**每一條都要給出結論**，改了或者這是正例都算，跳過不算。不要照著建議盲目取代，把對的中文改壞
 比留著一個錯字更糟。
 
 **PR 說明與 issue 內文一律先寫成檔案再送**（`.scratch/pr-body.md`，被 `.gitignore` 擋著），這樣才檢查
@@ -418,7 +412,7 @@ node scripts/zh-lint.ts .scratch/pr-body.md
 **跑 `/code-review`** → **跑 `/zh-check`** → **rebase 到最新的 main 並重跑驗證** → push → 開 PR →
 盯 CI 到綠。
 
-⚠️ **`/code-review` 那一步最常被跳過**，因為前面每一關（typecheck、測試、lint）都綠了，看起來就像
+**`/code-review` 那一步最常被跳過**，因為前面每一關（typecheck、測試、lint）都綠了，看起來就像
 做完了。但那些工具答得出的是「有沒有壞」，答不出「做的是不是票上要的那件事」。**綠燈不是跳過審核的
 理由，它正是最容易讓人跳過的那個情境。**
 
@@ -450,5 +444,5 @@ agent。
 **開完 PR 要盯 CI 到綠**，紅了就查、就修；不是自己造成的（環境層那類）另開 issue 用 `Refs #N` 指過去，
 不要混進這個 diff。做法見 `docs/agents/pull-requests.md`。
 
-⚠️ **等的方式是 `gh run watch <run-id> --exit-status`，不是 `sleep N; gh run list`。** 一輪 CI 八分鐘
+**等的方式是 `gh run watch <run-id> --exit-status`，不是 `sleep N; gh run list`。** 一輪 CI 八分鐘
 省不掉，`sleep` 多付的是間隔的尾巴。真正的槓桿是少推幾輪，不是換一種等法。

@@ -56,7 +56,7 @@ npm run build:frond                    # 產出 dist/，app import 的就是它
 npm run build:watch -w @yurenju/frond  # 一邊改一邊看（跳過出口檢查，那是 build 的事）
 npm run typecheck -w @yurenju/frond    # tsc 掃 src、scripts、tests
 npx vitest run --project frond         # 只跑 frond 的 Node 測試
-npm run test:container                 # 全部：三個 vitest project 加兩套瀏覽器測試
+npm run test:container                 # 全部：四個 vitest project 加兩套瀏覽器測試
 ```
 
 ⚠️ **`test:container` 在你的機器上只跑 chromium**，三家是 CI 在跑
@@ -97,7 +97,7 @@ FROND_BOOKS=/path/to/books npm run scan:books -w @yurenju/frond -- tests/browser
 不進 build context 也不落在 repo 樹裡，那些書有版權（ADR-0007）。
 
 這一趟的產出是**病症清單，不是紅綠燈**：找到的每一項要各自變成一份合成 fixture 與一組測試，回歸才
-守得住。上一次跑的結果與它抓到的三個病記在 ADR-0007 的〈第三層跑過一趟了〉。掃描用的 spec 是一次性
+守得住。上一次跑的結果與它抓到的四個病記在 ADR-0007 的〈第三層跑過一趟了〉。掃描用的 spec 是一次性
 的，放 `tests/browser/evidence/`，不留在 repo。
 
 ## fixture 的位元組是釘死的
