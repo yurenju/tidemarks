@@ -531,6 +531,16 @@ export default function Reader({
   // over the book rather than beside it, so the viewer keeps its size and the book keeps its
   // pagination. Shrinking the page to make room would repaginate it under the reader — asking
   // where you are would move you.
+  //
+  // A panel is another matter: on a desk it takes a column, and raising or closing it lays the
+  // book out again. What that reflow keeps on screen is the passage `lib/chrome.ts` names as
+  // `kept`. **A layout effect, and it has to be**: the reflow starts on frond's own
+  // ResizeObserver, which the browser runs after this commit's layout and before its paint. Told
+  // in a plain effect, frond would already have carried the reader across by the page start.
+  const keptCfi = annotations.find((a) => a.id === chromeState.kept)?.cfiRange;
+  useLayoutEffect(() => {
+    renderer?.keepInView(keptCfi);
+  }, [renderer, keptCfi]);
 
   // The row the panel marks as "you are here", or null in the front matter before the first
   // chapter — the cover is not a chapter, and marking the first one there would be a lie.

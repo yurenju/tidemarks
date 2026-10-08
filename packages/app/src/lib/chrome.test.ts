@@ -286,6 +286,44 @@ describe("the note written on the spot", () => {
   });
 });
 
+// What the page holds on to when the book reflows beside a panel. Whether frond really keeps it on
+// screen is for a browser (`tests/browser/reader/highlights.spec.ts`); what is here is which
+// passage that is, and when it stops being one.
+describe("the passage kept through a reflow", () => {
+  const writing = () => run(at(), { kind: "marked", id: "a", withNote: true });
+
+  it("is the one pointed at, wherever something is", () => {
+    expect(writing().kept).toBe("a");
+    expect(nextChrome(at(), { kind: "markPicked", id: "b" }).kept).toBe("b");
+  });
+
+  // The book takes its column back in the same frame the note closes, and that reflow is the one
+  // that used to put the passage on the next page.
+  it.each([
+    ["Done is pressed", { kind: "noteSaved" } as const],
+    ["the reader taps the page", { kind: "tapped" } as const],
+    ["the panel dismisses itself", { kind: "panelDismissed" } as const],
+  ])("outlives Marking's note when %s, though nothing is pointed at", (_what, event) => {
+    expect(nextChrome(writing(), event)).toMatchObject({
+      chrome: "down",
+      selected: null,
+      kept: "a",
+    });
+  });
+
+  it("is let go by the next thing that happens in Read", () => {
+    const done = nextChrome(writing(), { kind: "noteSaved" });
+    expect(nextChrome(done, { kind: "turned" }).kept).toBeNull();
+    expect(nextChrome(done, { kind: "tapped" }).kept).toBeNull();
+  });
+
+  it("follows the pointer out of Reflect, rather than outliving it", () => {
+    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
+    expect(nextChrome(state, { kind: "turnLanded", showing: [] }).kept).toBeNull();
+    expect(nextChrome(state, { kind: "panelDismissed" }).kept).toBe("a");
+  });
+});
+
 // **A note stops being edited the moment Reflect stops standing**, and nothing has to be lost
 // with it: the words are committed when the box loses focus, so what closes here is the editor
 // and not the writing (ADR-0044, on what it costs). Held any longer, `editing` would still be set the next
@@ -406,12 +444,12 @@ describe("an event that changes nothing returns the same object", () => {
   // [[Reflect]] stays through a turn, so a reader working through their notes sends both of these
   // on every page, and neither may cost a render when it changes nothing.
   it("does when a page is turned in Reflect", () => {
-    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
+    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
     expect(nextChrome(state, { kind: "turned" })).toBe(state);
   });
 
   it("does when a turn lands in Reflect with the passage still on the page", () => {
-    const state = at({ chrome: "reflect", face: "notes", selected: "a" });
+    const state = at({ chrome: "reflect", face: "notes", selected: "a", kept: "a" });
     expect(nextChrome(state, { kind: "turnLanded", showing: ["a"] })).toBe(state);
   });
 
@@ -437,6 +475,7 @@ describe("the chrome an address already naming a face comes back to", () => {
       face: "layout",
       editing: null,
       selected: null,
+      kept: null,
     });
   });
 
@@ -446,6 +485,7 @@ describe("the chrome an address already naming a face comes back to", () => {
       face: "notes",
       editing: null,
       selected: "n1",
+      kept: "n1",
     });
   });
 

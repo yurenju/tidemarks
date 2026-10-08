@@ -399,6 +399,8 @@ export interface FrondHarness {
   resize(width: number, height: number): Promise<Snapshot>;
   /** Lays out again without touching the container size — the "an input to the resolver changed" route. */
   relayout(): Promise<Snapshot>;
+  /** Names the passage a reflow is to leave on screen, `null` for none (`Renderer.keepInView`). */
+  keepInView(cfi: string | null): void;
   /** Every `resolveLayout` call since the mount, in order. */
   layoutCalls(): readonly LayoutCall[];
   /**

@@ -411,7 +411,10 @@ test.describe("returning to the position after a layout change", () => {
   });
 
   test("changing the column count also gets back", async ({ page }) => {
-    await mountFixture(page, "huge-single-section", { settings: { columns: 1 } });
+    await mountFixture(page, "huge-single-section", {
+      settings: { columns: 1 },
+      viewport: { width: 800, height: 600 },
+    });
     for (let step = 0; step < 3; step += 1) {
       await page.evaluate(() => window.frond.next());
     }
@@ -420,6 +423,104 @@ test.describe("returning to the position after a layout change", () => {
     await page.evaluate(() => window.frond.applySettings({ columns: 2 }));
 
     expect(await isOnScreen(page, marked.cfi)).toBe(true);
+  });
+});
+
+/**
+ * A passage the consumer names with `keepInView`, carried across a reflow in place of the page
+ * start.
+ *
+ * Every test starts from a passage near the **foot** of the page, because that is the case the
+ * page-start anchor gets wrong: a page of a different size begins somewhere else, and whatever
+ * was at the bottom of the old one is the first thing to fall onto the next. Each asks the
+ * control question first — the passage is lost without the hold — so a fixture that changes
+ * under it cannot leave the hold proving nothing.
+ */
+test.describe("a passage kept in view", () => {
+  /**
+   * A horizontal chapter in which **no word occurs twice** — `w1 w2 w3 …` — so the last words on
+   * a page can be found again by searching for them. A real book repeats itself, and a search
+   * finds the first occurrence rather than the one at the foot of the page.
+   */
+  const UNIQUE_WORDS = [
+    `<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head><title>t</title></head>
+  <body>${Array.from(
+    { length: 40 },
+    (_unused, paragraph) =>
+      `<p>${Array.from({ length: 60 }, (_word, word) => `w${paragraph * 60 + word}`).join(" ")}</p>`,
+  ).join("")}</body>
+</html>`,
+  ];
+
+  /** The last three words on the page on screen, as a range CFI. */
+  async function passageAtTheFoot(page: Parameters<typeof mountFixture>[0]): Promise<string> {
+    const cfi = await page.evaluate(() => {
+      const pageRange = window.frond.snapshot().pageRange;
+      const text = pageRange === null ? null : window.frond.textInRange(pageRange);
+      if (text === null) return null;
+      // Whole words only: a tail cut mid-word could also be the middle of another one.
+      return window.frond.findText(text.trim().split(/\s+/).slice(-4, -1).join(" "));
+    });
+    expect(cfi, "no text at the foot of the page").not.toBeNull();
+    return cfi!;
+  }
+
+  async function atTheFoot(page: Parameters<typeof mountFixture>[0]): Promise<string> {
+    await page.evaluate(
+      ([sections]) =>
+        window.frond.mountInline(sections as string[], {
+          settings: { columns: 1 },
+          viewport: { width: 800, height: 600 },
+        }),
+      [UNIQUE_WORDS] as const,
+    );
+    for (let step = 0; step < 3; step += 1) await page.evaluate(() => window.frond.next());
+    return passageAtTheFoot(page);
+  }
+
+  for (const [direction, width] of [
+    ["narrower", 560],
+    ["wider", 1000],
+  ] as const) {
+    test(`stays on screen when the container gets ${direction}`, async ({ page }) => {
+      const kept = await atTheFoot(page);
+
+      // The control: the same move with nothing kept loses it.
+      await page.evaluate((w) => window.frond.resize(w, 600), width);
+      expect(await isOnScreen(page, kept)).toBe(false);
+
+      const again = await atTheFoot(page);
+      expect(again).toBe(kept);
+      await page.evaluate((cfi) => window.frond.keepInView(cfi), again);
+      await page.evaluate((w) => window.frond.resize(w, 600), width);
+
+      expect(await isOnScreen(page, again)).toBe(true);
+    });
+  }
+
+  test("stays on screen when the settings change", async ({ page }) => {
+    const kept = await atTheFoot(page);
+    await page.evaluate((cfi) => window.frond.keepInView(cfi), kept);
+    await page.evaluate(() => window.frond.applySettings({ fontSize: 120 }));
+
+    expect(await isOnScreen(page, kept)).toBe(true);
+  });
+
+  // A reflow is not a navigation: a passage the reader has turned away from does not pull them
+  // back, and the page start anchors as it always did.
+  test("is ignored once the page on screen is another one", async ({ page }) => {
+    const kept = await atTheFoot(page);
+    await page.evaluate((cfi) => window.frond.keepInView(cfi), kept);
+    // Far enough that the narrower page around where reading is cannot reach back to it.
+    await page.evaluate(() => window.frond.next());
+    await page.evaluate(() => window.frond.next());
+    const turned = await page.evaluate(() => window.frond.next());
+    await page.evaluate(() => window.frond.resize(560, 600));
+
+    expect(await isOnScreen(page, turned.cfi)).toBe(true);
+    expect(await isOnScreen(page, kept)).toBe(false);
   });
 });
 
