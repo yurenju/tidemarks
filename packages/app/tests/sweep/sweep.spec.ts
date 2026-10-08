@@ -420,6 +420,45 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await openBook("草枕", /^一$/);
   });
 
+  // Two notes starting on one column, so their [[Note dot]]s share one place in the top margin,
+  // each in its own ink. "Mark and note" writes in the default ink, so the second is marked from
+  // the colour row and given its note afterwards, from its card.
+  await step("reader-vertical-note-dots", async () => {
+    const toolbar = page.locator(".highlight-toolbar");
+    const panel = page.getByTestId("panel-notes");
+
+    expect(await selectProse(page, { from: 0, to: 3 })).not.toBeNull();
+    await expect(toolbar).toBeVisible({ timeout: 10_000 });
+    await toolbar.getByRole("button", { name: "Mark and note" }).click();
+    await page.locator(".note-editor textarea").fill("ここから読み直す。");
+    await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
+    await closePanel();
+
+    expect(await selectProse(page, { from: 5, to: 8 })).not.toBeNull();
+    await expect(toolbar).toBeVisible({ timeout: 10_000 });
+    await toolbar.locator(".swatch").nth(1).click();
+    await openPanel(/Notes/, "panel-notes");
+    // On a desk only the selected card offers to write; narrower, every card does. Asked once both
+    // cards are drawn, and of the second card alone: asked earlier, an empty list says "no" on a
+    // phone too, and pressing the quote there closes the panel the box was about to appear in.
+    const cards = panel.locator(".annotation-item");
+    await expect(cards).toHaveCount(2);
+    const write = cards.nth(1).getByRole("button", { name: "Write a note…" });
+    if (!(await write.isVisible())) await cards.nth(1).locator(".annotation-quote").click();
+    await write.click();
+    await page.locator(".note-editor textarea").fill("前の段落と比べる。");
+    await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
+    await closePanel();
+
+    // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
+    // on the page and the other dot is faded. A reload puts both at rest, which is the picture.
+    await page.reload();
+    await settled(page);
+    await expect(page.getByTestId("note-dot")).toHaveCount(1);
+    await expect(page.getByTestId("note-dot").locator(".note-dot-ink")).toHaveCount(2);
+    await page.waitForTimeout(400);
+  });
+
   await step("reader-vertical-chrome-up", async () => {
     await raiseChrome();
   });
@@ -505,14 +544,20 @@ async function chromeState(page: Page): Promise<string> {
  * is what a test about selection wants. A picture wants the highlight to land on **prose** —
  * the first sweep painted one over Standard Ebooks' imprint, and then over a chapter subtitle,
  * before this grew the two conditions below.
+ *
+ * `part` narrows it to characters `from` to `to` of that run, counted from its first one that is
+ * not white space — for a picture that wants two passages on one line rather than one whole run.
  */
-async function selectProse(page: Page): Promise<string | null> {
+async function selectProse(
+  page: Page,
+  part?: { from: number; to: number },
+): Promise<string | null> {
   return await page
     .locator(".viewer-mount iframe[data-frond-page]")
     .last()
     .contentFrame()
     .locator("body")
-    .evaluate((body) => {
+    .evaluate((body, part) => {
       const document = body.ownerDocument;
       const view = document.defaultView;
       if (view === null) return null;
@@ -521,7 +566,7 @@ async function selectProse(page: Page): Promise<string | null> {
       while (walker.nextNode() !== null) {
         const node = walker.currentNode;
         const value = (node.nodeValue ?? "").trim();
-        if (value.length < 8) continue;
+        if (value.length < Math.max(8, part?.to ?? 0)) continue;
 
         const parent = node.parentElement;
         // Inside a paragraph, and outside any heading. Both conditions are needed: the chapter
@@ -544,11 +589,16 @@ async function selectProse(page: Page): Promise<string | null> {
 
         const selection = document.getSelection();
         if (selection === null) return null;
+        if (part !== undefined) {
+          const lead = (node.nodeValue ?? "").search(/\S/);
+          range.setStart(node, lead + part.from);
+          range.setEnd(node, lead + part.to);
+        }
         selection.removeAllRanges();
         selection.addRange(range);
-        return value;
+        return part === undefined ? value : range.toString();
       }
 
       return null;
-    });
+    }, part);
 }

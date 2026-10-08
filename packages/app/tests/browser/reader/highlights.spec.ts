@@ -304,6 +304,76 @@ test.describe("drawing a highlight", () => {
     await expect(page.locator(".note-editor textarea")).toHaveCount(0);
     expect(await visibleText(page)).toBe(before);
   });
+
+  test("a mark with a note gets a dot in the margin, and the dot leads to it", async ({ page }) => {
+    // Where the dot goes, how two on one line share a place, and which page a long passage is
+    // marked on are `noteDots`'s, in src/lib/highlights.test.ts. What is left for a browser is
+    // that the dot is drawn for a note and not for a bare mark, and that both ways in reach
+    // [[Reflect]]: a press, which travels frond's `pointerup` like a press on the text, and the
+    // keyboard, which only the button answers. The dot is an icon button, so it is found by testid.
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+    const dot = page.getByTestId("note-dot");
+    await expect(dot).toHaveCount(0);
+
+    // The note is written into the stored mark rather than through the note box: in firefox,
+    // writing in that box leaves the whole reader scrolled up and the top margin off the screen
+    // (#249), which would take this test with it for a reason that has nothing to do with dots.
+    // What the dot answers to is the stored note, so that is what is changed.
+    await page.evaluate(
+      (passage) =>
+        new Promise<void>((resolve, reject) => {
+          const open = indexedDB.open("tidemarks");
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction("annotations", "readwrite");
+            const store = tx.objectStore("annotations");
+            const all = store.getAll();
+            all.onsuccess = () => {
+              for (const row of all.result) {
+                if (row.text === passage) {
+                  store.put({ ...row, note: "Worth coming back to.", updatedAt: Date.now() });
+                }
+              }
+            };
+            tx.oncomplete = () => {
+              db.close();
+              resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+          };
+        }),
+      text,
+    );
+    await page.reload();
+    await settled(page);
+    const panel = page.getByTestId("panel-notes");
+
+    await expect(dot).toHaveCount(1);
+    // Named for the passage it belongs to, by its opening words.
+    // A prefix rather than a pattern: the passage is the book's own text, punctuation and all.
+    const name = (await dot.getAttribute("aria-label")) ?? "";
+    expect(name.startsWith(`Note: ${text.trim().slice(0, 8)}`), name).toBe(true);
+    const at = (await dot.boundingBox())!;
+    await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: text.slice(0, 12) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await dot.focus();
+    await page.keyboard.press("Enter");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: text.slice(0, 12) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
 });
 
 // Wide enough that the panel stands beside the book instead of over it — the one arrangement

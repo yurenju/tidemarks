@@ -11,7 +11,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 // The box to clip against is frond's `pageBox()`, and the type is frond's too — this module
 // never measures anything itself, it decides what to do with what frond measured.
-import type { PageBox } from "@yurenju/frond/renderer";
+import { COLUMN_GAP, type PageBox } from "@yurenju/frond/renderer";
 
 export interface RectLike {
   readonly x: number;
@@ -181,6 +181,168 @@ export function hitBoxes(marked: readonly MarkedRectLike[], page: PageBox): High
     marked.map((one) => one.rect),
     page,
   );
+}
+
+/** How wide a [[Note dot]] is drawn, in px. */
+export const NOTE_DOT_SIZE = 6;
+
+/**
+ * The square a [[Note dot]] answers a press in, centred on it.
+ *
+ * Four times the dot, because a fingertip does not find a 6px target. A pair of dots on one line
+ * shares one of these rather than splitting it: two 12px halves would each be too small to hit.
+ */
+export const NOTE_DOT_TARGET = 24;
+
+/** How far apart the centres of two dots on one line sit — less than a dot, so they overlap. */
+export const NOTE_DOT_STEP = 4;
+
+/**
+ * The furthest a dot's centre stands out from the page's edge.
+ *
+ * Half the target, so on a wide margin the square reaches exactly to the text and no further. A
+ * phone's margin is only 20px, and there the dot sits in the middle of it instead — its square
+ * then runs a few px over the text, which is the price of a target a finger can find there.
+ */
+const NOTE_DOT_REACH = NOTE_DOT_TARGET / 2;
+
+/** How many characters of a passage name its dot: enough to tell two notes apart, not a reading. */
+export const NOTE_DOT_NAME_LENGTH = 20;
+
+/**
+ * The opening words a [[Note dot]] is named by for a screen reader — "Note:" and these.
+ *
+ * Counted in characters rather than words: a Chinese or Japanese passage has no spaces to count,
+ * and a code point at a time keeps a character outside the BMP whole.
+ */
+export function noteDotName(text: string): string {
+  const characters = [...text.trim()];
+  return characters.length > NOTE_DOT_NAME_LENGTH
+    ? `${characters.slice(0, NOTE_DOT_NAME_LENGTH).join("")}…`
+    : characters.join("");
+}
+
+/** A marked passage with a note on it, as the dots need it: who it is, its ink, its rectangles. */
+export interface NotedPassage {
+  readonly id: string;
+  readonly color: string;
+  readonly marked: readonly MarkedRectLike[];
+}
+
+/** One dot to draw: whose it is, its ink, and its centre in container coordinates. */
+export interface NoteDot {
+  id: string;
+  color: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * The dots on one line — one or two — and the square they answer a press in together.
+ *
+ * `dots[0]` is the passage that is read first, and a press on the square picks it.
+ */
+export interface NoteDotGroup {
+  dots: NoteDot[];
+  target: HighlightBox;
+}
+
+/**
+ * Where the [[Note dot]]s go on the page in front of the reader: one per passage with a note,
+ * beside the first line of it, in the margin at the end that line starts from — left of a
+ * horizontal line, above a vertical one.
+ *
+ * **The first line, and only on the page that line is on.** A passage running across a page
+ * break is marked where it begins, which is also the page [[Reflect]] stops on when it is picked.
+ * A passage whose opening line is on the previous page gets no dot here, though its text does.
+ *
+ * **Two passages starting on one line share a place.** Their dots are set side by side and
+ * overlapping, the one read first at the end the line starts from — to the left on a horizontal
+ * line, to the right above a vertical one, since vertical lines run right to left. A third on the
+ * same line is not drawn: a row of dots in the margin is a thing to count, not a mark to notice.
+ *
+ * **In two columns, the second column's margin is the gap before it.** A dot in the page's own
+ * margin would sit beside the first column's line at that height, which is a different passage.
+ * Only a horizontal book is ever set in two (frond cannot paginate a vertical one in more), so
+ * `columns` is about horizontal pages; it is the count `resolveLayout` last answered with.
+ *
+ * **A right-to-left horizontal book is not handled**: its lines start at the right, and these dots
+ * still go in the left margin. The spec says "left" for horizontal, and no such book is in the
+ * library yet; the rule it would follow is the same one — outside the end the line starts from.
+ *
+ * `passages` is taken in book order and the groups come back in it, which is the order they are
+ * reached by Tab.
+ */
+export function noteDots(
+  passages: readonly NotedPassage[],
+  page: PageBox,
+  vertical: boolean,
+  columns = 1,
+): NoteDotGroup[] {
+  const count = vertical ? 1 : Math.max(1, columns);
+  const pitch = (page.width + COLUMN_GAP) / count;
+  const groups: {
+    column: number;
+    across: { start: number; end: number };
+    members: NotedPassage[];
+  }[] = [];
+
+  for (const passage of passages) {
+    const first = lines(passage.marked, vertical)[0];
+    if (first === undefined) continue;
+    const text = first.filter((one) => one.role === "text");
+    // Clipped to the page, so a passage that begins on another page has nothing left here.
+    const shown = visibleBoxes(
+      (text.length > 0 ? text : first).map((one) => one.rect),
+      page,
+    );
+    if (shown.length === 0) continue;
+
+    const across = {
+      start: Math.min(...shown.map((box) => (vertical ? box.left : box.top))),
+      end: Math.max(
+        ...shown.map((box) => (vertical ? box.left + box.width : box.top + box.height)),
+      ),
+    };
+    const column = Math.min(
+      count - 1,
+      Math.max(0, Math.floor((Math.min(...shown.map((box) => box.left)) - page.left) / pitch)),
+    );
+    const line = groups.find(
+      (group) =>
+        group.column === column &&
+        Math.min(group.across.end, across.end) - Math.max(group.across.start, across.start) > 0,
+    );
+    if (line === undefined) groups.push({ column, across, members: [passage] });
+    else if (line.members.length < 2) line.members.push(passage);
+  }
+
+  return groups.map(({ column, across, members }) => {
+    const middle = (across.start + across.end) / 2;
+    const edge = page.left + column * pitch;
+    const margin = column === 0 ? page.left : COLUMN_GAP;
+    const centre = vertical
+      ? { x: middle, y: page.top - Math.min(NOTE_DOT_REACH, page.top / 2) }
+      : { x: edge - Math.min(NOTE_DOT_REACH, margin / 2), y: middle };
+    // Along the margin, the start of the line is left for a horizontal one and right for a
+    // vertical one; the first of a pair goes that way.
+    const toStart = vertical ? 1 : -1;
+    const spread = members.length === 2 ? NOTE_DOT_STEP / 2 : 0;
+    return {
+      dots: members.map((member, index) => ({
+        id: member.id,
+        color: member.color,
+        x: centre.x + (index === 0 ? toStart : -toStart) * spread,
+        y: centre.y,
+      })),
+      target: {
+        left: centre.x - NOTE_DOT_TARGET / 2,
+        top: centre.y - NOTE_DOT_TARGET / 2,
+        width: NOTE_DOT_TARGET,
+        height: NOTE_DOT_TARGET,
+      },
+    };
+  });
 }
 
 /** The side a mark is drawn beyond: under a horizontal line, to the right of a vertical one. */
