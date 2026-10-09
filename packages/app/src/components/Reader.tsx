@@ -28,7 +28,8 @@ import { AT_REST } from "../lib/turn";
 import { useSelection } from "../lib/useSelection";
 import { chapterAt, type ChapterBoundary, type FlatTocItem } from "../lib/toc";
 import { groupByChapter } from "../lib/annotation-groups";
-import { markToOpenAt, markToTurnTo } from "../lib/annotation-position";
+import { countOf, markToOpenAt, markToTurnTo, neighbourOf } from "../lib/annotation-position";
+import { sectionOfCfi, type MarkedParagraph } from "../lib/marked-paragraphs";
 import {
   boxesContain,
   hitBoxes,
@@ -41,6 +42,8 @@ import {
 import Panel from "./Panel";
 import AnnotationItem from "./AnnotationItem";
 import NotesChapterHeading from "./NotesChapterHeading";
+import NotePage from "./NotePage";
+import NoteIndexItem from "./NoteIndexItem";
 import TypographyForm from "./TypographyForm";
 import HighlightLayer, { type PaintedHighlight } from "./HighlightLayer";
 import SelectionLayer from "./SelectionLayer";
@@ -66,6 +69,23 @@ const PANEL_FACES: Record<Face, { title: MessageDescriptor; testId: string }> = 
   notes: { title: READER_MESSAGES.panelNotes, testId: "panel-notes" },
   layout: { title: READER_MESSAGES.panelLayout, testId: "panel-layout" },
 };
+
+/** The whole of [[Notes]] when nothing has been marked in this book, at either width. */
+function NotesEmpty() {
+  return (
+    <div className="notes-empty">
+      {/* One faint run of the mark the reader has not made yet, so the panel is not a blank column
+          with a sentence in it — and so the sentence comes with a picture of what "a mark" is.
+          Decoration: the words say all of it. */}
+      <span className="notes-empty-wave" aria-hidden="true" />
+      <p className="empty">
+        <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
+          This book is unmarked. Select a passage to leave a mark.
+        </Trans>
+      </p>
+    </div>
+  );
+}
 
 /**
  * Moves the highlight layer with the page a turn is sliding.
@@ -183,6 +203,11 @@ export default function Reader({
   const [renderer, setRenderer] = useState<Renderer | null>(null);
   const [title, setTitle] = useState("");
   const [toc, setToc] = useState<FlatTocItem[]>([]);
+  // The book's paragraphs around a mark, for the phone's one-note page (`lib/marked-paragraphs.ts`).
+  // A function held as state, so the page asks again once the book has opened.
+  const [paragraphsOf, setParagraphsOf] = useState<
+    ((cfi: string) => MarkedParagraph[] | null) | null
+  >(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   /**
    * Whether the list above has been read out of Dexie yet.
@@ -412,6 +437,7 @@ export default function Reader({
       setSimplified(facts.simplified);
       setScript(facts.script);
       setWantsWebFont(facts.wantsWebFont);
+      setParagraphsOf(() => facts.paragraphsOf);
     },
     direction: setRtl,
     vertical: setVerticalBook,
@@ -601,7 +627,7 @@ export default function Reader({
     const body = item?.closest<HTMLElement>(".panel-body");
     if (!item || !body) return;
     const run = item.closest<HTMLElement>(".annotation-chapter");
-    const anchor = run?.querySelector(".annotation-item") === item ? run : item;
+    const anchor = run?.querySelector("[data-mark]") === item ? run : item;
     body.scrollTop += anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
   }
   // Set as [[Reflect]] opens with nothing pointed at, and spent once there is a page to answer
@@ -637,6 +663,75 @@ export default function Reader({
     const onPage = paintedRef.current.map((entry) => entry.annotation.id);
     const target = markToTurnTo(annotations, onPage);
     if (target !== null) scrollNotesTo(target.id);
+  });
+
+  /**
+   * **[[Notes]] on a phone is two storeys, and the second is a page of its own** (#239): an index of
+   * every mark, and one note at a time with the book's paragraphs above it (`NotePage`). On a desk
+   * the same second storey is a card selected in the list beside the book (ADR-0046).
+   *
+   * Which one the address's second storey draws is a question about the window, and `lib/media.ts`
+   * says why that is the width alone. Asked here rather than in CSS because the two are not one
+   * layout drawn two ways — they are different things on screen, read out of different data.
+   *
+   * ⚠️ **Writing a note is still the old list on a phone**, card and box together, until the page
+   * gets a writing view of its own (#240). So a note open for writing is drawn there, whichever
+   * storey the reader pressed [[Edit note]] on.
+   *
+   * Read off `selected` rather than off [[Reflect]] standing, so that the page is still the page
+   * for the 180ms the panel takes to slide away after the ✕ — `selected` outlives the panel, and
+   * an index drawn in its place would flash past on the way out.
+   */
+  const onPhone = !bookKeepsAColumn;
+  const writingOnPhone = onPhone && editingId !== null;
+  const pageMark =
+    onPhone && !writingOnPhone && selectedNoteId !== null
+      ? (annotations.find((a) => a.id === selectedNoteId) ?? null)
+      : null;
+  const pageChapter =
+    pageMark === null
+      ? null
+      : (chapterAt(sectionOfCfi(pageMark.cfiRange) ?? -1, chapters)?.label ?? null);
+  /**
+   * The note the reader has just stepped back from, page to index — marked in the index and
+   * scrolled to, so a reader who walked a few notes along sees where they got to. **Scrolled to and
+   * marked, not selected**: the index has no selection (`lib/annotation-position.ts`).
+   *
+   * Whatever took them back: [[All]], or the back button out of a note opened from the index.
+   * [[Reflect]] ending forgets it, so a list raised again later opens on the page's first mark, as
+   * any list opening does.
+   */
+  const [recent, setRecent] = useState<string | null>(null);
+  const lastPage = useRef<string | null>(null);
+  const pageId = pageMark?.id ?? null;
+  useEffect(() => {
+    if (!reflecting) {
+      lastPage.current = null;
+      setRecent(null);
+      return;
+    }
+    if (pageId !== null) {
+      lastPage.current = pageId;
+      return;
+    }
+    if (lastPage.current !== null) {
+      setRecent(lastPage.current);
+      lastPage.current = null;
+    }
+  }, [reflecting, pageId]);
+  // And brought into view once the index is there to scroll: it mounts a render after the page
+  // goes, which is what `notesList` being state is for. Once per note and per list, like the two
+  // above, so a render for any other reason does not pull the index back under the reader.
+  const scrolledToRecent = useRef<{ id: string | null; list: HTMLDivElement | null }>({
+    id: null,
+    list: null,
+  });
+  useEffect(() => {
+    if (recent === null || pageMark !== null || !notesList) return;
+    const done = scrolledToRecent.current;
+    if (done.id === recent && done.list === notesList) return;
+    scrolledToRecent.current = { id: recent, list: notesList };
+    scrollNotesTo(recent);
   });
 
   // Which highlight rectangles are on the page in front of the reader.
@@ -764,6 +859,23 @@ export default function Reader({
     scheduleSync();
   }
 
+  /** A passage pressed in [[Notes]], or [[Open in book]] on a phone's note page: go and look at it. */
+  function jumpTo(a: Annotation) {
+    // The jump is the place's to make: whether it opens a visit and where the book moves to are
+    // one decision, and they used to be two calls that had to be kept in the right order
+    // (`lib/place.ts`).
+    visitPassage(a.cfiRange);
+    // And the address bar follows, so the passage on screen is one the reader can copy out and
+    // send. The jump itself has already happened — this names it.
+    onAt?.({ kind: "cfi", cfi: a.cfiRange });
+    // **Not `jumped`, unlike the table of contents.** A chapter is a place to be left at; a note
+    // is one of a list the reader is working through, and closing the panel under them costs a
+    // press per passage to get back to it. So the panel stays and the passage is washed instead —
+    // but only where the book still has a column of its own to be seen in, which is what
+    // `keepPanel` carries and `lib/media.ts` explains.
+    sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
+  }
+
   // What the top bar says the reader is in, or null in the front matter — the cover is not a
   // chapter, and naming the first one there would be a lie.
   const chapterLabel = chapterAt(sectionIndex, chapters)?.label ?? null;
@@ -846,7 +958,15 @@ export default function Reader({
               dots={dots}
               onDot={(id) => sendChrome({ kind: "markPicked", id })}
               vertical={verticalBook}
-              selectedId={selectedNoteId}
+              // **Only while it is on this page.** A phone's note page walks the whole book with the
+              // book standing still underneath, so the ✕ can come back to a page the pointed-at
+              // passage is not on — and every mark there faded around a wash nobody can see.
+              // `turnLanded` drops it at the next turn; until then the page reads as it was left.
+              selectedId={
+                painted.some((entry) => entry.annotation.id === selectedNoteId)
+                  ? selectedNoteId
+                  : null
+              }
             />
             {/* Only for a selection we drew: where the browser drew one it is already on
                 screen, and a second wash over it would be twice the colour. */}
@@ -1047,8 +1167,19 @@ export default function Reader({
       <Panel
         open={panelOpen}
         onClose={() => sendChrome({ kind: "panelDismissed" })}
-        title={PANEL_FACES[face].title}
+        // A note's page is titled with the chapter it was made in, so a reader stepping across a
+        // chapter's end sees it change. Where the book names none, it is [[Notes]] as ever.
+        title={face === "notes" && pageChapter !== null ? pageChapter : PANEL_FACES[face].title}
         testId={PANEL_FACES[face].testId}
+        actions={
+          face === "notes" && pageMark !== null ? (
+            <button type="button" className="ghost note-page-open" onClick={() => jumpTo(pageMark)}>
+              <Trans comment="Button in the top bar of the phone's one-note page: closes the notes and turns the book to where this passage is. Beside the ✕, which closes them and leaves the book where it was.">
+                Open in book
+              </Trans>
+            </button>
+          ) : undefined
+        }
         // Read off the face rather than written at each of the three, so the one question the
         // four faces differ by has one answer per face and one place to change it
         // (`lib/media.ts`).
@@ -1084,21 +1215,63 @@ export default function Reader({
           </div>
         )}
 
-        {face === "notes" && (
+        {face === "notes" && pageMark !== null && (
+          <NotePage
+            // A step to another note is a new page: its passage starts cut and its scroll at the top.
+            key={pageMark.id}
+            annotation={pageMark}
+            paragraphs={paragraphsOf?.(pageMark.cfiRange) ?? null}
+            fontSize={settings.fontSize}
+            count={countOf(annotations, pageMark.id) ?? { nth: 1, total: annotations.length }}
+            previous={neighbourOf(annotations, pageMark.id, "previous")}
+            next={neighbourOf(annotations, pageMark.id, "next")}
+            // The same storey, so the address writes over rather than stacking an entry per step
+            // (`App.tsx`): back leaves the note, however many were walked through.
+            onPick={(id) => sendChrome({ kind: "markPicked", id })}
+            // Down a storey, to the index. ⚠️ Not always a step back in the history, which is why
+            // nothing here says how: a note opened from the page has no index under it to step
+            // back to, and `App.tsx` writes the index over it instead (`behind`).
+            onAll={() => sendChrome({ kind: "pickDropped" })}
+            onEdit={() => sendChrome({ kind: "editNote", id: pageMark.id })}
+          />
+        )}
+
+        {face === "notes" && pageMark === null && onPhone && !writingOnPhone && (
+          <div
+            className="panel-list panel-list-notes notes-index"
+            data-testid="notes-index"
+            ref={setNotesList}
+          >
+            {annotations.length === 0 && <NotesEmpty />}
+            {noteGroups.map((group, i) => (
+              <section
+                key={`${group.tocIndex ?? "unplaced"}-${i}`}
+                className="annotation-chapter"
+                data-testid="annotation-chapter"
+              >
+                {group.label !== null && (
+                  <NotesChapterHeading
+                    label={group.label}
+                    count={group.marks.length}
+                    here={group.tocIndex === currentTocIndex}
+                  />
+                )}
+                {group.marks.map((a) => (
+                  <NoteIndexItem
+                    key={a.id}
+                    annotation={a}
+                    recent={recent === a.id}
+                    onOpen={() => sendChrome({ kind: "markPicked", id: a.id })}
+                  />
+                ))}
+              </section>
+            ))}
+          </div>
+        )}
+
+        {face === "notes" && pageMark === null && (!onPhone || writingOnPhone) && (
           <div className="panel-list panel-list-notes" ref={setNotesList}>
-            {annotations.length === 0 && (
-              <div className="notes-empty">
-                {/* One faint run of the mark the reader has not made yet, so the panel is not a
-                    blank column with a sentence in it — and so the sentence comes with a picture
-                    of what "a mark" is. Decoration: the words say all of it. */}
-                <span className="notes-empty-wave" aria-hidden="true" />
-                <p className="empty">
-                  <Trans comment="The whole of the notes panel when nothing has been marked in this book. Two short sentences: what is true, then what to do about it.">
-                    This book is unmarked. Select a passage to leave a mark.
-                  </Trans>
-                </p>
-              </div>
-            )}
+            {annotations.length === 0 && <NotesEmpty />}
             {noteGroups.map((group, i) => (
               <section
                 // **The row and the position, not the row alone.** A chapter the list returns
@@ -1126,22 +1299,7 @@ export default function Reader({
                     annotation={a}
                     editing={editingId === a.id}
                     selected={selectedNoteId === a.id}
-                    onJump={() => {
-                      // The jump is the place's to make: whether it opens a visit and where the
-                      // book moves to are one decision, and they used to be two calls that had to
-                      // be kept in the right order (`lib/place.ts`).
-                      visitPassage(a.cfiRange);
-                      // And the address bar follows, so the passage on screen is one the reader can
-                      // copy out and send. The jump itself has already happened — this names it.
-                      onAt?.({ kind: "cfi", cfi: a.cfiRange });
-                      // **Not `jumped`, unlike the table of contents.** A chapter is a place to be
-                      // left at; a note is one of a list the reader is working through, and closing
-                      // the panel under them costs a press per passage to get back to it. So the
-                      // panel stays and the passage is washed instead — but only where the book
-                      // still has a column of its own to be seen in, which is what `keepPanel`
-                      // carries and `lib/media.ts` explains.
-                      sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
-                    }}
+                    onJump={() => jumpTo(a)}
                     onEdit={() => sendChrome({ kind: "editNote", id: a.id })}
                     onPersist={(note) => void persistNote(a.id, note)}
                     onSave={(note) => void saveNote(a.id, note)}

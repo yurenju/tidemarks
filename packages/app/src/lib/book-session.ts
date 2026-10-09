@@ -1,7 +1,7 @@
 import type { I18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { RefObject } from "react";
-import { EpubBook, parseCfi, sectionIndexOf } from "@yurenju/frond/epub";
+import { ContentDocument, EpubBook, parseCfi, sectionIndexOf } from "@yurenju/frond/epub";
 import {
   Renderer,
   type PageOffset,
@@ -18,6 +18,7 @@ import { frondLayout, frondSettings, readRootFontSize, type ReaderSettings } fro
 import { detectScript, type Script } from "./line-length";
 import { detectVariant } from "./chinese";
 import { sampleText } from "./epub";
+import { sectionOfCfi, paragraphsOf, type MarkedParagraph } from "./marked-paragraphs";
 import { needsWebFont } from "./web-font";
 import type { LoadedWebFont } from "./web-font-store";
 import { createDirection, createNavigator, type Navigator } from "./navigator";
@@ -86,6 +87,11 @@ export interface BookFacts {
   script: Script;
   /** Whether there are enough Han characters to be worth fetching a face for (ADR-0014). */
   wantsWebFont: boolean;
+  /**
+   * The paragraphs a mark was made in, read out of the epub rather than off the page — the note
+   * shown may be anywhere in the book (`lib/marked-paragraphs.ts`). `null` where the book cannot place it.
+   */
+  paragraphsOf: (cfi: string) => MarkedParagraph[] | null;
 }
 
 /**
@@ -269,6 +275,34 @@ export async function readAnnotations(bookId: string): Promise<Annotation[]> {
  */
 // ponytail: <1s sessions dropped, filters StrictMode double-mount noise
 const SHORTEST_SITTING_MS = 1000;
+
+/**
+ * `paragraphsOf` over a whole book, parsing each section the first time a mark in it is asked about.
+ *
+ * Held per section because the phone's one-note page asks again on every step through the notes,
+ * and most steps stay in the chapter the last one was in. A section that will not parse answers
+ * `null`, as one broken section rather than a broken book.
+ */
+function paragraphReader(book: EpubBook): (cfi: string) => MarkedParagraph[] | null {
+  const read = new Map<number, ContentDocument | null>();
+  return (cfi) => {
+    const index = sectionOfCfi(cfi);
+    const section = index === undefined ? undefined : book.readingOrder[index];
+    if (index === undefined || section === undefined) return null;
+    if (!read.has(index)) {
+      try {
+        read.set(
+          index,
+          ContentDocument.parse(new TextDecoder().decode(book.bytes(section.path)), index),
+        );
+      } catch {
+        read.set(index, null);
+      }
+    }
+    const document = read.get(index);
+    return document ? paragraphsOf(document, cfi) : null;
+  };
+}
 
 export function openBookSession(options: BookSessionOptions): BookSession {
   const { bookId, i18n, mount, renderer, openAt, select, settings, selection, place, ground, on } =
@@ -625,6 +659,7 @@ export function openBookSession(options: BookSessionOptions): BookSession {
       simplified: isSimplified,
       script: bookScript,
       wantsWebFont: wantsFace,
+      paragraphsOf: paragraphReader(book),
     });
 
     // Wired straight away rather than on the first `load`, so a gesture arriving before any

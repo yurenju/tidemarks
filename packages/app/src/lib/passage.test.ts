@@ -1,7 +1,7 @@
 // What the shelf does to a marked passage before setting it as one paragraph. The card that shows
 // the result is packages/app/tests/browser/library/marks.spec.ts.
 import { describe, expect, it } from "vitest";
-import { tidy } from "./passage";
+import { tidy, tidyPieces } from "./passage";
 
 describe("tidy", () => {
   it("closes up the gap a paragraph break leaves between two ideographs", () => {
@@ -55,5 +55,19 @@ describe("tidy", () => {
 
   it("hands back an empty passage rather than throwing on one", () => {
     expect(tidy("   \n  ")).toBe("");
+  });
+});
+
+describe("tidyPieces", () => {
+  it("closes up a seam between two pieces as it would inside one", () => {
+    expect(tidyPieces(["醫院。\n", "　當我", "陷入"])).toEqual(["醫院。", "當我", "陷入"]);
+  });
+
+  it("keeps a Latin space at a seam, in the piece it began in", () => {
+    expect(tidyPieces(["settled\n  ", "by", " argument.\n"])).toEqual([
+      "settled ",
+      "by",
+      " argument.",
+    ]);
   });
 });

@@ -280,12 +280,14 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
     await markPassage(page);
 
     await openPanel(page, /Notes/);
-    await page.getByTestId("panel-notes").getByRole("button", { name: "Write a note…" }).click();
+    // The one row of the index, which opens that note's page.
+    await page.getByTestId("notes-index").getByRole("button").click();
+    await expect(page.getByTestId("note-page")).toBeVisible();
     expect(panelInAddress(page)).toMatch(new RegExp(`^notes/${bookId}/.+`));
 
     await page.goBack();
     expect(panelInAddress(page)).toBe(`notes/${bookId}`);
-    await expect(page.getByTestId("panel-notes")).toBeVisible();
+    await expect(page.getByTestId("notes-index")).toBeVisible();
 
     await page.goBack();
     await expect(page.getByTestId("panel-notes")).toBeHidden();
@@ -313,6 +315,36 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
     await page.touchscreen.tap(at.x, at.y);
     await expect(page.getByTestId("panel-notes")).toBeVisible();
     expect(panelInAddress(page)).toMatch(new RegExp(`^notes/${bookId}/.+`));
+
+    await page.goBack();
+    await expect(page.getByTestId("panel-notes")).toBeHidden();
+    await expect(page.locator(".reader")).toBeVisible();
+  });
+
+  /**
+   * [[All]] on a note opened from the page, where back cannot be how it goes down a storey.
+   *
+   * The note was climbed to in one step, so there is no index anywhere in the history under it:
+   * stepping back would land on the book. So [[All]] writes the index over the note — and then
+   * back leaves for the book in one press, as it would have from the note.
+   */
+  test("All on a note opened from the page lands on the index, and back then leaves", async ({
+    page,
+  }) => {
+    await openBook(page, BOOKS.vertical);
+    const bookId = openBookId(page);
+    const [at] = await textPoints(page);
+    await longPressSelect(page, { at });
+    await expect(page.locator(".highlight-toolbar")).toBeVisible();
+    await paintMark(page);
+    await page.touchscreen.tap(at!.x, at!.y);
+    await expect(page.getByTestId("note-page")).toBeVisible();
+
+    await page.getByTestId("note-page").getByRole("button", { name: /All/ }).click();
+    await expect(page.getByTestId("notes-index")).toBeVisible();
+    expect(panelInAddress(page)).toBe(`notes/${bookId}`);
+    // And the note just left is the one the index marks.
+    await expect(page.getByTestId("notes-index").locator(".note-index-item.recent")).toHaveCount(1);
 
     await page.goBack();
     await expect(page.getByTestId("panel-notes")).toBeHidden();

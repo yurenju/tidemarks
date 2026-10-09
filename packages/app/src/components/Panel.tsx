@@ -97,6 +97,7 @@ export default function Panel({
   needs,
   bookDecides = false,
   container,
+  actions,
   children,
 }: {
   open: boolean;
@@ -126,6 +127,11 @@ export default function Panel({
    * a desk that face is meant to cover the whole window rather than stop at the reader's edges.
    */
   container?: React.RefObject<HTMLDivElement | null>;
+  /**
+   * What else the header offers, between the title and the ✕. The phone's one-note page puts
+   * [[Open in book]] here: a way out of the panel, so it stands with the other one.
+   */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const { t, i18n } = useLingui();
@@ -175,6 +181,7 @@ export default function Panel({
               <BaseDrawer.Title className="panel-title">
                 {typeof title === "string" ? title : i18n._(title)}
               </BaseDrawer.Title>
+              {actions}
               {/* **One ✕ at every width.** This used to be a ✕ beside the book and a ← over it,
                   on the reading that a full-screen panel is a place walked into rather than a
                   thing standing next to something. On a hand-held it is neither: the panel slides

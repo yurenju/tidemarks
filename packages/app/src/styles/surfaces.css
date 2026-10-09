@@ -146,9 +146,15 @@
   border-bottom: 1px solid var(--line-hair);
 }
 
+/* One line, cut with an ellipsis: a phone's note page is titled with its chapter's name, and a
+   long one would otherwise push the ✕ off the edge. */
 .panel-title {
   margin: 0;
   margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: var(--type-ui);
 }
 
