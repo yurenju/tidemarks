@@ -117,15 +117,14 @@ export default function NotePage({
   // Named so the catalog carries `{more}` rather than a bare `{0}`.
   const more = cut?.more ?? 0;
 
-  const holder = {
-    ref: pageRef,
-    "data-testid": "note-page",
-    style: { "--mark": markVar(annotation.color) } as React.CSSProperties,
-  };
-
   if (editing) {
     return (
-      <div {...holder} className="note-page writing">
+      <div
+        ref={pageRef}
+        className="note-page writing"
+        data-testid="note-page"
+        style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
+      >
         {/* Two lines, as on a desk's card: enough to say which passage this is, and short enough
             that the box under it is still near the top of the screen. */}
         <p className="note-page-quote">
@@ -137,7 +136,12 @@ export default function NotePage({
   }
 
   return (
-    <div {...holder} className="note-page">
+    <div
+      ref={pageRef}
+      className="note-page"
+      data-testid="note-page"
+      style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
+    >
       {/* **The book's words at the reader's size, in the kind of face they chose.** The size is the
           one they chose in [[Layout]], and so is sans against serif. The face itself is not: a
           book's own fonts are applied inside frond's frame and are not a value this page can

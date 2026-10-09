@@ -406,8 +406,10 @@ export function nextChrome(state: ChromeState, event: ChromeEvent): ChromeState 
       // **Anywhere else, a note is written where it was thought of** (ADR-0020): [[Marking]]
       // keeps standing with the box open and no chrome around it, and [[Done]] goes back to the
       // book. The new mark is pointed at while it is written — washed on the page, so the reader
-      // can see which words the note is about, and selected in the list, which is what puts
-      // [[Delete]] on its card for a reader who changes their mind. Without a note, nothing
+      // can see which words the note is about, and selected in the list, which on a desk is what
+      // puts [[Delete]] on its card for a reader who changes their mind. (A phone's note page gives
+      // the box the whole page while it is written; [[Delete]] is on that page once [[Done]] or a
+      // press on the passage brings it back.) Without a note, nothing
       // moves: marking a passage in [[Read]] is the whole act.
       if (event.withNote) return settle(state, "marking", event.id, event.id);
       return state;

@@ -839,7 +839,7 @@ button.selection-handle:active:not(:disabled) {
 /* **The housekeeping row**: how long ago, then — on the selected card — what can be done to it.
    Set in the control face at the smallest size, the same division the shelf's `.mark-head` draws.
 
-   [[Delete]]'s question takes this row's place when it is asked (`AnnotationItem`), so the
+   [[Delete]]'s question takes this row's place when it is asked (`AnnotationHead`), so the
    answers stand where the reader's eye already was. */
 .annotation-head {
   display: flex;
@@ -1045,7 +1045,7 @@ button.annotation-quote:active:not(:disabled) {
   padding: 0.4rem;
 }
 
-/* [[Delete]] asking first, in the row it was pressed in (`AnnotationItem`). The question takes
+/* [[Delete]] asking first, in the row it was pressed in (`AnnotationHead`). The question takes
    what room is left and the two answers keep to the end, where [[Delete]] stood — so the answers
    stand where the reader's eye already was. Where the row is too narrow for all three, as in the
    desk's column, the answers move under the question together rather than one of them being

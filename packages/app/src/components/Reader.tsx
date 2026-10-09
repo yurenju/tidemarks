@@ -932,7 +932,13 @@ export default function Reader({
     // Before the mark goes rather than after: the page goes with it, and what the index is
     // scrolled to is read off this at that moment.
     lastPage.current = after === null ? null : { id: after.id, marked: false };
-    await removeAnnotation(a);
+    try {
+      await removeAnnotation(a);
+    } catch (error) {
+      // Still on the page, so the next way off it is not a deletion and should not be told one.
+      lastPage.current = { id: a.id, marked: true };
+      throw error;
+    }
     sendChrome({ kind: "pickDropped" });
   }
 
