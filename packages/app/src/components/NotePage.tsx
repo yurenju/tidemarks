@@ -5,6 +5,13 @@ import type { MarkedParagraph } from "../lib/marked-paragraphs";
 import { markVar } from "../lib/highlights";
 import AnnotationHead from "./AnnotationHead";
 import NoteEditor from "./NoteEditor";
+import {
+  PrototypePassage,
+  PrototypeSwitcher,
+  SCENARIOS,
+  prototypeOn,
+  usePrototype,
+} from "./NotePage.prototype";
 
 /**
  * One note, a page to itself — the second storey of [[Notes]] on a phone (`?d=notes/<book>/<note>`).
@@ -66,6 +73,14 @@ export default function NotePage({
   onRemove: () => void;
 }) {
   const { t } = useLingui();
+  // PROTOTYPE (#262): a made-up passage in place of the book's, and the variant that cuts it.
+  const proto = usePrototype();
+  const [protoInfo, setProtoInfo] = useState("");
+  const scenario = prototypeOn ? SCENARIOS.find((s) => s.key === proto.scenario)?.paragraphs : null;
+  if (scenario) {
+    paragraphs = scenario;
+    annotation = { ...annotation, text: scenario.map((p) => p.marked).join("") };
+  }
   const shown = paragraphs ?? [{ before: "", marked: annotation.text, after: "" }];
   const sourceRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
@@ -150,44 +165,60 @@ export default function NotePage({
 
           The mark is a wash and nothing else, as on the page when it is selected; the words around
           it step back, so the eye lands on what was marked and the rest is there to be read. */}
-      <div
-        ref={sourceRef}
-        className={`note-page-source${clipped ? " clipped" : ""}${sans ? " sans" : ""}`}
-        style={{
-          fontSize: `calc(1rem * ${fontSize} / 100)`,
-          maxHeight: clipped ? `${cut.height}px` : undefined,
-        }}
-      >
-        <div>
-          {shown.map((paragraph, i) => (
-            <p key={i}>
-              {paragraph.before}
-              <mark>{paragraph.marked}</mark>
-              {paragraph.after}
-            </p>
-          ))}
-        </div>
-      </div>
-      {cut !== null && (
-        <button
-          type="button"
-          className="note-page-more"
-          aria-expanded={open}
-          onClick={() => setOpen((was) => !was)}
-        >
-          {open ? (
-            <Trans comment="Button under the passage on the phone's one-note page, once the passage has been opened in full: cuts it back to half the screen so the note under it comes up again.">
-              Show less of the text
-            </Trans>
-          ) : (
-            <Plural
-              comment="Button under a passage on the phone's one-note page that has been cut to half the screen. The number is how many more lines of the book's text it would show."
-              value={more}
-              one="Show the full text (# more line)"
-              other="Show the full text (# more lines)"
-            />
+      {prototypeOn ? (
+        <>
+          <PrototypePassage
+            key={`${proto.variant}/${proto.scenario}`}
+            variant={proto.variant}
+            shown={shown}
+            fontSize={fontSize}
+            sans={sans}
+            onInfo={setProtoInfo}
+          />
+          <PrototypeSwitcher info={protoInfo} />
+        </>
+      ) : (
+        <>
+          <div
+            ref={sourceRef}
+            className={`note-page-source${clipped ? " clipped" : ""}${sans ? " sans" : ""}`}
+            style={{
+              fontSize: `calc(1rem * ${fontSize} / 100)`,
+              maxHeight: clipped ? `${cut.height}px` : undefined,
+            }}
+          >
+            <div>
+              {shown.map((paragraph, i) => (
+                <p key={i}>
+                  {paragraph.before}
+                  <mark>{paragraph.marked}</mark>
+                  {paragraph.after}
+                </p>
+              ))}
+            </div>
+          </div>
+          {cut !== null && (
+            <button
+              type="button"
+              className="note-page-more"
+              aria-expanded={open}
+              onClick={() => setOpen((was) => !was)}
+            >
+              {open ? (
+                <Trans comment="Button under the passage on the phone's one-note page, once the passage has been opened in full: cuts it back to half the screen so the note under it comes up again.">
+                  Show less of the text
+                </Trans>
+              ) : (
+                <Plural
+                  comment="Button under a passage on the phone's one-note page that has been cut to half the screen. The number is how many more lines of the book's text it would show."
+                  value={more}
+                  one="Show the full text (# more line)"
+                  other="Show the full text (# more lines)"
+                />
+              )}
+            </button>
           )}
-        </button>
+        </>
       )}
 
       {/* A short rule in the mark's own ink, between the book's words and the reader's. Not a wave:
