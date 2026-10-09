@@ -3,8 +3,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { Annotation } from "../lib/types";
 import type { MarkedParagraph } from "../lib/marked-paragraphs";
 import { markVar } from "../lib/highlights";
-import { relativeAge } from "../lib/revisit";
-import { AGE_LABELS } from "./age-labels";
+import AnnotationHead from "./AnnotationHead";
+import NoteEditor from "./NoteEditor";
 
 /**
  * One note, a page to itself — the second storey of [[Notes]] on a phone (`?d=notes/<book>/<note>`).
@@ -16,6 +16,13 @@ import { AGE_LABELS } from "./age-labels";
  * **Always set across, whatever the book's writing mode.** It is the app's own page, not frond's:
  * a vertical passage set down a 390px column runs to a few characters a line, and the note under
  * it is the reader's prose either way.
+ *
+ * **Writing turns the page over to the box** (#240). The passage folds to two lines of quote at
+ * the top and the box stands straight under it, [[Done]] at its lower right: the same order as
+ * reading — the book's words above, the reader's below — and the box near the top of the screen,
+ * where a virtual keyboard cannot reach (ADR-0044). The row at the foot goes while the box stands,
+ * and so does the date row, so nothing else on the page can be pressed by a thumb reaching for the
+ * keyboard.
  */
 export default function NotePage({
   annotation,
@@ -27,7 +34,11 @@ export default function NotePage({
   next,
   onPick,
   onAll,
+  editing,
   onEdit,
+  onPersist,
+  onSave,
+  onRemove,
 }: {
   annotation: Annotation;
   /** The paragraphs it was made in, or `null` where the book cannot place it — then the mark's
@@ -44,10 +55,17 @@ export default function NotePage({
   next: Annotation | null;
   onPick: (id: string) => void;
   onAll: () => void;
-  /** Opens the note for writing — on the old list for now (#240 gives it a page of its own). */
+  /** Whether the note is open for writing, which is this page turned over to the box. */
+  editing: boolean;
   onEdit: () => void;
+  /** Write the words down without closing anything. Called on every way out of the box. */
+  onPersist: (note: string) => void;
+  /** [[Done]]: the words, and then the box closes. */
+  onSave: (note: string) => void;
+  /** [[Delete]], once the reader has said yes to its question. */
+  onRemove: () => void;
 }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const shown = paragraphs ?? [{ before: "", marked: annotation.text, after: "" }];
   const sourceRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
@@ -84,7 +102,9 @@ export default function NotePage({
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, []);
+    // Again when the box closes: the passage is not drawn while it stands, so a page opened
+    // straight into writing — [[Mark and note]] — has nothing to measure until then.
+  }, [editing]);
 
   // A step to another note is a new page, read from its top: the panel's scroll is the page's,
   // and left where it was it would open the next note halfway down its passage.
@@ -96,6 +116,24 @@ export default function NotePage({
   const clipped = cut !== null && !open;
   // Named so the catalog carries `{more}` rather than a bare `{0}`.
   const more = cut?.more ?? 0;
+
+  if (editing) {
+    return (
+      <div
+        ref={pageRef}
+        className="note-page writing"
+        data-testid="note-page"
+        style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
+      >
+        {/* Two lines, as on a desk's card: enough to say which passage this is, and short enough
+            that the box under it is still near the top of the screen. */}
+        <p className="note-page-quote">
+          <span className="annotation-quote-text">{annotation.text}</span>
+        </p>
+        <NoteEditor note={annotation.note} onPersist={onPersist} onSave={onSave} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -156,25 +194,18 @@ export default function NotePage({
           that is what a mark is drawn as, and this is not one. */}
       <hr className="note-page-rule" />
 
-      <div className="annotation-head note-page-head">
-        <p className="annotation-when">
-          {i18n._(AGE_LABELS[relativeAge(Date.now(), annotation.createdAt)])}
-          <span className="annotation-date">
-            {new Intl.DateTimeFormat(i18n.locale, { month: "numeric", day: "numeric" }).format(
-              annotation.createdAt,
-            )}
-          </span>
-        </p>
-        {annotation.note !== "" && (
-          <span className="annotation-tools">
-            <button type="button" onClick={onEdit}>
-              <Trans comment="Small text button at the end of the date row on the phone's one-note page, under the passage and above the note: opens the note for changing.">
-                Edit note
-              </Trans>
-            </button>
-          </span>
-        )}
-      </div>
+      {/* The desk's row, [[Delete]]'s question and all (`AnnotationHead`). The page has the
+          dashed box saying a mark has no note, so the row does not say it a second time. */}
+      <AnnotationHead
+        annotation={annotation}
+        dated
+        saysJustTheMark={false}
+        editing={false}
+        selected
+        className="note-page-head"
+        onEdit={onEdit}
+        onRemove={onRemove}
+      />
 
       {annotation.note !== "" ? (
         <p className="note-text note-page-note">{annotation.note}</p>

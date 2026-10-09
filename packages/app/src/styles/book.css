@@ -839,7 +839,7 @@ button.selection-handle:active:not(:disabled) {
 /* **The housekeeping row**: how long ago, then — on the selected card — what can be done to it.
    Set in the control face at the smallest size, the same division the shelf's `.mark-head` draws.
 
-   [[Delete]]'s question takes this row's place when it is asked (`AnnotationItem`), so the
+   [[Delete]]'s question takes this row's place when it is asked (`AnnotationHead`), so the
    answers stand where the reader's eye already was. */
 .annotation-head {
   display: flex;
@@ -892,9 +892,8 @@ button.selection-handle:active:not(:disabled) {
 /* **Only the selected card carries them**, and the dashed box below too. Forty cards each with
    a row of buttons read as a register, and the reader acts on the one they are looking at.
 
-   Restated for the narrow window in `device.css`: there the panel covers the book and pressing a
-   passage closes it, so pressing cannot be how a card in the list gets selected. The fade below,
-   the cut on the note and its scroll are restated there too. */
+   Desks only: a phone draws no cards. Its [[Notes]] is an index and a page per note, and the page
+   carries the same row (`.note-page`, below). */
 .annotation-item:not(.selected) .annotation-tools,
 .annotation-item:not(.selected) .annotation-write {
   display: none;
@@ -978,8 +977,7 @@ button.annotation-quote:active:not(:disabled) {
 
 /* **Three lines until the card is selected.** A cut note is fine here and was not before,
    because there is now a way to the rest that is not the editor: pressing the passage selects
-   the card, and the selected card shows the note whole. ⚠️ `device.css` undoes this below 820px,
-   where pressing the passage closes the panel instead. */
+   the card, and the selected card shows the note whole. */
 .annotation-item:not(.selected) .note-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1047,7 +1045,7 @@ button.annotation-quote:active:not(:disabled) {
   padding: 0.4rem;
 }
 
-/* [[Delete]] asking first, in the row it was pressed in (`AnnotationItem`). The question takes
+/* [[Delete]] asking first, in the row it was pressed in (`AnnotationHead`). The question takes
    what room is left and the two answers keep to the end, where [[Delete]] stood — so the answers
    stand where the reader's eye already was. Where the row is too narrow for all three, as in the
    desk's column, the answers move under the question together rather than one of them being
@@ -1233,6 +1231,27 @@ button.note-index-item.recent:active:not(:disabled) {
 
 .note-page .annotation-write {
   margin: 0 0 var(--space-5);
+}
+
+/* **Writing: two lines of the passage, and the box straight under them** (`NotePage`). The quote
+   is the desk card's — the interface's serif, faded, cut at two lines (`.annotation-quote-text`) —
+   so the box stands as near the top as the two lines allow (ADR-0044). The box is given room for a
+   few lines of the reader's own, and [[Done]] keeps to its lower right, under the end of what was
+   written rather than stretched across the page like a bar. */
+.note-page-quote {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-text);
+  color: var(--text-muted);
+}
+
+.note-page .note-editor textarea {
+  min-height: 8rem;
+}
+
+.note-page .note-editor button {
+  align-self: flex-end;
 }
 
 /* **At the foot of the panel, whatever is above it.** Held there while the page scrolls under it,

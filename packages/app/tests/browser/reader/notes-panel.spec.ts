@@ -483,4 +483,85 @@ test.describe("on a phone, one note to a page", () => {
     await expect(more).toBeVisible();
     expect((await source.boundingBox())!.height).toBeCloseTo(cut.height, 0);
   });
+
+  // #240: the page turned over to the box. What only a browser can say is where the box stands —
+  // under two lines of the passage and near the top, where a keyboard cannot reach (ADR-0044) —
+  // and that the words written there are what the page shows once [[Done]] puts the box away.
+  test("a note is written on its page, under two lines of the passage", async ({ page }) => {
+    await openNotes(page);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByTestId("notes-index").getByRole("button", { name: LATE_PASSAGE }).click();
+    const note = panel.getByTestId("note-page");
+    await note.getByRole("button", { name: "Write a note…" }).click();
+
+    const box = note.getByRole("textbox");
+    await expect(box).toBeFocused();
+    // Nothing else on the page while the box stands, so no thumb reaching for the keyboard lands
+    // on a step to another note.
+    await expect(note.getByRole("navigation")).toHaveCount(0);
+    const quote = note.locator(".note-page-quote");
+    const placed = await quote.evaluate((q) => {
+      const box = q.parentElement!.querySelector("textarea")!.getBoundingClientRect();
+      const body = q.closest(".panel-body")!.getBoundingClientRect();
+      const text = q.firstElementChild!;
+      return {
+        lines: text.getBoundingClientRect().height / parseFloat(getComputedStyle(text).lineHeight),
+        quoteBottom: q.getBoundingClientRect().bottom,
+        boxTop: box.top,
+        fromTop: box.top - body.top,
+      };
+    });
+    expect(placed.lines).toBeLessThanOrEqual(2.01);
+    expect(placed.boxTop).toBeGreaterThanOrEqual(placed.quoteBottom);
+    // Two lines of quote and the page's own padding: well inside the top quarter of 844px.
+    expect(placed.fromTop).toBeLessThan(844 / 4);
+
+    await box.fill("Worth reading again.");
+    await note.getByRole("button", { name: "Done" }).click();
+    await expect(note.getByRole("textbox")).toHaveCount(0);
+    await expect(note.locator(".note-page-note")).toHaveText("Worth reading again.");
+    // And it is the same box from [[Edit note]], holding what was written.
+    await note.getByRole("button", { name: "Edit note" }).click();
+    await expect(note.getByRole("textbox")).toHaveValue("Worth reading again.");
+  });
+
+  // The desk's question, from the same component: that it holds the focus on Cancel and takes
+  // Escape is the desk's test above. What is the page's own is where the reader lands after it —
+  // the index, scrolled to the note that followed, so a dozen marks are seeded for that one to
+  // start out of sight.
+  test("delete on a note's page lands on the index, at the note that followed", async ({
+    page,
+  }) => {
+    const late = Array.from({ length: 12 }, (_, i) => ({
+      id: `notes-late-${String(i).padStart(2, "0")}`,
+      cfiRange: IN_CHAPTER_THREE.replace(":8)", `:${9 + i})`),
+      text: `${LATE_PASSAGE} (${i + 1})`,
+      note: "",
+    }));
+    await openNotes(page, [
+      { id: "notes-early", cfiRange: IN_CHAPTER_ONE, text: EARLY_PASSAGE, note: LONG_NOTE },
+      ...late,
+    ]);
+    const panel = page.getByTestId("panel-notes");
+    const index = panel.getByTestId("notes-index");
+    const gone = index.locator('[data-mark="notes-late-06"]');
+    const following = index.locator('[data-mark="notes-late-07"]');
+    await gone.scrollIntoViewIfNeeded();
+    await gone.click();
+
+    const note = panel.getByTestId("note-page");
+    await note.getByRole("button", { name: "Delete", exact: true }).click();
+    await note
+      .getByRole("group", { name: "Delete this mark?" })
+      .getByRole("button", { name: "Delete" })
+      .click();
+
+    await expect(index).toBeVisible();
+    await expect(gone).toHaveCount(0);
+    await expect(index.locator("[data-mark]")).toHaveCount(12);
+    await expect(following).toBeInViewport();
+    await expect(index.locator('[data-mark="notes-early"]')).not.toBeInViewport();
+    // Nothing marked: the reader was not on the one that followed.
+    await expect(index.locator('[aria-current="true"]')).toHaveCount(0);
+  });
 });
