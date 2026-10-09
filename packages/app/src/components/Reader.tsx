@@ -1044,7 +1044,7 @@ export default function Reader({
               vertical={verticalBook}
               // **Only while it is on this page.** A phone's note page walks the whole book with the
               // book standing still underneath, so the ✕ can come back to a page the pointed-at
-              // passage is not on — and every mark there faded around a wash nobody can see.
+              // passage is not on — and a wash would be pointing at nothing anyone can see.
               // `turnLanded` drops it at the next turn; until then the page reads as it was left.
               selectedId={
                 painted.some((entry) => entry.annotation.id === selectedNoteId)
