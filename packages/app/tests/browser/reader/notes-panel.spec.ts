@@ -484,6 +484,30 @@ test.describe("on a phone, one note to a page", () => {
     expect((await source.boundingBox())!.height).toBeCloseTo(cut.height, 0);
   });
 
+  // #262: where the window sits is `passageWindow`'s, tested there case by case. What only a
+  // browser can say is that the line it was given for the mark is the line the mark is set on —
+  // so this one is a mark the old cut from the top left out of the window altogether.
+  test("a mark at the end of a long paragraph stands in the cut window", async ({ page }) => {
+    // The last words of chapter one's longest paragraph, about twenty lines at this width.
+    await openNotes(page, [
+      {
+        id: "notes-paragraph-end",
+        cfiRange: "epubcfi(/6/12!/4/2[chapter-1]/24,/1:956,/1:977)",
+        text: "and the fall was over",
+        note: "",
+      },
+    ]);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByTestId("notes-index").getByRole("button").click();
+    const note = panel.getByTestId("note-page");
+    await expect(note.getByRole("button", { name: /Show the full text/ })).toBeVisible();
+
+    const source = (await note.locator(".note-page-source").boundingBox())!;
+    const mark = (await note.locator(".note-page-source mark").boundingBox())!;
+    expect(mark.y).toBeGreaterThanOrEqual(source.y);
+    expect(mark.y + mark.height).toBeLessThanOrEqual(source.y + source.height);
+  });
+
   // #240: the page turned over to the box. What only a browser can say is where the box stands —
   // under two lines of the passage and near the top, where a keyboard cannot reach (ADR-0044) —
   // and that the words written there are what the page shows once [[Done]] puts the box away.
