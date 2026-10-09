@@ -59,6 +59,70 @@ const SHELF = [
 // not depend on a file anyone has to make first.
 const NOT_A_BOOK = resolve(BOOKS_DIR, "..", "..", "README.md");
 
+/**
+ * The phone's three shapes of note, in Alice's first chapter (#239). Ids sort after anything the
+ * sweep marked by hand, which does not matter: the list is in book order.
+ */
+const PHONE_NOTES = [
+  {
+    id: "sweep-mark-only",
+    cfiRange: "epubcfi(/6/12!/4/2[chapter-1]/8,/1:0,/3:20)",
+    text: "There was nothing so very remarkable in that;",
+    note: "",
+  },
+  {
+    id: "sweep-sentence",
+    cfiRange: "epubcfi(/6/12!/4/2[chapter-1]/4,/1:0,/1:104)",
+    text: "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do:",
+    note: "The whole book in its first sentence: a girl bored by a book with no pictures, about to fall into one that is nothing but.",
+  },
+  {
+    id: "sweep-long",
+    cfiRange: "epubcfi(/6/12!/4/2[chapter-1],/6/1:40,/12/1:60)",
+    text: "as well as she could, for the hot day made her feel very sleepy and stupid",
+    note: Array.from(
+      { length: 6 },
+      (_, i) =>
+        `Paragraph ${i + 1}: the Rabbit is late, and Alice follows without asking why — the reading I want to come back to is how little she hesitates.`,
+    ).join("\n\n"),
+  },
+];
+
+/** Writes marked passages straight into IndexedDB — the rows a highlight leaves behind. */
+async function seedMarks(
+  page: Page,
+  bookId: string,
+  marks: readonly { id: string; cfiRange: string; text: string; note: string }[],
+): Promise<void> {
+  await page.evaluate(
+    ([id, rows]) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open("tidemarks");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction("annotations", "readwrite");
+          for (const row of rows) {
+            tx.objectStore("annotations").put({
+              ...row,
+              bookId: id,
+              color: "indigo",
+              createdAt: Date.now() - 3 * 86_400_000,
+              updatedAt: Date.now(),
+              deletedAt: null,
+            });
+          }
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    [bookId, marks] as const,
+  );
+}
+
 test("sweeps every screen", async ({ page }, testInfo) => {
   const device = testInfo.project.name;
   const dir = join(SHOTS_DIR, device);
@@ -363,13 +427,11 @@ test("sweeps every screen", async ({ page }, testInfo) => {
   });
 
   // On a desk only the selected card offers to write, and pressing its passage is what selects
-  // it. Narrower, every card already carries the box — and pressing the passage there closes the
-  // panel, so it is pressed only where the box is not already showing.
+  // it. On a phone the passage is a row of the index, and pressing it opens the note's page, which
+  // offers the box the same way.
   await step("reader-note-editing", async () => {
     const write = page.getByRole("button", { name: "Write a note…" });
-    if (!(await write.isVisible())) {
-      await page.getByTestId("panel-notes").locator(".annotation-quote").first().click();
-    }
+    await page.getByTestId("panel-notes").locator(".annotation-quote").first().click();
     await write.click();
     await page.locator(".note-editor textarea").fill("這一段想再讀一次。");
     await page.waitForTimeout(400);
@@ -390,6 +452,47 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await page.locator(".note-editor button").click();
     await page.waitForTimeout(600);
   });
+
+  // ---- the phone's notes: an index, and a page per note (#239) -------------
+  //
+  // The three shapes a note comes in — a mark alone, a sentence with a paragraph under it, a
+  // passage over several paragraphs with a long note — seeded rather than drawn: a mark over four
+  // paragraphs is not something a sweep can drag out reliably, and these are the book's own CFIs.
+  if (device === "mobile") {
+    await step("reader-notes-index", async () => {
+      await closePanel();
+      const bookId = decodeURIComponent(
+        new URL(page.url()).hash.replace(/^#\/book\//, "").replace(/\?.*$/, ""),
+      );
+      await seedMarks(page, bookId, PHONE_NOTES);
+      await page.reload();
+      await settled(page);
+      await openPanel(/Notes/, "panel-notes");
+      await expect(page.getByTestId("notes-index")).toBeVisible();
+    });
+
+    for (const [name, mark] of [
+      ["reader-note-page-mark-only", PHONE_NOTES[0]!],
+      ["reader-note-page-sentence", PHONE_NOTES[1]!],
+      ["reader-note-page-long", PHONE_NOTES[2]!],
+    ] as const) {
+      await step(name, async () => {
+        const index = page.getByTestId("notes-index");
+        if (!(await index.isVisible())) {
+          await page.getByTestId("note-page").getByRole("button", { name: /All/ }).click();
+        }
+        await index.locator(`[data-mark="${mark.id}"]`).click();
+        await expect(page.getByTestId("note-page")).toBeVisible();
+        await page.waitForTimeout(400);
+      });
+    }
+
+    // The long one again with its passage opened in full — the other half of the cut.
+    await step("reader-note-page-long-open", async () => {
+      await page.getByRole("button", { name: /Show the full text/ }).click();
+      await page.waitForTimeout(300);
+    });
+  }
 
   await step("reader-about-panel", async () => {
     await page.keyboard.press("Escape");
@@ -436,6 +539,9 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await toolbar.getByRole("button", { name: "Mark and note" }).click();
     await page.locator(".note-editor textarea").fill("ここから読み直す。");
     await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
+    // [[Done]] writes the note before it closes anything, so the panel is still up for the length
+    // of a database write. Asked for its ✕ inside that window, the ✕ slides away under the press.
+    await expect(page.locator(".note-editor")).toHaveCount(0);
     await closePanel();
 
     expect(await selectProse(page, { from: 5, to: 8 })).not.toBeNull();
@@ -445,13 +551,16 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     // On a desk only the selected card offers to write; narrower, every card does. Asked once both
     // cards are drawn, and of the second card alone: asked earlier, an empty list says "no" on a
     // phone too, and pressing the quote there closes the panel the box was about to appear in.
-    const cards = panel.locator(".annotation-item");
+    // A phone's index rows carry the same `data-mark` and quote as the desk's cards; pressing the
+    // quote selects the card on a desk and opens the note's page on a phone, and either way the
+    // box is then one press away.
+    const cards = panel.locator("[data-mark]");
     await expect(cards).toHaveCount(2);
-    const write = cards.nth(1).getByRole("button", { name: "Write a note…" });
-    if (!(await write.isVisible())) await cards.nth(1).locator(".annotation-quote").click();
-    await write.click();
+    await cards.nth(1).locator(".annotation-quote").click();
+    await panel.getByRole("button", { name: "Write a note…" }).click();
     await page.locator(".note-editor textarea").fill("前の段落と比べる。");
     await page.locator(".note-editor").getByRole("button", { name: "Done" }).click();
+    await expect(page.locator(".note-editor")).toHaveCount(0);
     await closePanel();
 
     // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
@@ -462,6 +571,16 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await expect(page.getByTestId("note-dot").locator(".note-dot-ink")).toHaveCount(2);
     await page.waitForTimeout(400);
   });
+
+  // A vertical book's note on a phone is still set across: the page is the app's, not frond's.
+  if (device === "mobile") {
+    await step("reader-vertical-note-page", async () => {
+      await openPanel(/Notes/, "panel-notes");
+      await page.getByTestId("notes-index").locator("[data-mark]").first().click();
+      await expect(page.getByTestId("note-page")).toBeVisible();
+      await page.waitForTimeout(400);
+    });
+  }
 
   await step("reader-vertical-chrome-up", async () => {
     await raiseChrome();

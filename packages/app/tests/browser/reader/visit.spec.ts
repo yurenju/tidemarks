@@ -19,6 +19,7 @@
 // flake on two engines (#15, #46), and the note is written by the same `relocate` this is about.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
+import { BOOK_KEEPS_A_COLUMN } from "../../../src/lib/media.js";
 import {
   BOOKS,
   bookCards,
@@ -137,10 +138,18 @@ async function arrive(
  */
 const visitMark = (page: Page) => page.getByRole("button", { name: /Back to \d+%/ });
 
-/** Opens the notes panel and presses the passage in it. */
+/**
+ * Opens the notes panel and goes to the passage from it: pressing the quote on a desk, and on a
+ * window the panel covers, opening the note's page and pressing [[Open in book]] there — the
+ * index's rows open a note rather than the book (#239).
+ */
 async function jumpToPassage(page: Page): Promise<void> {
   await openPanel(page, /Notes/);
-  await page.getByTestId("panel-notes").getByRole("button", { name: PASSAGE }).click();
+  const panel = page.getByTestId("panel-notes");
+  await panel.getByRole("button", { name: PASSAGE }).click();
+  if (!(await page.evaluate((q) => matchMedia(q).matches, BOOK_KEEPS_A_COLUMN))) {
+    await panel.getByRole("button", { name: "Open in book" }).click();
+  }
 }
 
 test("a visit holds the reader's place, and says nothing over the book", async ({ page }) => {

@@ -192,3 +192,70 @@ describe("a content document that will not parse", () => {
     expect((thrown as EpubOpenError).message).toContain("section 2");
   });
 });
+
+describe("the paragraphs around a passage", () => {
+  test("are the whole of each block the passage touches, and only those", () => {
+    // Three paragraphs of two, three and one characters: [0, 2), [2, 5), [5, 6).
+    const document = ContentDocument.parse(xhtml("<p>一段</p><p>第二段</p><p>三</p>"), 0);
+
+    expect(document.paragraphsAround({ start: 3, end: 4 })).toEqual([{ start: 2, end: 5 }]);
+    expect(document.paragraphsAround({ start: 1, end: 3 })).toEqual([
+      { start: 0, end: 2 },
+      { start: 2, end: 5 },
+    ]);
+  });
+
+  test("stop at the seam, so a passage ending on a paragraph's last character takes no more", () => {
+    const document = ContentDocument.parse(xhtml("<p>一段</p><p>第二段</p>"), 0);
+    expect(document.paragraphsAround({ start: 0, end: 2 })).toEqual([{ start: 0, end: 2 }]);
+  });
+
+  test("hold inline markup inside the paragraph it is set in", () => {
+    const document = ContentDocument.parse(xhtml("<p>前<em>言</em>後</p><p>次</p>"), 0);
+    expect(document.paragraphsAround({ start: 1, end: 2 })).toEqual([{ start: 0, end: 3 }]);
+  });
+
+  test("are cut where a block inside another begins and ends", () => {
+    // Loose text beside a <p> in a <div> is a paragraph of its own: its lines break there.
+    const document = ContentDocument.parse(xhtml("<div>甲<p>乙</p>丙</div>"), 0);
+    expect(document.paragraphsAround({ start: 0, end: 3 })).toEqual([
+      { start: 0, end: 1 },
+      { start: 1, end: 2 },
+      { start: 2, end: 3 },
+    ]);
+  });
+
+  test("answer a point with the one paragraph it stands in", () => {
+    const document = ContentDocument.parse(xhtml("<p>一段</p><p>第二段</p>"), 0);
+    expect(document.paragraphsAround({ start: 2, end: 2 })).toEqual([{ start: 2, end: 5 }]);
+  });
+
+  test("are none past the end of the text", () => {
+    const document = ContentDocument.parse(xhtml("<p>本文</p>"), 0);
+    expect(document.paragraphsAround({ start: 9, end: 12 })).toEqual([]);
+  });
+});
+
+describe("the ruby text in a passage", () => {
+  test("is the readings and their parentheses, apart from the words they stand over", () => {
+    // 山路(やまみち)を — base, rp, rt, rp, then the text after.
+    const document = ContentDocument.parse(
+      xhtml("<p><ruby>山路<rp>(</rp><rt>やまみち</rt><rp>)</rp></ruby>を登り</p>"),
+      0,
+    );
+    expect(document.text).toBe("山路(やまみち)を登り");
+    expect(document.rubyTextIn({ start: 0, end: document.text.length })).toEqual([
+      { start: 2, end: 8 },
+    ]);
+  });
+
+  test("is cut to the range asked about", () => {
+    const document = ContentDocument.parse(xhtml("<p><ruby>山路<rt>やまみち</rt></ruby>を</p>"), 0);
+    expect(document.rubyTextIn({ start: 4, end: 7 })).toEqual([{ start: 4, end: 6 }]);
+  });
+
+  test("is none in a passage without ruby", () => {
+    const document = ContentDocument.parse(xhtml("<p>本文</p>"), 0);
+    expect(document.rubyTextIn({ start: 0, end: 2 })).toEqual([]);
+  });
+});

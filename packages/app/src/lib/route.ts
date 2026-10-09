@@ -147,7 +147,9 @@ export type Panel =
  *
  * **The whole of what decides how the address is written** — deeper pushes an entry, level
  * replaces one, shallower goes back — so that eleven chrome events do not become eleven history
- * rules. `App.tsx` is the one caller.
+ * rules. `App.tsx` is the one caller, and "goes back" is its to aim: a storey that was never
+ * pushed is written over instead, which is how a phone's [[All]] lands on the index from a note
+ * opened straight from the page.
  */
 export function panelDepth(panel: Panel | null): 0 | 1 | 2 {
   if (panel === null) return 0;

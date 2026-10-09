@@ -72,10 +72,59 @@ function charStartingAt(text: string, start: number): string {
  * halves of the rule disagree.
  */
 export function tidy(text: string): string {
-  const trimmed = text.trim();
-  return trimmed.replace(/\s+/gu, (run: string, offset: number) => {
-    const before = charEndingAt(trimmed, offset);
-    const after = charStartingAt(trimmed, offset + run.length);
-    return WIDE.test(before) && WIDE.test(after) ? "" : " ";
-  });
+  return tidyPieces([text])[0]!;
+}
+
+/**
+ * `tidy`, over text that arrives in pieces which have to stay pieces — a paragraph cut where a
+ * mark begins and ends, so the marked words can be set apart from the ones around them.
+ *
+ * **One rule over the whole run, not one per piece.** The space at a seam belongs to the sentence
+ * across it: tidied apart, a piece ending in `。\n` would keep a space the paragraph closes up,
+ * because it could not see the ideograph on the other side.
+ *
+ * A run of whitespace is given to the piece it begins in, so the words of a piece are never
+ * moved into another.
+ */
+export function tidyPieces(pieces: readonly string[]): string[] {
+  const text = pieces.join("");
+  const out = pieces.map(() => "");
+  // Where each piece begins in `text`; the piece holding offset `at` is the last that begins at or
+  // before it and is not empty.
+  const starts: number[] = [];
+  let sum = 0;
+  for (const piece of pieces) {
+    starts.push(sum);
+    sum += piece.length;
+  }
+  const pieceAt = (at: number): number => {
+    let found = 0;
+    pieces.forEach((piece, i) => {
+      if (starts[i]! <= at && piece.length > 0) found = i;
+    });
+    return found;
+  };
+
+  const add = (at: number, what: string) => {
+    const piece = pieceAt(at);
+    out[piece] = out[piece]! + what;
+  };
+  const runs = /\s+/gu;
+  let from = 0;
+  const copy = (end: number) => {
+    for (let at = from; at < end; at += 1) add(at, text[at]!);
+  };
+  for (const run of text.matchAll(runs)) {
+    const start = run.index;
+    const end = start + run[0].length;
+    copy(start);
+    from = end;
+    // The ends of the whole run are layout with nothing on one side, which is what `trim` says.
+    if (start === 0 || end === text.length) continue;
+    const before = charEndingAt(text, start);
+    const after = charStartingAt(text, end);
+    add(start, WIDE.test(before) && WIDE.test(after) ? "" : " ");
+  }
+  copy(text.length);
+  return out;
 }

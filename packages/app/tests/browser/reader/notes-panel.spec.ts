@@ -86,18 +86,24 @@ async function seedMarks(
   );
 }
 
-/** Imports Alice, writes the two marks into her, and opens her with the notes panel standing. */
-async function openNotes(page: Page): Promise<void> {
+type SeededMark = { id: string; cfiRange: string; text: string; note: string };
+
+/** Imports Alice, writes the marks into her — the two above unless told otherwise — and opens her
+ *  with the notes panel standing. */
+async function openNotes(
+  page: Page,
+  marks: readonly SeededMark[] = [
+    { id: "notes-early", cfiRange: IN_CHAPTER_ONE, text: EARLY_PASSAGE, note: LONG_NOTE },
+    { id: "notes-late", cfiRange: IN_CHAPTER_THREE, text: LATE_PASSAGE, note: "" },
+  ],
+): Promise<void> {
   await page.goto("/");
   await page.locator('input[type="file"][accept=".epub"]').setInputFiles(BOOKS.horizontal);
   const card = bookCards(page).filter({ hasText: /Alice/ });
   await expect(card).toBeVisible({ timeout: 30_000 });
 
   const bookId = (await card.getAttribute("data-book-id"))!;
-  await seedMarks(page, bookId, [
-    { id: "notes-early", cfiRange: IN_CHAPTER_ONE, text: EARLY_PASSAGE, note: LONG_NOTE },
-    { id: "notes-late", cfiRange: IN_CHAPTER_THREE, text: LATE_PASSAGE, note: "" },
-  ]);
+  await seedMarks(page, bookId, marks);
   await card.getByTestId("book-open").click();
   await expect(page.locator(".reader")).toBeVisible();
   await settled(page);
@@ -310,4 +316,79 @@ test("a page turned in Reflect brings the list to that page's first mark", async
 
   await expect(late).toBeInViewport();
   await expect(panel.locator(".annotation-item.selected")).toHaveCount(0);
+});
+
+/**
+ * [[Notes]] on a phone: an index, and a page per note (#239).
+ *
+ * What the stepping lands on — which mark is before and after, how far through the book — is
+ * `src/lib/annotation-position.test.ts`'s. What only a browser can say is that the page really
+ * reads the book's own words rather than the stored quote, that its title follows the chapter, and
+ * how tall the passage stands before it is cut, which is a question about a layout.
+ */
+test.describe("on a phone, one note to a page", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test.skip(
+    ({ browserName }) => browserName === "firefox",
+    "Playwright has no mobile emulation for Firefox",
+  );
+
+  test("a note's page steps across a chapter's end, and greys the step at the book's", async ({
+    page,
+  }) => {
+    await openNotes(page);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByTestId("notes-index").getByRole("button", { name: EARLY_PASSAGE }).click();
+
+    const note = panel.getByTestId("note-page");
+    await expect(note).toBeVisible();
+    await expect(note.getByRole("button", { name: /All/ })).toContainText("1 / 2");
+    await expect(note.getByRole("button", { name: "‹ Previous" })).toBeDisabled();
+    const firstChapter = await panel.getByRole("heading").innerText();
+
+    await note.getByRole("button", { name: "Next ›" }).click();
+    await expect(note.getByRole("button", { name: /All/ })).toContainText("2 / 2");
+    await expect(note.getByRole("button", { name: "Next ›" })).toBeDisabled();
+    await expect(panel.getByRole("heading")).not.toHaveText(firstChapter);
+    // **The book's words, not the quote the mark stored.** The seeded mark says it is
+    // `LATE_PASSAGE`, and its CFI says it is the chapter's numeral: the page reads the epub.
+    await expect(note.locator("mark")).toHaveText("III");
+  });
+
+  test("a passage past half the screen is cut on a line, and opens and closes", async ({
+    page,
+  }) => {
+    // Four of chapter one's paragraphs, which at this width run well past half of 844px.
+    await openNotes(page, [
+      {
+        id: "notes-long",
+        cfiRange: "epubcfi(/6/12!/4/2[chapter-1],/4/1:10,/12/1:20)",
+        text: "A passage over four paragraphs",
+        note: "",
+      },
+    ]);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByTestId("notes-index").getByRole("button").click();
+    const note = panel.getByTestId("note-page");
+    const source = note.locator(".note-page-source");
+
+    const more = note.getByRole("button", { name: /Show the full text \(\d+ more lines\)/ });
+    await expect(more).toBeVisible();
+    const cut = await source.evaluate((box) => ({
+      height: box.getBoundingClientRect().height,
+      line: parseFloat(getComputedStyle(box).lineHeight),
+    }));
+    expect(cut.height).toBeLessThanOrEqual(844 / 2);
+    // On a whole line: a cut through one leaves the tops of a row of characters standing.
+    expect(cut.height / cut.line).toBeCloseTo(Math.round(cut.height / cut.line), 2);
+
+    await more.click();
+    const less = note.getByRole("button", { name: "Show less of the text" });
+    await expect(less).toBeVisible();
+    expect((await source.boundingBox())!.height).toBeGreaterThan(cut.height);
+
+    await less.click();
+    await expect(more).toBeVisible();
+    expect((await source.boundingBox())!.height).toBeCloseTo(cut.height, 0);
+  });
 });

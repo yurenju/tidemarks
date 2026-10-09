@@ -350,7 +350,9 @@ export default function App() {
    *   back two ([[Notes]] → a note → ✕);
    * - it is not what is wanted at all → write over this entry instead. That is [[Contents]] pressed
    *   while a note is open: there is no entry anywhere holding [[Contents]], so stepping back
-   *   could only land on something else.
+   *   could only land on something else. And [[All]] on a phone's note opened straight from the
+   *   page: the note was pushed over the bare book, so there is no index behind it to step back
+   *   to, and writing the index over the note is what leaves back one press from the book.
    *
    * ⚠️ **Unless this app did not push it.** A reader who pastes `?d=notes/…` straight into a new
    * tab lands with that panel already up on the tab's *first* entry: going back there has

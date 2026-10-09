@@ -201,7 +201,7 @@ test.describe("drawing a highlight", () => {
   test.describe("in a window where the panel covers the book", () => {
     test.use({ viewport: { width: 700, height: 900 } });
 
-    test("the quote in the notes panel takes the reader back to the passage", async ({ page }) => {
+    test("a note's page takes the reader back to the passage", async ({ page }) => {
       // **The click has to survive the panel it is made in.** Base UI's drawer captures the
       // pointer for any press that does not land on something interactive, and a captured
       // pointer retargets the `click` to the panel itself — so a quote that was not a control
@@ -218,11 +218,12 @@ test.describe("drawing a highlight", () => {
       await expect.poll(async () => await visibleText(page)).not.toBe(before);
       await expect(page.locator(".highlight-box")).toHaveCount(0);
 
+      // Through the note's own page, which is what a row of the index opens here (#239), and
+      // from there [[Open in book]].
       await openPanel(page, /Notes/);
-      await page
-        .getByTestId("panel-notes")
-        .getByRole("button", { name: text.slice(0, 12), exact: false })
-        .click();
+      const panel = page.getByTestId("panel-notes");
+      await panel.getByRole("button", { name: text.slice(0, 12), exact: false }).click();
+      await panel.getByRole("button", { name: "Open in book" }).click();
 
       await expect.poll(async () => await visibleText(page)).toBe(marked);
 

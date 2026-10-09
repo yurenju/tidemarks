@@ -18,6 +18,11 @@ msgstr ""
 msgid ": {reason}"
 msgstr "：{reason}"
 
+#. Button at the foot of the phone's one-note page: goes to the note before this one in the book, crossing into the previous chapter when this is the first in its own. The ‹ is part of the label.
+#: src/components/NotePage.tsx
+msgid "‹ Previous"
+msgstr "‹ 前のメモ"
+
 #. The way out of [[Settings]], always back to the shelf because that is the only door in. The ‹ is part of the label. Shares its entry with the same button in the reader.
 #. The way out of the reader, in the top bar. The ‹ is part of the label. 'Shelf' is the screen listing every book — the app's home.
 #: src/components/Reader.tsx
@@ -71,6 +76,11 @@ msgstr "{limit} 冊中 {held} 冊を同期中。{onDevice, plural, =0 {} other {
 msgid "{hours, plural, one {About # hour left} other {About # hours left}}"
 msgstr "{hours, plural, other {残り約 # 時間}}"
 
+#. Button under a passage on the phone's one-note page that has been cut to half the screen. The number is how many more lines of the book's text it would show.
+#: src/components/NotePage.tsx
+msgid "{more, plural, one {Show the full text (# more line)} other {Show the full text (# more lines)}}"
+msgstr "{more, plural, other {全文を表示（あと # 行）}}"
+
 #. Small line under a long note in the notes panel that scrolls inside its card, while there is more of it below. The number is how many paragraphs the whole note has, not how many are left.
 #: src/components/AnnotationItem.tsx
 msgid "{paragraphs, plural, one {# paragraph · more below} other {# paragraphs · more below}}"
@@ -119,6 +129,11 @@ msgstr "アカウント"
 #: src/components/AccountPanel.tsx
 msgid "Add a passkey"
 msgstr "パスキーを追加"
+
+#. Button at the foot of the phone's one-note page, after 'this note's place / how many notes the book has': goes back to the list of every note in the book.
+#: src/components/NotePage.tsx
+msgid "All"
+msgstr "すべて"
 
 #. The button that grants the agent access to the shelf.
 #. js-lingui-explicit-id
@@ -293,7 +308,9 @@ msgid "Downloading the book…"
 msgstr "本をダウンロード中…"
 
 #. Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.
+#. Small text button at the end of the date row on the phone's one-note page, under the passage and above the note: opens the note for changing.
 #: src/components/AnnotationItem.tsx
+#: src/components/NotePage.tsx
 msgid "Edit note"
 msgstr "メモを直す"
 
@@ -546,6 +563,11 @@ msgstr "増やす"
 msgid "Moss"
 msgstr "苔色"
 
+#. Button at the foot of the phone's one-note page: goes to the note after this one in the book, crossing into the next chapter when this is the last in its own. The › is part of the label.
+#: src/components/NotePage.tsx
+msgid "Next ›"
+msgstr "次のメモ ›"
+
 #. Screen-reader name for one of the two page buttons flanking the book on a desk. Which side is 'next' flips for a right-opening book, so the two are chosen by direction rather than by position.
 #: src/components/reader-messages.ts
 msgid "Next page"
@@ -623,6 +645,11 @@ msgstr "メモ .md"
 msgid "Notes ({markCount})"
 msgstr "メモ（{markCount}）"
 
+#. Screen-reader name for the row at the foot of the phone's one-note page that steps to the previous note, back to all of them, and to the next one.
+#: src/components/NotePage.tsx
+msgid "Notes in this book"
+msgstr "この本のメモ"
+
 #. Stands where a marked passage would be, on a shelf that has books but nothing marked in any of them. It says what the slot is for rather than that it is empty.
 #: src/components/Library.tsx
 msgid "Nothing marked yet. A passage you mark while reading comes back to you here."
@@ -675,6 +702,11 @@ msgstr "この端末だけにあります"
 #: src/components/Library.tsx
 msgid "Open {title}"
 msgstr "{title} を開く"
+
+#. Button in the top bar of the phone's one-note page: closes the notes and turns the book to where this passage is. Beside the ✕, which closes them and leaves the book where it was.
+#: src/components/Reader.tsx
+msgid "Open in book"
+msgstr "本文で開く"
 
 #. The only line on the page that hands the reader over to Paddle's checkout window. It is what they see if Paddle's script fails to load, so it says what is happening rather than merely spinning. The ellipsis is one character.
 #. js-lingui-explicit-id
@@ -778,6 +810,11 @@ msgstr "明朝体"
 #: src/components/SettingsScreen.tsx
 msgid "Settings"
 msgstr "設定"
+
+#. Button under the passage on the phone's one-note page, once the passage has been opened in full: cuts it back to half the screen so the note under it comes up again.
+#: src/components/NotePage.tsx
+msgid "Show less of the text"
+msgstr "本文をたたむ"
 
 #. Button that submits the code from the email and finishes signing in.
 #. Heading of the sign-in section, shown when there is no account on this device yet.
@@ -1080,8 +1117,10 @@ msgstr "検証に失敗しました"
 msgid "Would rather not pay, but want two devices? The syncing half can be self-hosted."
 msgstr "お金は払いたくないけれど端末を二台使いたい場合は、同期の側を自分で立てられます。"
 
+#. Dashed box on the phone's one-note page, where the note would stand under a passage that has none. Pressing it opens the note box. The ellipsis is one character.
 #. Dashed box under a marked passage with no note, on a card in the notes panel — on a desk only the card the reader has selected. Pressing it opens the note box. The ellipsis is one character.
 #: src/components/AnnotationItem.tsx
+#: src/components/NotePage.tsx
 msgid "Write a note…"
 msgstr "メモを書く…"
 
