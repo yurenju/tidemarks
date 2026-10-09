@@ -67,8 +67,8 @@ export default function NoteEditor({
 
     const box = boxRef.current;
     if (box !== null) {
-      // **Brings the holder to the top of the panel, then focuses.** "First in the card" is not
-      // "first on screen": the desk's list carries every mark in the book, so the 31st one being
+      // **Brings the holder to the top of the panel, then focuses.** "Near the top of the card" is
+      // not "near the top of the screen": the desk's list carries every mark in the book, so the 31st one being
       // edited sits thirty cards down a scroll container. Scrolling the container is what makes
       // ADR-0044's rule true; `preventScroll` below then stops the *window* being scrolled as
       // well, which is the half iOS does uninvited.
