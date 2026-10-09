@@ -373,6 +373,43 @@ test("a mark pressed on the page brings its card into the list, just below the t
     .toBe(true);
 });
 
+// The other way a card is selected, and the one that must not move the list: the card is already
+// under the pointer, and selecting it opens a long note out past the foot of the panel — which,
+// left to the rule above, would glide the card up and away from the press.
+test("a card pressed in the list stays where it was pressed", async ({ page }) => {
+  await openNotesInChapterThree(page);
+  const panel = page.getByTestId("panel-notes");
+  // Where the card sits in the panel's window rather than how far the list is scrolled: pressing a
+  // passage moves the book to its chapter, that chapter's heading gains a line saying so, and the
+  // browser scrolls the list by that line to hold the card still — which is the point, not a fault.
+  const cardTop = () =>
+    panel.evaluate(
+      (root) =>
+        new Promise<number>((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              const list = root.querySelector(".panel-body")!.getBoundingClientRect();
+              const card = root.querySelector('[data-mark="notes-early-7"]')!;
+              resolve(card.getBoundingClientRect().top - list.top);
+            }),
+          ),
+        ),
+    );
+
+  // A long-noted card, whole and at the foot of the list's window.
+  await panel.evaluate((root) => {
+    const list = root.querySelector<HTMLElement>(".panel-body")!;
+    const card = root.querySelector('[data-mark="notes-early-7"]')!.getBoundingClientRect();
+    list.scrollTop += card.bottom - list.getBoundingClientRect().bottom + 8;
+  });
+  const was = await cardTop();
+  await panel.getByRole("button", { name: `${EARLY_PASSAGE} (8)` }).click();
+  await expect(panel.locator('[data-mark="notes-early-7"]')).toHaveClass(/selected/);
+
+  // Two frames after the selection is drawn: a glide would have started by then.
+  expect(Math.abs((await cardTop()) - was)).toBeLessThan(1);
+});
+
 /**
  * [[Notes]] on a phone: an index, and a page per note (#239).
  *

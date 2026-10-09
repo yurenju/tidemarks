@@ -88,13 +88,6 @@ function NotesEmpty() {
 }
 
 /**
- * How much of the list is left above a card the page pointed at, in px: past a card's own padding
- * and into the last line or so of the one before it. `--space-7`, the largest step of the spacing
- * scale (`styles/tokens.css`).
- */
-const NOTES_PEEK = 44;
-
-/**
  * Moves the highlight layer with the page a turn is sliding.
  *
  * A mark belongs to a passage of the book, not to the screen: the moment the page starts
@@ -621,36 +614,47 @@ export default function Reader({
   // there, where a ref would still be empty and nothing would ask again.
   const [notesList, setNotesList] = useState<HTMLDivElement | null>(null);
   const reflecting = chrome === "reflect";
+  /** A card in the list, the column it scrolls in, and how far below the column's top it starts. */
+  function noteCard(id: string) {
+    const item = notesList?.querySelector<HTMLElement>(`[data-mark="${CSS.escape(id)}"]`);
+    const body = item?.closest<HTMLElement>(".panel-body");
+    if (!item || !body) return null;
+    const run = item.closest<HTMLElement>(".annotation-chapter");
+    // **The chapter's heading comes with the card** when the card is the first of its run, so the
+    // list does not stop on a card with its chapter's name scrolled just out of sight.
+    const anchor = run?.querySelector("[data-mark]") === item ? run : item;
+    const offset = anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    return { item, body, offset };
+  }
   /**
-   * Brings a card to the top of the list. **The chapter's heading comes with it** when the card is
-   * the first of its run, so the list does not open on a card with its chapter's name scrolled
-   * just out of sight.
+   * Brings a card to the top of the list, at once: where the list opens, where it follows a page
+   * turn to, and where a phone's index comes back to.
    *
    * The list is scrolled rather than the card asked to `scrollIntoView`, for the reason
    * `AnnotationItem`'s editor gives: only the panel's own column should move.
    */
-  function scrollNotesTo(id: string, pointedAt = false): boolean {
-    const item = notesList?.querySelector<HTMLElement>(`[data-mark="${CSS.escape(id)}"]`);
-    const body = item?.closest<HTMLElement>(".panel-body");
-    if (!item || !body) return false;
-    const run = item.closest<HTMLElement>(".annotation-chapter");
-    const anchor = run?.querySelector("[data-mark]") === item ? run : item;
-    const offset = anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
-    if (!pointedAt) {
-      body.scrollTop += offset;
-      return true;
-    }
-    // A card pointed at from the page is **left where it is when the whole of it is already in
-    // view** — most often because it was pressed in the list, and moving it would pull the card
-    // out from under the pointer that pressed it.
-    const card = item.getBoundingClientRect();
+  function scrollNotesTo(id: string) {
+    const card = noteCard(id);
+    if (card) card.body.scrollTop += card.offset;
+  }
+  /**
+   * Glides a card the page pointed at to **a little below the top, not the middle**: the end of
+   * the card before it stays in sight, so the reader can tell where in the list the page has
+   * brought them (#234, on the desk's notes panel). The little is `--space-7`, read from the
+   * stylesheet so the two cannot drift. A card already wholly in view is left where it is.
+   *
+   * `false` when there is no card to go to yet — the caller asks again on a later render.
+   */
+  function glideNotesTo(id: string): boolean {
+    const card = noteCard(id);
+    if (!card) return false;
+    const { item, body, offset } = card;
+    const seen = item.getBoundingClientRect();
     const view = body.getBoundingClientRect();
-    if (card.top >= view.top && card.bottom <= view.bottom) return true;
-    // Otherwise it glides rather than jumps, to a little below the top rather than the middle:
-    // the end of the card before it stays in sight, so the reader can tell where in the list the
-    // page has brought them (#234, on the desk's notes panel).
+    if (seen.top >= view.top && seen.bottom <= view.bottom) return true;
+    const peek = parseFloat(getComputedStyle(body).getPropertyValue("--space-7")) || 0;
     body.scrollTo({
-      top: body.scrollTop + offset - NOTES_PEEK,
+      top: body.scrollTop + offset - peek,
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
     return true;
@@ -665,7 +669,10 @@ export default function Reader({
   const followedLandings = useRef(0);
   // The mark the list last went to because it was pointed at. **Kept by id, not by render**: a
   // passage that runs across a turn stays pointed at (`lib/chrome.ts`, on `turnLanded`), and a
-  // list the reader has scrolled away from it since is not pulled back on the next page.
+  // list the reader has scrolled away from it since is not pulled back on the next page. A card
+  // pressed in the list is written in here before the press is sent (`jumpTo`), so the list does
+  // not move: selecting it opens a long note out past the bottom of the panel, and gliding it up
+  // would pull the card out from under the pointer that pressed it.
   const followedPick = useRef<string | null>(null);
   // No dependency list on any of the three: each keeps its own record of what it has already
   // answered, and the rest is read as it stands at that moment.
@@ -694,11 +701,14 @@ export default function Reader({
     if (target !== null) scrollNotesTo(target.id);
   });
   // A mark pointed at while the list stands: tapped on the page, named by the address, or just
-  // made. Pointing at it lights its card, and a lit card thirty rows down is one the reader still
+  // made. Pointing at it lights its card, and a lit card far down the list is one the reader still
   // has to go looking for. Not while a note is being written — the box brings its own card to the
   // top as it takes the focus (`AnnotationItem`), and two scrolls at once would fight.
+  //
+  // **A desk's alone.** On a phone the mark pointed at is a page of its own rather than a card in
+  // the list (#239), and the index has its own place to come back to (`recent`, below).
   useEffect(() => {
-    if (!reflecting || selectedNoteId === null) {
+    if (!reflecting || selectedNoteId === null || !bookKeepsAColumn) {
       followedPick.current = null;
       return;
     }
@@ -709,7 +719,7 @@ export default function Reader({
     }
     // Not marked followed until the card is there to go to: the panel's body mounts a render
     // after [[Reflect]] opens, and the marks may not have been read yet.
-    if (scrollNotesTo(selectedNoteId, true)) followedPick.current = selectedNoteId;
+    if (glideNotesTo(selectedNoteId)) followedPick.current = selectedNoteId;
   });
 
   /**
@@ -920,6 +930,7 @@ export default function Reader({
     // press per passage to get back to it. So the panel stays and the passage is washed instead —
     // but only where the book still has a column of its own to be seen in, which is what
     // `keepPanel` carries and `lib/media.ts` explains.
+    followedPick.current = a.id;
     sendChrome({ kind: "notePressed", id: a.id, keepPanel: bookKeepsAColumn });
   }
 
