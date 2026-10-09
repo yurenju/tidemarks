@@ -24,9 +24,7 @@ export interface PassageLines {
 }
 
 export interface PassageWindow {
-  /** The passage's first line in the window. */
-  start: number;
-  /** Lines cut off above the window, and below it. */
+  /** Lines cut off above the window — which is also the passage's first line in it — and below. */
   above: number;
   below: number;
 }
@@ -45,8 +43,10 @@ export function passageWindow({
   // two lines of the words before it — a mark longer than the window is cut at its tail instead,
   // since its opening is what says which passage this is.
   const end = Math.min(markEnd + 1, total);
-  if (end - start > fits) start = Math.min(end - fits, Math.max(markStart - 2, 0));
+  // In a window of a line or two the mark's own line is the one to keep, so the lead shrinks with it.
+  const lead = Math.min(2, fits - 1);
+  if (end - start > fits) start = Math.min(end - fits, Math.max(markStart - lead, 0));
   // Not past either end: a window that ran off the passage would be part empty.
   start = Math.min(Math.max(start, 0), total - fits);
-  return { start, above: start, below: total - fits - start };
+  return { above: start, below: total - fits - start };
 }

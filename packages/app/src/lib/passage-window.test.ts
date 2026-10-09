@@ -10,12 +10,10 @@ describe("passageWindow", () => {
 
   it("cuts from the top when the mark is in the window's first half", () => {
     expect(passageWindow({ fits: 12, total: 28, markStart: 0, markEnd: 1 })).toEqual({
-      start: 0,
       above: 0,
       below: 16,
     });
     expect(passageWindow({ fits: 12, total: 28, markStart: 5, markEnd: 6 })).toEqual({
-      start: 0,
       above: 0,
       below: 16,
     });
@@ -23,21 +21,19 @@ describe("passageWindow", () => {
 
   it("starts the mark halfway down the window, with the passage cut at both ends", () => {
     expect(passageWindow({ fits: 12, total: 28, markStart: 13, markEnd: 15 })).toEqual({
-      start: 7,
       above: 7,
       below: 9,
     });
   });
 
   it("rounds the half of an odd window down", () => {
-    expect(passageWindow({ fits: 11, total: 28, markStart: 13, markEnd: 14 })?.start).toBe(8);
+    expect(passageWindow({ fits: 11, total: 28, markStart: 13, markEnd: 14 })?.above).toBe(8);
   });
 
   // #262: the case that started it — a short mark three lines from a long paragraph's end, which
   // a cut from the top left out of the window altogether.
   it("stops at the passage's end rather than leaving the window short", () => {
     expect(passageWindow({ fits: 12, total: 28, markStart: 24, markEnd: 26 })).toEqual({
-      start: 16,
       above: 16,
       below: 0,
     });
@@ -46,7 +42,6 @@ describe("passageWindow", () => {
   it("moves a mark too long for the window's lower half up until a line after it shows", () => {
     // Six lines from line 18: halfway would end it past the window, so it starts at line 5 of it.
     expect(passageWindow({ fits: 12, total: 37, markStart: 18, markEnd: 24 })).toEqual({
-      start: 13,
       above: 13,
       below: 12,
     });
@@ -54,13 +49,16 @@ describe("passageWindow", () => {
 
   it("keeps two lines over a mark longer than the window, and cuts the mark's tail", () => {
     expect(passageWindow({ fits: 12, total: 28, markStart: 9, markEnd: 21 })).toEqual({
-      start: 7,
       above: 7,
       below: 9,
     });
   });
 
   it("cuts a long mark from the top when it starts in the first two lines", () => {
-    expect(passageWindow({ fits: 12, total: 28, markStart: 1, markEnd: 20 })?.start).toBe(0);
+    expect(passageWindow({ fits: 12, total: 28, markStart: 1, markEnd: 20 })?.above).toBe(0);
+  });
+
+  it("keeps the mark's first line in a window too short for two lines over it", () => {
+    expect(passageWindow({ fits: 2, total: 28, markStart: 9, markEnd: 21 })?.above).toBe(8);
   });
 });

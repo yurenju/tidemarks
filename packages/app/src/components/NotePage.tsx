@@ -100,7 +100,9 @@ export default function NotePage({
       // margin, and these are measured from inside it.
       const top = text.getBoundingClientRect().top;
       const marks = text.querySelectorAll("mark");
-      const first = marks[0]?.getClientRects()[0];
+      // The first rectangle with width: a mark that begins at a line's start can open with an
+      // empty one at the end of the line before.
+      const first = [...(marks[0]?.getClientRects() ?? [])].find((rect) => rect.width > 0);
       const last = [...(marks[marks.length - 1]?.getClientRects() ?? [])].pop();
       const fits = Math.max(1, Math.floor(window.innerHeight / 2 / line));
       const placed = passageWindow({
@@ -207,7 +209,7 @@ export default function NotePage({
           maxHeight: clipped ? `${cut.fits * cut.line}px` : undefined,
         }}
       >
-        <div style={clipped ? { marginTop: `${-cut.start * cut.line}px` } : undefined}>
+        <div style={clipped ? { marginTop: `${-cut.above * cut.line}px` } : undefined}>
           {shown.map((paragraph, i) => (
             <p key={i}>
               {paragraph.before}

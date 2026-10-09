@@ -508,6 +508,38 @@ test.describe("on a phone, one note to a page", () => {
     expect(mark.y + mark.height).toBeLessThanOrEqual(source.y + source.height);
   });
 
+  // #262: a window cut at its top opens upward too, and the page scrolls to make up for it. Only a
+  // browser has a scroll to make up, so this is the one place the mark staying put is measured — on
+  // a mark mid-paragraph, where the page is long enough below it to scroll the whole way.
+  test("opening and closing a passage cut at both ends leave the mark where it stood", async ({
+    page,
+  }) => {
+    await openNotes(page, [
+      {
+        id: "notes-paragraph-middle",
+        cfiRange: "epubcfi(/6/12!/4/2[chapter-1]/24,/1:506,/1:523)",
+        text: "Do cats eat bats?",
+        note: "",
+      },
+    ]);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByTestId("notes-index").getByRole("button").click();
+    const note = panel.getByTestId("note-page");
+    const mark = note.locator(".note-page-source mark");
+    const line = await note
+      .locator(".note-page-source")
+      .evaluate((box) => parseFloat(getComputedStyle(box).lineHeight));
+
+    const cut = (await mark.boundingBox())!.y;
+    await note.getByRole("button", { name: /Show the full text/ }).click();
+    await expect(note.getByRole("button", { name: "Show less of the text" })).toBeVisible();
+    expect(Math.abs((await mark.boundingBox())!.y - cut)).toBeLessThan(line);
+
+    await note.getByRole("button", { name: "Show less of the text" }).click();
+    await expect(note.getByRole("button", { name: /Show the full text/ })).toBeVisible();
+    expect(Math.abs((await mark.boundingBox())!.y - cut)).toBeLessThan(line);
+  });
+
   // #240: the page turned over to the box. What only a browser can say is where the box stands —
   // under two lines of the passage and near the top, where a keyboard cannot reach (ADR-0044) —
   // and that the words written there are what the page shows once [[Done]] puts the box away.
