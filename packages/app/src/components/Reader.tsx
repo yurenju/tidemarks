@@ -88,6 +88,13 @@ function NotesEmpty() {
 }
 
 /**
+ * How much of the list is left above a card the page pointed at, in px: past a card's own padding
+ * and into the last line or so of the one before it. `--space-7`, the largest step of the spacing
+ * scale (`styles/tokens.css`).
+ */
+const NOTES_PEEK = 44;
+
+/**
  * Moves the highlight layer with the page a turn is sliding.
  *
  * A mark belongs to a passage of the book, not to the screen: the moment the page starts
@@ -622,13 +629,31 @@ export default function Reader({
    * The list is scrolled rather than the card asked to `scrollIntoView`, for the reason
    * `AnnotationItem`'s editor gives: only the panel's own column should move.
    */
-  function scrollNotesTo(id: string) {
+  function scrollNotesTo(id: string, pointedAt = false): boolean {
     const item = notesList?.querySelector<HTMLElement>(`[data-mark="${CSS.escape(id)}"]`);
     const body = item?.closest<HTMLElement>(".panel-body");
-    if (!item || !body) return;
+    if (!item || !body) return false;
     const run = item.closest<HTMLElement>(".annotation-chapter");
     const anchor = run?.querySelector("[data-mark]") === item ? run : item;
-    body.scrollTop += anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    const offset = anchor.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    if (!pointedAt) {
+      body.scrollTop += offset;
+      return true;
+    }
+    // A card pointed at from the page is **left where it is when the whole of it is already in
+    // view** — most often because it was pressed in the list, and moving it would pull the card
+    // out from under the pointer that pressed it.
+    const card = item.getBoundingClientRect();
+    const view = body.getBoundingClientRect();
+    if (card.top >= view.top && card.bottom <= view.bottom) return true;
+    // Otherwise it glides rather than jumps, to a little below the top rather than the middle:
+    // the end of the card before it stays in sight, so the reader can tell where in the list the
+    // page has brought them (#234, on the desk's notes panel).
+    body.scrollTo({
+      top: body.scrollTop + offset - NOTES_PEEK,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+    return true;
   }
   // Set as [[Reflect]] opens with nothing pointed at, and spent once there is a page to answer
   // from. Two steps because the list can open before there is one: `?d=notes` raises it as the
@@ -638,8 +663,12 @@ export default function Reader({
   const wasReflecting = useRef(false);
   // Landings the list has already followed, so a render for any other reason does not scroll it.
   const followedLandings = useRef(0);
-  // No dependency list on either: each one keeps its own record of what it has already answered,
-  // and the rest is read as it stands at that moment.
+  // The mark the list last went to because it was pointed at. **Kept by id, not by render**: a
+  // passage that runs across a turn stays pointed at (`lib/chrome.ts`, on `turnLanded`), and a
+  // list the reader has scrolled away from it since is not pulled back on the next page.
+  const followedPick = useRef<string | null>(null);
+  // No dependency list on any of the three: each keeps its own record of what it has already
+  // answered, and the rest is read as it stands at that moment.
   useEffect(() => {
     if (reflecting !== wasReflecting.current) {
       wasReflecting.current = reflecting;
@@ -663,6 +692,24 @@ export default function Reader({
     const onPage = paintedRef.current.map((entry) => entry.annotation.id);
     const target = markToTurnTo(annotations, onPage);
     if (target !== null) scrollNotesTo(target.id);
+  });
+  // A mark pointed at while the list stands: tapped on the page, named by the address, or just
+  // made. Pointing at it lights its card, and a lit card thirty rows down is one the reader still
+  // has to go looking for. Not while a note is being written — the box brings its own card to the
+  // top as it takes the focus (`AnnotationItem`), and two scrolls at once would fight.
+  useEffect(() => {
+    if (!reflecting || selectedNoteId === null) {
+      followedPick.current = null;
+      return;
+    }
+    if (selectedNoteId === followedPick.current) return;
+    if (editingId !== null) {
+      followedPick.current = selectedNoteId;
+      return;
+    }
+    // Not marked followed until the card is there to go to: the panel's body mounts a render
+    // after [[Reflect]] opens, and the marks may not have been read yet.
+    if (scrollNotesTo(selectedNoteId, true)) followedPick.current = selectedNoteId;
   });
 
   /**
