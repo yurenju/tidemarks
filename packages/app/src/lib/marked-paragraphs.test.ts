@@ -26,7 +26,7 @@ describe("paragraphsOf", () => {
 
   it("gives every paragraph a mark runs across, and the mark's share of each", () => {
     const document = section("<p>一段。</p><p>第二段。</p><p>三。</p>");
-    // 一段。|第二段。|三。 — from 段 to 第二.
+    // Three paragraphs; the mark runs from the second character of the first into the second.
     expect(paragraphsOf(document, markOf(document, 1, 5))).toEqual([
       { before: "一", marked: "段。", after: "" },
       { before: "", marked: "第二", after: "段。" },

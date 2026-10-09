@@ -1,5 +1,6 @@
-// What the shelf does to a marked passage before setting it as one paragraph. The card that shows
-// the result is packages/app/tests/browser/library/marks.spec.ts.
+// What the shelf does to a marked passage before setting it as one paragraph, and the same rule
+// over a paragraph cut in pieces, which the phone's note page sets around a mark. The screens that
+// show the results are packages/app/tests/browser/library/marks.spec.ts and notes-panel.spec.ts.
 import { describe, expect, it } from "vitest";
 import { tidy, tidyPieces } from "./passage";
 

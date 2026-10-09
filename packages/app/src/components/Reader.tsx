@@ -1222,6 +1222,7 @@ export default function Reader({
             annotation={pageMark}
             paragraphs={paragraphsOf?.(pageMark.cfiRange) ?? null}
             fontSize={settings.fontSize}
+            sans={settings.fontFamily === "sans"}
             count={countOf(annotations, pageMark.id) ?? { nth: 1, total: annotations.length }}
             previous={neighbourOf(annotations, pageMark.id, "previous")}
             next={neighbourOf(annotations, pageMark.id, "next")}

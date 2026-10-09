@@ -344,7 +344,9 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
     await expect(page.getByTestId("notes-index")).toBeVisible();
     expect(panelInAddress(page)).toBe(`notes/${bookId}`);
     // And the note just left is the one the index marks.
-    await expect(page.getByTestId("notes-index").locator(".note-index-item.recent")).toHaveCount(1);
+    await expect(
+      page.getByTestId("notes-index").getByRole("button").and(page.locator("[aria-current]")),
+    ).toHaveCount(1);
 
     await page.goBack();
     await expect(page.getByTestId("panel-notes")).toBeHidden();

@@ -19,6 +19,7 @@
 // flake on two engines (#15, #46), and the note is written by the same `relocate` this is about.
 import type { Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
+import { BOOK_KEEPS_A_COLUMN } from "../../../src/lib/media.js";
 import {
   BOOKS,
   bookCards,
@@ -146,7 +147,7 @@ async function jumpToPassage(page: Page): Promise<void> {
   await openPanel(page, /Notes/);
   const panel = page.getByTestId("panel-notes");
   await panel.getByRole("button", { name: PASSAGE }).click();
-  if ((page.viewportSize()?.width ?? 0) < 820) {
+  if (!(await page.evaluate((q) => matchMedia(q).matches, BOOK_KEEPS_A_COLUMN))) {
     await panel.getByRole("button", { name: "Open in book" }).click();
   }
 }

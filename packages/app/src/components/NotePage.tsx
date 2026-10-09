@@ -21,6 +21,7 @@ export default function NotePage({
   annotation,
   paragraphs,
   fontSize,
+  sans,
   count,
   previous,
   next,
@@ -34,6 +35,8 @@ export default function NotePage({
   paragraphs: MarkedParagraph[] | null;
   /** The reader's type size for the book, as a percentage of the root size (`ReaderSettings`). */
   fontSize: number;
+  /** Whether the reader chose a sans face for the book in [[Layout]]. */
+  sans: boolean;
   /** Where this one stands in the whole book's marks, not its chapter's. */
   count: { nth: number; total: number };
   /** The marks either side, in book order and across chapters; `null` at either end. */
@@ -101,15 +104,17 @@ export default function NotePage({
       data-testid="note-page"
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
     >
-      {/* **The book's words at the reader's size, in the interface's serif.** The size is the one
-          they chose in [[Layout]]. The face is not: it is applied inside frond's frame and is not
-          a value this page can read — the same answer the desk's quotes give (`styles/book.css`).
+      {/* **The book's words at the reader's size, in the kind of face they chose.** The size is the
+          one they chose in [[Layout]], and so is sans against serif. The face itself is not: a
+          book's own fonts are applied inside frond's frame and are not a value this page can
+          read, so the publisher's choice reads as the interface's serif — the desk's quotes' answer
+          (`styles/book.css`).
 
           The mark is a wash and nothing else, as on the page when it is selected; the words around
           it step back, so the eye lands on what was marked and the rest is there to be read. */}
       <div
         ref={sourceRef}
-        className={`note-page-source${clipped ? " clipped" : ""}`}
+        className={`note-page-source${clipped ? " clipped" : ""}${sans ? " sans" : ""}`}
         style={{
           fontSize: `calc(1rem * ${fontSize} / 100)`,
           maxHeight: clipped ? `${cut.height}px` : undefined,

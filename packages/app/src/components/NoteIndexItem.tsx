@@ -26,6 +26,8 @@ export default function NoteIndexItem({
     <button
       type="button"
       className={`note-index-item${recent ? " recent" : ""}`}
+      // Said in the tree as well as in ink, since a tint is all a sighted reader gets (ADR-0021).
+      aria-current={recent || undefined}
       // What the list scrolls to by (`Reader.tsx`, `scrollNotesTo`), as on the desk's cards.
       data-mark={annotation.id}
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}

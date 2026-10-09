@@ -344,12 +344,12 @@ test.describe("on a phone, one note to a page", () => {
     await expect(note).toBeVisible();
     await expect(note.getByRole("button", { name: /All/ })).toContainText("1 / 2");
     await expect(note.getByRole("button", { name: "‹ Previous" })).toBeDisabled();
-    const firstChapter = await panel.locator(".panel-title").innerText();
+    const firstChapter = await panel.getByRole("heading").innerText();
 
     await note.getByRole("button", { name: "Next ›" }).click();
     await expect(note.getByRole("button", { name: /All/ })).toContainText("2 / 2");
     await expect(note.getByRole("button", { name: "Next ›" })).toBeDisabled();
-    await expect(panel.locator(".panel-title")).not.toHaveText(firstChapter);
+    await expect(panel.getByRole("heading")).not.toHaveText(firstChapter);
     // **The book's words, not the quote the mark stored.** The seeded mark says it is
     // `LATE_PASSAGE`, and its CFI says it is the chapter's numeral: the page reads the epub.
     await expect(note.locator("mark")).toHaveText("III");

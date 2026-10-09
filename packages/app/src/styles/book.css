@@ -1173,6 +1173,10 @@ button.note-index-item.recent:active:not(:disabled) {
   color: var(--text-muted);
 }
 
+.note-page-source.sans {
+  font-family: var(--font-control);
+}
+
 .note-page-source p {
   margin: 0;
   text-indent: 1em;
@@ -1236,10 +1240,13 @@ button.note-index-item.recent:active:not(:disabled) {
    three keep their places: an end of the book greys its button rather than taking it away. */
 .note-page-nav {
   position: sticky;
-  bottom: 0;
+  /* The panel body's own bottom padding, given back: a sticky box stops at the padding's inner
+     edge, which left a strip of the note scrolling past underneath the row. */
+  bottom: -1rem;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  /* Out to the panel body's edges, past its 1rem padding (`.panel-body`, `surfaces.css`). */
   margin: auto -1rem -1rem;
   padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-hair);
