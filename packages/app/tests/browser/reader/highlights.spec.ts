@@ -317,10 +317,9 @@ test.describe("drawing a highlight", () => {
     const dot = page.getByTestId("note-dot");
     await expect(dot).toHaveCount(0);
 
-    // The note is written into the stored mark rather than through the note box: in firefox,
-    // writing in that box leaves the whole reader scrolled up and the top margin off the screen
-    // (#249), which would take this test with it for a reason that has nothing to do with dots.
-    // What the dot answers to is the stored note, so that is what is changed.
+    // The note is written into the stored mark rather than through the note box: what the dot
+    // answers to is the stored note, so that is what is changed. Writing through the note box is
+    // the next test's.
     await page.evaluate(
       (passage) =>
         new Promise<void>((resolve, reject) => {
@@ -373,6 +372,49 @@ test.describe("drawing a highlight", () => {
       "aria-current",
       "true",
     );
+  });
+
+  // Why the reader could be scrolled at all is in `styles/reader.css`, on `.chrome`. Here: in
+  // firefox, Playwright bringing [[Write a note…]] into view while the panel was still sliding in
+  // scrolled the reader down by the bars' parking distance, and nothing scrolled it back — the top
+  // of the page and its margin stayed off the screen after the panel had gone (#249).
+  //
+  // Asked as "nothing to scroll" at every step rather than "not scrolled": the second is only a
+  // symptom in the engine whose reveal happens to reach the reader, and the first is the
+  // condition that makes any reveal harmless in all three. It is also why one way of writing a
+  // note is enough: [[Mark and note]] and [[Done]] lose the page the same way, by scrolling a
+  // reader that has room to scroll, and the first step below already fails without that room.
+  test("writing a note leaves the reader with nothing to scroll, so the page stays put", async ({
+    page,
+  }) => {
+    const text = await selectPassage(page);
+    await page.locator(".highlight-toolbar .swatch").first().click();
+    await expect(page.locator(".highlight-box").first()).toBeVisible();
+
+    const reader = page.locator(".reader");
+    const offset = () =>
+      reader.evaluate((box) => ({
+        scrolled: [box.scrollLeft, box.scrollTop],
+        spare: [box.scrollWidth - box.clientWidth, box.scrollHeight - box.clientHeight],
+      }));
+    const still = { scrolled: [0, 0], spare: [0, 0] };
+    expect(await offset(), "in Read, with the bars parked").toEqual(still);
+
+    // In through the passage, then Playwright's own press on the card's way to start a note: it
+    // brings the button into view before pressing, and that reveal is what scrolled the reader.
+    const box = (await selectedElement(page, text).boundingBox())!;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    const panel = page.getByTestId("panel-notes");
+    await panel.getByRole("button", { name: "Write a note…" }).click();
+    expect(await offset(), "as the note box opens").toEqual(still);
+
+    await panel.getByRole("textbox").fill("Worth coming back to.");
+    await panel.getByRole("button", { name: "Done" }).click();
+    expect(await offset(), "after Done").toEqual(still);
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    expect(await offset(), "back in Read").toEqual(still);
   });
 });
 

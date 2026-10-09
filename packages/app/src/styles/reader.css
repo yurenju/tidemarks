@@ -47,6 +47,12 @@
     "bottom bottom";
   grid-template-rows: auto auto 1fr auto;
   pointer-events: none;
+  /* **The bars are parked inside this box, not past the reader's edge.** `.reader` is
+     `overflow: hidden`, which still scrolls when the browser is asked to reveal something in it,
+     and a bar parked `--chrome-slide` below the bottom gave it exactly that much to scroll. Firefox
+     did, and the page sat that far up with nothing to bring it back (#249). `clip` rather than
+     `hidden` here, because `hidden` would only move the same scroll range one box inward. */
+  overflow: clip;
   transition: right var(--chrome-motion) ease-out;
 }
 
@@ -462,6 +468,9 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
+  /* The panel arrives from past the right edge, and while it travels it would give the reader a
+     panel's width to scroll sideways. Clipped here for the reason `.chrome` gives. */
+  overflow: clip;
 }
 
 /* **The bars end where the panel begins, at every width the panel is a column at.** Not only in
