@@ -5,20 +5,20 @@
 #
 # **This is not meant to be executed; it is meant to be `source`d.**
 #
-# It used to have two callers, which was the argument for keeping it separate: `test-in-container.sh`
-# and `capture-evidence.sh` had to agree on the image, and "how to talk to the container engine"
-# can only have one answer. The second caller is gone — evidence for a pull request is captured on
-# the host now (docs/adr/0007-pr-evidence-is-captured-on-the-host.md).
-#
-# It has callers again: `test-in-container.sh`, `capture-shots.sh` (the screen sweep) and
-# `measure-perf.sh` (page turns under load). It also answers a different question than any of them:
-# this one is about reaching docker at all (is the daemon up, is the client pointed at it), and that
-# is worth reading — and failing — separately from "which tests to run".
+# Its callers — `test-in-container.sh`, `capture-shots.sh` (the screen sweep), `measure-perf.sh`
+# (page turns under load), `build-test-image.sh`, and frond's `scripts/scan-books.sh` — have to
+# agree on the image and on how it is built, cleaned up and checked, and "how to talk to the
+# container engine" can only have one answer.
+# It also answers a different question than any of them: this one is about reaching docker at all
+# and getting an image that holds this checkout, which is worth reading — and failing — separately
+# from "which tests to run".
 #
 # After sourcing, available are:
 #   REPO_ROOT        the absolute path of the repo root
 #   IMAGE_NAME       the tag to build; the image's id once container_build has run
-#   container_build  builds the image, refuses to return unless it holds the working directory
+#   container_build  clears out test images nobody can use any more, builds the shared dependency
+#                    image if this set of dependencies has none yet, builds this checkout's image
+#                    on top of it, refuses to return unless that image holds the working directory
 #                    (issue #185), and repoints IMAGE_NAME at the id it checked
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,8 +39,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # worktrees. That costs the rebuilds above and nothing else, because what a run is pointed at is an
 # image id by then. `TIDEMARKS_TEST_IMAGE` is there for whoever wants to separate them anyway.
 #
-# What it costs: images accumulate rather than replace one another, so a deleted worktree leaves
-# one behind. Cleanup is in docs/development.md.
+# What it costs: images accumulate rather than replace one another, so a deleted worktree would
+# leave one behind. Nobody deletes them by hand reliably, so `container_prune` below does it on
+# every build — and keeps the cost of each one small by sharing the dependency layer.
 IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test-$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]')}"
 
 # docker, rootful or rootless — the tests run on either, and which one a machine uses is that
@@ -201,21 +202,196 @@ container_verify_source() {
     { diff <(printf '%s\n' "$host") <(printf '%s\n' "$image") | head -20; } >&2 || true
     echo "" >&2
     echo "Rebuild without the cache and run again:" >&2
-    echo "    docker build --no-cache --tag ${IMAGE_NAME} ${REPO_ROOT}" >&2
+    echo "    docker build --no-cache --build-arg DEPS_IMAGE=${DEPS_TAG} --tag ${IMAGE_NAME} ${REPO_ROOT}" >&2
     return 1
 }
 
-container_build() {
-    local network
-    network="$(build_network_args)"
+# --- the dependency image every checkout shares ------------------------------
+#
+# Each checkout's image is built on a shared one holding the browsers, the fonts and `npm ci`'s
+# tree, tagged rather than left to the build cache, because a tag survives a cache prune. ADR-0051
+# (docs/adr/0051-the-test-image-shares-its-dependencies-across-checkouts.md) has the argument.
+DEPS_REPO=tidemarks-deps
 
-    if [[ -n "$network" ]]; then
-        echo "==> building ${IMAGE_NAME} with docker (${network}: the proxy is on loopback)"
+# The manifests `npm ci` needs. docker/deps.Dockerfile says why `packages/site` is not one.
+DEPS_MANIFESTS=(package.json packages/app/package.json packages/frond/package.json)
+
+# Fills the directory $1 with everything docker/deps.Dockerfile is allowed to see, and nothing else.
+#
+# **The image's tag is a hash of this directory, so what goes in here is what decides when the
+# dependencies count as changed.** That makes a forgotten file fail loudly: a `COPY` of something
+# not put here fails the build, rather than baking in a file the hash never saw.
+#
+# The manifests go in without their `scripts`. A branch that added one script would otherwise get a
+# fresh 918MB `npm ci` of a tree identical to everyone else's — measured on a real branch, whose only
+# difference was a `"perf"` line.
+deps_context() {
+    local ctx="$1" manifest
+    cp -R "$REPO_ROOT/docker/." "$ctx/"
+    cp "$REPO_ROOT/package-lock.json" "$ctx/"
+    for manifest in "${DEPS_MANIFESTS[@]}"; do
+        mkdir -p "$ctx/$(dirname "$manifest")"
+    done
+    node -e '
+        const { readFileSync, writeFileSync } = require("node:fs");
+        const { join } = require("node:path");
+        const [root, ctx, ...manifests] = process.argv.slice(1);
+        for (const manifest of manifests) {
+            const json = JSON.parse(readFileSync(join(root, manifest), "utf8"));
+            delete json.scripts;
+            writeFileSync(join(ctx, manifest), JSON.stringify(json, null, 2) + "\n");
+        }
+    ' "$REPO_ROOT" "$ctx" "${DEPS_MANIFESTS[@]}"
+}
+
+# Paths are part of what is hashed, so a file moving inside the context counts as a change too.
+deps_hash() {
+    (cd "$1" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do sha256sum "$f"; done) |
+        sha256sum | cut -c1-16
+}
+
+# --- clearing out what nobody can use any more --------------------------------
+#
+# The project is developed in worktrees whose names carry a random suffix, so the image of a
+# deleted worktree is never reused by anyone — and git has no hook for a worktree being removed.
+# The next build, from any checkout, is the first moment anything can notice, so that is where this
+# runs: before building, because a full disk is exactly when the build needs the room.
+#
+# ⚠️ **What it may remove is narrow on purpose.** Another checkout may be building or running
+# tests right now, and losing its image halfway would fail it with an error that points nowhere
+# near here. So it removes only these, never with `-f` (an image a container is using stays), and
+# never touches the build cache:
+#
+#   - a checkout image whose checkout directory is gone. Decided by the path in its label rather
+#     than by `git worktree list`, which would take another clone's images for orphans.
+#   - a checkout image with no tag left that is over a day old: an earlier build of a checkout that
+#     still exists. Not removed sooner because `container_build` pins an image id and the runs
+#     after it can take a while; a second build in the same checkout meanwhile strips this one's
+#     tag, and removing it then would pull it out from under the first.
+#   - a dependency image no remaining checkout image is built on, also only once it is a day old,
+#     so one built a moment ago for a checkout whose own build has not finished is left alone.
+#
+# Images built before these labels existed carry none, so this never sees them; they are removed
+# by hand once (docs/development.md).
+#
+# Best effort throughout: a failure here is reported and the build carries on, because a full
+# disk is a better error than a test run refused over housekeeping.
+CONTAINER_STALE_AFTER=24h
+
+# Fails when the image is in use, so the caller can count it as still there.
+container_remove() {
+    local reason="$1" id="$2" tags="$3"
+    # A tagged image is removed by its tags, because `docker rmi <id>` refuses an id that more
+    # than one tag points at.
+    if [[ -n "$tags" ]]; then
+        # shellcheck disable=SC2086 # tags are space-separated and contain no spaces themselves
+        docker rmi $tags >/dev/null 2>&1 || { echo "    kept ${tags} (${reason}, but it is in use)"; return 1; }
+        echo "    removed ${tags} (${reason})"
     else
-        echo "==> building ${IMAGE_NAME} with docker"
+        docker rmi "$id" >/dev/null 2>&1 || { echo "    kept ${id:7:12} (${reason}, but it is in use)"; return 1; }
+        echo "    removed ${id:7:12} (${reason})"
+    fi
+}
+
+# Every image carrying the label $1, tagged or not, narrowed by any further `--filter` arguments.
+# `docker images` leaves untagged images out of a label filter unless it is also asked for
+# `dangling=true` — and the untagged ones are half of what the prune is for.
+container_images_labelled() {
+    local label="$1"
+    shift
+    {
+        docker images --filter "label=${label}" "$@" --format '{{.ID}}' &&
+            docker images --filter "label=${label}" --filter dangling=true "$@" --format '{{.ID}}'
+    } | sort -u
+}
+
+container_prune() {
+    local keep_deps="$1" ids stale id checkout deps tags tag in_use deps_in_use=" "
+    # The unit separator rather than a tab, because `read` collapses runs of whitespace delimiters
+    # and an empty field would shift every field after it.
+    local sep=$'\x1f'
+
+    echo "==> clearing out test images nobody can use any more"
+
+    if ! ids="$(container_images_labelled tidemarks.role=checkout)" ||
+        ! stale="$(docker images --filter label=tidemarks.role=checkout --filter dangling=true \
+            --filter "until=${CONTAINER_STALE_AFTER}" --format '{{.ID}}')"; then
+        echo "    could not list the images; leaving them all in place" >&2
+        return 0
+    fi
+    for id in $ids; do
+        IFS="$sep" read -r id checkout deps tags < <(docker image inspect --format \
+            "{{.Id}}${sep}{{index .Config.Labels \"tidemarks.checkout\"}}${sep}{{index .Config.Labels \"tidemarks.deps\"}}${sep}{{join .RepoTags \" \"}}" \
+            "$id") || continue
+        # An image that could not be removed is still built on its dependency image, so that one
+        # counts as in use just as it would for an image nobody tried to remove.
+        if [[ ! -d "$checkout" ]]; then
+            container_remove "${checkout} is gone" "$id" "$tags" || deps_in_use+="${deps} "
+        elif [[ -z "$tags" ]] && grep -q "^${id:7:12}" <<<"$stale"; then
+            container_remove "an earlier build for ${checkout}" "$id" "" || deps_in_use+="${deps} "
+        else
+            deps_in_use+="${deps} "
+        fi
+    done
+
+    if ! ids="$(container_images_labelled tidemarks.role=deps)" ||
+        ! stale="$(container_images_labelled tidemarks.role=deps \
+            --filter "until=${CONTAINER_STALE_AFTER}")"; then
+        echo "    could not list the dependency images; leaving them all in place" >&2
+        return 0
+    fi
+    for id in $ids; do
+        IFS="$sep" read -r id tags < <(docker image inspect --format \
+            "{{.Id}}${sep}{{join .RepoTags \" \"}}" "$id") || continue
+        if [[ " $tags " == *" ${keep_deps} "* ]]; then
+            continue
+        fi
+        in_use=
+        for tag in $tags; do
+            [[ "$deps_in_use" == *" ${tag} "* ]] && in_use=yes
+        done
+        if [[ -z "$in_use" ]] && grep -q "^${id:7:12}" <<<"$stale"; then
+            container_remove "no checkout image is built on it" "$id" "$tags"
+        fi
+    done
+}
+
+container_build() {
+    local network ctx status=0
+    network="$(build_network_args)"
+    if [[ -n "$network" ]]; then
+        echo "==> building with ${network}: the proxy is on loopback"
     fi
 
-    docker build ${network:+"$network"} --tag "$IMAGE_NAME" "$REPO_ROOT"
+    ctx="$(mktemp -d)"
+    deps_context "$ctx"
+    DEPS_TAG="${DEPS_REPO}:$(deps_hash "$ctx")"
+
+    container_prune "$DEPS_TAG"
+
+    # Built only when missing. A tag that exists already holds this exact context, since the
+    # context is what named it — so there is nothing to rebuild, whether or not the cache that
+    # produced it is still around.
+    if docker image inspect "$DEPS_TAG" >/dev/null 2>&1; then
+        echo "==> reusing ${DEPS_TAG}"
+    else
+        echo "==> building ${DEPS_TAG} (no image for these dependencies on this machine yet)"
+        docker build ${network:+"$network"} --file "$ctx/deps.Dockerfile" \
+            --label tidemarks.role=deps --tag "$DEPS_TAG" "$ctx" || status=$?
+    fi
+    rm -rf "$ctx"
+    if [[ "$status" -ne 0 ]]; then
+        return "$status"
+    fi
+
+    # `tidemarks.role` is set again here because labels are inherited: without it, this image
+    # would carry the dependency image's `deps` and be cleared out as one.
+    echo "==> building ${IMAGE_NAME} on ${DEPS_TAG}"
+    docker build ${network:+"$network"} --build-arg DEPS_IMAGE="$DEPS_TAG" \
+        --label tidemarks.role=checkout \
+        --label tidemarks.checkout="$REPO_ROOT" \
+        --label tidemarks.deps="$DEPS_TAG" \
+        --tag "$IMAGE_NAME" "$REPO_ROOT"
 
     echo "==> checking ${IMAGE_NAME} holds this working directory"
     container_verify_source
