@@ -44,27 +44,11 @@ browserType.launch: Executable doesn't exist at ~/.cache/ms-playwright/chromium_
 
 要的是**截圖**而不是紅綠燈時，這裡沒有入口：spine 的截圖在 host 上用 playwright-cli 產，不在容器裡（[ADR-0007](../../../docs/adr/0007-pr-evidence-is-captured-on-the-host.md)），frond 併進來的時候一起改成那條路。做法見 `../../../docs/agents/pull-requests.md`。
 
-`scan:books` 與測試共用根目錄的 `scripts/container.sh`：挑引擎、確認那個引擎跑得動（podman 沒有 daemon，docker 有）、建置映像。那三件事只能有一個答案，各寫一份的話兩邊對 rootless socket 的診斷會漂開，而漂開的那天會是「同一台機器上一支能跑一支不能」。
+`scan:books` 與測試共用根目錄的 `scripts/container.sh`：確認 docker 跑得動、建置映像。這兩件事只能有一個答案，各寫一份的話兩邊對 rootless socket 的診斷會漂開，而漂開的那天會是「同一台機器上一支能跑一支不能」。
 
 ## 需要先裝什麼
 
-**podman 要設定的東西最少**：非 root 使用者跑它不需要顧 daemon，也不用把 client 指去哪裡，而且吃同一份 Dockerfile、產出 OCI 映像。`scripts/container.sh` 因此以 podman 為第一順位。
-
-```bash
-apt-get install -y podman uidmap fuse-overlayfs passt slirp4netns
-```
-
-rootless podman 需要 `/etc/subuid` 與 `/etc/subgid` 內有該使用者的從屬 UID 範圍，例如：
-
-```
-dev:100000:65536
-```
-
-沒有那個範圍是 podman 跑不動最常見的原因。`container.sh` 連不上引擎時會照引擎分別給建議，podman 那條指的就是這裡，它沒有 daemon 可以「沒起來」，所以往「服務掛了」的方向查是白費力氣。
-
-### docker 是 fallback，rootful 或 rootless 都行
-
-沒有 podman 的時候用 docker，**rootful 和 rootless 都跑得動**，`container.sh` 不會為了哪一種印警告。機器上的 docker 要怎麼設，由管那台機器的人決定，不是測試腳本的事。
+docker，**rootful 和 rootless 都跑得動**，`container.sh` 不會為了哪一種印警告。機器上的 docker 要怎麼設，由管那台機器的人決定，不是測試腳本的事。
 
 rootless docker 要多付兩樣東西：一行安裝步驟，以及下一節那個裝完不會有人提醒的坑。
 
@@ -72,11 +56,9 @@ rootless docker 要多付兩樣東西：一行安裝步驟，以及下一節那�
 dockerd-rootless-setuptool.sh install
 ```
 
-兩個引擎都在時要指定哪一個，用 `TIDEMARKS_CONTAINER_ENGINE=docker`（或 `=podman`）。CI 就是這樣釘的，而且**那個釘子是必要的而不是保險**：GitHub runner 兩個引擎都有，但它的 podman 跟旁邊的 crun 對 OCI spec 版本認知不合，`podman build` 會在每個 `RUN` 真正執行之前就死在 `unknown version specified`。順序改成 podman 優先之後，CI 少了那一行就會落在壞掉的那個引擎上。
-
 ### rootless docker 裝完記得接上 client
 
-這是 rootless docker 唯一的坑，而且裝完不會有人提醒。它也是 podman 排在前面的具體理由之一。
+這是 rootless docker 唯一的坑，而且裝完不會有人提醒。
 
 `dockerd-rootless-setuptool.sh install` 只把 daemon 跑起來，socket 開在 `$XDG_RUNTIME_DIR/docker.sock`。**client 端預設仍然指著 rootful 的 `/var/run/docker.sock`**，而那個檔案在只有 rootless 的機器上根本不存在。於是 daemon 明明跑得好好的，任何 docker 指令都回：
 

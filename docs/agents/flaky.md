@@ -165,7 +165,7 @@ frame 內完成時，中間值全被覆寫」，**印一次 `trace.offsets.lengt
 
 ## A/B 對照要負載對稱，否則量到的是排隊順序
 
-⚠️ **不要把兩個 `podman run` 同時丟背景再 `wait`。** 那是最直覺的寫法，也是錯的：先跑完的那一邊會
+⚠️ **不要把兩個 `docker run` 同時丟背景再 `wait`。** 那是最直覺的寫法，也是錯的：先跑完的那一邊會
 把 CPU 讓出來，所以**後半段兩邊面對的不是同一台機器**。量到過一組 30 秒對 2.4 分鐘的 A/B，兩邊的
 數字因此不可比，而那組數字已經被拿去改 code，收回之後前面 16.9 分鐘的驗證全部作廢。
 
@@ -174,8 +174,8 @@ harness 的 `page.goto` 整批打爆（一趟 67 個以上、一趟 20 個失敗
 拿到任何東西。要負載就開**滿速的並行容器**，那才是 CI 上真正會發生的形狀。
 
 還有一個跟這件事同源、但更難察覺的：**這台機器上可能有別人的容器在跑。** 量到過 load average 204、
-`podman ps` 列著五個別的 agent 的容器。對計時型的斷言，那不只是慢，**量出來的 p95 直接失效**，而
-flaky 這類工作要修的病往往正是「斷言斷到了機器的性質」。開跑前看一眼 `uptime` 與 `podman ps`。
+`docker ps` 列著五個別的 agent 的容器。對計時型的斷言，那不只是慢，**量出來的 p95 直接失效**，而
+flaky 這類工作要修的病往往正是「斷言斷到了機器的性質」。開跑前看一眼 `uptime` 與 `docker ps`。
 
 ## 想知道一條 flake 有多敏感
 
@@ -203,17 +203,17 @@ flaky 這類工作要修的病往往正是「斷言斷到了機器的性質」�
 ```
 
 那一趟會把映像建到最新。**接下來的重複才直接對映像下指令**：code 不會再變，重跑幾十次不必每次重建
-與比對（引擎照 `scripts/container.sh` 的順序，podman 優先、docker 是 fallback，兩個的參數在這裡一樣）：
+與比對：
 
 ```bash
-podman run --rm --init "tidemarks-test-$(basename "$PWD")" npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
+docker run --rm --init "tidemarks-test-$(basename "$PWD")" npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
 ```
 
 ⚠️ **映像名一定要帶目錄名，不要寫死 `tidemarks-test`。** 一個 checkout 一個映像是 `scripts/container.sh`
 的預設，理由寫在那裡。
 
 ⚠️ **而且這一段是唯一還在用名字的地方，所以它是唯一還會中的地方。** `test-in-container.sh` 比對完之後
-就改用 image id，id 搬不走；你手動下的 `podman run` 每一趟都重新解析一次那個名字。所以只要同一個
+就改用 image id，id 搬不走；你手動下的 `docker run` 每一趟都重新解析一次那個名字。所以只要同一個
 checkout 裡有另一個 terminal（或另一個 agent）跑了 `test-in-container.sh`，你這個重複幾十次的迴圈
 **會從中間某一趟開始跑另一份 build**，而輸出不會有任何徵兆。查 flake 的時候這件事特別致命，你正在
 數的是紅幾次，而那個比例可能跨了兩份 code。
@@ -221,7 +221,7 @@ checkout 裡有另一個 terminal（或另一個 agent）跑了 `test-in-contain
 要釘死就先把 id 抓下來，之後對 id 下指令：
 
 ```bash
-IMG=$(podman image inspect --format '{{.Id}}' "tidemarks-test-$(basename "$PWD")")
+IMG=$(docker image inspect --format '{{.Id}}' "tidemarks-test-$(basename "$PWD")")
 ```
 
 frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh` 的註解。
@@ -232,7 +232,7 @@ frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh
 原樣，另一邊把改過的檔案 bind-mount 進去，第二邊的成本是 0 秒。
 
 ```sh
-podman run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" "tidemarks-test-$(basename "$PWD")" …
+docker run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" "tidemarks-test-$(basename "$PWD")" …
 ```
 
 ⚠️ **前提是那個映像裡沒有你的修法。** 上一段叫你先跑一次 `test-in-container.sh`，而那一趟會把映像

@@ -25,7 +25,7 @@ commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一�
   實測沒有這個功能**，`process.features.typescript` 是 `false`，`npm run build:frond` 會在 `tsc` 跑完之後
   死在 `ERR_UNKNOWN_FILE_EXTENSION ".ts"`。看起來像 frond 壞了，其實是 Node 不對。用 fnm、nvm 或官方
   tarball 裝；要用 pr-image 就直接裝 24，它要 24 以上。
-- **podman 或 docker**，`npm run test:container` 用。docker 的 rootful 與 rootless 都可以，見
+- **docker**，`npm run test:container` 用。docker 的 rootful 與 rootless 都可以，見
   [frond 的 test-environment.md](../packages/frond/docs/test-environment.md)〈需要先裝什麼〉。
 - **開 PR 要附截圖的話**，還要 host 上的 playwright-cli（裝法見 [agents/verify.md](agents/verify.md)
   〈前置〉）與 pr-image（見 [agents/pull-requests.md](agents/pull-requests.md)〈圖怎麼放〉）。
@@ -54,11 +54,11 @@ Node 往上找得到主 checkout 的 `node_modules`，於是有些東西跑得�
 
 ### 測試映像
 
-要在容器裡跑 `test:container` 以外的指令時，**得先把映像建到最新**（用 docker 就把 `podman` 換掉）：
+要在容器裡跑 `test:container` 以外的指令時，**得先把映像建到最新**：
 
 ```sh
 IMG="tidemarks-test-$(basename "$PWD")"
-podman build -t "$IMG" . && podman run --rm --init "$IMG" npm run typecheck
+docker build -t "$IMG" . && docker run --rm --init "$IMG" npm run typecheck
 ```
 
 少了 `build` 那一半就沒有意義，`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，
@@ -74,22 +74,21 @@ podman build -t "$IMG" . && podman run --rm --init "$IMG" npm run typecheck
 名字換成一個 checkout 一個，換到的是另一件事：以前每個 checkout 輪流把 tag 搶過去，別人下一趟
 就得重建，現在大家的映像可以並存。
 
-自己下 `podman build` 的時候照著帶就好，這樣你手動建的跟腳本建的是同一個。**要換成別的名字也行**
+自己下 `docker build` 的時候照著帶就好，這樣你手動建的跟腳本建的是同一個。**要換成別的名字也行**
 （`TIDEMARKS_TEST_IMAGE=…`），但現在沒有非換不可的理由了。
 
-代價是映像會累積而不是互相覆蓋，worktree 刪掉之後它的映像還在。**下面兩個指令是 podman 的**，
-docker 的 `image prune` 沒有文件寫著吃 `reference` 這個 filter，不要直接照搬：
+代價是映像會累積而不是互相覆蓋，worktree 刪掉之後它的映像還在：
 
 ```sh
-podman image prune -a --filter reference='tidemarks-test-*'
+docker images --filter reference='tidemarks-test-*' --format '{{.ID}}' | xargs -r docker rmi
 ```
 
 ⚠️ 這一行會清掉**所有**沒有容器正在用的 `tidemarks-test-*`，包含還活著的 worktree 的那一份
 （它們下一趟要重建）。所以要在別人沒在跑的時候做。
 
 它清不到的有兩種，各要一個指令。`<none>` 的懸空層（一層 3GB 起跳，是被換掉的映像留下來的）用
-不帶 filter 的 `podman image prune`；舊格式那個沒有後綴的 `tidemarks-test` 還帶著 tag，
-prune 一律不碰有 tag 的，要自己指名 `podman rmi tidemarks-test`。
+不帶 filter 的 `docker image prune`；舊格式那個沒有後綴的 `tidemarks-test` 還帶著 tag，
+prune 一律不碰有 tag 的，要自己指名 `docker rmi tidemarks-test`。
 
 ## 測試分層
 

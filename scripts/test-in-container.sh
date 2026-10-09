@@ -166,18 +166,18 @@ if [[ "$suites" != all ]]; then
     echo "==> skipping the Node tests (--only=${suites}; run 'npm test' on the host)"
 elif [[ -z "${CI:-}" ]]; then
     echo "==> running the Node tests (Vitest, every package)"
-    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm test
+    docker run "${run_args[@]}" "$IMAGE_NAME" npm test
 else
     echo "==> skipping the Node tests (CI runs them in the 'test' job)"
 fi
 
 if [[ "$suites" == all || "$suites" == frond ]]; then
     echo "==> running frond's browser tests (Playwright)"
-    "$ENGINE" run "${run_args[@]}" --network=none "$IMAGE_NAME" \
+    docker run "${run_args[@]}" --network=none "$IMAGE_NAME" \
         npm run test:browser -w @yurenju/frond -- "$@"
 fi
 
 if [[ "$suites" == all || "$suites" == app ]]; then
     echo "==> running the app's browser tests (Playwright)"
-    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
+    docker run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
 fi

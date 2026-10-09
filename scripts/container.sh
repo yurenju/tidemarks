@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Shared preamble for the container engine: pick an engine, confirm it is reachable, build
-# the image. Ported from frond's `scripts/container.sh`.
+# Shared preamble for the container engine: confirm docker is reachable, build the image. Ported
+# from frond's `scripts/container.sh`.
 #
 # **This is not meant to be executed; it is meant to be `source`d.**
 #
@@ -12,11 +12,10 @@
 #
 # It has callers again: `test-in-container.sh`, `capture-shots.sh` (the screen sweep) and
 # `measure-perf.sh` (page turns under load). It also answers a different question than any of them:
-# this one is about reaching a container engine at all (which engine, is the daemon up), and that is
-# worth reading — and failing — separately from "which tests to run".
+# this one is about reaching docker at all (is the daemon up, is the client pointed at it), and that
+# is worth reading — and failing — separately from "which tests to run".
 #
 # After sourcing, available are:
-#   ENGINE           podman or docker
 #   REPO_ROOT        the absolute path of the repo root
 #   IMAGE_NAME       the tag to build; the image's id once container_build has run
 #   container_build  builds the image, refuses to return unless it holds the working directory
@@ -31,7 +30,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # And work: a build from one checkout leaves every other checkout's tag pointing at an image that
 # is no longer theirs, so their next run rebuilds — the tags took turns rather than coexisting.
 #
-# Keyed on the checkout's directory name, so `podman images` still says which worktree an image
+# Keyed on the checkout's directory name, so `docker images` still says which worktree an image
 # belongs to. Lowercased because a tag may not carry uppercase: a clone in `~/src/Tidemarks` would
 # otherwise fail every run with `repository name must be lowercase`, an error that never mentions
 # the directory.
@@ -44,34 +43,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # one behind. Cleanup is in docs/development.md.
 IMAGE_NAME="${TIDEMARKS_TEST_IMAGE:-tidemarks-test-$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]')}"
 
-# podman comes first because it is the engine with the least to set up: run by a non-root user it
-# needs no daemon to keep alive and no client to point anywhere, and it builds the same Dockerfile
-# into the same OCI image.
-#
-# docker is the fallback, rootful or rootless — the tests run on either, and which one a machine
-# uses is that machine's business, not this script's. Rootless docker carries one trap worth
-# knowing: the client keeps pointing at the rootful socket until a context is created for it, and
-# the error when it does not reads as "docker is not installed". The reachability check below
-# names that case.
-#
-# An explicit choice still wins, and CI makes one: the runner ships both engines, so which one
-# builds the image should not depend on what that image happens to include. Its podman writes an
-# OCI spec the crun beside it rejects, which kills every `RUN` in the build with "unknown version
-# specified" before the command inside it starts — so CI pins docker, and the pin is load-bearing
-# rather than belt-and-braces now that the order below would land on podman. Either way both
-# engines build the same Dockerfile, so the image stays the one thing CI and local machines share.
-if [[ -n "${TIDEMARKS_CONTAINER_ENGINE:-}" ]]; then
-    ENGINE="$TIDEMARKS_CONTAINER_ENGINE"
-    if ! command -v "$ENGINE" >/dev/null 2>&1; then
-        echo "TIDEMARKS_CONTAINER_ENGINE is set to ${ENGINE}, which is not on PATH." >&2
-        exit 1
-    fi
-elif command -v podman >/dev/null 2>&1; then
-    ENGINE=podman
-elif command -v docker >/dev/null 2>&1; then
-    ENGINE=docker
-else
-    echo "Neither podman nor docker found." >&2
+# docker, rootful or rootless — the tests run on either, and which one a machine uses is that
+# machine's business, not this script's. Rootless docker carries one trap worth knowing: the client
+# keeps pointing at the rootful socket until a context is created for it, and the error when it
+# does not reads as "docker is not installed". The reachability check below names that case.
+if ! command -v docker >/dev/null 2>&1; then
+    echo "docker not found." >&2
     exit 1
 fi
 
@@ -80,20 +57,11 @@ fi
 # not exist — which reads as "not installed" when in fact it is installed and the client is
 # pointed at the wrong place. Those two call for entirely different responses.
 #
-# This only diagnoses. Where the socket lives belongs to the engine's configuration, not to a
+# This only diagnoses. Where the socket lives belongs to docker's configuration, not to a
 # test script — a script that guessed would silently paper over a misconfigured machine.
-#
-# The advice is per engine, because the two fail for unrelated reasons and the wrong hint sends
-# someone down a road with nothing at the end of it. podman has no daemon to be down at all: when
-# it cannot run, it is almost always that the user has no subordinate UID range to map into.
-if ! "$ENGINE" info >/dev/null 2>&1; then
-    echo "Found ${ENGINE} but it cannot run." >&2
-    if [[ "$ENGINE" == podman ]]; then
-        echo "podman is daemonless, so this is its own setup rather than a service being down." >&2
-        echo "Rootless podman needs a subordinate UID/GID range for $(id -un) in /etc/subuid and /etc/subgid:" >&2
-        echo "    grep $(id -un) /etc/subuid /etc/subgid" >&2
-        echo "Read the whole error with: podman info" >&2
-    elif [[ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock" ]]; then
+if ! docker info >/dev/null 2>&1; then
+    echo "Found docker but it cannot run." >&2
+    if [[ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock" ]]; then
         echo "The rootless socket is at ${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock, but the client is not pointed at it. To connect:" >&2
         echo "    docker context create rootless --docker host=unix://${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock" >&2
         echo "    docker context use rootless" >&2
@@ -105,7 +73,7 @@ fi
 
 # A proxy on the host's loopback needs the build to share the host's network.
 #
-# Both engines copy the ambient `HTTP_PROXY` / `HTTPS_PROXY` into the build, which is what makes
+# docker copies the ambient `HTTP_PROXY` / `HTTPS_PROXY` into the build, which is what makes
 # `apt-get` work behind a corporate proxy and is the right default. It is the wrong default when
 # the proxy is listening on loopback: inside the build container `127.0.0.1` is the container, so
 # every fetch is refused and the Dockerfile dies on `Unable to locate package fonts-noto-cjk` —
@@ -133,12 +101,14 @@ build_network_args() {
 # --- the image has to be this working directory ----------------------------
 #
 # A build is only worth anything if the image it leaves behind holds the code on disk right now.
-# On this project's machines that has not always been true: podman 5.7 has been seen printing
-# `Using cache` for the Dockerfile's `COPY . .` against a context that had gained a file, and the
-# tests then ran green against a checkout from an earlier session (issue #185).
+# On this project's machines that has not always been true: a container engine this project has
+# since stopped using was seen printing `Using cache` for the Dockerfile's `COPY . .` against a
+# context that had gained a file, and the tests then ran green against a checkout from an earlier
+# session (issue #185).
 #
-# The cause is still unknown — the same podman, the same repo, the same Dockerfile refuse to
-# reproduce it on demand — which is exactly why the answer here is not to chase the cache. It is
+# The cause was never found — the same engine, the same repo, the same Dockerfile refused to
+# reproduce it on demand — so there is no telling whether docker can do the same, and that is
+# exactly why the answer here is not to chase the cache. It is
 # to measure the thing the build was supposed to guarantee, so that the failure mode stops being
 # "quietly tested the wrong code" and becomes "refused to run". `--no-cache` would also be
 # correct, and costs an apt install and an `npm ci` on every single run; that is too much to pay
@@ -212,7 +182,7 @@ container_verify_source() {
 
     host="$(cd "$REPO_ROOT" && printf '%s\n' "$list" | sh -c "$MANIFEST_SCRIPT")"
     image="$(printf '%s\n' "$list" |
-        "$ENGINE" run --rm --interactive --workdir /work "$IMAGE_NAME" sh -c "$MANIFEST_SCRIPT")"
+        docker run --rm --interactive --workdir /work "$IMAGE_NAME" sh -c "$MANIFEST_SCRIPT")"
 
     if [[ "$host" == "$image" ]]; then
         return 0
@@ -231,7 +201,7 @@ container_verify_source() {
     { diff <(printf '%s\n' "$host") <(printf '%s\n' "$image") | head -20; } >&2 || true
     echo "" >&2
     echo "Rebuild without the cache and run again:" >&2
-    echo "    ${ENGINE} build --no-cache --tag ${IMAGE_NAME} ${REPO_ROOT}" >&2
+    echo "    docker build --no-cache --tag ${IMAGE_NAME} ${REPO_ROOT}" >&2
     return 1
 }
 
@@ -240,12 +210,12 @@ container_build() {
     network="$(build_network_args)"
 
     if [[ -n "$network" ]]; then
-        echo "==> building ${IMAGE_NAME} with ${ENGINE} (${network}: the proxy is on loopback)"
+        echo "==> building ${IMAGE_NAME} with docker (${network}: the proxy is on loopback)"
     else
-        echo "==> building ${IMAGE_NAME} with ${ENGINE}"
+        echo "==> building ${IMAGE_NAME} with docker"
     fi
 
-    "$ENGINE" build ${network:+"$network"} --tag "$IMAGE_NAME" "$REPO_ROOT"
+    docker build ${network:+"$network"} --tag "$IMAGE_NAME" "$REPO_ROOT"
 
     echo "==> checking ${IMAGE_NAME} holds this working directory"
     container_verify_source
@@ -260,8 +230,8 @@ container_build() {
     # spec name and line number belonging to the other.
     #
     # An id cannot be moved, so the window closes rather than narrowing. Which also means the tag
-    # above is now a convenience for reading `podman images` rather than something correctness
-    # rests on, and hand-run containers are the case left over: `podman run … tidemarks-test-<dir>`
+    # above is now a convenience for reading `docker images` rather than something correctness
+    # rests on, and hand-run containers are the case left over: `docker run … tidemarks-test-<dir>`
     # out of docs/agents/flaky.md resolves the name again, every time.
-    IMAGE_NAME="$("$ENGINE" image inspect --format '{{.Id}}' "$IMAGE_NAME")"
+    IMAGE_NAME="$(docker image inspect --format '{{.Id}}' "$IMAGE_NAME")"
 }

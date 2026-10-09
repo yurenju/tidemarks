@@ -24,7 +24,7 @@ mkdir -p "$PERF_DIR"
 
 echo "==> measuring page turns into ${PERF_DIR}"
 
-exec "$ENGINE" run --rm --init \
+exec docker run --rm --init \
     --volume "${PERF_DIR}:/work/.scratch/perf" \
     --env TIDEMARKS_PERF_DIR=/work/.scratch/perf \
     "$IMAGE_NAME" npm run perf -w app -- "$@"

@@ -325,7 +325,7 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
 
-**不要繞過腳本直接下 `podman run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
+**不要繞過腳本直接下 `docker run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
 
 **21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上三家全套實測的 **6 分 46 秒**。現在本地
 的全套只有 chromium，所以那個數字大約降到三分之一。`--only=frond` 同理。路徑**相對於那個 package**
