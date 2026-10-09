@@ -119,7 +119,7 @@ jobs:
 
       # CI and local machines share one image and one script. A step that only exists in CI is
       # how a "green locally, red in CI" gap gets built, and a gap that lands in the font layer
-      # is extremely hard to trace (see the Dockerfile's header). What the matrix adds is
+      # is extremely hard to trace (see docker/deps.Dockerfile's header). What the matrix adds is
       # arguments, not steps: `--project` is a filter over the same suite, `--shard` is a second
       # one, and both packages name their Playwright projects after the engine, so one value
       # filters both.
@@ -129,15 +129,7 @@ jobs:
       # half of the shard and then the app's. frond would not be worth a job of its own to
       # split — 61s against a 56s image build — but the job is already here and already paid
       # for, so its half comes free.
-      #
-      # The engine is named rather than left to the script to work out, and the name is
-      # load-bearing: `scripts/container.sh` prefers podman, the runner ships both, and this
-      # runner's podman and crun disagree about the OCI spec version — `podman build` dies with
-      # "unknown version specified" before a single `RUN` executes. Without this line CI lands on
-      # the broken one. This picks *which* engine builds the image, not what is in it.
       - name: Run both runners in the container
-        env:
-          TIDEMARKS_CONTAINER_ENGINE: docker
         run: ./scripts/test-in-container.sh --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
 
       # One artifact per shard of one engine. `upload-artifact@v4` rejects a name another job in
@@ -183,9 +175,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # `docker` for the same reason as the browser job above: this runner's podman cannot build
-      # the image, and `capture-shots.sh` builds it too.
       - name: Check the screen sweep still runs
-        env:
-          TIDEMARKS_CONTAINER_ENGINE: docker
         run: ./scripts/capture-shots.sh

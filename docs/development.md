@@ -25,7 +25,7 @@ commit 的檔案跑 prettier 再重新 stage，所以 commit 出來的東西一�
   實測沒有這個功能**，`process.features.typescript` 是 `false`，`npm run build:frond` 會在 `tsc` 跑完之後
   死在 `ERR_UNKNOWN_FILE_EXTENSION ".ts"`。看起來像 frond 壞了，其實是 Node 不對。用 fnm、nvm 或官方
   tarball 裝；要用 pr-image 就直接裝 24，它要 24 以上。
-- **podman 或 docker**，`npm run test:container` 用。docker 的 rootful 與 rootless 都可以，見
+- **docker**，`npm run test:container` 用。docker 的 rootful 與 rootless 都可以，見
   [frond 的 test-environment.md](../packages/frond/docs/test-environment.md)〈需要先裝什麼〉。
 - **開 PR 要附截圖的話**，還要 host 上的 playwright-cli（裝法見 [agents/verify.md](agents/verify.md)
   〈前置〉）與 pr-image（見 [agents/pull-requests.md](agents/pull-requests.md)〈圖怎麼放〉）。
@@ -54,42 +54,56 @@ Node 往上找得到主 checkout 的 `node_modules`，於是有些東西跑得�
 
 ### 測試映像
 
-要在容器裡跑 `test:container` 以外的指令時，**得先把映像建到最新**（用 docker 就把 `podman` 換掉）：
+要在容器裡跑 `test:container` 以外的指令時，**先用 `build-test-image.sh` 拿一個映像**：
 
 ```sh
-IMG="tidemarks-test-$(basename "$PWD")"
-podman build -t "$IMG" . && podman run --rm --init "$IMG" npm run typecheck
+IMG=$(./scripts/build-test-image.sh)
+docker run --rm --init "$IMG" npm run typecheck
 ```
 
-少了 `build` 那一半就沒有意義，`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，
-不是你剛改的那份。
+它做的事跟 `test:container` 跑測試之前一樣：清掉沒人用的映像、建好依賴映像與這個 checkout 的映像、
+做 issue #185 的比對，最後在 stdout 印出 image id。**不要自己下 `docker build`**：根目錄的
+`Dockerfile` 是 `COPY . .`，映像裡烤的是建它那一刻的 code，而且它的 `FROM` 是腳本算出來的依賴映像，
+單獨 build 會直接失敗。
 
-**映像名為什麼要帶目錄名**：`scripts/container.sh` 的預設就是 `tidemarks-test-<checkout 的目錄名>`，
-一個 checkout 一個。以前所有 checkout 共用 `tidemarks-test` 一個 tag，而 tag 是整台機器共用、
+映像分兩層，理由見 [ADR-0051](adr/0051-the-test-image-shares-its-dependencies-across-checkouts.md)：
+
+| | 名字 | 大小 |
+| --- | --- | --- |
+| 依賴映像：瀏覽器、中日文字型、`npm ci` | `tidemarks-deps:<hash>` | 約 4.9GB，依賴一樣的 checkout 共用一份 |
+| 每個 checkout 自己的映像：程式碼與 frond 的 build | `tidemarks-test-<目錄名>` | 約 85MB |
+
+**映像名為什麼要帶目錄名**：以前所有 checkout 共用 `tidemarks-test` 一個 tag，而 tag 是整台機器共用、
 可以被別人搬走的名字：你建完映像、issue #185 的比對也過了，接著別的 checkout 建同一個名字，
 **你後面那趟測試就跑了別人的 code，而且是綠的**。比對擋不住是因為它驗的是「那個映像的內容」，
 但抓著的把手是一個名字，驗完到開跑之間名字被搬走就沒有東西會發現。
 
-⚠️ **真正把這個窗口關掉的不是名字，是 `container_build` 比對完之後改用 image id。** id 搬不走。
-名字換成一個 checkout 一個，換到的是另一件事：以前每個 checkout 輪流把 tag 搶過去，別人下一趟
-就得重建，現在大家的映像可以並存。
-
-自己下 `podman build` 的時候照著帶就好，這樣你手動建的跟腳本建的是同一個。**要換成別的名字也行**
+⚠️ **真正把這個窗口關掉的不是名字，是 `container_build` 比對完之後改用 image id。** id 搬不走，
+`build-test-image.sh` 印的也是 id。名字換成一個 checkout 一個，換到的是另一件事：以前每個 checkout
+輪流把 tag 搶過去，別人下一趟就得重建，現在大家的映像可以並存。**要換成別的名字也行**
 （`TIDEMARKS_TEST_IMAGE=…`），但現在沒有非換不可的理由了。
 
-代價是映像會累積而不是互相覆蓋，worktree 刪掉之後它的映像還在。**下面兩個指令是 podman 的**，
-docker 的 `image prune` 沒有文件寫著吃 `reference` 這個 filter，不要直接照搬：
+#### 誰來清
+
+**平常不用管。** 每次 build 之前，腳本會先清掉這三種，並印出刪了什麼：
+
+- 所屬目錄已經不存在的 checkout 映像（worktree 刪掉之後留下的）
+- 沒有 tag、超過 24 小時的 checkout 映像（同一個 checkout 重建之後留下的舊版）
+- 沒有任何 checkout 映像建在它上面、超過 24 小時的依賴映像（lockfile 改過之後留下的）
+
+它不加 `-f`，有容器在用的不會刪；它也不碰 build cache。所以磁碟不夠的時候，**跑一次
+`./scripts/build-test-image.sh` 就好**，不要自己 prune（見 `CLAUDE.md`〈測試分層〉）。
+
+⚠️ **清不到的是這個機制之前建的映像**，它們沒有那些 label。每台機器手動清一次：
 
 ```sh
-podman image prune -a --filter reference='tidemarks-test-*'
+docker images --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep -E '^tidemarks-test'
+docker rmi <上面列出來、目錄已經不在的那幾個>
 ```
 
-⚠️ 這一行會清掉**所有**沒有容器正在用的 `tidemarks-test-*`，包含還活著的 worktree 的那一份
-（它們下一趟要重建）。所以要在別人沒在跑的時候做。
-
-它清不到的有兩種，各要一個指令。`<none>` 的懸空層（一層 3GB 起跳，是被換掉的映像留下來的）用
-不帶 filter 的 `podman image prune`；舊格式那個沒有後綴的 `tidemarks-test` 還帶著 tag，
-prune 一律不碰有 tag 的，要自己指名 `podman rmi tidemarks-test`。
+舊格式那個沒有後綴的 `tidemarks-test` 也在這一類。還活著的 checkout 換到新格式之後，它原本的映像會
+變成沒有 tag 的 `<none>`（`docker images --filter dangling=true` 列得出來），確定沒有測試在跑的時候
+用 `docker image prune` 清掉。這一行只清沒有 tag 的映像，但不分是誰的，所以只在換格式這一次用。
 
 ## 測試分層
 

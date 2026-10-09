@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs the tests inside the test container. CI and local machines share one image — see the
-# Dockerfile's header.
+# header of docker/deps.Dockerfile.
 #
 # Three suites run here, in this order: Vitest's Node tests for the whole monorepo, then
 # Playwright for frond, then Playwright for the app. The Node half needs neither fonts nor
@@ -154,7 +154,7 @@ fi
 # died on a missing module, 37 of them, while the header above was claiming this entry point is
 # what makes "the tests are green" mean the same thing in both places. It did not: CI skips this
 # half, so the one place the gap could show was a local run, pointing the wrong way round from
-# the "green locally, red in CI" hazard the Dockerfile's header is written about.
+# the "green locally, red in CI" hazard docker/deps.Dockerfile's header is written about.
 #
 # Naming the same script CI's `test` job runs is what closes it. The renderer build it repeats
 # costs 0.6s against an image that already has one.
@@ -166,18 +166,18 @@ if [[ "$suites" != all ]]; then
     echo "==> skipping the Node tests (--only=${suites}; run 'npm test' on the host)"
 elif [[ -z "${CI:-}" ]]; then
     echo "==> running the Node tests (Vitest, every package)"
-    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm test
+    docker run "${run_args[@]}" "$IMAGE_NAME" npm test
 else
     echo "==> skipping the Node tests (CI runs them in the 'test' job)"
 fi
 
 if [[ "$suites" == all || "$suites" == frond ]]; then
     echo "==> running frond's browser tests (Playwright)"
-    "$ENGINE" run "${run_args[@]}" --network=none "$IMAGE_NAME" \
+    docker run "${run_args[@]}" --network=none "$IMAGE_NAME" \
         npm run test:browser -w @yurenju/frond -- "$@"
 fi
 
 if [[ "$suites" == all || "$suites" == app ]]; then
     echo "==> running the app's browser tests (Playwright)"
-    "$ENGINE" run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
+    docker run "${run_args[@]}" "$IMAGE_NAME" npm run test:browser -w app -- "$@"
 fi

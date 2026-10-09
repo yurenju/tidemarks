@@ -19,7 +19,7 @@
 # looks at the filesystem rather than git, so no commit is needed first).
 set -euo pipefail
 
-# Pick an engine, confirm the daemon is reachable, build the image. Shared with the root's
+# Confirm docker is reachable, build the image. Shared with the root's
 # test-in-container.sh: one image, and one answer to "how do we talk to a container engine".
 source "$(dirname "${BASH_SOURCE[0]}")/../../../scripts/container.sh"
 
@@ -40,6 +40,6 @@ container_build
 
 # The network is off here too (same as test-in-container.sh): the books are supplied by the
 # filesystem, and a scan should need no outside connection.
-exec "$ENGINE" run --rm --init --network=none \
+exec docker run --rm --init --network=none \
     --volume "${BOOKS}:/work/tests/books/commercial:ro" \
     "$IMAGE_NAME" npm run test:browser -w @yurenju/frond -- "$@"

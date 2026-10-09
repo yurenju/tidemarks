@@ -167,7 +167,7 @@ Firefox 比**，那條比法在這裡不成立。
 
 `tests/browser/smoke/regional-faces.spec.ts` 的「generic family 依 lang 的解析」，`serif` 與 `sans-serif` 各兩條。它不再期待三家一致，改成把每一家的實際落點釘住，分歧是這個環境的性質，它變了要有人知道。已驗證這幾條真的會紅：把容器的 `LANG` 換成 `ja_JP.UTF-8`，WebKit 那幾條立刻紅。
 
-`Dockerfile` 因此顯式釘死 `LANG` / `LC_ALL`（今天與基底映像相同，是 no-op），理由是這個變數實際上是字型設定的一部分。
+`docker/deps.Dockerfile` 因此顯式釘死 `LANG` / `LC_ALL`（今天與基底映像相同，是 no-op），理由是這個變數實際上是字型設定的一部分。
 
 **環境**
 
@@ -937,7 +937,7 @@ content document 上），但這一次沒有，鍵盤還指著外面。
 
 **量測**（有渲染器參與：frond 自己的 fixture 跑在測試映像裡，firefox）
 
-全部都在容器裡跑 frond 的 firefox 全套（podman；製造負載的方式是幾份容器並行，每份
+全部都在容器裡跑 frond 的 firefox 全套（製造負載的方式是幾份容器並行，每份
 `--cpus=3` 或不設上限）。**分兩個階段，數字不要合起來讀**：
 
 | 階段 | 未修那棵樹 | 修好那棵樹 |
