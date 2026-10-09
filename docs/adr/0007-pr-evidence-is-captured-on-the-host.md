@@ -49,7 +49,7 @@ frond 那邊不動，而且不該動：它是公開 repo，外部貢獻者手上
 
 **一、引擎版本跟 CI 不同。** host 的 playwright-cli 0.1.17 帶 playwright-core
 `1.62.0-alpha`，容器是 `1.61.1`；chromium 1232 對 1228、firefox 1534 對 1532、webkit 2327 對
-2311，三家全差一版。`Dockerfile` 檔頭要求映像版本必須跟 `package.json` 的 `@playwright/test`
+2311，三家全差一版。測試映像的 Dockerfile 檔頭要求映像版本必須跟 `package.json` 的 `@playwright/test`
 對上，那條規則在證據這條路上不再適用。
 
 差一版還有一個反過來的後果：`node_modules` 裡那份 `playwright` **只在容器裡成立**。它照 revision 號

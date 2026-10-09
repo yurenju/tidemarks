@@ -119,7 +119,7 @@ jobs:
 
       # CI and local machines share one image and one script. A step that only exists in CI is
       # how a "green locally, red in CI" gap gets built, and a gap that lands in the font layer
-      # is extremely hard to trace (see the Dockerfile's header). What the matrix adds is
+      # is extremely hard to trace (see docker/deps.Dockerfile's header). What the matrix adds is
       # arguments, not steps: `--project` is a filter over the same suite, `--shard` is a second
       # one, and both packages name their Playwright projects after the engine, so one value
       # filters both.

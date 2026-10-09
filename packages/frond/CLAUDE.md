@@ -80,7 +80,7 @@ npm run test:container -- --project=firefox
 
 ### 瀏覽器測試只在容器裡跑得動
 
-三家瀏覽器只存在於測試映像裡（`Dockerfile` 設了 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`）。在 host 上
+三家瀏覽器只存在於測試映像裡（`docker/deps.Dockerfile` 設了 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`）。在 host 上
 直接跑 `npm run test:browser -w @yurenju/frond` 會得到 `browserType.launch: Executable doesn't exist`。
 **那不是「這台機器不能跑瀏覽器測試」，是跑錯入口了**，正確的入口是 `npm run test:container`。
 

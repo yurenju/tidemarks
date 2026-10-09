@@ -167,7 +167,7 @@ Firefox 比**，那條比法在這裡不成立。
 
 `tests/browser/smoke/regional-faces.spec.ts` 的「generic family 依 lang 的解析」，`serif` 與 `sans-serif` 各兩條。它不再期待三家一致，改成把每一家的實際落點釘住，分歧是這個環境的性質，它變了要有人知道。已驗證這幾條真的會紅：把容器的 `LANG` 換成 `ja_JP.UTF-8`，WebKit 那幾條立刻紅。
 
-`Dockerfile` 因此顯式釘死 `LANG` / `LC_ALL`（今天與基底映像相同，是 no-op），理由是這個變數實際上是字型設定的一部分。
+`docker/deps.Dockerfile` 因此顯式釘死 `LANG` / `LC_ALL`（今天與基底映像相同，是 no-op），理由是這個變數實際上是字型設定的一部分。
 
 **環境**
 

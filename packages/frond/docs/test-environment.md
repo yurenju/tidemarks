@@ -48,7 +48,7 @@ browserType.launch: Executable doesn't exist at ~/.cache/ms-playwright/chromium_
 
 ## 需要先裝什麼
 
-docker，**rootful 和 rootless 都跑得動**，`container.sh` 不會為了哪一種印警告。機器上的 docker 要怎麼設，由管那台機器的人決定，不是測試腳本的事。
+需要 docker，**rootful 和 rootless 都跑得動**，`container.sh` 不會為了哪一種印警告。機器上的 docker 要怎麼設，由管那台機器的人決定，不是測試腳本的事。
 
 rootless docker 要多付兩樣東西：一行安裝步驟，以及下一節那個裝完不會有人提醒的坑。
 

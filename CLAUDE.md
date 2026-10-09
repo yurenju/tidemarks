@@ -15,7 +15,7 @@ commit 的檔案跑 prettier 再重新 stage**，所以 commit 出來的東西�
 
 本專案常以 git worktree 開發，並且**在多個環境之間輪替**（Linux／WSL2、macOS，x64 與 arm64 都有）。
 所以「這台機器是什麼」不是固定答案，**要看就去看**（`process.platform` / `uname`），不要假設。這也
-是為什麼**自動化**的瀏覽器測試與字型走容器：見 `Dockerfile` 的檔頭。（開 PR 前那批給人看的截圖不走
+是為什麼**自動化**的瀏覽器測試與字型走容器：見 `docker/deps.Dockerfile` 的檔頭。（開 PR 前那批給人看的截圖不走
 容器，在 host 上用 playwright-cli 產。那是刻意的取捨，見
 [ADR-0007](docs/adr/0007-pr-evidence-is-captured-on-the-host.md)。）
 
@@ -325,7 +325,14 @@ frond 先跑是因為它在下面：渲染層壞掉的時候 app 那套也會紅
 ./scripts/test-in-container.sh --only=app --project=chromium tests/browser/library/order.spec.ts
 ```
 
-**不要繞過腳本直接下 `docker run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。
+**不要繞過腳本直接下 `docker run`。** 那會跳過建映像與比對，跑的可能不是你磁碟上的 code。要手動跑就先
+`IMG=$(./scripts/build-test-image.sh)`，它做完同樣的建置與比對，印出 image id。
+
+**不要自己 prune。** `docker builder prune`、`docker system prune`、不帶條件的 `docker image prune -a`
+都不要跑：前兩個清掉 build cache，第三個會刪掉別的 worktree 正要用的映像，讓它在半路壞掉，而那邊
+看到的只是一個莫名其妙的失敗。**磁碟不夠就跑一次 `./scripts/build-test-image.sh`**，它在 build 之前
+會清掉目錄已經不在的、過期的映像，而且不碰別人正在用的
+（[ADR-0051](docs/adr/0051-the-test-image-shares-its-dependencies-across-checkouts.md)）。
 
 **21 秒**（其中 18 秒是建映像與比對，測試本身只有幾秒），對上三家全套實測的 **6 分 46 秒**。現在本地
 的全套只有 chromium，所以那個數字大約降到三分之一。`--only=frond` 同理。路徑**相對於那個 package**

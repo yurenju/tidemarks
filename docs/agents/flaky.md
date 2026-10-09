@@ -202,27 +202,19 @@ flaky 這類工作要修的病往往正是「斷言斷到了機器的性質」�
 ./scripts/test-in-container.sh --only=app --project=firefox tests/browser/reader/paging.spec.ts
 ```
 
-那一趟會把映像建到最新。**接下來的重複才直接對映像下指令**：code 不會再變，重跑幾十次不必每次重建
-與比對：
+**接下來的重複才直接對映像下指令**：code 不會再變，重跑幾十次不必每次重建與比對。先用
+`build-test-image.sh` 拿到映像的 id，之後一律對 id 下指令：
 
 ```bash
-docker run --rm --init "tidemarks-test-$(basename "$PWD")" npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
+IMG=$(./scripts/build-test-image.sh)
+docker run --rm --init "$IMG" npm run test:browser -w app -- --project=firefox tests/browser/reader/paging.spec.ts --repeat-each=20
 ```
 
-⚠️ **映像名一定要帶目錄名，不要寫死 `tidemarks-test`。** 一個 checkout 一個映像是 `scripts/container.sh`
-的預設，理由寫在那裡。
-
-⚠️ **而且這一段是唯一還在用名字的地方，所以它是唯一還會中的地方。** `test-in-container.sh` 比對完之後
-就改用 image id，id 搬不走；你手動下的 `docker run` 每一趟都重新解析一次那個名字。所以只要同一個
-checkout 裡有另一個 terminal（或另一個 agent）跑了 `test-in-container.sh`，你這個重複幾十次的迴圈
-**會從中間某一趟開始跑另一份 build**，而輸出不會有任何徵兆。查 flake 的時候這件事特別致命，你正在
-數的是紅幾次，而那個比例可能跨了兩份 code。
-
-要釘死就先把 id 抓下來，之後對 id 下指令：
-
-```bash
-IMG=$(docker image inspect --format '{{.Id}}' "tidemarks-test-$(basename "$PWD")")
-```
+⚠️ **對 id 下指令，不要對 `tidemarks-test-<目錄名>` 這個名字。** 名字在每一趟 `docker run` 都會重新
+解析一次，所以只要同一個 checkout 裡有另一個 terminal（或另一個 agent）跑了 `test-in-container.sh`，
+你這個重複幾十次的迴圈**會從中間某一趟開始跑另一份 build**，而輸出不會有任何徵兆。查 flake 的時候
+這件事特別致命，你正在數的是紅幾次，而那個比例可能跨了兩份 code。id 搬不走，`test-in-container.sh`
+自己比對完之後也是改用 id。
 
 frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh` 的註解。
 
@@ -232,11 +224,11 @@ frond 那半要多帶 `--network=none`，理由見 `scripts/test-in-container.sh
 原樣，另一邊把改過的檔案 bind-mount 進去，第二邊的成本是 0 秒。
 
 ```sh
-docker run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" "tidemarks-test-$(basename "$PWD")" …
+docker run --rm --init -v "$PWD/packages/app/tests:/work/packages/app/tests:ro" "$IMG" …
 ```
 
-⚠️ **前提是那個映像裡沒有你的修法。** 上一段叫你先跑一次 `test-in-container.sh`，而那一趟會把映像
-建到最新，如果那時候修法已經在樹上，你的「沒修」那一組跑的就是修好的 code，而且不會有任何徵兆。
+⚠️ **前提是那個映像裡沒有你的修法。** 上一段的 `build-test-image.sh` 會把映像建到
+最新，如果那時候修法已經在樹上，你的「沒修」那一組跑的就是修好的 code，而且不會有任何徵兆。
 先建映像再改，或者 `git stash -u` 之後建，**要帶 `-u`**，不然新增的檔案（一支新的 spec、一個新的
 helper）會留在樹上被 `COPY . .` 烤進去，那正是這一段要防的那個沒有徵兆的錯。
 

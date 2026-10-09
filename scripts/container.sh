@@ -407,7 +407,7 @@ container_build() {
     #
     # An id cannot be moved, so the window closes rather than narrowing. Which also means the tag
     # above is now a convenience for reading `docker images` rather than something correctness
-    # rests on, and hand-run containers are the case left over: `docker run … tidemarks-test-<dir>`
-    # out of docs/agents/flaky.md resolves the name again, every time.
+    # rests on. Containers run by hand would resolve the name again on every run, which is why
+    # `build-test-image.sh` hands them this id instead.
     IMAGE_NAME="$(docker image inspect --format '{{.Id}}' "$IMAGE_NAME")"
 }
