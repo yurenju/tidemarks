@@ -95,26 +95,12 @@ export default function AnnotationItem({
       // of a long note (`styles/book.css`), so the two cannot come out in different inks.
       style={{ "--mark": markVar(annotation.color) } as React.CSSProperties}
     >
-      {/* The box is the first thing in the card, which is ADR-0044 (`NoteEditor`). */}
-      {editing && (
-        <NoteEditor
-          note={annotation.note}
-          onPersist={(note) => {
-            if (!removedRef.current) onPersist(note);
-          }}
-          onSave={onSave}
-        />
-      )}
       {/* **The ink is not in this row any more.** A dot here said the colour a second time, after
           the rule down the card's edge had already said it.
 
           [[Edit note]] and [[Delete]] stand at the end of it, and only on the selected card
           (`styles/book.css`): forty cards each with a row of buttons under it read as a register,
-          and the reader acts on the one they are looking at.
-
-          Under the editor rather than over it, which is ADR-0044 again — the box has to be the
-          first thing in the card, so that the caret starts where a virtual keyboard cannot reach.
-          Nothing is above it when it is standing. */}
+          and the reader acts on the one they are looking at. */}
       <AnnotationHead
         annotation={annotation}
         dated={selected}
@@ -164,6 +150,21 @@ export default function AnnotationItem({
             set on a control (`styles/book.css`). */}
         <span className="annotation-quote-text">{annotation.text}</span>
       </button>
+      {/* **The box stands where the note stands: under the passage.** The passage is above the
+          reader's words whether they are reading them or writing them, so opening the box does not
+          swap the two round. It is still near the top of the card — the date row and two lines
+          of passage over it, the same as the phone's note page — and `NoteEditor` scrolls the
+          card to the top of the panel, so the caret starts clear of a virtual keyboard
+          (ADR-0044). */}
+      {editing && (
+        <NoteEditor
+          note={annotation.note}
+          onPersist={(note) => {
+            if (!removedRef.current) onPersist(note);
+          }}
+          onSave={onSave}
+        />
+      )}
       {showsNote && (
         // **Cut to three lines until the card is selected, then whole** — inside the card, as
         // a scroll of its own once it runs past what the card is given, so one long note cannot

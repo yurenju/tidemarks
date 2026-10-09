@@ -1021,6 +1021,12 @@ button.annotation-quote:active:not(:disabled) {
   margin-bottom: var(--space-3);
 }
 
+/* On a desk's card the box takes the note's place under the passage (`AnnotationItem`), so it keeps
+   the note's distance from it rather than leaving its gap underneath. */
+.annotation-item .note-editor {
+  margin: var(--space-3) 0 0;
+}
+
 .note-editor textarea {
   font-family: var(--font-control);
   font-size: var(--type-ui);

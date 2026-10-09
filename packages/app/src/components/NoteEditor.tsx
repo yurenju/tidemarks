@@ -6,16 +6,18 @@ import { useEffect, useRef, useState } from "react";
  * phone's one-note page (`NotePage`). Mounted while the note is open for writing and not otherwise,
  * so its going away is the note being closed.
  *
- * **The box is the first thing in whatever holds it, and that is the whole of ADR-0044.** A
+ * **The box stands near the top of whatever holds it, and that is the whole of ADR-0044.** A
  * virtual keyboard takes the bottom of the screen and tells the layout nothing about it — no
  * viewport unit moves — and then scrolls the whole page to bring a covered caret into view, which
  * is what threw the panel off the top of an iPhone. Nothing here asks how tall the keyboard is.
  * The caret starts where a keyboard cannot reach, so there is nothing for the scroll to do.
+ * "Near" is a date row and two lines of the passage over it, in both holders: the passage stays
+ * above the reader's words whether they are read or written.
  *
  * Being near the top of its holder is only half of it — the panel is scrolled to the holder as
- * well, in the effect below. Neither half is enough alone: the box at the top of a card with the
- * list left where it was puts it thirty rows down, and a scrolled list with the box under the
- * quote puts it back under the keyboard.
+ * well, in the effect below. Neither half is enough alone: the box near the top of a card with the
+ * list left where it was puts it thirty rows down, and a scrolled list with the box under a
+ * passage shown whole puts it back under the keyboard.
  */
 export default function NoteEditor({
   note,
