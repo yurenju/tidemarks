@@ -631,7 +631,7 @@ export default function Reader({
    * turn to, and where a phone's index comes back to.
    *
    * The list is scrolled rather than the card asked to `scrollIntoView`, for the reason
-   * `AnnotationItem`'s editor gives: only the panel's own column should move.
+   * `NoteEditor` gives: only the panel's own column should move.
    */
   function scrollNotesTo(id: string) {
     const card = noteCard(id);
@@ -703,7 +703,7 @@ export default function Reader({
   // A mark pointed at while the list stands: tapped on the page, named by the address, or just
   // made. Pointing at it lights its card, and a lit card far down the list is one the reader still
   // has to go looking for. Not while a note is being written — the box brings its own card to the
-  // top as it takes the focus (`AnnotationItem`), and two scrolls at once would fight.
+  // top as it takes the focus (`NoteEditor`), and two scrolls at once would fight.
   //
   // **A desk's alone.** On a phone the mark pointed at is a page of its own rather than a card in
   // the list (#239), and the index has its own place to come back to (`recent`, below).
