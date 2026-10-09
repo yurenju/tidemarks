@@ -238,6 +238,29 @@ test.describe("drawing a highlight", () => {
       // Without it the reader is put back on the right page with no answer to "which one".
       await expect(page.locator(".highlight-wash").first()).toBeVisible();
     });
+
+    // The phone's half of [[Mark and note]] (#240): the note borrows the notes panel's face, which
+    // here is a page per note, so it is written on that page — and [[Done]] is still [[Read]].
+    test("Mark and note writes on the note's page, and Done goes back to the book", async ({
+      page,
+    }) => {
+      await selectPassage(page);
+      await page
+        .locator(".highlight-toolbar")
+        .getByRole("button", { name: "Mark and note" })
+        .click();
+
+      const panel = page.getByTestId("panel-notes");
+      const note = panel.getByTestId("note-page");
+      await expect(note.getByRole("textbox")).toBeFocused();
+      await expect(note.locator(".note-page-quote")).toBeVisible();
+
+      await note.getByRole("textbox").fill("Written while it was fresh.");
+      await note.getByRole("button", { name: "Done" }).click();
+      await expect(panel).toBeHidden();
+      await expect(page.getByTestId("chrome-top")).toBeHidden();
+      await expect(page.getByTestId("note-dot")).toHaveCount(1);
+    });
   });
 
   test("the mark travels with its text while the page is being dragged", async ({ page }) => {

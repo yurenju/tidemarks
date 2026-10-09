@@ -196,7 +196,7 @@ msgstr "本のまま"
 
 #. Button on the selection bar: drop the selection without marking anything.
 #. Button that answers 'no' to a question asked in place, and puts things back as they were. In the notes panel it keeps the mark and its note.
-#: src/components/AnnotationItem.tsx
+#: src/components/AnnotationHead.tsx
 #: src/components/SelectionToolbar.tsx
 msgid "Cancel"
 msgstr "やめる"
@@ -249,11 +249,11 @@ msgid "Dark"
 msgstr "ダーク"
 
 #. Button in the book-details panel that opens the delete confirmation. Shares its entry with the confirming button inside that dialog.
-#. Small text button at the end of the date row on a card in the notes panel: asks, then removes the mark and any note on it. On a desk it appears only on the card the reader has selected.
-#. The button that actually deletes, in the question asked in place of the date row on a card in the notes panel. Shares its entry with the Delete that asked.
+#. Small text button at the end of the date row over a note: asks, then removes the mark and any note on it. On a desk it is on the card the reader has selected in the notes panel; on a phone, on the one-note page.
+#. The button that actually deletes, in the question asked in place of the date row over a note in the notes panel. Shares its entry with the Delete that asked.
 #. The button that actually deletes, inside the confirmation. Shares its entry with the button that opened the dialog.
 #: src/components/AboutBook.tsx
-#: src/components/AnnotationItem.tsx
+#: src/components/AnnotationHead.tsx
 msgid "Delete"
 msgstr "削除"
 
@@ -262,13 +262,13 @@ msgstr "削除"
 msgid "Delete “{title}”?"
 msgstr "「{title}」を削除しますか？"
 
-#. Asked in place of the date row on a card in the notes panel, for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
-#: src/components/AnnotationItem.tsx
+#. Asked in place of the date row over a note in the notes panel — a card on a desk, the one-note page on a phone — for a passage that carries a note, after Delete was pressed. Names both, because the note is the reader's own writing and goes with the mark.
+#: src/components/AnnotationHead.tsx
 msgid "Delete this mark and its note?"
 msgstr "このマークとメモを削除しますか？"
 
-#. Asked in place of the date row on a card in the notes panel, for a passage with no note, after Delete was pressed.
-#: src/components/AnnotationItem.tsx
+#. Asked in place of the date row over a note in the notes panel — a card on a desk, the one-note page on a phone — for a passage with no note, after Delete was pressed.
+#: src/components/AnnotationHead.tsx
 msgid "Delete this mark?"
 msgstr "このマークを削除しますか？"
 
@@ -278,7 +278,7 @@ msgid "dev build"
 msgstr "開発版"
 
 #. Button that closes the note box under a marked passage. The words are already written down by the time it is pressed — this only puts the box away — so it says the writing is finished rather than naming a save.
-#: src/components/AnnotationItem.tsx
+#: src/components/NoteEditor.tsx
 msgid "Done"
 msgstr "完了"
 
@@ -307,10 +307,8 @@ msgstr "フォントを取得中　{percent}%"
 msgid "Downloading the book…"
 msgstr "本をダウンロード中…"
 
-#. Small text button at the end of the date row on a card in the notes panel, on a passage that already carries a note: opens the note for changing. On a desk it appears only on the card the reader has selected.
-#. Small text button at the end of the date row on the phone's one-note page, under the passage and above the note: opens the note for changing.
-#: src/components/AnnotationItem.tsx
-#: src/components/NotePage.tsx
+#. Small text button at the end of the date row over a note that already carries one: opens the note for changing. On a desk it is on the card the reader has selected in the notes panel; on a phone, on the one-note page.
+#: src/components/AnnotationHead.tsx
 msgid "Edit note"
 msgstr "メモを直す"
 
@@ -453,7 +451,7 @@ msgid "Just now"
 msgstr "たった今"
 
 #. After how long ago a passage was marked, on a card in the notes panel for a mark with no note written under it — '3 days ago · Just the mark'. Says what the card is, not that something is missing.
-#: src/components/AnnotationItem.tsx
+#: src/components/AnnotationHead.tsx
 msgid "Just the mark"
 msgstr "マークのみ"
 
@@ -626,7 +624,7 @@ msgid "Note: {excerpt}"
 msgstr "メモ：{excerpt}"
 
 #. Placeholder in the empty note box under a marked passage. The ellipsis is one character.
-#: src/components/AnnotationItem.tsx
+#: src/components/NoteEditor.tsx
 msgid "Note…"
 msgstr "メモ…"
 

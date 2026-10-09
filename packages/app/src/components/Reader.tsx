@@ -731,20 +731,20 @@ export default function Reader({
    * says why that is the width alone. Asked here rather than in CSS because the two are not one
    * layout drawn two ways — they are different things on screen, read out of different data.
    *
-   * ⚠️ **Writing a note is still the old list on a phone**, card and box together, until the page
-   * gets a writing view of its own (#240). So a note open for writing is drawn there, whichever
-   * storey the reader pressed [[Edit note]] on.
+   * **A note open for writing is its page too, turned over to the box** (#240) — from [[Edit note]]
+   * or [[Write a note…]] on the page, and from [[Mark and note]] in [[Marking]], which borrows this
+   * face. So on a phone the desk's list of cards is never drawn at all.
    *
    * Read off `selected` rather than off [[Reflect]] standing, so that the page is still the page
    * for the 180ms the panel takes to slide away after the ✕ — `selected` outlives the panel, and
-   * an index drawn in its place would flash past on the way out.
+   * an index drawn in its place would flash past on the way out. [[Marking]]'s note is the one
+   * `selected` does not outlive — [[Done]] lets go of its passage as the panel starts to go — and
+   * `kept` is what holds it for that last frame (`lib/chrome.ts`).
    */
   const onPhone = !bookKeepsAColumn;
-  const writingOnPhone = onPhone && editingId !== null;
+  const pageNoteId = editingId ?? selectedNoteId ?? chromeState.kept;
   const pageMark =
-    onPhone && !writingOnPhone && selectedNoteId !== null
-      ? (annotations.find((a) => a.id === selectedNoteId) ?? null)
-      : null;
+    onPhone && pageNoteId !== null ? (annotations.find((a) => a.id === pageNoteId) ?? null) : null;
   const pageChapter =
     pageMark === null
       ? null
@@ -757,9 +757,13 @@ export default function Reader({
    * Whatever took them back: [[All]], or the back button out of a note opened from the index.
    * [[Reflect]] ending forgets it, so a list raised again later opens on the page's first mark, as
    * any list opening does.
+   *
+   * **[[Delete]] takes them back too, to where the note stood** (`removeFromPage`): the index is
+   * scrolled to the note that followed it, and nothing is marked — the reader was not on that one,
+   * and the gap where the deleted note was is the thing to see.
    */
-  const [recent, setRecent] = useState<string | null>(null);
-  const lastPage = useRef<string | null>(null);
+  const [recent, setRecent] = useState<{ id: string; marked: boolean } | null>(null);
+  const lastPage = useRef<{ id: string; marked: boolean } | null>(null);
   const pageId = pageMark?.id ?? null;
   useEffect(() => {
     if (!reflecting) {
@@ -768,7 +772,7 @@ export default function Reader({
       return;
     }
     if (pageId !== null) {
-      lastPage.current = pageId;
+      lastPage.current = { id: pageId, marked: true };
       return;
     }
     if (lastPage.current !== null) {
@@ -786,9 +790,9 @@ export default function Reader({
   useEffect(() => {
     if (recent === null || pageMark !== null || !notesList) return;
     const done = scrolledToRecent.current;
-    if (done.id === recent && done.list === notesList) return;
-    scrolledToRecent.current = { id: recent, list: notesList };
-    scrollNotesTo(recent);
+    if (done.id === recent.id && done.list === notesList) return;
+    scrolledToRecent.current = { id: recent.id, list: notesList };
+    scrollNotesTo(recent.id);
   });
 
   // Which highlight rectangles are on the page in front of the reader.
@@ -914,6 +918,22 @@ export default function Reader({
     await db.annotations.update(a.id, { deletedAt: now, updatedAt: now, dirtyAt: now });
     setAnnotations((prev) => prev.filter((x) => x.id !== a.id));
     scheduleSync();
+  }
+
+  /**
+   * [[Delete]] on a phone's note page: the note goes, and so does its page — down to the index,
+   * the way [[All]] goes, scrolled to where the note stood (see `recent`). Not on to the next
+   * note: a page that is simply replaced by another one reads as the press having done nothing,
+   * and the index is where the gap shows.
+   */
+  async function removeFromPage(a: Annotation) {
+    const after =
+      neighbourOf(annotations, a.id, "next") ?? neighbourOf(annotations, a.id, "previous");
+    // Before the mark goes rather than after: the page goes with it, and what the index is
+    // scrolled to is read off this at that moment.
+    lastPage.current = after === null ? null : { id: after.id, marked: false };
+    await removeAnnotation(a);
+    sendChrome({ kind: "pickDropped" });
   }
 
   /** A passage pressed in [[Notes]], or [[Open in book]] on a phone's note page: go and look at it. */
@@ -1230,7 +1250,8 @@ export default function Reader({
         title={face === "notes" && pageChapter !== null ? pageChapter : PANEL_FACES[face].title}
         testId={PANEL_FACES[face].testId}
         actions={
-          face === "notes" && pageMark !== null ? (
+          // Not while the note is being written: the page is the box's then (`NotePage`).
+          face === "notes" && pageMark !== null && editingId === null ? (
             <button type="button" className="ghost note-page-open" onClick={() => jumpTo(pageMark)}>
               <Trans comment="Button in the top bar of the phone's one-note page: closes the notes and turns the book to where this passage is. Beside the ✕, which closes them and leaves the book where it was.">
                 Open in book
@@ -1291,11 +1312,15 @@ export default function Reader({
             // nothing here says how: a note opened from the page has no index under it to step
             // back to, and `App.tsx` writes the index over it instead (`behind`).
             onAll={() => sendChrome({ kind: "pickDropped" })}
+            editing={editingId === pageMark.id}
             onEdit={() => sendChrome({ kind: "editNote", id: pageMark.id })}
+            onPersist={(note) => void persistNote(pageMark.id, note)}
+            onSave={(note) => void saveNote(pageMark.id, note)}
+            onRemove={() => void removeFromPage(pageMark)}
           />
         )}
 
-        {face === "notes" && pageMark === null && onPhone && !writingOnPhone && (
+        {face === "notes" && pageMark === null && onPhone && (
           <div
             className="panel-list panel-list-notes notes-index"
             data-testid="notes-index"
@@ -1319,7 +1344,7 @@ export default function Reader({
                   <NoteIndexItem
                     key={a.id}
                     annotation={a}
-                    recent={recent === a.id}
+                    recent={recent?.id === a.id && recent.marked}
                     onOpen={() => sendChrome({ kind: "markPicked", id: a.id })}
                   />
                 ))}
@@ -1328,7 +1353,7 @@ export default function Reader({
           </div>
         )}
 
-        {face === "notes" && pageMark === null && (!onPhone || writingOnPhone) && (
+        {face === "notes" && !onPhone && (
           <div className="panel-list panel-list-notes" ref={setNotesList}>
             {annotations.length === 0 && <NotesEmpty />}
             {noteGroups.map((group, i) => (

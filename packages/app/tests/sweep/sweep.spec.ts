@@ -492,6 +492,26 @@ test("sweeps every screen", async ({ page }, testInfo) => {
       await page.getByRole("button", { name: /Show the full text/ }).click();
       await page.waitForTimeout(300);
     });
+
+    // The same note open for writing (#240): the passage folded to two lines at the top, the long
+    // note in the box under it, [[Done]] at the box's lower right. A mark with no note opened for
+    // writing is `reader-note-editing` above, which on a phone is this same page.
+    await step("reader-note-page-writing", async () => {
+      await page.getByTestId("note-page").getByRole("button", { name: "Edit note" }).click();
+      await expect(page.getByTestId("note-page").getByRole("textbox")).toBeFocused();
+      await page.waitForTimeout(300);
+    });
+
+    // And [[Delete]]'s question in the page's date row, with the focus waiting on Cancel. Left
+    // standing for the picture; the Escape the next step opens with is what answers it.
+    await step("reader-note-page-delete", async () => {
+      const note = page.getByTestId("note-page");
+      await note.getByRole("button", { name: "Done" }).click();
+      await expect(note.getByRole("textbox")).toHaveCount(0);
+      await note.getByRole("button", { name: "Delete", exact: true }).click();
+      await expect(note.getByRole("button", { name: "Cancel" })).toBeFocused();
+      await page.waitForTimeout(300);
+    });
   }
 
   await step("reader-about-panel", async () => {

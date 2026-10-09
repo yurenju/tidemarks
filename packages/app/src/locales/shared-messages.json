@@ -1,10 +1,9 @@
 {
   "‹ Shelf": ["src/components/Reader.tsx", "src/components/SettingsScreen.tsx"],
   "About this book": ["src/components/AboutBook.tsx", "src/components/reader-messages.ts"],
-  "Cancel": ["src/components/AnnotationItem.tsx", "src/components/SelectionToolbar.tsx"],
+  "Cancel": ["src/components/AnnotationHead.tsx", "src/components/SelectionToolbar.tsx"],
   "Contents": ["src/components/Reader.tsx", "src/components/reader-messages.ts"],
-  "Delete": ["src/components/AboutBook.tsx", "src/components/AnnotationItem.tsx"],
-  "Edit note": ["src/components/AnnotationItem.tsx", "src/components/NotePage.tsx"],
+  "Delete": ["src/components/AboutBook.tsx", "src/components/AnnotationHead.tsx"],
   "Just now": ["src/components/ElsewhereBanner.tsx", "src/components/age-labels.ts"],
   "Settings": ["src/components/Library.tsx", "src/components/SettingsScreen.tsx"],
   "Type": ["src/components/Reader.tsx", "src/components/reader-messages.ts"],
