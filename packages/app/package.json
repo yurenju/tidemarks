@@ -11,6 +11,7 @@
     "typecheck": "npm run i18n:compile && tsc -b --noEmit && tsc -p tsconfig.tests.json --noEmit",
     "test:browser": "playwright test",
     "sweep": "playwright test --config=playwright.sweep.config.ts",
+    "perf": "playwright test --config=playwright.perf.config.ts",
     "preview": "vite preview",
     "worker:dev": "npm run i18n:compile && wrangler dev",
     "db:migrate:local": "wrangler d1 migrations apply DB --local"

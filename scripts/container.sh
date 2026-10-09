@@ -10,11 +10,10 @@
 # can only have one answer. The second caller is gone — evidence for a pull request is captured on
 # the host now (docs/adr/0007-pr-evidence-is-captured-on-the-host.md).
 #
-# It stays a file of its own because it answers a different question than its caller does: this one
-# is about reaching a container engine at all (which engine, is the daemon up), and that is worth
-# reading — and failing — separately from "which tests to run". If no second caller ever appears,
-# folding it into `test-in-container.sh` is a reasonable thing to do next time someone touches
-# either.
+# It has callers again: `test-in-container.sh`, `capture-shots.sh` (the screen sweep) and
+# `measure-perf.sh` (page turns under load). It also answers a different question than any of them:
+# this one is about reaching a container engine at all (which engine, is the daemon up), and that is
+# worth reading — and failing — separately from "which tests to run".
 #
 # After sourcing, available are:
 #   ENGINE           podman or docker
