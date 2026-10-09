@@ -22,6 +22,7 @@
     "test": "npm run build:frond && npm run i18n:compile -w app && vitest run",
     "test:container": "./scripts/test-in-container.sh",
     "shots": "./scripts/capture-shots.sh",
+    "perf": "./scripts/measure-perf.sh",
     "preview": "npm run preview -w app",
     "worker:dev": "npm run worker:dev -w app",
     "setup:cloudflare": "./scripts/setup-cloudflare.sh",
