@@ -312,7 +312,7 @@ test.describe("on a hand-held, where a panel covers the screen", () => {
     await paintMark(page);
 
     // A tap on the passage just marked: `markPicked`, the route that climbs both storeys at once.
-    await page.touchscreen.tap(at.x, at.y);
+    await page.touchscreen.tap(at!.x, at!.y);
     await expect(page.getByTestId("panel-notes")).toBeVisible();
     expect(panelInAddress(page)).toMatch(new RegExp(`^notes/${bookId}/.+`));
 

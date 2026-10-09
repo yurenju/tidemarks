@@ -18,7 +18,7 @@
 // The two panels the reader's bar raises are named once, in the state machine that owns them
 // (`lib/chrome.ts`). Spelling them again here would be a second list to keep in step, and the
 // address and the machine have to agree on those names exactly.
-import { isFace, isPanel, type Face } from "./chrome";
+import { isFace, isPanel, type Face } from "./chrome.js";
 
 const BOOK_PREFIX = "#/book/";
 const SETTINGS_PREFIX = "#/settings";

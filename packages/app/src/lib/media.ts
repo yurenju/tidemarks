@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Panel } from "./route";
+import type { Panel } from "./route.js";
 
 /**
  * Where a panel stands **beside** the book rather than over the whole screen.
