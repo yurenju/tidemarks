@@ -29,6 +29,17 @@ jobs:
       # nobody translated, or one added with nothing said about where it appears. A test run
       # would bury that under everything else it has to say.
       - run: npm run i18n:check
+      # The only thing that reads the browser specs' types. Playwright takes its TypeScript
+      # through Babel, which strips types without checking them, so a spec with a type error
+      # runs green — and the projects `npm run build` checks leave `tests/` out on purpose
+      # (`packages/app/tsconfig.tests.json` says why). Two such errors sat on main unseen
+      # until someone ran this by hand (#257).
+      #
+      # `build:frond` first because the app imports frond through `dist/`, which `typecheck`
+      # itself does not produce (see CLAUDE.md, on frond's boundary). `npm test` builds it
+      # again below, which is cheaper than teaching it to skip.
+      - run: npm run build:frond
+      - run: npm run typecheck
       - run: npm test
       - run: npm run build
       # The site is its own deployment and its own build. `check-links.ts` runs inside it, and
