@@ -40,6 +40,73 @@ import {
 import type { TreeNode } from "./tree.ts";
 import { parseContentTree } from "./xml.ts";
 
+/**
+ * The elements that begin a paragraph of their own, as XHTML's default rendering sets them.
+ *
+ * **The markup's answer, not the stylesheet's.** A book can restyle a `<p>` inline or a `<span>`
+ * as a block, and only a browser applying its CSS can say what it did — but this layer has no
+ * browser (ADR-0012), and a paragraph is wanted by readers that have none either. What the tag
+ * says is the answer every book's author wrote down; a book that overrode it gets its paragraph
+ * cut where the markup cuts it.
+ */
+const BLOCK_ELEMENTS = new Set([
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "body",
+  "caption",
+  "dd",
+  "div",
+  "dl",
+  "dt",
+  "figcaption",
+  "figure",
+  "footer",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hr",
+  "li",
+  "main",
+  "nav",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "table",
+  "td",
+  "th",
+  "tr",
+  "ul",
+]);
+
+/** The block a text node is set in: the nearest ancestor that begins a paragraph. */
+function blockOf(node: TreeNode): TreeNode | null {
+  for (let at = node.parentNode; at !== null; at = at.parentNode) {
+    if (BLOCK_ELEMENTS.has((at.localName ?? "").toLowerCase())) return at;
+  }
+  return null;
+}
+
+/**
+ * The elements whose text is set beside the line rather than along it: a ruby annotation, and the
+ * fallback parentheses a reader without ruby support shows around one.
+ */
+const RUBY_TEXT_ELEMENTS = new Set(["rt", "rp"]);
+
+/** Whether a text node is ruby text — inside an `<rt>` or `<rp>`, at any depth. */
+function isRubyText(node: TreeNode): boolean {
+  for (let at = node.parentNode; at !== null; at = at.parentNode) {
+    if (RUBY_TEXT_ELEMENTS.has((at.localName ?? "").toLowerCase())) return true;
+  }
+  return false;
+}
+
 /** A stretch of a section's text, as character offsets into `ContentDocument.text`. */
 export interface TextRange {
   readonly start: number;
@@ -139,6 +206,84 @@ export class ContentDocument {
     if (start === undefined || end === undefined) return undefined;
 
     return { start, end };
+  }
+
+  /**
+   * The paragraphs a stretch of `text` falls in, in document order: each one whole, as offsets
+   * into `text`, from the first the stretch touches to the last.
+   *
+   * **The flattened text has no seams of its own** — the indentation between two blocks is not
+   * counted (`text-nodes.ts`), so `text` runs the last word of one paragraph straight into the
+   * first of the next. Where one paragraph ends is a fact about the tree, and this is the only
+   * layer still holding it.
+   *
+   * A paragraph is the run of text set in one block (`BLOCK_ELEMENTS`), so a block holding
+   * another — a `<blockquote>` around two `<p>`s, a `<div>` with loose text beside a `<p>` — is
+   * cut where the inner block begins and ends, which is where its lines break.
+   *
+   * A point (`start === end`) answers with the one paragraph it stands in. Empty when nothing
+   * of `text` is in reach: a section with no text, or a stretch past its end.
+   */
+  paragraphsAround(range: TextRange): readonly TextRange[] {
+    const around: TextRange[] = [];
+    for (const paragraph of this.paragraphs()) {
+      const touches =
+        range.start === range.end
+          ? paragraph.start <= range.start && range.start < paragraph.end
+          : paragraph.start < range.end && range.start < paragraph.end;
+      if (touches) around.push(paragraph);
+    }
+    return around;
+  }
+
+  /**
+   * The stretches of `text` within a range that are ruby annotations (`<rt>`, and the `<rp>`
+   * parentheses around one), in document order.
+   *
+   * **They are in `text` because they are in the book**: a reading over a word is characters the
+   * whole-book index counts and a CFI can point into. But they are read beside the line, not along
+   * it, so a consumer setting a passage as one run of prose — where there is no beside — has to be
+   * able to tell them from the words they stand over. `山路(やまみち)を` flattened is
+   * `山路やまみちを`, and nothing in the string says which half is the reading.
+   */
+  rubyTextIn(range: TextRange): readonly TextRange[] {
+    const found: TextRange[] = [];
+    let at = 0;
+    for (const node of this.nodes) {
+      const start = at;
+      at += node.nodeValue?.length ?? 0;
+      if (at <= range.start || start >= range.end || !isRubyText(node)) continue;
+      const from = Math.max(start, range.start);
+      const to = Math.min(at, range.end);
+      const last = found.at(-1);
+      if (last !== undefined && last.end === from)
+        found[found.length - 1] = { start: last.start, end: to };
+      else found.push({ start: from, end: to });
+    }
+    return found;
+  }
+
+  private paragraphCache: readonly TextRange[] | undefined;
+
+  /** Every paragraph of the section, worked out once and only when asked. */
+  private paragraphs(): readonly TextRange[] {
+    if (this.paragraphCache !== undefined) return this.paragraphCache;
+    const found: TextRange[] = [];
+    let start = 0;
+    let at = 0;
+    let block: TreeNode | null | undefined;
+    for (const node of this.nodes) {
+      const next = blockOf(node);
+      if (block !== undefined && next !== block && at > start) {
+        found.push({ start, end: at });
+        start = at;
+      }
+      block = next;
+      at += node.nodeValue?.length ?? 0;
+    }
+    if (at > start) found.push({ start, end: at });
+    this.paragraphCache = found;
+    return found;
   }
 
   /** How many characters this section holds. */
