@@ -104,18 +104,19 @@ export default function HighlightLayer({
                 />
               )),
         )}
-        {/* **While one passage is selected, it is the wash and nothing else, and the rest fade.**
-          A wave over the wash said "a mark" a second time in the colour that was already saying
-          "this one"; the other marks stay on the page at 30% rather than leaving it
-          (`styles/book.css`). The same rule for a vertical book — the wave runs down the side
-          there, and the wash is the same block on the words. */}
+        {/* **While one passage is selected, it is the wash and nothing else.** A wave over the
+          wash said "a mark" a second time in the colour that was already saying "this one". The
+          other marks stay exactly as they were: the wash is enough to tell the selected one
+          apart, and fading the rest made the page look as if they had been half taken back. The
+          same rule for a vertical book — the wave runs down the side there, and the wash is the
+          same block on the words. */}
         {painted.map(({ annotation, strips }) =>
           annotation.id === selectedId
             ? null
             : strips.map((strip, index) => (
                 <div
                   key={`${annotation.id}-${index}`}
-                  className={selectedId === null ? "highlight-box" : "highlight-box faded"}
+                  className="highlight-box"
                   data-axis={vertical ? "v" : "h"}
                   style={
                     {
@@ -155,11 +156,7 @@ export default function HighlightLayer({
             {pair.map((dot) => (
               <span
                 key={dot.id}
-                className={
-                  selectedId === null || selectedId === dot.id
-                    ? "note-dot-ink"
-                    : "note-dot-ink faded"
-                }
+                className="note-dot-ink"
                 style={
                   {
                     left: dot.x - target.left - NOTE_DOT_SIZE / 2,

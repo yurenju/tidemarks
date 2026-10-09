@@ -306,15 +306,6 @@ button.selection-handle:active:not(:disabled) {
   background: color-mix(in srgb, var(--mark) 22%, transparent);
 }
 
-/* **While one passage is selected, every other mark on the page steps back** — to 30%, still
-   there, so the page does not look as if the others were deleted. The selected passage itself
-   has no wave at all while it is washed (`HighlightLayer`): the wash already says "this one", and
-   a wave over it said "a mark" a second time in the same colour. The cards in the panel do the
-   same (`.annotation-item`), so the page and the list give one answer. */
-.highlight-box.faded {
-  opacity: 0.3;
-}
-
 /* A [[Note dot]]: the button is the 24px square a press counts in (`NOTE_DOT_TARGET`), and the dots
    are drawn inside it where `noteDots` put them. Positions come from there; this only says what a
    dot looks like — 6px (`NOTE_DOT_SIZE`), in its passage's own ink.
@@ -347,11 +338,6 @@ button.selection-handle:active:not(:disabled) {
   height: 6px;
   border-radius: 50%;
   background: var(--mark);
-}
-
-/* The same step back as `.highlight-box.faded`, for the same reason: another passage is selected. */
-.note-dot-ink.faded {
-  opacity: 0.3;
 }
 
 /* `HighlightLayer` is told which axis this is; nothing in the box's geometry says so. The two
@@ -819,10 +805,10 @@ button.selection-handle:active:not(:disabled) {
    faded reminder rather than the thing being read, the rule beside it was marking the wrong
    part of the card; on the edge it belongs to the whole of it, the reader's words included.
 
-   **One card selected, the others step back** — the same statement the page makes when the
-   other marks on it fade (`.highlight-box.faded`), so the card and the passage it is washed on
-   read as one answer. Nothing fades while nothing is selected: opening the list is not the same
-   as pointing at something in it. */
+   **One card selected, the others step back.** On the page the wash alone says "this one" and
+   the other marks keep their full ink, because there they are the book's text being read; in the
+   list they are the alternatives to the one pointed at. Nothing fades while nothing is selected:
+   opening the list is not the same as pointing at something in it. */
 .annotation-item {
   padding: var(--space-4);
   border: 1px solid var(--line-firm);
@@ -1033,6 +1019,12 @@ button.annotation-quote:active:not(:disabled) {
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: var(--space-3);
+}
+
+/* On a desk's card the box takes the note's place under the passage (`AnnotationItem`), so it keeps
+   the note's distance from it rather than leaving its gap underneath. */
+.annotation-item .note-editor {
+  margin: var(--space-3) 0 0;
 }
 
 .note-editor textarea {

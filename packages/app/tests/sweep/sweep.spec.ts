@@ -584,7 +584,7 @@ test("sweeps every screen", async ({ page }, testInfo) => {
     await closePanel();
 
     // The last one written is still the selected passage after [[Reflect]] closes, so its wash is
-    // on the page and the other dot is faded. A reload puts both at rest, which is the picture.
+    // on the page. A reload puts both at rest, which is the picture.
     await page.reload();
     await settled(page);
     await expect(page.getByTestId("note-dot")).toHaveCount(1);
