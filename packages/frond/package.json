@@ -25,6 +25,7 @@
     "build:watch": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc --noEmit",
     "fixtures": "node scripts/generate-fixtures.ts",
+    "novel": "node scripts/generate-novel.ts",
     "trim:books": "node scripts/trim-public-books.ts",
     "test:browser": "playwright test",
     "scan:books": "./scripts/scan-books.sh"
