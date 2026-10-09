@@ -10,7 +10,7 @@
   // Nothing checked these files before this config: the three projects cover `src`, the build's
   // own configuration, and the worker, and `tests/` fell between them. What that cost was
   // invisible rather than loud — a spec with a type error still runs, because Playwright takes
-  // its TypeScript through esbuild, which strips types without reading them.
+  // its TypeScript through Babel, which strips types without reading them.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tests.tsbuildinfo",
