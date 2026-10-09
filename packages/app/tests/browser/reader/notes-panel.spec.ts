@@ -252,13 +252,20 @@ test("N opens Reflect from the book, and closes it again", async ({ page }) => {
 // the reader really hands it the page it is on — the marks the highlight layer painted, and where
 // the page begins — and really scrolls the panel to the answer without pointing at it.
 
+/** `openInChapterThree`, with the notes panel raised from the bar. */
+async function openNotesInChapterThree(page: Page): Promise<void> {
+  await openInChapterThree(page);
+  await openPanel(page, /Notes/);
+}
+
 /**
  * Alice open on chapter three's first page, which holds the late mark, with eight long-noted marks
  * from chapter one ahead of it in the list — enough that a list left at its top has no room to
- * show the late one — and one more mark further on, so that the page's first mark is not also the
- * book's last, which is where the list falls back to when it is handed no page at all.
+ * show the late one — and three long-noted marks further on: so that the page's first mark is not
+ * also the book's last, which is where the list falls back to when it is handed no page at all, and
+ * so that there is list enough below the late one for it to be brought up to the top.
  */
-async function openNotesInChapterThree(page: Page): Promise<void> {
+async function openInChapterThree(page: Page): Promise<void> {
   await page.goto("/");
   await page.locator('input[type="file"][accept=".epub"]').setInputFiles(BOOKS.horizontal);
   const card = bookCards(page).filter({ hasText: /Alice/ });
@@ -272,15 +279,25 @@ async function openNotesInChapterThree(page: Page): Promise<void> {
       text: `${EARLY_PASSAGE} (${i + 1})`,
       note: LONG_NOTE,
     })),
-    { id: "notes-late", cfiRange: IN_CHAPTER_THREE, text: LATE_PASSAGE, note: "" },
-    { id: "notes-later", cfiRange: FURTHER_ON, text: LATER_PASSAGE, note: "" },
+    // A note, so the page draws the dot that leads to it.
+    {
+      id: "notes-late",
+      cfiRange: IN_CHAPTER_THREE,
+      text: LATE_PASSAGE,
+      note: "Worth coming back to.",
+    },
+    ...Array.from({ length: 3 }, (_, i) => ({
+      id: `notes-later-${i}`,
+      cfiRange: FURTHER_ON,
+      text: `${LATER_PASSAGE} (${i + 1})`,
+      note: LONG_NOTE,
+    })),
   ]);
   // By address, to reach the scene: what is under test is the panel, not the way to chapter three.
   const at = encodeURIComponent("cfi:epubcfi(/6/16!/4/2/2/2/1:0)");
   await page.goto(`/#/book/${encodeURIComponent(bookId)}?at=${at}`);
   await expect(page.locator('.reader[data-at="arrived"]')).toBeVisible({ timeout: 30_000 });
   await settled(page);
-  await openPanel(page, /Notes/);
 }
 
 /** Two spine items past chapter three. */
@@ -316,6 +333,81 @@ test("a page turned in Reflect brings the list to that page's first mark", async
 
   await expect(late).toBeInViewport();
   await expect(panel.locator(".annotation-item.selected")).toHaveCount(0);
+});
+
+// Not the page's first mark found by the list, but a mark the reader pointed at on the page — the
+// list has to go to it as it opens, rather than open at the top with that card lit far down it.
+// The dot is the press: it leads to the same `markPicked` as a tap on the marked text, and it has a
+// place on screen to be found by, where the text would have to be found inside the book.
+test("a mark pressed on the page brings its card into the list, just below the top", async ({
+  page,
+}) => {
+  await openInChapterThree(page);
+  const panel = page.getByTestId("panel-notes");
+  const late = panel.getByRole("button", { name: LATE_PASSAGE });
+
+  const dot = page.getByTestId("note-dot");
+  await expect(dot).toHaveCount(1);
+  // At the dot's place rather than on the button: the press travels frond's `pointerup`, as one on
+  // the text does, and the book over it is what takes the pointer first.
+  const at = (await dot.boundingBox())!;
+  await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
+
+  // That the press selects the mark is `highlights.spec.ts`'s; here it is only where the list went.
+  await expect(late).toBeInViewport();
+  // **Below the top by a little, and not in the middle**: the end of the card before it is left
+  // showing above, so the reader can see where in the list they are. The scroll is smooth, so this
+  // is asked again until it has come to rest.
+  await expect
+    .poll(() =>
+      panel.evaluate((root) => {
+        const body = root.querySelector(".panel-body")!.getBoundingClientRect();
+        const run = root
+          .querySelector('[data-mark="notes-late"]')!
+          .closest(".annotation-chapter")!
+          .getBoundingClientRect();
+        const before = root.querySelector('[data-mark="notes-early-7"]')!.getBoundingClientRect();
+        return before.bottom > body.top && run.top - body.top < body.height / 3;
+      }),
+    )
+    .toBe(true);
+});
+
+// The other way a card is selected, and the one that must not move the list: the card is already
+// under the pointer, and selecting it opens a long note out past the foot of the panel — which,
+// left to the rule above, would glide the card up and away from the press.
+test("a card pressed in the list stays where it was pressed", async ({ page }) => {
+  await openNotesInChapterThree(page);
+  const panel = page.getByTestId("panel-notes");
+  // Where the card sits in the panel's window rather than how far the list is scrolled: pressing a
+  // passage moves the book to its chapter, that chapter's heading gains a line saying so, and the
+  // browser scrolls the list by that line to hold the card still — which is the point, not a fault.
+  const cardTop = () =>
+    panel.evaluate(
+      (root) =>
+        new Promise<number>((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              const list = root.querySelector(".panel-body")!.getBoundingClientRect();
+              const card = root.querySelector('[data-mark="notes-early-7"]')!;
+              resolve(card.getBoundingClientRect().top - list.top);
+            }),
+          ),
+        ),
+    );
+
+  // A long-noted card, whole and at the foot of the list's window.
+  await panel.evaluate((root) => {
+    const list = root.querySelector<HTMLElement>(".panel-body")!;
+    const card = root.querySelector('[data-mark="notes-early-7"]')!.getBoundingClientRect();
+    list.scrollTop += card.bottom - list.getBoundingClientRect().bottom + 8;
+  });
+  const was = await cardTop();
+  await panel.getByRole("button", { name: `${EARLY_PASSAGE} (8)` }).click();
+  await expect(panel.locator('[data-mark="notes-early-7"]')).toHaveClass(/selected/);
+
+  // Two frames after the selection is drawn: a glide would have started by then.
+  expect(Math.abs((await cardTop()) - was)).toBeLessThan(1);
 });
 
 /**
