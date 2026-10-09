@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { Annotation } from "../lib/types";
 import type { MarkedParagraph } from "../lib/marked-paragraphs";
 import { markVar } from "../lib/highlights";
+import { passageWindow, type PassageWindow } from "../lib/passage-window";
 import AnnotationHead from "./AnnotationHead";
 import NoteEditor from "./NoteEditor";
 
@@ -72,7 +73,7 @@ export default function NotePage({
   const [open, setOpen] = useState(false);
 
   /**
-   * How much of the passage stands before [[Show the full text]], in whole lines.
+   * Which of the passage's lines stand before [[Show the full text]], in whole lines.
    *
    * **Half the screen at most, cut on a line.** A passage over several paragraphs would otherwise
    * push the note — the thing this page is for — under the fold, and a cut through the middle of a
@@ -80,23 +81,44 @@ export default function NotePage({
    * the window has room for, measured off the line the passage is set at: how tall a line is
    * depends on the type size, the script and the face, none of which a character count knows.
    *
+   * **Where the window sits is the mark's business** (`lib/passage-window.ts`): halfway down it
+   * when the mark is far into a long paragraph, so the cut can fall at the top as well as the foot.
+   * Which line the mark starts on is read off the `<mark>` as set, for the same reason the height
+   * is.
+   *
    * `null` when the whole passage fits, which is also when there is nothing to open.
    */
-  const [cut, setCut] = useState<{ height: number; more: number } | null>(null);
+  const [cut, setCut] = useState<(PassageWindow & { line: number; fits: number }) | null>(null);
   useLayoutEffect(() => {
     const box = sourceRef.current;
-    if (box === null) return;
+    const text = box?.firstElementChild;
+    if (!box || !text) return;
     const measure = () => {
       const line = parseFloat(getComputedStyle(box).lineHeight);
       if (!(line > 0)) return;
-      const lines = Math.max(1, Math.floor(window.innerHeight / 2 / line));
-      const total = Math.round(box.scrollHeight / line);
-      const next = total > lines ? { height: lines * line, more: total - lines } : null;
-      setCut((was) => (was?.height === next?.height && was?.more === next?.more ? was : next));
+      // Off the passage's own top, which the window's offset does not move: the offset is a
+      // margin, and these are measured from inside it.
+      const top = text.getBoundingClientRect().top;
+      const marks = text.querySelectorAll("mark");
+      // The first rectangle with width: a mark that begins at a line's start can open with an
+      // empty one at the end of the line before.
+      const first = [...(marks[0]?.getClientRects() ?? [])].find((rect) => rect.width > 0);
+      const last = [...(marks[marks.length - 1]?.getClientRects() ?? [])].pop();
+      const fits = Math.max(1, Math.floor(window.innerHeight / 2 / line));
+      const placed = passageWindow({
+        fits,
+        total: Math.round(text.getBoundingClientRect().height / line),
+        // A run sits inside its line with the leading split above and below it, so its top is
+        // a little under the line's and its bottom a little over: the pixel either way is that.
+        markStart: first ? Math.floor((first.top + 1 - top) / line) : 0,
+        markEnd: last ? Math.ceil((last.bottom - 1 - top) / line) : 0,
+      });
+      const next = placed && { ...placed, line, fits };
+      setCut((was) => (JSON.stringify(was) === JSON.stringify(next) ? was : next));
     };
     measure();
     const observer = new ResizeObserver(measure);
-    if (box.firstElementChild !== null) observer.observe(box.firstElementChild);
+    observer.observe(text);
     window.addEventListener("resize", measure);
     return () => {
       observer.disconnect();
@@ -106,6 +128,27 @@ export default function NotePage({
     // straight into writing — [[Mark and note]] — has nothing to measure until then.
   }, [editing]);
 
+  /**
+   * **Opening and closing leave the mark where it stood on screen.** The window is cut at its top
+   * too, so opening it puts lines above the mark; left alone, the mark the reader was looking at
+   * would be pushed down by them, and closing would pull it back up past the top. Where the page
+   * is too short to scroll that far — a mark near the passage's end, with little under it — it
+   * moves by what is left.
+   */
+  const heldAt = useRef<number | null>(null);
+  const toggle = () => {
+    heldAt.current = sourceRef.current?.querySelector("mark")?.getBoundingClientRect().top ?? null;
+    setOpen((was) => !was);
+  };
+  useLayoutEffect(() => {
+    const was = heldAt.current;
+    heldAt.current = null;
+    const mark = sourceRef.current?.querySelector("mark");
+    const body = pageRef.current?.closest<HTMLElement>(".panel-body");
+    if (was === null || !mark || !body) return;
+    body.scrollTop += mark.getBoundingClientRect().top - was;
+  }, [open]);
+
   // A step to another note is a new page, read from its top: the panel's scroll is the page's,
   // and left where it was it would open the next note halfway down its passage.
   useLayoutEffect(() => {
@@ -114,8 +157,9 @@ export default function NotePage({
   }, []);
 
   const clipped = cut !== null && !open;
-  // Named so the catalog carries `{more}` rather than a bare `{0}`.
-  const more = cut?.more ?? 0;
+  // Named so the catalog carries `{more}` rather than a bare `{0}`. Both ends' lines together:
+  // what the button would show is every line not standing now, wherever it was cut.
+  const more = cut === null ? 0 : cut.above + cut.below;
 
   if (editing) {
     return (
@@ -152,13 +196,20 @@ export default function NotePage({
           it step back, so the eye lands on what was marked and the rest is there to be read. */}
       <div
         ref={sourceRef}
-        className={`note-page-source${clipped ? " clipped" : ""}${sans ? " sans" : ""}`}
+        className={[
+          "note-page-source",
+          clipped && cut.above > 0 && "cut-above",
+          clipped && cut.below > 0 && "cut-below",
+          sans && "sans",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         style={{
           fontSize: `calc(1rem * ${fontSize} / 100)`,
-          maxHeight: clipped ? `${cut.height}px` : undefined,
+          maxHeight: clipped ? `${cut.fits * cut.line}px` : undefined,
         }}
       >
-        <div>
+        <div style={clipped ? { marginTop: `${-cut.above * cut.line}px` } : undefined}>
           {shown.map((paragraph, i) => (
             <p key={i}>
               {paragraph.before}
@@ -169,12 +220,7 @@ export default function NotePage({
         </div>
       </div>
       {cut !== null && (
-        <button
-          type="button"
-          className="note-page-more"
-          aria-expanded={open}
-          onClick={() => setOpen((was) => !was)}
-        >
+        <button type="button" className="note-page-more" aria-expanded={open} onClick={toggle}>
           {open ? (
             <Trans comment="Button under the passage on the phone's one-note page, once the passage has been opened in full: cuts it back to half the screen so the note under it comes up again.">
               Show less of the text

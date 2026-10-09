@@ -1179,10 +1179,24 @@ button.note-index-item.recent:active:not(:disabled) {
   color: var(--text-body);
 }
 
-/* Cut to half the screen on a whole line, and fading out at the foot so the cut reads as "more
-   below" rather than as the end of the passage. */
-.note-page-source.clipped {
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 2lh), transparent);
+/* Cut to half the screen on a whole line, and fading out at each end that was cut, so the cut
+   reads as "more here" rather than as where the passage begins or ends. The window is placed on
+   the mark (`lib/passage-window.ts`), so a long paragraph can be cut at both. */
+.note-page-source {
+  /* Two lines, or a quarter of a window too short for two at each end to leave the mark clear. */
+  --cut-fade: min(2lh, 25%);
+}
+
+.note-page-source.cut-below {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--cut-fade)), transparent);
+}
+
+.note-page-source.cut-above {
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--cut-fade));
+}
+
+.note-page-source.cut-above.cut-below {
+  mask-image: linear-gradient(to bottom, transparent, #000 2lh, #000 calc(100% - 2lh), transparent);
 }
 
 .note-page-more {
