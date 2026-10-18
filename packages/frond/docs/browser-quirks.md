@@ -997,3 +997,65 @@ content document 上），但這一次沒有，鍵盤還指著外面。
 
 `Dockerfile` 的映像（`mcr.microsoft.com/playwright:v1.61.1-noble`），firefox 的 Linux 建置，
 容器內執行。
+
+## iPadOS 18 的 Safari：`user-select: none` 底下，`caretRangeFromPoint` 找不到字
+
+**症狀**
+
+在 iPad mini（iPadOS 18.7）上長按書的文字，什麼事都沒發生：選不起來，所以也劃不了重點、加不了筆記。
+同一個 app 在 iPhone 上正常。
+
+Tidemarks 在觸控裝置上自己畫選取（Tidemarks 的 ADR-0036），所以書的 document 是 `user-select: none`，
+長按由 app 計時，時間到了再問 frond 的 `rangeFromPoints` 手指底下是哪個字。frond 的 `caretAt` 先問
+`caretPositionFromPoint`，沒有這個 API 才退回 WebKit 的 `caretRangeFromPoint`。
+
+**這台 Safari 沒有 `caretPositionFromPoint`，而它的 `caretRangeFromPoint` 碰到不可選取的文字一律
+回 `null`。** 長按每一次都問到空的，app 就當成手指底下沒有字。
+
+**量測**（真機，有 frond 參與：dev server 走區網開給 iPad，在 app 裡加一層暫時的事件記錄）
+
+長按時記錄手指落點，在同一個點上直接問兩個 API，接著把 document 暫時改成 `user-select: text` 再問一次：
+
+| | `caretPositionFromPoint` | `caretRangeFromPoint` |
+| --- | --- | --- |
+| 原樣（`user-select: none`） | 不存在 | **`null`** |
+| 暫時改成 `user-select: text` | 不存在 | 落點上的 text node |
+
+同一段記錄排除了另外兩個方向：手指被認成 `touch`、選取歸 app 管，長按計時也確實跑完了，中間沒有
+`pointercancel` 或 `touchcancel`。
+
+**測試映像裡的 WebKit 沒有這個行為。** 把 `caretPositionFromPoint` 藏起來、document 設成
+`user-select: none`，它的 `caretRangeFromPoint` 照樣找得到字。所以三家都是綠燈，而且不管等多久，
+這一條都不會在 CI 上自己出現。
+
+**繞法**
+
+`caretAt` 第一次問不到字的時候，把 document 根元素的 `user-select` 暫時改成 `text` 再問一次，問完
+照原樣放回去（值與 `important` 都放回去）。兩個動作在同一個 task 裡做完，中間不會畫任何一個 frame，
+平台的手勢也就沒有機會從一份「可以選取」的 document 開始。第一次就問到的引擎不會被問第二次。
+
+重問一旦問到了，frond 就記住這個引擎是這樣的，之後每一次都直接在可以選取的狀態下問。拖拉柄的時候
+每次移動要問兩次，不記住的話，這種引擎上每一次都要先問到空的、再問一次。
+
+這個繞法只管 frond 自己寫上去的那一份 `user-select`（根元素上的 inline 宣告）。書自己的樣式表如果
+對某些段落寫了 `user-select: none`，那些段落在這種 Safari 上一樣問不到字。
+
+在同一台 iPad 上複驗：長按出現選取與拉柄，拉柄拖得動，劃重點與加筆記都正常。
+
+**frond 是否需要處理**
+
+需要，而且只能是 frond：文字在 frond 的 iframe 裡，`user-select` 也是 frond 依
+`RendererOptions.nativeSelection` 寫上去的，消費端碰不到這兩樣東西。
+
+**哪個測試會抓到**
+
+`tests/browser/renderer/range-from-points.spec.ts` 的〈a long press finds its word with selection off,
+where the caret API refuses unselectable text〉，只在 webkit 跑。因為測試映像的引擎不會給出這個答案，
+那條測試**照量到的行為包了一層 `caretRangeFromPoint`**（document 是 `user-select: none` 就回 `null`，
+其餘交給真的 API），同時把 `caretPositionFromPoint` 藏起來。它守的是 frond 怎麼對待這種引擎，
+守不到引擎本身。
+
+**環境**
+
+iPad mini，iPadOS 18.7，Safari（`AppleWebKit/605.1.15`）。iPhone 正常的那一台是哪一版沒有記下來，
+所以「從哪一版起有 `caretPositionFromPoint`」這裡不下結論。
