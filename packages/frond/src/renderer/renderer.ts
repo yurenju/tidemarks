@@ -135,9 +135,9 @@ export interface RendererOptions {
    * Whether the browser may select text in the book. Omitted, it may.
    *
    * A consumer that draws its own selection turns this off and works from
-   * `rangeFromPoints()` instead (ADR-0036). It has to be frond's to apply: the text is in the
-   * iframe, so `user-select` on the container reaches none of it, and the same is true of the
-   * callout menu iOS raises on a long press.
+   * `rangeFromPoints()` instead (Tidemarks' ADR-0036). It has to be frond's to apply: the text is
+   * in the iframe, so `user-select` on the container reaches none of it, and the same is true of
+   * the callout menu iOS raises on a long press.
    *
    * **Which pointers this covers is not asked here.** Suppressing for a finger and leaving a
    * mouse alone is a policy about devices, and policy is the consumer's (ADR-0002) — it decides
@@ -934,10 +934,10 @@ export class Renderer {
    * The same three facts `rangeFromPoints()` answers with, for a passage named by a CFI rather
    * than by two points on screen.
    *
-   * This is the CFI-shaped door into the take-over-selection route (ADR-0036): that route never
-   * touches the browser's selection, so it needs the geometry handed to it, and until now the
-   * only way in was two screen coordinates — which a caller holding an address does not have
-   * and would have to fake by inventing a drag.
+   * This is the CFI-shaped door into the take-over-selection route (Tidemarks' ADR-0036): that
+   * route never touches the browser's selection, so it needs the geometry handed to it, and until
+   * now the only way in was two screen coordinates — which a caller holding an address does not
+   * have and would have to fake by inventing a drag.
    *
    * `undefined` on an unparseable CFI, one naming another section, or one pointing at nothing
    * here. `rects` and `cfi` go stale on the next `layout`, exactly as `rangeFromPoints()`'s do.
@@ -1071,13 +1071,14 @@ export class Renderer {
 
   /**
    * The range between two container points, for a consumer that has taken over touch selection
-   * (ADR-0036, issue #50). This is the one fact only frond can compute for that consumer: what
-   * text sits between two places on screen, and where it is — the content lives in the iframe,
-   * out of the consumer's reach.
+   * (Tidemarks' ADR-0036, issue #50). This is the one fact only frond can compute for that
+   * consumer: what text sits between two places on screen, and where it is — the content lives in
+   * the iframe, out of the consumer's reach.
    *
    * `null` when either point is off the text. Both points are taken against the section on
    * screen, so a selection does not cross the page boundary; cross-page selection is
-   * deliberately out for now (ADR-0036), which is what lets this stay a single-section query.
+   * deliberately out for now (Tidemarks' ADR-0036), which is what lets this stay a
+   * single-section query.
    *
    * Unlike `emitSelection`, nothing native is involved — the consumer supplies the two points
    * and frond answers with geometry, so the document's `user-select` can be off entirely. The

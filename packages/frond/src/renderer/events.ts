@@ -168,9 +168,9 @@ export interface SelectionEvent {
 
 /**
  * A range frond located from two points, for a consumer that draws its own selection instead
- * of the browser's (issue #50, ADR-0036). The same three facts a `SelectionEvent` carries, but
- * pulled on demand rather than pushed when a native selection changes — nothing native is
- * involved, so `user-select` can be off entirely.
+ * of the browser's (issue #50, Tidemarks' ADR-0036). The same three facts a `SelectionEvent`
+ * carries, but pulled on demand rather than pushed when a native selection changes — nothing native
+ * is involved, so `user-select` can be off entirely.
  *
  * `rects` and `cfi` go stale on the next `layout`, exactly as a `SelectionEvent`'s do.
  */

@@ -146,7 +146,7 @@ test.describe("where the ink sits inside the rectangle", () => {
     // So the slack this was written for exists in two engines and not the third, and the
     // assertion has to be the em rather than the difference: frond hands back one em wherever
     // there is room for it, and the rectangle where there is not. Asserting the slack itself
-    // passed locally on chromium and failed on Firefox in CI, which is ADR-0039's bill.
+    // passed locally on chromium and failed on Firefox in CI, the cost Tidemarks' ADR-0039 accepts.
     //
     // The face is named rather than left to `serif` so that the rectangle is a CJK face's. A
     // Latin serif has slack of its own and would prove nothing about the books this was found in.
@@ -248,7 +248,8 @@ test.describe("the minimum ink gap", () => {
     // so it beats a rule inherited from the root however the root got it. Whether that is the
     // book's intent is beside the point — the cascade cannot tell the two apart, and the
     // alternative is a rule specific enough to override books that really did choose. Recorded
-    // rather than worked around; ADR-0032 lists it with the other cases the floor leaves.
+    // rather than worked around; Tidemarks' ADR-0032 lists it with the other cases the
+    // floor leaves.
     await mountWith(page, "p { font: 16px serif; }", { minimumInkGap: GAP });
     expect(await inkGap(page)).toBeLessThan(GAP);
   });
@@ -288,8 +289,8 @@ test.describe("the minimum ink gap", () => {
     page,
   }) => {
     // The rule carries no !important and sits on the root, so a book that states a line height
-    // keeps it — and a consumer drawing between the lines does not get its room. ADR-0032
-    // records this as the case the floor deliberately does not cover.
+    // keeps it — and a consumer drawing between the lines does not get its room.
+    // Tidemarks' ADR-0032 records this as the case the floor deliberately does not cover.
     await mountWith(page, "p { font: 16px serif; line-height: 1; }", { minimumInkGap: GAP });
     expect(await inkGap(page)).toBeLessThan(GAP);
   });
