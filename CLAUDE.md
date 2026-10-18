@@ -473,7 +473,7 @@ agent。
 **開完 PR 要盯 CI 到綠**，紅了就查、就修；不是自己造成的（環境層那類）另開 issue 用 `Refs #N` 指過去，
 不要混進這個 diff。做法見 `docs/agents/pull-requests.md`。
 
-**盯的方式是 Auto-fix，不是自己卡著等。** 在桌面 app 裡開完 PR 就提議打開這個 PR 的 Auto-fix，CI 紅了
-或撞到 merge conflict，app 會把同一個 session 叫醒去修；使用者說不開，就是使用者自己看。一輪 CI 八分鐘
-省不掉，自己卡著等的話，這段時間人什麼都不能跟 agent 說。只有沒有 Auto-fix 可開的時候才自己等，用
-`gh run watch <run-id> --exit-status`，不要 `sleep N; gh run list`。
+**盯的方式是 Auto-fix，不是自己卡著等。** 在桌面 app 裡開完 PR 就直接打開這個 PR 的 Auto-fix。CI 紅了、撞到
+merge conflict 或有 review 留言，app 會把同一個 session 叫醒；使用者沒讓 Auto-fix 打開，CI 就由使用者
+自己看。一輪 CI 八分鐘省不掉，自己卡著等的話，這段時間人什麼都不能跟 agent 說。只有沒有 Auto-fix 可開的
+時候才自己等，用 `gh run watch <run-id> --exit-status`，不要 `sleep N; gh run list`。
