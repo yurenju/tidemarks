@@ -20,9 +20,17 @@ const BOOKS_DIRECTORY = join(
   "books",
 );
 
+// Generating a novel is a second or more of pure CPU (the text, then JPEG-encoding every
+// picture), and the first case pays for both books because the content is memoised. A slow
+// CI runner took 5,067ms against vitest's default 5,000ms (#273). This test answers "did
+// the bytes change", never "how fast", so the limit is set far above any runner instead of
+// letting the default turn machine speed into a red light.
+const GENERATION_TIMEOUT_MS = 60_000;
+
 describe("the novel-length books in the repo", () => {
   test.for(["vertical", "horizontal"] as const)(
     "the %s one matches what the generator produces",
+    { timeout: GENERATION_TIMEOUT_MS },
     async (direction) => {
       const fileName = novelFileName(direction);
       const committed = await readFile(join(BOOKS_DIRECTORY, fileName));
