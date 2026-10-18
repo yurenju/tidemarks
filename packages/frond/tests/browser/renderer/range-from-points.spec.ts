@@ -67,6 +67,71 @@ test.describe("rangeFromPoints", () => {
     expect(backward!.text).toBe(forward!.text);
   });
 
+  test("a long press finds its word with selection off, where the caret API refuses unselectable text", async ({
+    page,
+    browserName,
+  }) => {
+    // The case this whole API exists for, and the one that shipped broken: a consumer drawing its
+    // own selection has `user-select: none` on the document. Measured on iPadOS 18.7, Safari has
+    // no `caretPositionFromPoint`, and its `caretRangeFromPoint` answers `null` for text that
+    // cannot be selected, so every long press resolved to nothing.
+    //
+    // **The engine here does not behave that way**, so the test makes it: the WebKit this suite
+    // runs finds the text with `caretRangeFromPoint` either way. What is stubbed is
+    // exactly the measured answer and nothing more, so this holds frond's handling of such an
+    // engine, not the engine. WebKit only, because the stub wraps WebKit's own API.
+    test.skip(browserName !== "webkit", "the stub wraps WebKit's caretRangeFromPoint");
+    await mountFixture(page, "vertical-japanese");
+    const point = centreOf((await rectAndTextOf(page, "p")).rect);
+    await page.evaluate(() => {
+      window.frond.clearSelection();
+      window.frond.setNativeSelection(false);
+      for (const frame of document.querySelectorAll("iframe")) {
+        const doc = frame.contentDocument as
+          (Document & { caretRangeFromPoint(x: number, y: number): Range | null }) | null;
+        if (!doc) continue;
+        const real = doc.caretRangeFromPoint.bind(doc);
+        Object.defineProperty(doc, "caretPositionFromPoint", { value: undefined });
+        Object.defineProperty(doc, "caretRangeFromPoint", {
+          value: (x: number, y: number) => {
+            const style = getComputedStyle(doc.documentElement) as CSSStyleDeclaration & {
+              webkitUserSelect?: string;
+            };
+            return style.webkitUserSelect === "none" ? null : real(x, y);
+          },
+        });
+      }
+    });
+
+    // The stub keys on `webkitUserSelect`; an engine that stopped exposing it would let every
+    // question through, and this test would pass while guarding nothing.
+    const suppressed = await page.evaluate(() =>
+      [...document.querySelectorAll("iframe")].map((frame) => {
+        const root = frame.contentDocument!.documentElement;
+        return (getComputedStyle(root) as CSSStyleDeclaration & { webkitUserSelect?: string })
+          .webkitUserSelect;
+      }),
+    );
+    expect(suppressed.length).toBeGreaterThan(0);
+    expect(suppressed.every((value) => value === "none")).toBe(true);
+
+    const word = await page.evaluate((p) => window.frond.rangeFromPoints(p, p, "word"), point);
+
+    expect(word).not.toBeNull();
+    expect(word!.text.length).toBeGreaterThan(0);
+
+    // And the document is unselectable again afterwards, exactly as it was. A lift that stayed
+    // would hand the long press back to the platform's own selection — the magnifier and callout
+    // the consumer turned selection off to be rid of.
+    const after = await page.evaluate(() =>
+      [...document.querySelectorAll("iframe")].map((frame) => {
+        const style = frame.contentDocument!.documentElement.style;
+        return `${style.getPropertyValue("-webkit-user-select")} ${style.getPropertyPriority("-webkit-user-select")}`;
+      }),
+    );
+    expect(after.every((value) => value === "none important")).toBe(true);
+  });
+
   test("a point off the text gives nothing to select", async ({ page }) => {
     // A press in the margin, past the inset the iframe sits behind: there is no caret there,
     // and the consumer must get `null` rather than an empty-but-present selection.

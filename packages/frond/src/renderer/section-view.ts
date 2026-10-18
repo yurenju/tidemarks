@@ -138,6 +138,24 @@ export class WritingModeUnreadableError extends Error {
   }
 }
 
+/**
+ * The declarations that make a document unselectable, as `suppressSelection` writes them on the
+ * root's inline style. `whileSelectable` lifts the same two, so they are named once.
+ */
+const SELECTABILITY = ["user-select", "-webkit-user-select"] as const;
+
+/** A caret position: a node, and the offset into it. */
+type Caret = { readonly node: Node; readonly offset: number };
+
+/**
+ * Whether this engine's caret lookup has been seen to refuse text that `user-select: none` covers,
+ * and then find it once the document was selectable (`SectionView.caretAt`).
+ *
+ * Module-wide rather than per section, because it is a fact about the engine, not the document:
+ * a page turn into the next section would otherwise learn it all over again.
+ */
+let caretNeedsSelectable = false;
+
 export class SectionView {
   readonly document: Document;
   readonly writingMode: WritingMode;
@@ -468,7 +486,7 @@ export class SectionView {
    */
   suppressSelection(suppressed: boolean): void {
     const root = this.document.documentElement;
-    for (const property of ["user-select", "-webkit-user-select", "-webkit-touch-callout"]) {
+    for (const property of [...SELECTABILITY, "-webkit-touch-callout"]) {
       if (suppressed) root.style.setProperty(property, "none", "important");
       else root.style.removeProperty(property);
     }
@@ -742,13 +760,40 @@ export class SectionView {
    * which lands in the iframe's own viewport — where `caretPositionFromPoint` counts from, with
    * the scroll already accounted for. `caretRangeFromPoint` is the WebKit spelling of the same
    * question.
+   *
+   * ## Asked again with the text selectable, when the first answer is nothing
+   *
+   * The consumer this exists for has `user-select: none` on the document (Tidemarks' ADR-0036),
+   * and **on
+   * some WebKit that makes `caretRangeFromPoint` answer `null`** for text that is right there.
+   * Measured on iPadOS 18.7, whose Safari has no `caretPositionFromPoint` to ask instead: every
+   * long press resolved to nothing, so nothing could be selected at all. The WebKit in the test
+   * image does not behave this way and finds the text either way, which is why the test for this
+   * stubs the measured answer rather than waiting for an engine to give it.
+   *
+   * So a miss is asked once more with selection switched on, and put back before anything else
+   * runs. Both happen inside one task, so no frame is ever drawn selectable and no gesture of the
+   * platform's can start from it. An engine that found the text the first time is never asked
+   * twice.
+   *
+   * **Once the second ask has found what the first could not, every later one goes straight to
+   * it** (`caretNeedsSelectable`). Dragging a handle asks twice per pointer move, and on such an
+   * engine each of those would otherwise be a miss followed by the real question.
    */
-  private caretAt(point: {
-    readonly x: number;
-    readonly y: number;
-  }): { readonly node: Node; readonly offset: number } | undefined {
+  private caretAt(point: { readonly x: number; readonly y: number }): Caret | undefined {
     const x = point.x - this.insets.left - this.offset.x;
     const y = point.y - this.insets.top - this.offset.y;
+    if (caretNeedsSelectable) return this.whileSelectable(() => this.caretAtFrame(x, y));
+
+    const caret = this.caretAtFrame(x, y);
+    if (caret !== undefined) return caret;
+    const retried = this.whileSelectable(() => this.caretAtFrame(x, y));
+    if (retried !== undefined) caretNeedsSelectable = true;
+    return retried;
+  }
+
+  /** `caretAt` in the frame's own viewport coordinates, as the document is styled right now. */
+  private caretAtFrame(x: number, y: number): Caret | undefined {
     const doc = this.document as Document & {
       caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
       caretRangeFromPoint?(x: number, y: number): Range | null;
@@ -762,6 +807,37 @@ export class SectionView {
       return range === null ? undefined : { node: range.startContainer, offset: range.startOffset };
     }
     return undefined;
+  }
+
+  /**
+   * Runs `query` with the document selectable, then puts back exactly what was there.
+   *
+   * What is put back is the root's inline declaration, value and priority both, because that is
+   * the only place `suppressSelection` writes. A document nobody suppressed is left alone.
+   */
+  private whileSelectable<T>(query: () => T): T {
+    const root = this.document.documentElement;
+    const properties = SELECTABILITY;
+    if (properties.every((property) => root.style.getPropertyValue(property) !== "none")) {
+      return query();
+    }
+    const saved = properties.map(
+      (property) =>
+        [
+          property,
+          root.style.getPropertyValue(property),
+          root.style.getPropertyPriority(property),
+        ] as const,
+    );
+    for (const property of properties) root.style.setProperty(property, "text", "important");
+    try {
+      return query();
+    } finally {
+      for (const [property, value, priority] of saved) {
+        if (value === "") root.style.removeProperty(property);
+        else root.style.setProperty(property, value, priority);
+      }
+    }
   }
 
   /** The current selection. `undefined` when there is none, or when it is not in this document. */
