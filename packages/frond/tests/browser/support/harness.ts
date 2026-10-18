@@ -470,7 +470,8 @@ export interface FrondHarness {
   rectsFor(cfi: string): readonly Rect[];
   /**
    * The range between two container points, for the take-over-selection path (issue #50,
-   * ADR-0036). The consumer drives the two points; `null` when either falls off the text.
+   * Tidemarks' ADR-0036). The consumer drives the two points; `null` when either falls off
+   * the text.
    */
   rangeFromPoints(
     anchor: { readonly x: number; readonly y: number },

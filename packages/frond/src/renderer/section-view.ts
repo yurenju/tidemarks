@@ -480,8 +480,8 @@ export class SectionView {
    * `-webkit-touch-callout` goes with them: on iOS a long press raises a callout menu of its
    * own, and that menu is not a selection — turning selection off leaves it standing. A
    * consumer drawing its own selection (`RendererOptions.nativeSelection`) would get the
-   * system's menu over its own colour row, which is one of the symptoms ADR-0036 exists to
-   * remove. ⚠️ **Whether it is enough on a real iPhone is unmeasured**, for the same reason as
+   * system's menu over its own colour row, which is one of the symptoms Tidemarks' ADR-0036 exists
+   * to remove. ⚠️ **Whether it is enough on a real iPhone is unmeasured**, for the same reason as
    * the note above.
    */
   suppressSelection(suppressed: boolean): void {
@@ -715,8 +715,8 @@ export class SectionView {
 
   /**
    * A `Range` in this document spanning two container points, for a consumer that has taken
-   * over touch selection and draws its own (issue #50, ADR-0036). `undefined` when either
-   * point falls on nothing selectable.
+   * over touch selection and draws its own (issue #50, Tidemarks' ADR-0036). `undefined` when
+   * either point falls on nothing selectable.
    *
    * `"word"` snaps to the word under the anchor — a long press — using the platform's own
    * segmentation (`Intl.Segmenter`), so the boundary is the one the reader's script expects; a

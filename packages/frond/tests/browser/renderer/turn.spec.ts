@@ -357,8 +357,9 @@ test.describe("changing whose selection it is, on a book that is already open", 
     page,
   }) => {
     // The mirror, and the more expensive one to get wrong: a page that arrives selectable is a
-    // page where the next long press is the browser's own gesture — the iOS magnifier ADR-0036
-    // exists to remove — over a passage the app is drawing its own selection on.
+    // page where the next long press is the browser's own gesture — the iOS magnifier
+    // Tidemarks' ADR-0036 exists to remove — over a passage the app is drawing its own
+    // selection on.
     await mountPlainBook(page);
     await peeksReady(page);
 

@@ -1,7 +1,7 @@
-// `rangeFromPoints` — the fact the take-over-selection path is built on (issue #50, ADR-0036):
-// two points on screen turned into the passage between them, computed inside the iframe where
-// the text lives. Native selection is never involved here; the consumer drives the points, so
-// this is what lets `user-select` be turned off entirely on touch.
+// `rangeFromPoints` — the fact the take-over-selection path is built on (issue #50,
+// Tidemarks' ADR-0036): two points on screen turned into the passage between them, computed inside
+// the iframe where the text lives. Native selection is never involved here; the consumer drives the
+// points, so this is what lets `user-select` be turned off entirely on touch.
 //
 // Whether the resulting rectangles and CFI are right is already covered by selection.spec.ts —
 // this file is about the point→range half those tests get from the browser for free.

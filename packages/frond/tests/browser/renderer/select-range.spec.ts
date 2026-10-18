@@ -6,7 +6,7 @@
 // The three of them are one route with three doors: `findText` turns a phrase into a CFI,
 // `selectRange` hands that CFI to the browser's own selection, and `rangeFactsFor` answers
 // with the geometry instead — for the consumer that has taken selection over and draws it
-// itself, where nothing native is involved at all (ADR-0036).
+// itself, where nothing native is involved at all (Tidemarks' ADR-0036).
 import { type Page } from "@playwright/test";
 import { expect, test } from "../support/fixtures.js";
 import { parseCfi } from "../../../src/epub/cfi.ts";

@@ -129,7 +129,7 @@ describe("the line-height a mark needs", () => {
   // 4px of wave, 0.7 clear of this line's ink and 1.3 clear of the next line's.
   const GAP = 6;
 
-  test("Alice's body text needs 1.30, which is what ADR-0032 records", () => {
+  test("Alice's body text needs 1.30, which is what Tidemarks' ADR-0032 records", () => {
     expect(minimumLineHeight(TIMES, TIMES_AT, GAP)).toBeCloseTo(1.3, 2);
   });
 
@@ -139,7 +139,7 @@ describe("the line-height a mark needs", () => {
     );
   });
 
-  test("the whole table in ADR-0032 comes out of this function", () => {
+  test("the whole table in Tidemarks' ADR-0032 comes out of this function", () => {
     const table: readonly [number, number][] = [
       [12.8, 1.38],
       [16, 1.29],
