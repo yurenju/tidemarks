@@ -146,7 +146,7 @@ test.describe("where the ink sits inside the rectangle", () => {
     // So the slack this was written for exists in two engines and not the third, and the
     // assertion has to be the em rather than the difference: frond hands back one em wherever
     // there is room for it, and the rectangle where there is not. Asserting the slack itself
-    // passed locally on chromium and failed on Firefox in CI, which is Tidemarks' ADR-0039's bill.
+    // passed locally on chromium and failed on Firefox in CI, the cost Tidemarks' ADR-0039 accepts.
     //
     // The face is named rather than left to `serif` so that the rectangle is a CJK face's. A
     // Latin serif has slack of its own and would prove nothing about the books this was found in.
