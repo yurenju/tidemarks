@@ -475,27 +475,17 @@ PR 說明裡的圖等於直接貼在網路上。所以截圖之前先看一眼�
 等。開不開由使用者決定。
 
 Auto-fix 開著的時候，app 替你盯這個 PR：CI 紅了或撞到 merge conflict，就把開 PR 的那個 session 叫醒。
-所以「紅了就修，不是丟給下一個人去發現」這份責任沒有換人，換掉的只是等的那八分鐘：以前 agent 卡在
-那一輪裡等 CI 跑完，人在這段時間什麼都不能跟它說；現在開完 PR 就能收尾，人可以先去讀 PR。綠了不會
-叫醒，那時候也沒有事要做。
+所以「紅了就修」這份責任還是開 PR 的 agent 的，交出去的只有等的那八分鐘。自己卡著等的話，那八分鐘裡
+人什麼都不能跟它說；交給 Auto-fix，開完 PR 就能收尾，人可以先去讀 PR。
 
-被叫醒之後怎麼查、怎麼修，跟以前一樣照下面〈紅了先拿到錯誤本文〉以後那幾節，重跑之前照
-[flaky.md](flaky.md) 先確認它在帳本裡。
+被叫醒之後照下面〈紅了先拿到錯誤本文〉以後那幾節查和修，重跑之前照 [flaky.md](flaky.md) 先確認它在
+帳本裡。
 
-使用者說不開，就是使用者自己看 CI，紅了會回來找你，這時候不要改回自己等。
+使用者說不開，CI 就由使用者自己看，這時候不要改回自己等。
 
-**只有沒有 Auto-fix 可開的時候**（不在桌面 app 裡跑）才自己等：
+### 查 CI 的狀態用 `gh run`，不用 Checks API
 
-```bash
-gh run list --branch <你的分支> --limit 5          # 拿 run id
-gh run watch <run-id> --interval 30 --exit-status  # 卡在這裡等它跑完
-gh run view <run-id> --json conclusion,jobs -q '.conclusion, (.jobs[]|"\(.name)\t\(.conclusion)")'
-```
-
-⚠️ **不要寫成 `sleep 420; gh run list`。** 一輪 CI 八分鐘，那八分鐘省不掉；`sleep` 多付的是間隔的
-尾巴，而 `gh run watch --exit-status` 一結束就回來，寫起來還比較短。
-
-**Checks API 那一整組都不要用**，改用上面的 `gh run`。這不是設定漏開：fine-grained token 的權限
+**Checks API 那一整組都不要用**，改用 Actions 那組 `gh run`。這不是設定漏開：fine-grained token 的權限
 清單裡**沒有 Checks 這一格**，所以去設定頁找也找不到，`gh run view` 自己吐的那句
 「it is not currently possible to create a fine-grained PAT with the `checks:read` permission」
 是準的。碰到的會是這些：
@@ -516,6 +506,19 @@ Actions 以外的 CI，那家的狀態就真的看不到了。
 
 一輪大約 8 分鐘，四個 job：`test`（Vitest，一分鐘內回報）與 `browser (chromium|firefox|webkit)`
 （各自在容器裡跑 frond 與 app 兩套）。
+
+### 沒有 Auto-fix 的時候才自己等
+
+**只有沒有 Auto-fix 可開的時候**（例如不在桌面 app 裡跑）才自己等：
+
+```bash
+gh run list --branch <你的分支> --limit 5          # 拿 run id
+gh run watch <run-id> --interval 30 --exit-status  # 卡在這裡等它跑完
+gh run view <run-id> --json conclusion,jobs -q '.conclusion, (.jobs[]|"\(.name)\t\(.conclusion)")'
+```
+
+⚠️ **不要寫成 `sleep 420; gh run list`。** 一輪 CI 八分鐘，那八分鐘省不掉；`sleep` 多付的是間隔的
+尾巴，而 `gh run watch --exit-status` 一結束就回來，寫起來還比較短。
 
 ### 紅了先拿到錯誤本文
 

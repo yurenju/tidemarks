@@ -476,5 +476,4 @@ agent。
 **盯的方式是 Auto-fix，不是自己卡著等。** 在桌面 app 裡開完 PR 就提議打開這個 PR 的 Auto-fix，CI 紅了
 或撞到 merge conflict，app 會把同一個 session 叫醒去修；使用者說不開，就是使用者自己看。一輪 CI 八分鐘
 省不掉，自己卡著等的話，這段時間人什麼都不能跟 agent 說。只有沒有 Auto-fix 可開的時候才自己等，用
-`gh run watch <run-id> --exit-status`，不要 `sleep N; gh run list`。真正的槓桿是少推幾輪，不是換一種
-等法。
+`gh run watch <run-id> --exit-status`，不要 `sleep N; gh run list`。
